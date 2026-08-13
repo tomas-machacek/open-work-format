@@ -44,3 +44,19 @@ OWF is informed by:
 
 These are influences rather than normative dependencies. OWF does not claim
 compatibility or affiliation with them.
+
+## License
+
+Except where otherwise noted, the Open Work Format specification,
+documentation, and examples are licensed under the
+[Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
+
+Suggested attribution:
+
+> Open Work Format (OWF) by Tomáš Macháček, licensed under CC BY 4.0.  
+> https://github.com/tomas-machacek/open-work-format
+
+Implementations of OWF are encouraged to reference this repository. This is a
+request, not an additional license condition.
+
+Copyright © 2026 Tomáš Macháček.
