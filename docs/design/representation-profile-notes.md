@@ -27,6 +27,7 @@ The Workspace directory is the bundle root. For example:
 my-workspace/
 ├── _index.md
 ├── _actions.yaml
+├── _inbox.yaml
 ├── general-note.md
 ├── _projects/
 │   ├── _index.md
@@ -43,8 +44,6 @@ my-workspace/
 │           ├── _actions.yaml
 │           └── obsolete-outcome/
 │               └── _index.md
-├── _inbox/
-│   └── _index.md
 └── _views/
     └── _index.md
 ```
@@ -61,7 +60,7 @@ Current reserved names are:
 
 - `_index.md`
 - `_projects/`
-- `_inbox/`
+- `_inbox.yaml`
 - `_views/`
 - `_actions.yaml`
 - `_archive/`
@@ -79,8 +78,8 @@ Object role is derived from representation location:
 | User-named directory directly under `_projects/` | Project |
 | User-named directory directly under a Project or Outcome | child Outcome |
 | Entry in an owner's `_actions.yaml` | Action |
+| Entry in the Workspace-root `_inbox.yaml` | Inbox Item |
 | Ordinary `.md` file directly under Workspace, Project, or Outcome | Knowledge Document |
-| Document under `_inbox/` | Inbox Item |
 | Document under `_views/` | View |
 
 The need for a redundant explicit `type` field remains open. Location already
@@ -195,7 +194,48 @@ For example:
 Action IDs must be unique within the owner's active and archived Action
 collections together.
 
-## 9. Archive
+## 9. Inbox Collection
+
+Inbox Items are short-lived unresolved captures and do not own other objects.
+They are represented as entries in one optional Workspace-root
+`_inbox.yaml`; OWF does not define an `_inbox/` directory.
+
+Absence of `_inbox.yaml` means that the Workspace has no current Inbox Items.
+The planned shape is intentionally smaller than the Action schema:
+
+```yaml
+items:
+  investigate-view-snapshots:
+    captured-at: 2026-08-15T20:45:00+02:00
+    content: Investigate whether View Snapshots need shallow and deep variants.
+
+  email-from-jan:
+    captured-at: 2026-08-15T21:10:00+02:00
+    content: |
+      Jan sent additional requirements for the integration.
+      Clarify whether they change the expected Outcome.
+    source: https://example.com/message/123
+```
+
+Exact field names beyond the Core-required `captured-at` semantics remain to be
+specified. Each item has a Workspace-local stable ID and maps to the virtual
+logical path:
+
+```text
+/_inbox/<item-id>
+```
+
+YAML mapping order has no Core meaning. Age and ordering are derived from
+`captured-at` and may be exposed through Views.
+
+Inbox Items are not archived. After successful Resolved or Discarded processing,
+the entry is consumed and removed from `_inbox.yaml`. The Event Log may record
+that processing but does not retain the item as current Workspace state.
+
+Because `_inbox.yaml` is the complete profile-defined collection,
+`_index.md` does not duplicate its entries.
+
+## 10. Archive
 
 A possible owner MAY contain a reserved `_archive/` directory. It is a
 transparent representation container, not a Core object and not a structural
@@ -246,15 +286,16 @@ If `_archive/` exists, it contains its own `_index.md`. That index lists
 user-named archived directories but does not need to list the reserved
 `_actions.yaml`.
 
-## 10. Current Open Questions
+## 11. Current Open Questions
 
 The following representation decisions remain open:
 
 - whether objects need an explicit `type` field despite type being derived from
   location;
 - exact frontmatter fields for Workspace, Project, Outcome, Knowledge Document,
-  Inbox Item, View, and View Snapshot;
-- the complete Action YAML schema and canonical spelling of enum values;
+  View, and View Snapshot;
+- the complete Action and Inbox YAML schemas and canonical spelling of enum
+  values;
 - representation of dependencies, manual blocks, references, and
   `review-after`;
 - the field used to preserve an archived object's preceding terminal
