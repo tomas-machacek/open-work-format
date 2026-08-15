@@ -1,6 +1,6 @@
 # OWF Representation Profile Design Notes
 
-> Status: Working design notes; non-normative and incomplete
+> Status: Working design notes; external structure baseline complete; non-normative
 
 ## 1. Purpose
 
@@ -16,6 +16,24 @@ The representation should remain:
 - free of hidden database state; and
 - structurally simple even where the Core semantics are richer.
 
+### 1.1 Choosing Markdown or YAML
+
+The representation selects a medium according to how an object is used:
+
+> Use Markdown where Core semantics are naturally expressed through prose,
+> headings, ordering, grouping, and links. Use YAML where many compact records
+> require explicit structured properties.
+
+Projects, Outcomes, Knowledge Documents, Views, and the Workspace are
+longer-lived human-facing documents and use Markdown with minimal structured
+metadata. Actions and Inbox Items are normally short records with several
+machine-readable properties and use aggregated YAML collections.
+
+This split avoids inventing custom Markdown syntax for Action state,
+dependencies, and other per-record properties while preserving Markdown's
+natural strengths for View membership, ordering, grouping, links, and
+explanation.
+
 ## 2. General Model
 
 An OWF Workspace is represented by a directory tree. Markdown is used for
@@ -28,7 +46,12 @@ my-workspace/
 ├── _index.md
 ├── _actions.yaml
 ├── _inbox.yaml
-├── general-note.md
+├── _knowledge/
+│   ├── _index.md
+│   ├── general-note.md
+│   └── technologies/
+│       ├── _index.md
+│       └── oauth.md
 ├── _projects/
 │   ├── _index.md
 │   └── open-work-format/
@@ -45,7 +68,16 @@ my-workspace/
 │           └── obsolete-outcome/
 │               └── _index.md
 └── _views/
-    └── _index.md
+    ├── _index.md
+    ├── next-actions.md
+    ├── planning/
+    │   ├── _index.md
+    │   └── sprints/
+    │       ├── _index.md
+    │       └── sprint-42.md
+    └── review/
+        ├── _index.md
+        └── weekly-review.md
 ```
 
 Optional files and directories are omitted when empty unless a later normative
@@ -61,6 +93,7 @@ Current reserved names are:
 - `_index.md`
 - `_projects/`
 - `_inbox.yaml`
+- `_knowledge/`
 - `_views/`
 - `_actions.yaml`
 - `_archive/`
@@ -79,8 +112,9 @@ Object role is derived from representation location:
 | User-named directory directly under a Project or Outcome | child Outcome |
 | Entry in an owner's `_actions.yaml` | Action |
 | Entry in the Workspace-root `_inbox.yaml` | Inbox Item |
-| Ordinary `.md` file directly under Workspace, Project, or Outcome | Knowledge Document |
-| Document under `_views/` | View |
+| Ordinary `.md` file directly under a Project or Outcome | Knowledge Document owned by that object |
+| Ordinary `.md` file anywhere under Workspace-root `_knowledge/` | Workspace-owned Knowledge Document |
+| Ordinary `.md` file anywhere under `_views/` | View |
 
 The need for a redundant explicit `type` field remains open. Location already
 determines type, but an explicit field could provide additional validation.
@@ -128,18 +162,49 @@ Project index does not need boilerplate links to `_actions.yaml` or
 
 ## 7. Knowledge Documents
 
-Knowledge Documents owned by a Workspace, Project, or Outcome are stored
-directly in that owner's directory as ordinary Markdown files.
+Knowledge Documents owned by a Project or Outcome are stored directly in the
+owner directory as ordinary Markdown files. They MUST NOT introduce additional
+Knowledge grouping directories there: the Project and recursive Outcome
+hierarchy already provides the relevant organization.
 
-This makes them visually distinct from Actions in a file explorer:
+Workspace-owned Knowledge Documents are stored under the optional reserved
+`_knowledge/` directory. They MAY be organized using arbitrarily nested,
+user-named grouping directories.
+
+A Knowledge grouping directory:
+
+- is a transparent representation container, not a Core object;
+- does not change ownership: all documents in this subtree remain owned by the
+  Workspace;
+- contains `_index.md`; and
+- may contain Knowledge Documents and further grouping directories.
+
+For example:
+
+```text
+_knowledge/
+├── _index.md
+├── architecture-principles.md
+├── people/
+│   ├── _index.md
+│   └── jan-novak.md
+└── technologies/
+    ├── _index.md
+    └── kafka/
+        ├── _index.md
+        └── operational-notes.md
+```
+
+A Knowledge Document may contain original documentation, a local synthesis, or
+a durable reference to material stored in another format or external system.
+External documentation does not need to be copied into the Workspace.
+
+This layout keeps Knowledge Documents visually distinct from Actions in a file
+explorer:
 
 - Knowledge Documents are named `.md` files;
-- Actions are entries in `_actions.yaml`;
+- Actions are entries in `_actions.yaml`; and
 - child Outcomes are directories.
-
-Detailed specifications, background material, evidence, and other durable
-context should be Knowledge Documents rather than long Action definitions.
-
 ## 8. Action Collections
 
 Actions are normally short, often only one sentence, have relatively short
@@ -235,7 +300,44 @@ that processing but does not retain the item as current Workspace state.
 Because `_inbox.yaml` is the complete profile-defined collection,
 `_index.md` does not duplicate its entries.
 
-## 10. Archive
+
+## 10. Views
+
+Views are represented as individual Markdown files under the reserved
+`_views/` directory. A small Workspace may store them flat; a larger Workspace
+MAY organize them in arbitrarily nested, user-named grouping directories.
+
+Every View grouping directory:
+
+- is a transparent representation container, not a Core object;
+- contains `_index.md`;
+- may contain View documents and further grouping directories; and
+- does not determine the View's machine-readable `purpose`.
+
+For example, placement under `_views/planning/` is a human organization choice
+and MUST NOT implicitly assign `purpose: planning`. Purpose remains explicit
+because one View may serve more than one intent.
+
+Markdown is preferred because a Curated View naturally expresses its semantics
+through standard document structures:
+
+- a link expresses membership;
+- link order expresses ordering;
+- headings express grouping; and
+- prose explains intent and context.
+
+The View frontmatter contains properties of the View itself, such as optional
+`purpose` and planning-window metadata. It does not duplicate the state or
+other properties of referenced members.
+
+A Computed View also remains a Markdown document but requires a
+machine-readable query. Whether that query belongs in frontmatter or a
+designated body block remains open.
+
+The syntax for linking from Markdown to logical OWF identities, especially
+aggregated Actions without individual physical files, also remains open.
+
+## 11. Archive
 
 A possible owner MAY contain a reserved `_archive/` directory. It is a
 transparent representation container, not a Core object and not a structural
@@ -286,14 +388,35 @@ If `_archive/` exists, it contains its own `_index.md`. That index lists
 user-named archived directories but does not need to list the reserved
 `_actions.yaml`.
 
-## 11. Current Open Questions
+## 12. External Structure Baseline
+
+The working design of the external Workspace structure is complete enough to
+serve as the baseline for the next phase. It now defines:
+
+- reserved root entries;
+- directory-based Project and Outcome hierarchy;
+- Markdown placement for scoped and Workspace-level Knowledge;
+- hierarchical Markdown Views;
+- aggregated YAML Actions and Inbox Items;
+- mandatory directory indexes; and
+- transparent local Archive containers.
+
+These remain non-normative until incorporated into a representation
+specification. Internal design may reveal a genuine structural problem, but
+field naming or frontmatter preference alone should not reopen this baseline.
+
+The next phase defines internal document and collection structure: frontmatter,
+required and recommended Markdown sections, YAML schemas, reference syntax, and
+related lint rules.
+
+## 13. Current Open Questions
 
 The following representation decisions remain open:
 
 - whether objects need an explicit `type` field despite type being derived from
   location;
-- exact frontmatter fields for Workspace, Project, Outcome, Knowledge Document,
-  View, and View Snapshot;
+- exact frontmatter fields and required or recommended Markdown sections for
+  Workspace, Project, Outcome, Knowledge Document, View, and View Snapshot;
 - the complete Action and Inbox YAML schemas and canonical spelling of enum
   values;
 - representation of dependencies, manual blocks, references, and
