@@ -22,6 +22,8 @@ Markdown/YAML representation, schemas, and tooling are deliberately deferred.
   and alternatives considered during design.
 - [Core v0 Design Review](docs/design/core-v0-design-review.md) — consolidated
   review and formal closure of the Core v0 design.
+- [Representation Profile Design Notes](docs/design/representation-profile-notes.md)
+  — working, non-normative decisions for the future Markdown/YAML profile.
 
 ### Examples
 
