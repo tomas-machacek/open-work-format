@@ -32,8 +32,10 @@ OWF was informed by three earlier bodies of work:
   human and agent consumers.
 
 These sources are influences, not normative dependencies. OWF changes or
-rejects their concepts where required by its own goals and does not claim
-compatibility or affiliation with GTD, LLM Wiki, or OKF.
+rejects their concepts where required by its own goals. Core v0 does not itself
+claim a concrete serialization relationship with those sources; an OWF
+representation profile MAY define compatibility with a specific external format.
+OWF does not claim affiliation with GTD, LLM Wiki, or OKF.
 
 ## 2. Conformance Language
 
