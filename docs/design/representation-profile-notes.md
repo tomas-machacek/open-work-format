@@ -1,6 +1,6 @@
 # OWF Representation Profile Design Notes
 
-> Status: Working design notes; external structure baseline revised for OKF v0.2 compatibility; non-normative
+> Status: Working design notes; external structure and common document conventions established; non-normative
 
 ## 1. Purpose
 
@@ -47,6 +47,7 @@ my-workspace/
 ├── log.md
 ├── _actions.md
 ├── _inbox.md
+├── _notes.md
 ├── _knowledge/
 │   ├── index.md
 │   ├── general-note.md
@@ -59,6 +60,7 @@ my-workspace/
 │       ├── README.md
 │       ├── index.md
 │       ├── _actions.md
+│       ├── _notes.md
 │       ├── design-background.md
 │       ├── representation-profile/
 │       │   ├── README.md
@@ -95,6 +97,7 @@ Current OWF-reserved names are:
 
 - `_projects/`
 - `_inbox.md`
+- `_notes.md`
 - `_knowledge/`
 - `_views/`
 - `_actions.md`
@@ -122,6 +125,7 @@ them.
 | Root `log.md` | OWF Event Log | reserved OKF update log |
 | Owner-local `_actions.md` | collection containing owned Actions | Concept document |
 | Workspace-root `_inbox.md` | collection containing Inbox Items | Concept document |
+| Owner-local `_notes.md` | conventional aggregated Knowledge Document | Concept document |
 | Ordinary `.md` directly under a Project or Outcome | owned Knowledge Document | Concept document |
 | Ordinary `.md` below root `_knowledge/` | Workspace Knowledge Document | Concept document |
 | Ordinary `.md` below `_views/` | View | Concept document |
@@ -130,50 +134,248 @@ Location is authoritative for the OWF role. A document's required `type`
 frontmatter provides OKF conformance and redundant validation; it MUST agree
 with the role implied by location.
 
-## 5. Workspace, Projects, Outcomes, and README
+## 5. Common Document Envelope
+
+Every non-reserved Markdown document is an OKF Concept and begins with a
+parseable YAML frontmatter mapping. The reserved OKF `index.md` and `log.md`
+files follow their own profiles and are excluded from this common envelope.
+
+The minimum envelope is:
+
+```yaml
+---
+type: <required canonical document type>
+title: <required human-readable title>
+description: <recommended one-sentence summary>
+owf:
+  <type-specific OWF metadata>
+---
+```
+
+### 5.1 Common fields
+
+- `type` is required by both OKF conformance and this profile.
+- `title` is required by this profile. It is particularly important for
+  generic filenames such as `README.md`, `_actions.md`, and `_inbox.md`.
+- `description` is recommended as a concise summary suitable for generated
+  indexes, search results, and previews. It does not replace fuller body
+  content.
+- `owf` contains document-level fields defined by OWF and is omitted when
+  empty.
+
+A document MAY contain additional fields defined by the targeted OKF version.
+OWF neither requires nor prohibits those fields unless a document-type profile
+explicitly says otherwise. Their semantics remain those defined by OKF.
+
+OWF-aware tools MUST preserve supported OKF fields and SHOULD preserve unknown
+frontmatter fields when round-tripping. Optional OKF metadata MUST NOT introduce
+corresponding semantics into OWF Core.
+
+All document-level metadata defined by OWF belongs under the `owf` namespace.
+Concrete YAML keys use `snake_case`. An implementation MUST NOT duplicate
+path-derived identity or ownership using `id`, `owner`, or equivalent
+frontmatter fields.
+
+### 5.2 Canonical type values
+
+The profile defines these canonical values:
+
+| Document role | `type` |
+| --- | --- |
+| Workspace `README.md` | `OWF Workspace` |
+| Project `README.md` | `OWF Project` |
+| Outcome `README.md` | `OWF Outcome` |
+| `_actions.md` | `OWF Action Collection` |
+| `_inbox.md` | `OWF Inbox` |
+| Knowledge Document, including `_notes.md` | `OWF Knowledge Document` |
+| View | `OWF View` |
+| View Snapshot | `OWF View Snapshot` |
+
+Canonical type values use the `OWF` prefix and Title Case. They do not encode
+the representation version, lifecycle state, archive status, View mode, or View
+purpose. For example, an archived Outcome remains `type: OWF Outcome`.
+
+Extensions MAY introduce additional type values. OWF-aware tools MUST tolerate
+unknown values as permitted OKF Concepts, while applying OWF semantics only to
+types they understand.
+
+### 5.3 Body and YAML conventions
+
+A Concept body:
+
+- is UTF-8 Markdown;
+- contains exactly one H1 heading;
+- uses an H1 that semantically corresponds to `title`, without requiring exact
+  string equality; and
+- has no universal required body sections beyond those defined by its
+  document-type profile.
+
+Frontmatter is the first content in the file. Duplicate YAML keys and custom
+YAML tags are invalid. Optional empty properties are omitted rather than
+written as `null`. Anchors and aliases SHOULD NOT be used.
+
+Dates and date-times use quoted ISO 8601-compatible strings so that YAML
+libraries do not silently assign inconsistent native types.
+
+Field ordering has no semantic meaning. For readable diffs, documents SHOULD
+place `type`, `title`, and `description` first, followed by other OKF
+fields and finally `owf`.
+
+## 6. Workspace, Project, and Outcome README Files
 
 The Workspace, every Project, and every Outcome are directory-based OWF
-objects. Each contains a canonical `README.md` that acts as its human-facing
-landing page and stores the machine-readable metadata required by OWF.
+objects. Each contains exactly one canonical `README.md` that acts as its
+human-facing landing page and stores the machine-readable metadata required by
+OWF.
 
-A `README.md` contains:
+A `README.md` does not duplicate navigation from `index.md`, Actions from
+`_actions.md`, Event Log content, derived statistics, identity, or ownership.
+It MAY link to the directory index but is not required to do so.
 
-- YAML frontmatter with a non-empty OKF `type`;
-- an `owf` namespace for OWF-specific document metadata;
-- an H1 title;
-- a human-readable description or expected result; and
-- optionally a link to the directory's `index.md`.
+### 6.1 Workspace README
 
-For example:
+The root `README.md` represents the Workspace and declares the targeted OWF
+Representation Profile version:
 
 ```markdown
 ---
-type: OWF Outcome Overview
-title: Representation Profile
-description: Define a concrete filesystem representation of OWF Core.
-status: stable
+type: OWF Workspace
+title: My Workspace
+description: Personal workspace for software architecture and related work.
 owf:
-  state: active
+  version: "0.1"
 ---
 
-# Representation Profile
+# My Workspace
 
-Define a portable representation of OWF Core using Markdown, directories,
-and minimal structured metadata.
-
-See the [directory index](index.md) for contained work and knowledge.
+This Workspace contains my current work, outcomes, supporting knowledge, and
+working Views.
 ```
 
-The root `README.md` is the Workspace landing page and carries the
-representation-profile version in the `owf` namespace. A separate `MAIN.md`
-is not needed: the directory identity names the OWF object, `README.md`
-represents it, and `index.md` provides navigation.
+`owf.version` identifies the Representation Profile version, not a content or
+object version. The profile version determines its supported Core version. The
+Workspace MUST NOT declare an `owf.state` because it is not a work item.
 
-Projects and Outcomes remain directories even before they own children. Adding
-children therefore does not require converting a Markdown file into a directory
-or changing the object's identity.
+The root `index.md` MAY separately declare its targeted `okf_version` as
+permitted by OKF.
 
-## 6. OKF Index Files
+### 6.2 Project README
+
+A Project `README.md` requires `owf.state`:
+
+```yaml
+owf:
+  state: active
+```
+
+Canonical Project states are:
+
+```text
+active
+parked
+completed
+abandoned
+archived
+```
+
+When `state` is `parked`, `parking_reason` is required and
+`review_after` is optional:
+
+```yaml
+owf:
+  state: parked
+  parking_reason: Waiting for the next budgeting cycle.
+  review_after: "2026-10-01"
+```
+
+When `state` is `archived`, `archived_from` is required and is either
+`completed` or `abandoned`:
+
+```yaml
+owf:
+  state: archived
+  archived_from: completed
+```
+
+`parking_reason`, `review_after`, and `archived_from` remain flat members
+of `owf`. State-specific fields MUST NOT appear when their corresponding state
+does not apply.
+
+A Project body MAY contain any useful explanatory sections. The following
+sections are recommended:
+
+- `## Status`: a short human-readable description of current reality,
+  progress, relevant changes, and significant concerns;
+- `## Next Steps`: a short, non-authoritative summary of likely near-term
+  directions that may require future Refinement.
+
+Review covering a Project SHOULD verify that its Status and Next Steps remain
+current. It need not rewrite text that remains accurate.
+
+### 6.3 Outcome README
+
+An Outcome `README.md` also requires `owf.state`. Canonical Outcome states
+are:
+
+```text
+active
+parked
+achieved
+abandoned
+archived
+```
+
+Parking uses the same flat `parking_reason` and optional `review_after`
+fields as a Project. An archived Outcome requires `archived_from` with either
+`achieved` or `abandoned`.
+
+Every Outcome body MUST contain an explicit `## Expected Result` section. It
+states the desired result against which Achievement is evaluated.
+
+`## Status` and `## Next Steps` are recommended with the same meaning as for
+a Project. Their recommended order is:
+
+```text
+# Title
+introductory context, optional
+
+## Expected Result
+required
+
+## Status
+recommended
+
+## Next Steps
+recommended
+
+other user-defined sections
+```
+
+The Expected Result describes the target reality and should normally remain
+stable. Status describes current reality and the remaining gap. Next Steps
+summarize likely near-term directions.
+
+### 6.4 Status and Next Steps boundaries
+
+The Markdown `## Status` section is distinct from both OKF `status` and OWF
+`owf.state`:
+
+| Representation | Meaning |
+| --- | --- |
+| OKF `status` | maturity of the Concept document |
+| `owf.state` | intrinsic lifecycle state of the OWF object |
+| `## Status` | human-readable summary of current reality |
+
+A Next Steps entry is not an Action or Outcome. It has no OWF identity, state,
+ownership, or dependencies and is not a Planning View commitment. It may later
+be refined into one or more Actions or Outcomes, or removed as unnecessary.
+
+When a Next Steps entry becomes a concrete executable commitment, it SHOULD be
+represented as an Action and removed or rewritten in the summary. Next Steps
+use ordinary bullets rather than task-list checkboxes and SHOULD remain short,
+current, deliberately non-exhaustive, and oriented toward the near future.
+
+## 7. OKF Index Files
 
 OWF retains the OKF `index.md` convention without renaming it. An `index.md`
 is a navigation artifact rather than an OWF object or OKF Concept.
@@ -195,7 +397,7 @@ does not exist. Indexes MAY be maintained by hand or generated.
 An index does not need to repeat mandatory profile infrastructure such as
 `_actions.md` or `_archive/` unless surfacing it improves navigation.
 
-## 7. Identity and References
+## 8. Identity and References
 
 Every OWF identity is an absolute bundle-relative logical path without a
 serialization extension.
@@ -277,7 +479,7 @@ Moving or renaming an object changes its identity. An OWF-aware operation MUST
 update affected references. A linter detects references that remain broken but
 is not the primary mechanism for performing the update.
 
-## 8. Knowledge Documents
+## 9. Knowledge Documents
 
 Knowledge Documents owned by a Project or Outcome are stored directly in the
 owner directory as ordinary Markdown files. They MUST NOT introduce additional
@@ -300,7 +502,45 @@ A Knowledge Document may contain original documentation, a local synthesis, or
 a durable reference to material in another format or external system. External
 documentation does not need to be copied into the Workspace.
 
-## 9. Action Collections
+### 9.1 Conventional Notes document
+
+A Knowledge owner MAY contain one reserved `_notes.md` for short,
+scope-specific working notes that do not warrant separate Knowledge Documents.
+It is itself an `OWF Knowledge Document`; individual entries are not Core
+objects and do not require stable identities, states, ownership, or
+dependencies.
+
+`_notes.md` MAY occur at Workspace, Project, or Outcome scope. It uses the
+common envelope:
+
+```yaml
+---
+type: OWF Knowledge Document
+title: Notes
+description: Chronological working notes related to this Project.
+---
+```
+
+Entries SHOULD use H2 headings with an ISO date and short title, newest first:
+
+```markdown
+# Notes
+
+## 2026-08-18 — Representation discussion
+
+Agreed that Project and Outcome README files will contain recommended Status
+and Next Steps sections.
+```
+
+A note is understood scope-specific context. Unresolved captured input belongs
+in the Inbox; executable commitments belong in Actions; a coherent or
+long-lived topic SHOULD become a named Knowledge Document; current canonical
+summary belongs in `README.md`; and semantic history belongs in `log.md`.
+
+Unlike the Event Log, `_notes.md` is not append-only. Entries may be edited,
+removed, consolidated, or promoted into more durable artifacts.
+
+## 10. Action Collections
 
 Actions are normally short, have relatively short lifetimes, and cannot own
 other objects. Creating one Markdown file and frontmatter block for every Action
@@ -338,7 +578,7 @@ become a separate file or OKF Concept.
 Document order and Action order have no Core meaning. Intentional ordering
 belongs to Views.
 
-## 10. Inbox Collection
+## 11. Inbox Collection
 
 Inbox Items are short-lived unresolved captures and do not own other objects.
 They are represented inside one optional Workspace-root `_inbox.md`.
@@ -364,7 +604,7 @@ may record processing but does not retain the item as current Workspace state.
 Age and ordering are derived from `captured-at` and may be exposed through
 Views.
 
-## 11. Views
+## 12. Views
 
 Views are represented as individual Markdown Concept documents under the
 reserved `_views/` directory. A small Workspace may store them flat; a larger
@@ -392,7 +632,7 @@ referenced members.
 A Computed View also remains a Markdown document but requires a
 machine-readable query. Query syntax and placement remain open.
 
-## 12. Event Log
+## 13. Event Log
 
 The Workspace-root `log.md` is both the OKF update log and the concrete
 representation of OWF's one logical Event Log.
@@ -433,7 +673,7 @@ it does not require byte-level appending at the end of the file.
 Local `log.md` files are not currently part of the OWF profile. The one root
 log avoids competing histories. Its exact event-entry grammar remains open.
 
-## 13. Archive
+## 14. Archive
 
 A possible owner MAY contain a reserved `_archive/` directory. It is a
 representation container, not a Core object and not a structural owner.
@@ -476,7 +716,7 @@ Archiving MUST NOT be achieved merely by moving files. Core lifecycle and
 Closure Review requirements apply first. An archived object preserves its
 preceding successful or unsuccessful terminal disposition.
 
-## 14. OKF Compatibility Profile
+## 15. OKF Compatibility Profile
 
 The intended compatibility boundary is:
 
@@ -505,7 +745,7 @@ The OKF actor, provenance, trust, freshness, and attestation families remain
 optional. Their presence does not add actor identity or collaboration semantics
 to OWF Core.
 
-## 15. External Structure Baseline
+## 16. External Structure Baseline
 
 The external structure baseline now defines:
 
@@ -524,12 +764,10 @@ These decisions remain non-normative until incorporated into a representation
 specification. Internal design may reveal a genuine structural problem, but
 field naming or presentation preference alone should not reopen this baseline.
 
-## 16. Current Open Questions
+## 17. Current Open Questions
 
 The following representation decisions remain open:
 
-- exact canonical `type` values;
-- exact frontmatter fields and recommended Markdown sections;
 - the internal heading, stable-fragment, and property syntax for Actions and
   Inbox Items;
 - representation of dependencies, manual blocks, references, and
