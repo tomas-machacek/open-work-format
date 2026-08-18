@@ -547,36 +547,264 @@ other objects. Creating one Markdown file and frontmatter block for every Action
 would be disproportionate. At the same time, placing Actions only in YAML would
 make them invisible to generic OKF consumers.
 
-Each possible Action owner MAY therefore contain one `_actions.md`:
+Each possible Action owner MAY therefore contain one active `_actions.md`:
 
 - the Workspace file contains standalone Actions;
 - a Project file contains Project-owned Actions; and
 - an Outcome file contains Outcome-owned Actions.
 
-Absence of `_actions.md` means the owner has no non-archived Actions. The
-document is an OKF Concept with a document-level `type`, for example:
+Absence of `_actions.md` means the owner has no non-archived Actions. An empty
+Action Collection SHOULD be removed. The document uses the common envelope:
 
 ```yaml
 ---
 type: OWF Action Collection
 title: Actions
+description: Actions owned by the Representation Profile Outcome.
 ---
 ```
 
-Each contained Action:
+The collection itself does not require `owf` frontmatter. Action order in the
+document has no Core meaning; intentional priority, execution order, focus, or
+planning belongs to Views.
 
-- is a full OWF Action object;
-- has an owner-local stable fragment identifier;
-- appears under a Markdown heading;
-- carries the properties required by Core; and
-- may use prose and Markdown links.
+### 10.1 Action sections
 
-The exact heading-ID and property syntax is deliberately deferred. The format
-must be unambiguous and mechanically parseable without requiring each Action to
-become a separate file or OKF Concept.
+Each Action is one H2 section. It ends before the next Action H2 or the end of
+the file. An Action body MAY use H3 and deeper headings but MUST NOT contain
+another H2.
 
-Document order and Action order have no Core meaning. Intentional ordering
-belongs to Views.
+```markdown
+## Prepare OWF internal structure
+
+- id: prepare-internal-structure
+- state: in_progress
+
+Prepare a coherent draft of the internal representation.
+```
+
+The H2 is the human-readable Action title. It SHOULD describe a directly
+executable step, normally beginning with a verb. The title MAY change without
+changing the Action identity.
+
+The first top-level unordered list immediately following the H2 is the
+machine-readable property block. Every property uses:
+
+```text
+- property_name: value
+```
+
+The parser separates the key and value at the first colon. Nested unordered
+lists represent multi-valued properties. Property keys use `snake_case`.
+
+Every property block MUST begin with exactly one `id` followed immediately by
+exactly one `state`. Both properties are required. Other properties are
+optional and follow the state-specific rules below.
+
+### 10.2 Identity and references
+
+`id` is an owner-local stable identifier:
+
+```markdown
+- id: prepare-internal-structure
+```
+
+It MUST match:
+
+```regex
+[a-z][a-z0-9-]*
+```
+
+An ID MUST be unique across the owner's active and archived Action Collections
+together. Changing the title MUST NOT implicitly change the ID. Moving the
+Action to another owner or archive changes the collection path and therefore
+the complete identity, although the local ID SHOULD be retained when possible.
+
+The complete logical identity is the collection Concept ID plus the Action ID
+as a fragment:
+
+```text
+/_projects/open-work-format/_actions#prepare-internal-structure
+```
+
+References to Actions MUST use standard Markdown links. The physical link adds
+the collection's `.md` suffix, and its fragment MUST equal the target
+Action's `id`:
+
+```markdown
+[Prepare OWF internal structure](
+  /_projects/open-work-format/_actions.md#prepare-internal-structure
+)
+```
+
+A relative link or same-document fragment MAY be used where permitted by OKF.
+For OWF resolution, the path identifies the Action Collection and the fragment
+selects the nested Action by its `id`. A generic renderer need not understand
+this OWF fragment semantics.
+
+A matching HTML anchor is recommended but not required:
+
+```html
+<a id="prepare-internal-structure" name="prepare-internal-structure"></a>
+```
+
+When present, it occurs immediately before the Action H2 and both attributes
+MUST equal the Action `id`. The anchor is only a best-effort navigation aid
+for renderers such as GitHub and compatible Markdown previews; it is not the
+source of identity. OWF does not use renderer-specific block-reference syntax
+such as Obsidian `^block-id`.
+
+### 10.3 State
+
+Every Action has one required `state`:
+
+```markdown
+- state: open
+```
+
+Canonical serialized values are:
+
+```text
+open
+in_progress
+waiting
+completed
+cancelled
+archived
+```
+
+An active `_actions.md` MAY contain `open`, `in_progress`, `waiting`,
+`completed`, or `cancelled` Actions. `completed` and `cancelled`
+Actions remain there until an explicit Archive operation. `archived` is
+permitted only in `_archive/_actions.md`.
+
+### 10.4 Waiting
+
+`waiting_for` is an optional human-readable explanation permitted only when
+`state` is `waiting`:
+
+```markdown
+- id: request-okf-feedback
+- state: waiting
+- waiting_for: Feedback about the proposed index and identity conventions.
+```
+
+It is optional because the expected external result may already be clear from
+the title or Action description. It does not require or imply an actor identity.
+
+A Waiting Action MAY simultaneously have unresolved dependencies or a manual
+block.
+
+### 10.5 Dependencies
+
+`depends_on` is an optional nested list of standard Markdown links to Action
+or Outcome targets:
+
+```markdown
+- depends_on:
+  - [Define the document envelope](#define-document-envelope)
+  - [Approve the security model](../security/_actions.md#approve-security-model)
+  - [Authentication approach agreed](../authentication/)
+```
+
+The list MUST NOT be empty. Links may be same-document, relative, or absolute
+bundle-relative. OWF validation resolves the link according to the target type:
+an Action link selects a nested Action by fragment, while an Outcome link names
+its directory identity ending in `/`.
+
+A `completed` Action MUST NOT have an unresolved dependency. A `cancelled`
+Action may retain one. Dependency cycles remain representable and are lint
+warnings rather than structural errors.
+
+### 10.6 Manual blocking
+
+`manual_block` is an optional, non-empty human-readable reason:
+
+```markdown
+- manual_block: The required prerequisite is not understood well enough to model.
+```
+
+Its presence creates the explicit manual block defined by Core. The profile does
+not serialize `blocked: true`, because Blocked remains a derived observation.
+
+`manual_block` is permitted only for `open`, `in_progress`, or `waiting`
+Actions. It MUST be removed before an Action becomes `completed`,
+`cancelled`, or `archived`. Historical explanation may remain in prose or
+the Event Log.
+
+### 10.7 Archived Actions
+
+An archived Action is stored in:
+
+```text
+<owner>/_archive/_actions.md
+```
+
+It MUST have `state: archived` and a required `archived_from` value of
+`completed` or `cancelled`:
+
+```markdown
+<a id="prepare-initial-draft" name="prepare-initial-draft"></a>
+## Prepare the initial representation draft
+
+- id: prepare-initial-draft
+- state: archived
+- archived_from: completed
+```
+
+`archived_from` MUST NOT appear for another state. The archived collection
+contains only Archived Actions; an active collection contains none.
+
+### 10.8 Optional description and property order
+
+Prose after the property block is the optional Action description. A short
+Action may consist only of its H2 and required properties. Longer supporting
+material SHOULD remain in a linked Knowledge Document rather than making the
+Action disproportionately large.
+
+The canonical property order is:
+
+```text
+id
+state
+waiting_for
+depends_on
+manual_block
+archived_from
+extension properties
+```
+
+Only the first two positions are normative: `id` MUST be first and `state`
+MUST be second. The order of remaining properties carries no meaning.
+
+### 10.9 Validation and linting
+
+A conforming validator reports at least:
+
+- an incorrect collection envelope or `type`;
+- an empty persisted active collection;
+- an Action without exactly one H2, required `id`, or required `state`;
+- `id` or `state` not occupying the first two property positions;
+- an invalid or duplicate ID across an owner's active and archived collections;
+- duplicate property keys;
+- a state-specific property used with an incompatible state;
+- a broken or unsupported dependency endpoint;
+- an unresolved dependency on a Completed Action;
+- an Archived Action outside the archived collection or a non-Archived Action
+  inside it; and
+- a present HTML anchor that does not match the Action ID.
+
+A linter MAY additionally report:
+
+- a missing recommended HTML anchor;
+- duplicate or confusingly similar titles;
+- a dependency cycle;
+- a disproportionately large Action that may need a Knowledge Document or
+  further Refinement; and
+- terminal Actions that may be ready for Archive.
+
+Extension-property namespacing remains part of the general extension model and
+is not defined by this section.
 
 ## 11. Inbox Collection
 
@@ -768,10 +996,8 @@ field naming or presentation preference alone should not reopen this baseline.
 
 The following representation decisions remain open:
 
-- the internal heading, stable-fragment, and property syntax for Actions and
-  Inbox Items;
-- representation of dependencies, manual blocks, references, and
-  `review-after`;
+- the internal heading, stable-fragment, and property syntax for Inbox Items;
+- representation of `review_after` beyond the agreed README fields;
 - the field used to preserve an archived object's preceding terminal
   disposition;
 - exact index completeness lint severity;
