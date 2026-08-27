@@ -1,6 +1,6 @@
 # OWF Representation Profile Design Notes
 
-> Status: Working design notes; external structure and common document conventions established; non-normative
+> Status: Working, non-normative design notes; Markdown representation for Actions and Inbox Items reopened after operational UX review
 
 ## 1. Purpose
 
@@ -10,33 +10,74 @@ profile and do not yet define serialization conformance.
 
 The representation should remain:
 
-- readable and editable without specialized tooling;
-- usable through a normal file explorer, GitHub, or Markdown application;
-- friendly to Git and AI agents;
-- free of hidden database state; and
+- readable through open, documented representations and interfaces;
+- usable by humans without requiring an AI agent;
+- equally operable by humans and AI agents through suitable interfaces;
+- independent of any one application;
+- part of one logical and locally available Workspace; and
 - structurally simple even where the Core semantics are richer.
+
+Generic file and Markdown editability remains desirable for durable context, but
+is no longer required for every frequent Inbox and Action operation.
 
 The profile targets bundle-level conformance with
 [Open Knowledge Format (OKF) v0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 OWF specializes OKF for personal work without requiring every OWF object to be a
 separate OKF Concept.
 
-### 1.1 Markdown as the primary medium
+### 1.1 Markdown and operational work
 
-Long-lived descriptive objects, compact work collections, captured input,
-Views, and navigation use Markdown. YAML frontmatter carries document-level
-metadata. Markdown bodies carry prose, headings, ordering, grouping, links, and
-the compact records contained in Action and Inbox collections.
+Markdown remains the primary medium for durable Project, Outcome, Knowledge,
+View, and navigation content. YAML frontmatter carries document-level metadata;
+Markdown bodies carry prose, headings, ordering, grouping, and links.
 
-An earlier design used aggregated YAML files for Actions and Inbox Items. That
-would have made these important parts of an OWF Workspace invisible to generic
-OKF consumers. The working design therefore uses Markdown collections instead.
-The exact internal syntax of Action and Inbox entries remains open.
+Actions and Inbox Items have different usability characteristics. They are
+short-lived, change frequently, and are handled mainly through capture, state
+changes, filtering, completion, and contextual navigation. A generic Markdown
+editor does not provide sufficiently low-friction interaction for those
+operations.
+
+The profile therefore no longer assumes that Actions and Inbox Items are
+authoritative nested records in Markdown collections. A conforming operational
+representation may use another open store, provided that it:
+
+- belongs to the same logical and locally available Workspace;
+- provides strong bidirectional navigation between Actions and their owners;
+- exposes equivalent operations to humans and agents through suitable
+  interfaces;
+- provides stable identity and interoperable access; and
+- does not make routine operation depend on an AI agent.
+
+The _actions.md and _inbox.md designs later in this document are retained as
+fully described experimental candidates. They are suspended and are not part of
+the accepted external-structure baseline while the operational representation
+contract is designed.
+
+### 1.2 Operational UX baseline
+
+The representation is evaluated against the Operational UX Principles in
+docs/design/principles.md. In particular:
+
+- unresolved input is capturable from text alone, with an optional URL or
+  screenshot in the first operational profile;
+- known work may be created directly as an Action without passing through the
+  Inbox;
+- a simple Action may be created from its title and defaults to Open;
+- Action creation in a Project or Outcome context may reuse that owner, while
+  global creation must make owner selection fast;
+- Inbox Items have no owner or capture-context relationship; and
+- accepted capture must provide immediate, durable feedback.
+
+Critical interaction scenarios remain non-normative design and conformance
+evidence rather than part of the compact Core specification.
 
 ## 2. General Model
 
-An OWF Workspace is represented by an OKF-compatible directory tree of Markdown
-documents. The Workspace directory is the bundle root.
+The durable contextual part of an OWF Workspace is represented by an
+OKF-compatible directory tree of Markdown documents. The Workspace directory is
+the bundle root. The authoritative operational representation for Actions and
+Inbox Items remains profile-defined but MUST belong to this same logical
+Workspace.
 
 For example:
 
@@ -540,7 +581,11 @@ summary belongs in `README.md`; and semantic history belongs in `log.md`.
 Unlike the Event Log, `_notes.md` is not append-only. Entries may be edited,
 removed, consolidated, or promoted into more durable artifacts.
 
-## 10. Action Collections
+## 10. Suspended Candidate: Markdown Action Collections
+
+> This section records the previously completed Markdown candidate. It is not
+> part of the accepted baseline while the operational representation contract
+> remains open.
 
 Actions are normally short, have relatively short lifetimes, and cannot own
 other objects. Creating one Markdown file and frontmatter block for every Action
@@ -806,7 +851,10 @@ A linter MAY additionally report:
 Extension-property namespacing remains part of the general extension model and
 is not defined by this section.
 
-## 11. Inbox Collection
+## 11. Suspended Candidate: Markdown Inbox Collection
+
+> This section records the previous Markdown candidate. It is not part of the
+> accepted baseline while the operational representation contract remains open.
 
 Inbox Items are short-lived unresolved captures and do not own other objects.
 They are represented inside one optional Workspace-root `_inbox.md`.
@@ -982,7 +1030,7 @@ The external structure baseline now defines:
 - `README.md` as their canonical landing page and metadata representation;
 - reserved OKF `index.md` for navigation;
 - a shared OKF/OWF root `log.md`;
-- Markdown Action and Inbox collection Concepts;
+- an open operational-representation boundary for Actions and Inbox Items;
 - Markdown placement for scoped and Workspace-level Knowledge;
 - hierarchical Markdown Views;
 - directory, document, and fragment-based identity rules; and
@@ -996,7 +1044,13 @@ field naming or presentation preference alone should not reopen this baseline.
 
 The following representation decisions remain open:
 
-- the internal heading, stable-fragment, and property syntax for Inbox Items;
+- the authoritative operational representation for Actions and Inbox Items;
+- the storage and interoperability contract binding operational objects to the
+  locally available Workspace;
+- stable operational identity and links between Actions and Markdown owners;
+- the minimum human GUI and agent CLI/API capability surface;
+- whether Markdown Action and Inbox collections remain a fallback, interchange
+  form, snapshot, or optional representation profile;
 - representation of `review_after` beyond the agreed README fields;
 - the field used to preserve an archived object's preceding terminal
   disposition;
