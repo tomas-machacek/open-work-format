@@ -28,14 +28,21 @@ it is not normative. It provides a stable basis for evaluating design decisions.
 ### P1. Human-first
 
 A human must be able to understand and maintain an OWF workspace without AI.
+This does not require every operation to be convenient in a generic text editor;
+high-frequency operational work may rely on purpose-built OWF-aware tooling.
 
 ### P2. AI-native
 
-AI should be able to reason about the workspace with minimal hidden state.
+AI should be able to reason about the workspace with minimal hidden state. Human
+and agent interfaces may differ, but both must expose the same OWF capabilities
+over the same authoritative Workspace.
 
-### P3. Documents as the Unit of Information
+### P3. Documents for Durable Context
 
-The primary unit of representation is a document, not a database row.
+Documents are the natural representation for durable context, explanation, and
+knowledge. OWF does not require every object to be a document: high-frequency
+operational objects such as Actions and Inbox Items may use another open,
+interoperable representation when that materially improves everyday usability.
 
 ### P4. Explicit Semantics
 
@@ -61,9 +68,12 @@ Views do not own work. They organize perspectives over existing work.
 The standard should intentionally leave advanced behavior to extensions rather
 than making the core model complex.
 
-### P9. Tool Independence
+### P9. Tool Independence through Interoperability
 
-Multiple implementations should be possible while remaining interoperable.
+OWF must not depend on one specific application. Multiple implementations should
+be possible while remaining interoperable. Tool independence does not mean that
+all operations must be conveniently available through generic Markdown or file
+editors; purpose-built tools may be necessary for effective operational work.
 
 ### P10. Prefer the Smallest Useful Core Model
 
@@ -222,6 +232,103 @@ real work. A cycle may reveal weak or incomplete Refinement and should be made
 visible by linting rather than forbidden from representation. OWF prefers an
 honest imperfect graph over artificial placeholder Actions.
 
+## Operational UX Principles
+
+These principles apply especially to the high-frequency handling of Inbox Items
+and Actions. They define required qualities without prescribing a particular UI,
+storage engine, or implementation.
+
+### O1. Capture before classification
+
+An unresolved thought must be capturable from text alone, without first
+classifying, organizing, or assigning it. A first operational profile should
+also support an optional URL or screenshot without turning the Inbox into a
+general document store.
+
+### O2. Direct creation of known work
+
+OWF must not require a known Action to pass through the Inbox. When the user
+already recognizes an executable step, it should be creatable directly from its
+title. Its initial state may default to Open, and its owner may be selected
+explicitly or supplied by the current Project or Outcome context.
+
+### O3. Minimal interruption
+
+Creating an Inbox Item or simple Action should require minimal interaction,
+avoid navigation through the Workspace hierarchy, and let the user immediately
+resume the preceding activity. Inbox capture is the most frequent and most
+friction-sensitive case.
+
+### O4. Strong Action-context navigation
+
+An Action's owner is its meaningful work context, not merely filter metadata.
+Implementations should make navigation from an Action to its Workspace, Project,
+or Outcome owner, and from that owner to its Actions, direct and obvious.
+Creating an Action within an owner context should reuse that context; global
+creation should provide fast owner selection.
+
+Inbox Items have no owner or capture-context relationship. If a meaningful work
+context is already known, direct Action creation is normally the better path.
+
+### O5. One Workspace, one operational source of truth
+
+Inbox Items and Actions belong to the same logical and locally available OWF
+Workspace as Projects, Outcomes, and Knowledge. Their technical representation
+may differ, but they must not form an isolated external system with unrelated
+identity, navigation, access, or lifecycle.
+
+### O6. Equal human and agent capabilities
+
+Humans and agents must be able to perform the same OWF operations over the same
+authoritative state. Their interfaces are expected to differ: a human may use a
+graphical interface while an agent uses a CLI or structured API.
+
+### O7. Immediate and durable feedback
+
+Capture and common Action operations should respond immediately, confirm
+accepted changes, and never silently lose input. Routine use must not depend on
+an AI agent being available. Local-first and offline-capable implementations are
+preferred for keeping operational work available with the rest of the
+Workspace.
+
+### O8. Actions are title-first
+
+A simple Action must be creatable from its title alone. The implementation
+supplies stable identity and an initial Open state. The owner may come from the
+current Project or Outcome context or from fast explicit selection. Description,
+Waiting detail, dependencies, manual blocking, and other enrichment must not be
+prerequisites for creation.
+
+### O9. Frequent Action operations are direct
+
+The most frequent Action operations must be available directly from compact
+Action presentations. Creation, starting, completion, cancellation, entering
+Waiting, and leaving Waiting should not require navigation into a detailed
+editor. Changes should be immediately visible across Views and easy to reverse.
+
+Less frequent operations such as changing owner, adding dependencies, manual
+blocking, Promotion, or Archive may remain behind progressive disclosure.
+
+### O10. Actions use progressive enrichment
+
+Additional Action structure should be introduced only when the work requires
+it. A simple Action remains simple; description, Waiting detail, dependencies,
+manual blocking, and extensions are added as needed.
+
+Once present, Waiting, Blocked, and their causes must remain visible,
+understandable, and navigable. Advanced capabilities must not burden creation
+and execution of simple Actions.
+
+### O11. Action identity survives operational change
+
+Ordinary Action changes must preserve stable identity and references. Renaming,
+state changes, ownership changes, dependency changes, and archiving must not
+create a replacement Action or break Views, links, and relationships.
+
+A semantic transformation such as Promotion to Outcome may create a different
+object identity, but the operation must define the resulting identity and the
+handling of existing references and relationships explicitly.
+
 ## Decision Test
 
 When evaluating a proposal, ask:
@@ -231,3 +338,5 @@ When evaluating a proposal, ask:
 3. Does it introduce hidden state?
 4. Does it belong in the core or should it be an extension?
 5. Is it solving a real domain problem or merely an implementation concern?
+6. Does it keep frequent Inbox and Action operations fast enough for everyday
+   use?

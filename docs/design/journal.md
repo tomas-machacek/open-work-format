@@ -441,6 +441,77 @@ form the next design phase. Representation work may expose a genuine semantic
 gap, but implementation preference alone should not reopen the closed Core
 model.
 
+## 2026-08-27 -- Operational UX Reopens the File-Based Assumption
+
+Detailed Markdown designs for Actions and Inbox Items exposed a usability
+problem rather than merely a syntax problem. These objects change frequently and
+are handled mainly through short operational interactions: capture, state
+change, filtering, completion, and contextual navigation. Requiring generic
+file editing made these interactions substantially heavier than the board and
+capture tools OWF is intended to match.
+
+The design therefore no longer assumes that every OWF object must be stored as a
+Markdown document or nested Markdown record. Markdown remains the natural medium
+for durable Project, Outcome, and Knowledge context. Actions and Inbox Items may
+instead use a purpose-built operational store with a graphical interface for
+humans and a CLI or structured API for agents.
+
+This weakens the earlier interpretation of tool independence but preserves its
+intent. OWF remains independent of any one application through interoperable
+semantics and interfaces; it no longer requires every frequent operation to be
+convenient through generic file or Markdown tools. Usability takes precedence
+where the two conflict.
+
+The operational store is not a separate work system. Actions and Inbox Items
+must remain part of the same logical and locally available Workspace, share its
+identity and navigation model, and be equally operable by humans and agents.
+Projects and Outcomes must expose their Actions, and every Action must navigate
+directly to its Workspace, Project, or Outcome owner.
+
+Quick Capture was separated from the Inbox object type. Unresolved input may be
+captured as an Inbox Item from text alone, optionally with a URL or screenshot.
+Known executable work may be created directly as an Action without passing
+through Inbox Processing. An Action may be created from its title, defaults to
+Open, and may obtain its owner from the current context or a fast explicit
+selection. Inbox Items do not retain an owner or capture-context relationship.
+
+Critical scenarios remain design and conformance evidence rather than part of
+the compact Core specification. Seven Operational UX Principles record the
+resulting requirements without prescribing a specific tool, UI, database, or
+serialization.
+
+## 2026-09-02 -- Action Operational UX Principles
+
+Ten critical Action scenarios were reviewed: title-only creation, contextual
+creation, selecting work through Views, common state transitions, Waiting,
+dependencies and manual blocking, navigation to ownership context, occasional
+reorganization and Promotion, agent-driven creation and change, and terminal
+cleanup and Archive.
+
+The highest-frequency scenarios are creation, contextual creation, selecting
+work, and changing state. Their interaction cost must not be increased merely
+to expose less frequent dependency, Promotion, ownership-change, or Archive
+operations. This frequency distinction reinforces progressive disclosure as a
+design requirement.
+
+Four additional Operational UX Principles were accepted. Simple Actions are
+title-first and begin Open; frequent transitions are available directly from
+compact presentations; richer structure is added progressively; and ordinary
+operational changes preserve Action identity and references. The last principle
+includes ownership change and Archive, removing the identity instability of the
+earlier path-based Markdown Action candidate.
+
+The existing principles continue to cover direct creation without Inbox
+Processing, minimal interruption, strong Action-owner navigation, one logical
+and locally available Workspace, equal human and agent capabilities, and
+immediate durable feedback. Views remain responsible for organizing attention;
+the operational store supplies authoritative Actions and suitable filtering
+without becoming a competing planning model.
+
+Critical scenarios remain non-normative design and conformance evidence. The
+principles constrain the future operational representation without prescribing
+Kanban, a database, or a specific graphical interface.
+
 ## Historical Open Questions
 
 The original exploration deferred representation of dynamic Views, ordered

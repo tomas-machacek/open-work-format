@@ -32,8 +32,10 @@ OWF was informed by three earlier bodies of work:
   human and agent consumers.
 
 These sources are influences, not normative dependencies. OWF changes or
-rejects their concepts where required by its own goals and does not claim
-compatibility or affiliation with GTD, LLM Wiki, or OKF.
+rejects their concepts where required by its own goals. Core v0 does not itself
+claim a concrete serialization relationship with those sources; an OWF
+representation profile MAY define compatibility with a specific external format.
+OWF does not claim affiliation with GTD, LLM Wiki, or OKF.
 
 ## 2. Conformance Language
 
@@ -349,13 +351,16 @@ preceding terminal disposition in current state.
 
 ### 10.1 Inbox Item
 
-Capture creates a persistent Inbox Item from unresolved input. An Inbox Item is
+Capturing unresolved input creates a persistent Inbox Item. An Inbox Item is
 not work, knowledge, or a commitment. Its existence means that processing is
 incomplete; it MUST NOT require a separate lifecycle state.
 
+Known executable work MAY be created directly as an Action. Core v0 MUST NOT
+require a known Action to pass through the Inbox or Inbox Processing.
+
 Every Inbox Item MUST record its original `captured-at` time. Its primary
-content is the original captured input. Source and additional context MAY be
-recorded. Enrichment MUST NOT change the original `captured-at` value.
+content is the original captured input. Enrichment MUST NOT change the original
+`captured-at` value.
 
 An Inbox Item MUST NOT own work or participate in the work dependency graph. It
 MUST NOT be used as durable storage for valuable knowledge or as a durable
