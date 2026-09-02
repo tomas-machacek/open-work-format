@@ -480,6 +480,38 @@ the compact Core specification. Seven Operational UX Principles record the
 resulting requirements without prescribing a specific tool, UI, database, or
 serialization.
 
+## 2026-09-02 -- Action Operational UX Principles
+
+Ten critical Action scenarios were reviewed: title-only creation, contextual
+creation, selecting work through Views, common state transitions, Waiting,
+dependencies and manual blocking, navigation to ownership context, occasional
+reorganization and Promotion, agent-driven creation and change, and terminal
+cleanup and Archive.
+
+The highest-frequency scenarios are creation, contextual creation, selecting
+work, and changing state. Their interaction cost must not be increased merely
+to expose less frequent dependency, Promotion, ownership-change, or Archive
+operations. This frequency distinction reinforces progressive disclosure as a
+design requirement.
+
+Four additional Operational UX Principles were accepted. Simple Actions are
+title-first and begin Open; frequent transitions are available directly from
+compact presentations; richer structure is added progressively; and ordinary
+operational changes preserve Action identity and references. The last principle
+includes ownership change and Archive, removing the identity instability of the
+earlier path-based Markdown Action candidate.
+
+The existing principles continue to cover direct creation without Inbox
+Processing, minimal interruption, strong Action-owner navigation, one logical
+and locally available Workspace, equal human and agent capabilities, and
+immediate durable feedback. Views remain responsible for organizing attention;
+the operational store supplies authoritative Actions and suitable filtering
+without becoming a competing planning model.
+
+Critical scenarios remain non-normative design and conformance evidence. The
+principles constrain the future operational representation without prescribing
+Kanban, a database, or a specific graphical interface.
+
 ## Historical Open Questions
 
 The original exploration deferred representation of dynamic Views, ordered

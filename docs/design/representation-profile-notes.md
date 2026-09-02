@@ -66,7 +66,15 @@ docs/design/principles.md. In particular:
 - Action creation in a Project or Outcome context may reuse that owner, while
   global creation must make owner selection fast;
 - Inbox Items have no owner or capture-context relationship; and
-- accepted capture must provide immediate, durable feedback.
+- accepted capture must provide immediate, durable feedback;
+- a simple Action is title-first and receives stable identity and an initial
+  Open state from the implementation;
+- frequent Action transitions are available directly from compact
+  presentations and update all Views immediately;
+- Waiting, dependencies, manual blocking, and other structure are introduced
+  progressively without burdening simple Actions; and
+- renaming, state change, ownership change, dependency change, and Archive
+  preserve Action identity and references.
 
 Critical interaction scenarios remain non-normative design and conformance
 evidence rather than part of the compact Core specification.
@@ -1049,6 +1057,11 @@ The following representation decisions remain open:
   locally available Workspace;
 - stable operational identity and links between Actions and Markdown owners;
 - the minimum human GUI and agent CLI/API capability surface;
+- compact Action projections and the command surface for frequent state
+  transitions;
+- progressive Action enrichment without burdening title-only creation;
+- stable Action identity across renaming, ownership change, dependency change,
+  and Archive;
 - whether Markdown Action and Inbox collections remain a fallback, interchange
   form, snapshot, or optional representation profile;
 - representation of `review_after` beyond the agreed README fields;

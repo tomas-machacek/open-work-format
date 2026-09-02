@@ -291,6 +291,44 @@ an AI agent being available. Local-first and offline-capable implementations are
 preferred for keeping operational work available with the rest of the
 Workspace.
 
+### O8. Actions are title-first
+
+A simple Action must be creatable from its title alone. The implementation
+supplies stable identity and an initial Open state. The owner may come from the
+current Project or Outcome context or from fast explicit selection. Description,
+Waiting detail, dependencies, manual blocking, and other enrichment must not be
+prerequisites for creation.
+
+### O9. Frequent Action operations are direct
+
+The most frequent Action operations must be available directly from compact
+Action presentations. Creation, starting, completion, cancellation, entering
+Waiting, and leaving Waiting should not require navigation into a detailed
+editor. Changes should be immediately visible across Views and easy to reverse.
+
+Less frequent operations such as changing owner, adding dependencies, manual
+blocking, Promotion, or Archive may remain behind progressive disclosure.
+
+### O10. Actions use progressive enrichment
+
+Additional Action structure should be introduced only when the work requires
+it. A simple Action remains simple; description, Waiting detail, dependencies,
+manual blocking, and extensions are added as needed.
+
+Once present, Waiting, Blocked, and their causes must remain visible,
+understandable, and navigable. Advanced capabilities must not burden creation
+and execution of simple Actions.
+
+### O11. Action identity survives operational change
+
+Ordinary Action changes must preserve stable identity and references. Renaming,
+state changes, ownership changes, dependency changes, and archiving must not
+create a replacement Action or break Views, links, and relationships.
+
+A semantic transformation such as Promotion to Outcome may create a different
+object identity, but the operation must define the resulting identity and the
+handling of existing references and relationships explicitly.
+
 ## Decision Test
 
 When evaluating a proposal, ask:
