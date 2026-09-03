@@ -290,25 +290,26 @@ be consciously checked when parking a parent.
 
 **Status:** Accepted (Core v0)
 
-OWF defines one logical append-only Event Log. OWF objects remain the source of
-current truth; the Event Log records how that truth changed and why. OWF does
-not require event sourcing or reconstruction of current state by replaying the
-log.
+A representation profile may define one or more independent append-only Event
+Logs aligned with its authoritative representations. OWF objects remain the
+source of current truth; the logs record how that truth changed and why. OWF
+does not require event sourcing or reconstruction of current state by replaying
+the logs.
 
-The log records semantic object changes and Review activity, including Review
-start, mode, scope, detected signals, dispositions, resulting operations,
-rationale, and completion or interruption. Each signal in a completed Review
-run has a recorded disposition such as resolved, confirmed, deferred,
-redirected, or dismissed.
+Each log records semantic changes for the source objects assigned to it. A
+completed Review run has a durable Event Log record identifying its mode and
+scope and recording a disposition for every detected signal, such as resolved,
+confirmed, deferred, redirected, or dismissed. It should also record resulting
+operations and supplied rationale.
 
 Review Signals remain derived observations rather than persistent domain
-objects. A logical log may be physically split by an implementation. OWF-aware
-operations record semantic events; changes made outside an OWF-aware tool may be
-recorded retrospectively with reduced context. Git may complement the Event Log
-but is not required.
+objects. Multiple logs do not require correlation identifiers, global ordering,
+cross-log transactions, or a unified materialized history. Changes made outside
+an OWF-aware tool may be recorded retrospectively with reduced context. Git may
+complement Event Logs but is not required.
 
-The Event Log does not guarantee a complete history of workspace state. It
-cannot substitute for an explicit snapshot when reliable historical evidence is
+Event Logs do not guarantee a complete history of workspace state. They cannot
+substitute for an explicit snapshot when reliable historical evidence is
 required.
 
 ### Decision 015 -- Review Workflow, Views, and Runs
@@ -321,11 +322,12 @@ Review process. Different Views may support Periodic, Parked, Waiting, Project,
 or specialized Reviews. Event-driven Review may operate directly on affected
 objects without a View.
 
-A Review run is represented by correlated Event Log entries rather than a
+A Review run is represented by a durable Event Log record rather than a
 persistent work object. It may be completed, interrupted and later resumed, or
 abandoned. A run is complete when every detected signal in scope has a recorded
-disposition. Because the workspace may change during Review, a signal should be
-re-evaluated before acting when its underlying information may have changed.
+disposition. No correlation identifier is required. Because the workspace may
+change during Review, a signal should be re-evaluated before acting when its
+underlying information may have changed.
 
 ### Decision 016 -- Personal Scope and Actor Independence
 
@@ -538,12 +540,12 @@ Core v0 distinguishes these roles:
 - **captured input:** Inbox Item;
 - **knowledge:** Knowledge Document;
 - **live projection:** View;
-- **historical artifacts:** View Snapshot and Event Log; and
+- **historical artifacts:** View Snapshot and Event Logs; and
 - **root context:** Workspace.
 
 Review Signals are temporary derived observations and are not persistent Core
-objects. A Review run is represented by Event Log entries rather than by a
-separate persistent object.
+objects. A Review run is represented by a durable Event Log record rather than
+by a separate persistent object.
 
 Every Outcome has exactly one structural owner: a Project or another Outcome.
 Its ownership chain must ultimately lead to a Project. Every Action has exactly
@@ -610,8 +612,8 @@ The following details are intentionally deferred and do not block conceptual
 closure:
 
 - concrete Review policies, signal catalogues, and time thresholds;
-- file and metadata representation of Review runs, signals, dispositions, and
-  the Event Log;
+- representation of completed Review records, signals, dispositions, and
+  Event Logs;
 - scheduling and triggering mechanisms;
 - UI and renderer behavior; and
 - identity, authorization, confirmation, and collaboration concerns.
@@ -676,11 +678,11 @@ The following details are intentionally deferred and do not block conceptual
 closure:
 
 - capture channels, integrations, and user interface;
-- exact file syntax, date-time format, timezone rules, and optional source
-  metadata;
+- concrete Operational Store schema, date-time format, timezone rules, and
+  optional source metadata;
 - concrete aging thresholds, reminder policies, and Inbox Views;
 - transactional and failure-recovery mechanisms; and
-- Event Log representation.
+- Event Log representations.
 
 Future work may refine representation or reveal a genuine semantic gap, but
 should not reopen Inbox Processing merely to add a capture channel, target
@@ -706,8 +708,8 @@ Core v0 now defines:
   and preserved terminal disposition during archiving;
 - Inbox Item capture, Inbox Processing, and consumption;
 - Review as trust restoration and Planning as intentional projection;
-- Knowledge Documents, Views, View Snapshots, and the logical Event Log in
-  distinct supporting roles;
+- Knowledge Documents, Views, View Snapshots, and Event Logs in distinct
+  supporting roles;
 - path-based identity and machine-readable references; and
 - the personal, actor-independent, methodology-neutral boundary of the Core.
 
@@ -715,9 +717,10 @@ Core v0 intentionally leaves delegation, scheduling, deferral, advanced
 knowledge models, collaboration, methodology policies, rendering, integrations,
 and automation to extensions or implementations.
 
-Closure freezes the conceptual baseline, not the concrete file format. The next
-phase may define Markdown/YAML representation, schemas, directory conventions,
-query envelopes, ordering, extension points, and the normative lint contract.
+Closure freezes the conceptual baseline, not concrete representation. The next
+phase may define the Markdown/YAML representation, Operational Store contract,
+schemas, directory conventions, query envelopes, ordering, extension points,
+and the normative lint contract.
 That work may clarify wording and reveal representation constraints, but it
 should reopen Core decisions only when it demonstrates a genuine semantic gap
 or contradiction. A preference of one tool or methodology is not sufficient.

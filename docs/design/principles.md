@@ -174,8 +174,8 @@ subtree while preserving its internal structure for later resumption.
 
 ### P20. Separate Current Truth from Historical Explanation
 
-OWF objects express the current state of the workspace. An append-only Event Log
-records semantic changes, decisions, Review activity, and rationale. History
+OWF objects express the current state of the workspace. Append-only Event Logs
+record semantic changes, decisions, Review activity, and rationale. History
 improves auditability and future reasoning but does not replace current objects
 as the source of truth.
 
@@ -198,7 +198,7 @@ lifecycle.
 ### P23. Snapshot Explicitly When Historical State Matters
 
 Live Views and current objects must not be treated as reliable records of past
-state, and the Event Log is not guaranteed to be complete. When a trustworthy
+state, and Event Logs are not guaranteed to be complete. When a trustworthy
 historical projection is required, an immutable View Snapshot explicitly
 captures membership and the selected item state at that time.
 

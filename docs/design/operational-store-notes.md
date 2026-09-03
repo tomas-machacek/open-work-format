@@ -41,13 +41,16 @@ MUST NOT become competing sources of truth.
 
 ## 3. Relationship Placement
 
-A property or outgoing relationship is authoritative with its source object.
+A relationship is authoritative in the representation of the object that
+declares it. A dependency is declared by the constrained `depends-on` source
+object. An Action declares its owner in the Operational Store, while Project and
+Outcome ownership is expressed by containment in the Markdown structure.
 
 | Relationship | Authoritative representation |
 | --- | --- |
-| Project owns Outcome | Markdown structure |
-| Outcome owns child Outcome | Markdown structure |
-| Action owned by Workspace, Project, or Outcome | Operational Store |
+| Outcome is owned by Project | Markdown structure |
+| child Outcome is owned by Outcome | Markdown structure |
+| Action is owned by Workspace, Project, or Outcome | Operational Store |
 | Action depends on Action | Operational Store |
 | Action depends on Outcome | Operational Store |
 | Outcome depends on Action | Markdown Outcome |
@@ -87,6 +90,12 @@ MUST NOT become durable dependency targets.
 
 Markdown objects use Workspace-relative path identity by default. A Markdown
 object MAY additionally declare an immutable Workspace-unique `owf.id`.
+
+For a Workspace, Project, or Outcome, `owf.id` is declared in the
+canonical `README.md` and identifies the containing directory object, not the
+`README.md` Concept. That Concept retains its path-based document identity. A
+Knowledge Document, View, or View Snapshot declares its own `owf.id` in its
+own frontmatter.
 
 Supporting stable Markdown IDs is an optional tool capability. Baseline tools
 continue to support path identity. A supporting tool MAY scan metadata and

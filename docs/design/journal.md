@@ -520,11 +520,13 @@ View definitions, View Snapshots, and Workspace context remain authoritative in
 Markdown. Implementations may index objects from the other representation for
 navigation and queries, but such indexes are derived and rebuildable.
 
-Properties and outgoing relationships are stored with their source objects.
-Action ownership and Action-source dependencies therefore belong to the
-Operational Store. Outcome-source dependencies remain with the Markdown
-Outcome, including when their target is an Action. Curated View membership and
-ordering remain in the Markdown View definition.
+Relationships are authoritative in the representation of the object that
+declares them. Dependencies are declared by the constrained `depends-on`
+source object. Action ownership and Action-source dependencies therefore belong
+to the Operational Store. Project and Outcome ownership is expressed by
+Markdown containment, while Outcome-source dependencies remain with the
+Markdown Outcome, including when their target is an Action. Curated View
+membership and ordering remain in the Markdown View definition.
 
 Operational objects use stable Workspace-unique IDs. A Markdown reference to an
 Action uses the Workspace-scoped URI `owf:action:<id>`. It remains stable

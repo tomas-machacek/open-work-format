@@ -477,6 +477,12 @@ A Markdown object MAY additionally declare an immutable Workspace-unique
 `owf.id`. Path identity remains mandatory and is sufficient for baseline OWF
 support. Stable Markdown ID support is an optional tool capability.
 
+For a Workspace, Project, or Outcome, `owf.id` is declared in the
+canonical `README.md` and identifies the containing directory object, not the
+`README.md` Concept. That Concept retains its path-based document identity. A
+Knowledge Document, View, or View Snapshot declares its own `owf.id` in its
+own frontmatter.
+
 A supporting implementation MAY build a derived ID-to-path index by scanning
 Markdown metadata. Such an index is rebuildable and MUST NOT become another
 authoritative representation of Markdown objects.
