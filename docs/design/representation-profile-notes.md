@@ -201,7 +201,7 @@ owf:
 
 - `type` is required by both OKF conformance and this profile.
 - `title` is required by this profile. It is particularly important for
-  generic filenames such as `README.md`, `_actions.md`, and `_inbox.md`.
+  generic filenames such as `README.md` and `_notes.md`.
 - `description` is recommended as a concise summary suitable for generated
   indexes, search results, and previews. It does not replace fuller body
   content.
@@ -218,8 +218,9 @@ corresponding semantics into OWF Core.
 
 All document-level metadata defined by OWF belongs under the `owf` namespace.
 Concrete YAML keys use `snake_case`. An implementation MUST NOT duplicate
-path-derived identity or ownership using `id`, `owner`, or equivalent
-frontmatter fields.
+path-derived ownership using `owner` or equivalent frontmatter fields. A
+stable optional Markdown object ID, when used, is expressed as `owf.id` under
+the rules in Section 8.2.
 
 ### 5.2 Canonical type values
 
@@ -230,8 +231,6 @@ The profile defines these canonical values:
 | Workspace `README.md` | `OWF Workspace` |
 | Project `README.md` | `OWF Project` |
 | Outcome `README.md` | `OWF Outcome` |
-| `_actions.md` | `OWF Action Collection` |
-| `_inbox.md` | `OWF Inbox` |
 | Knowledge Document, including `_notes.md` | `OWF Knowledge Document` |
 | View | `OWF View` |
 | View Snapshot | `OWF View Snapshot` |
@@ -273,8 +272,9 @@ objects. Each contains exactly one canonical `README.md` that acts as its
 human-facing landing page and stores the machine-readable metadata required by
 OWF.
 
-A `README.md` does not duplicate navigation from `index.md`, Actions from
-`_actions.md`, Event Log content, derived statistics, identity, or ownership.
+A `README.md` does not duplicate navigation from `index.md`, authoritative
+Action data from the Operational Store, Event Log content, derived statistics,
+identity, or ownership.
 It MAY link to the directory index but is not required to do so.
 
 ### 6.1 Workspace README
@@ -440,7 +440,7 @@ entry in an index is a lint finding rather than evidence that an unlisted object
 does not exist. Indexes MAY be maintained by hand or generated.
 
 An index does not need to repeat mandatory profile infrastructure such as
-`_actions.md` or `_archive/` unless surfacing it improves navigation.
+`_archive/` unless surfacing it improves navigation.
 
 ## 8. Identity and References
 
@@ -1021,7 +1021,8 @@ The external structure baseline now defines:
 - Markdown placement for scoped and Workspace-level Knowledge;
 - hierarchical Markdown Views;
 - directory, document, and operational identity rules; and
-- local Archive containers that preserve ownership but change identity.
+- local Archive containers that preserve ownership but change baseline path
+  identity.
 
 These decisions remain non-normative until incorporated into a representation
 specification. Internal design may reveal a genuine structural problem, but
