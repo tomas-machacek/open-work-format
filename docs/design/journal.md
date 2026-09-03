@@ -512,6 +512,51 @@ Critical scenarios remain non-normative design and conformance evidence. The
 principles constrain the future operational representation without prescribing
 Kanban, a database, or a specific graphical interface.
 
+## 2026-09-03 -- Operational Authority, References, and Event Logs
+
+The representation boundary was made explicit. Inbox Items and Actions are
+authoritative in the Operational Store. Projects, Outcomes, Knowledge Documents,
+View definitions, View Snapshots, and Workspace context remain authoritative in
+Markdown. Implementations may index objects from the other representation for
+navigation and queries, but such indexes are derived and rebuildable.
+
+Relationships are authoritative in the representation of the object that
+declares them. Dependencies are declared by the constrained `depends-on`
+source object. Action ownership and Action-source dependencies therefore belong
+to the Operational Store. Project and Outcome ownership is expressed by
+Markdown containment, while Outcome-source dependencies remain with the
+Markdown Outcome, including when their target is an Action. Curated View
+membership and ordering remain in the Markdown View definition.
+
+Operational objects use stable Workspace-unique IDs. A Markdown reference to an
+Action uses the Workspace-scoped URI `owf:action:<id>`. It remains stable
+through rename, ownership changes, state changes, dependency changes, and
+Archive. Markdown renderers may display its human-readable link label without
+being able to resolve the URI.
+
+All references from the Operational Store to Markdown use one conceptual
+`MarkdownObjectReference` value containing a required Workspace-rooted
+`url` and an optional stable `id`. The URL starts at the Workspace root,
+uses forward slashes, and uses a trailing slash for Workspace, Project, and
+Outcome directory objects. Relationship semantics restrict the permitted target
+type.
+
+Markdown objects retain path identity by default and may declare an immutable,
+Workspace-unique ID. Supporting those optional IDs is a tool capability rather
+than a prerequisite for basic OWF use. A supporting tool may build a derived
+ID-to-path index. When both URL and ID are present they must identify the same
+object; an ID may help relocate and repair a stale URL, while disagreement is a
+conflict rather than an automatic choice.
+
+The earlier single logical Event Log was simplified into two independent logs.
+The Markdown Event Log records Markdown-authoritative objects and Workspace-level
+workflow history. The Operational Event Log accompanies the Operational Store
+and records semantic changes to Inbox Items, Actions, and their relationships.
+Cross-representation events may reference the other representation normally.
+OWF does not require correlation IDs, global ordering, cross-log transactions,
+or a combined history. Logs describe completed changes and never coordinate
+them or replace current state.
+
 ## Historical Open Questions
 
 The original exploration deferred representation of dynamic Views, ordered
