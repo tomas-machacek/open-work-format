@@ -4,8 +4,9 @@ Open Work Format (OWF) is a lightweight, tool-independent model for personal
 knowledge work. It defines shared semantics that humans, AI agents, and
 independent tools can use without relying on hidden application state.
 
-OWF is currently at **Core v0**. The conceptual model is defined; concrete
-Markdown/YAML representation, schemas, and tooling are deliberately deferred.
+OWF is currently at **Core v0**. The conceptual model is defined; a durable
+Markdown representation baseline and the boundary of a complementary
+Operational Store are under active design.
 
 ## Documents
 
@@ -23,7 +24,10 @@ Markdown/YAML representation, schemas, and tooling are deliberately deferred.
 - [Core v0 Design Review](docs/design/core-v0-design-review.md) — consolidated
   review and formal closure of the Core v0 design.
 - [Representation Profile Design Notes](docs/design/representation-profile-notes.md)
-  — working, non-normative decisions for the future Markdown/YAML profile.
+  — working, non-normative decisions for the durable Markdown profile.
+- [Operational Store Design Notes](docs/design/operational-store-notes.md)
+  — working decisions for Actions, Inbox Items, cross-representation references,
+  and operational history.
 
 ### Examples
 
@@ -33,8 +37,8 @@ workspaces. Concrete examples will follow the representation profile.
 ## Status
 
 Core v0 is a normative conceptual specification, but OWF is still evolving.
-Representation syntax, lint diagnostics, schemas, and reference tooling are not
-yet defined.
+The representation profile, Operational Store contract, lint diagnostics,
+schemas, and reference tooling are not yet complete.
 
 ## Influences
 

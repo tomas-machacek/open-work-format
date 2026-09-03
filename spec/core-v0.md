@@ -74,7 +74,7 @@ Core v0 defines:
 - structural ownership and semantic dependencies;
 - intrinsic lifecycle states and derived observations;
 - Capture, Inbox Processing, Refinement, Review, Closure Review, and Planning;
-- Views, View Snapshots, and the logical Event Log; and
+- Views, View Snapshots, and Event Logs; and
 - conceptual consistency requirements.
 
 Core v0 does not define:
@@ -99,7 +99,7 @@ An OWF Workspace distinguishes the following roles:
 | Captured input | Inbox Item | Unresolved temporary input |
 | Knowledge | Knowledge Document | Durable context, evidence, or rationale |
 | Live projection | View | A current perspective over Workspace objects |
-| Historical artifacts | View Snapshot, Event Log | Explicitly captured or explanatory history |
+| Historical artifacts | View Snapshot, Event Logs | Explicitly captured or explanatory history |
 
 A Review Signal is a temporary derived observation and MUST NOT be treated as a
 persistent Core object. A Review run is a workflow execution and MUST NOT
@@ -561,26 +561,32 @@ Review MAY use a Planning View as its scope at the end of a planning period. A
 Snapshot MAY preserve a reliable historical projection before or after such a
 Review.
 
-## 16. Event Log
+## 16. Event Logs
 
-OWF defines one logical append-only Event Log. Current OWF objects are the source
-of present truth. The Event Log explains semantic changes, decisions, Review
-activity, and rationale; it MUST NOT be used as an event-sourced authority for
-reconstructing current state.
+Event Logs explain semantic changes, decisions, Review activity, and rationale.
+Current OWF objects remain the source of present truth. An Event Log MUST NOT be
+used as an event-sourced authority for reconstructing current state.
 
-OWF-aware operations SHOULD record semantic events. A Review run that is
-represented as completed MUST have correlated Event Log entries that identify
-its mode and scope and record a disposition for every detected Signal in that
-scope. Those entries SHOULD record the Review start, resulting operations, and
-supplied rationale. Interrupted or abandoned Review runs MAY be recorded with
-the information available at that time.
+A representation profile MAY define multiple independent Event Logs aligned
+with its authoritative representations. It MUST define which events belong to
+each log. OWF does not require correlation identifiers, global ordering,
+cross-log transactions, or a unified materialized history.
 
-The log MAY be physically split. Changes made outside OWF-aware tools MAY be
-recorded retrospectively with reduced context.
+OWF-aware operations SHOULD record a semantic event in the log responsible for
+the changed source object. Events involving another representation MAY reference
+objects there using the applicable OWF reference mechanism.
 
-The Event Log does not guarantee a complete history of Workspace state. It MUST
-NOT substitute for a View Snapshot when reliable historical evidence is
-required, or for a durable current object when content must remain available.
+A Review run represented as completed MUST have a durable Event Log record that
+identifies its mode and scope and records a disposition for every detected
+Signal in that scope. It SHOULD record resulting operations and supplied
+rationale. Interrupted or abandoned Review runs MAY be recorded with the
+information available at that time.
+
+Event Logs do not guarantee a complete history of Workspace state. They MUST NOT
+substitute for a View Snapshot when reliable historical evidence is required,
+or for a durable current object when content must remain available. Logs record
+completed changes; they do not coordinate operations or provide transaction
+recovery.
 
 Core v0 does not require actor identity in Event Log entries and does not
 distinguish changes made by a human, AI agent, tool, or integration.

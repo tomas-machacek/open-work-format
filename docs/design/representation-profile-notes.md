@@ -1,6 +1,6 @@
 # OWF Representation Profile Design Notes
 
-> Status: Working, non-normative design notes; Markdown representation for Actions and Inbox Items reopened after operational UX review
+> Status: Working, non-normative design notes; durable Markdown baseline and Operational Store authority boundary established
 
 ## 1. Purpose
 
@@ -49,9 +49,10 @@ representation may use another open store, provided that it:
 - does not make routine operation depend on an AI agent.
 
 The _actions.md and _inbox.md designs later in this document are retained as
-fully described experimental candidates. They are suspended and are not part of
-the accepted external-structure baseline while the operational representation
-contract is designed.
+fully described historical experiments. They are superseded by the accepted
+Operational Store authority boundary and are not part of the external-structure
+baseline. The detailed store contract remains under design in
+docs/design/operational-store-notes.md.
 
 ### 1.2 Operational UX baseline
 
@@ -94,8 +95,6 @@ my-workspace/
 ├── README.md
 ├── index.md
 ├── log.md
-├── _actions.md
-├── _inbox.md
 ├── _notes.md
 ├── _knowledge/
 │   ├── index.md
@@ -108,13 +107,11 @@ my-workspace/
 │   └── open-work-format/
 │       ├── README.md
 │       ├── index.md
-│       ├── _actions.md
 │       ├── _notes.md
 │       ├── design-background.md
 │       ├── representation-profile/
 │       │   ├── README.md
 │       │   ├── index.md
-│       │   ├── _actions.md
 │       │   └── okf-notes.md
 │       └── _archive/
 │           ├── index.md
@@ -135,7 +132,9 @@ my-workspace/
 ```
 
 Optional files and directories are omitted when empty unless a later normative
-rule says otherwise.
+rule says otherwise. The Operational Store belongs to this Workspace but its
+physical format and placement are not yet defined and therefore are not shown in
+the directory example.
 
 ## 3. Reserved Names
 
@@ -145,11 +144,9 @@ representation profile. User-defined object names MUST NOT begin with `_`.
 Current OWF-reserved names are:
 
 - `_projects/`
-- `_inbox.md`
 - `_notes.md`
 - `_knowledge/`
 - `_views/`
-- `_actions.md`
 - `_archive/`
 
 The leading underscore keeps structural entries visible, sorts them before most
@@ -171,9 +168,8 @@ them.
 | User-named directory directly under a Project or Outcome | child Outcome | grouping directory |
 | Workspace, Project, or Outcome `README.md` | canonical overview and metadata representation | Concept document |
 | `index.md` | navigation for its directory | reserved OKF index |
-| Root `log.md` | OWF Event Log | reserved OKF update log |
-| Owner-local `_actions.md` | collection containing owned Actions | Concept document |
-| Workspace-root `_inbox.md` | collection containing Inbox Items | Concept document |
+| Root `log.md` | Markdown Event Log | reserved OKF update log |
+| Profile-defined Operational Store | Inbox Items, Actions, their outgoing relationships, and Operational Event Log | outside the OKF document model |
 | Owner-local `_notes.md` | conventional aggregated Knowledge Document | Concept document |
 | Ordinary `.md` directly under a Project or Outcome | owned Knowledge Document | Concept document |
 | Ordinary `.md` below root `_knowledge/` | Workspace Knowledge Document | Concept document |
@@ -448,14 +444,13 @@ An index does not need to repeat mandatory profile infrastructure such as
 
 ## 8. Identity and References
 
-Every OWF identity is an absolute bundle-relative logical path without a
-serialization extension.
+### 8.1 Markdown path identities
 
-### 7.1 Directory object identities
-
-Workspace, Project, and Outcome identities are directory paths and MUST end in
-`/`. The trailing slash is semantically significant and distinguishes an OWF
-directory object from an OKF Concept whose file has the same stem.
+Every Markdown object has a baseline identity derived from an absolute
+Workspace-relative logical path without a serialization extension. Workspace,
+Project, and Outcome identities are directory paths and MUST end in `/`. The
+trailing slash distinguishes a directory object from a document with the same
+stem.
 
 Examples:
 
@@ -465,68 +460,76 @@ Examples:
 /_projects/open-work-format/representation-profile/
 ```
 
-The following may therefore coexist without ambiguity:
-
-```text
-representation-profile/
-representation-profile.md
-```
-
-Their identities are:
-
-```text
-/_projects/open-work-format/representation-profile/
-/_projects/open-work-format/representation-profile
-```
-
-Implementations MUST NOT remove or normalize away the trailing slash of a
-directory object identity.
-
-### 7.2 Document identities
-
 A Markdown Concept document uses the OKF Concept ID: its absolute
-bundle-relative file path with the `.md` suffix removed.
-
-For example:
+Workspace-relative file path with the `.md` suffix removed.
 
 ```text
 File: /_projects/open-work-format/design-background.md
 ID:   /_projects/open-work-format/design-background
-
-File: /_projects/open-work-format/README.md
-ID:   /_projects/open-work-format/README
 ```
 
-The `README.md` Concept ID identifies the overview document, while the
-containing directory identity identifies the Project or Outcome. They are
-different objects with a profile-defined representation relationship.
+The `README.md` Concept and its containing Project or Outcome remain different
+objects with a profile-defined representation relationship.
 
-### 7.3 Nested collection item identities
+### 8.2 Optional stable Markdown IDs
 
-An Action or Inbox Item is a nested OWF object within a collection Concept. Its
-identity is the collection Concept ID followed by a stable fragment identifier.
+A Markdown object MAY additionally declare an immutable Workspace-unique
+`owf.id`. Path identity remains mandatory and is sufficient for baseline OWF
+support. Stable Markdown ID support is an optional tool capability.
 
-Examples:
+A supporting implementation MAY build a derived ID-to-path index by scanning
+Markdown metadata. Such an index is rebuildable and MUST NOT become another
+authoritative representation of Markdown objects.
+
+### 8.3 Operational identities
+
+Every Action has a stable Workspace-unique ID assigned by the Operational Store.
+Its canonical cross-representation URI is:
 
 ```text
-/_projects/open-work-format/_actions#prepare-internal-structure
-/_inbox#email-from-jan
+owf:action:<id>
 ```
 
-The corresponding Markdown links include the physical `.md` suffix:
+The URI is resolved within the current Workspace and remains unchanged through
+Action rename, state change, ownership change, dependency change, and Archive.
+The exact Action ID format remains open. Inbox Items also have stable
+Workspace-unique store IDs but are not durable dependency targets.
+
+### 8.4 Cross-representation references
+
+A Markdown reference to an Action uses a readable Markdown link whose target is
+the Action URI:
+
+```markdown
+[Confirm API contract](owf:action:01K4ABC)
+```
+
+All references from the Operational Store to Markdown use one conceptual value:
 
 ```text
-/_projects/open-work-format/_actions.md#prepare-internal-structure
-/_inbox.md#email-from-jan
+MarkdownObjectReference
+  url: required Workspace-rooted URL
+  id: optional stable Markdown object ID
 ```
 
-The fragment belongs to OWF identity semantics. The containing collection is an
-OKF Concept; the individual nested items are full OWF objects but are not
-separate OKF Concepts.
+The `url` starts with `/`, uses forward slashes, contains no `..` segment,
+and uses a trailing slash for Workspace, Project, and Outcome directory objects.
+The relationship using the reference constrains the permitted target type, so
+the reference does not duplicate a type field.
 
-Moving or renaming an object changes its identity. An OWF-aware operation MUST
-update affected references. A linter detects references that remain broken but
-is not the primary mechanism for performing the update.
+If only URL is present, resolution uses the path. If both fields are present,
+they MUST identify the same object. A supporting tool MAY use the ID to relocate
+an object and repair a stale URL. If a valid URL and ID identify different
+objects, the reference is inconsistent and MUST NOT be resolved silently.
+
+Consequently:
+
+| Direction | Representation |
+| --- | --- |
+| Operational to Markdown | `MarkdownObjectReference { url, id? }` |
+| Operational to Action | `owf:action:<id>` |
+| Markdown to Action | `owf:action:<id>` |
+| Markdown to Markdown | standard Workspace-rooted Markdown path or link |
 
 ## 9. Knowledge Documents
 
@@ -589,11 +592,11 @@ summary belongs in `README.md`; and semantic history belongs in `log.md`.
 Unlike the Event Log, `_notes.md` is not append-only. Entries may be edited,
 removed, consolidated, or promoted into more durable artifacts.
 
-## 10. Suspended Candidate: Markdown Action Collections
+## 10. Superseded Experiment: Markdown Action Collections
 
-> This section records the previously completed Markdown candidate. It is not
-> part of the accepted baseline while the operational representation contract
-> remains open.
+> This section preserves the previously completed Markdown experiment for
+> rationale. Actions are now authoritative in the Operational Store; this is not
+> part of the accepted profile baseline.
 
 Actions are normally short, have relatively short lifetimes, and cannot own
 other objects. Creating one Markdown file and frontmatter block for every Action
@@ -859,10 +862,11 @@ A linter MAY additionally report:
 Extension-property namespacing remains part of the general extension model and
 is not defined by this section.
 
-## 11. Suspended Candidate: Markdown Inbox Collection
+## 11. Superseded Experiment: Markdown Inbox Collection
 
-> This section records the previous Markdown candidate. It is not part of the
-> accepted baseline while the operational representation contract remains open.
+> This section preserves the previous Markdown experiment for rationale. Inbox
+> Items are now authoritative in the Operational Store; this is not part of the
+> accepted profile baseline.
 
 Inbox Items are short-lived unresolved captures and do not own other objects.
 They are represented inside one optional Workspace-root `_inbox.md`.
@@ -916,10 +920,13 @@ referenced members.
 A Computed View also remains a Markdown document but requires a
 machine-readable query. Query syntax and placement remain open.
 
-## 13. Event Log
+## 13. Event Logs
 
-The Workspace-root `log.md` is both the OKF update log and the concrete
-representation of OWF's one logical Event Log.
+### 13.1 Markdown Event Log
+
+The Workspace-root `log.md` is the Markdown Event Log and the OKF update log.
+It records semantic events for Markdown-authoritative objects, Workspace-level
+decisions, and durable workflow history such as Review summaries.
 
 It follows the OKF log structure:
 
@@ -928,106 +935,73 @@ It follows the OKF log structure:
 - newest dates and entries appear first; and
 - entries remain human-readable prose.
 
-OWF adds conventions within those entries for semantic event type, subject,
-correlation identifier, Review mode and scope, detected Signal, disposition,
-resulting operations, and rationale.
-
-For example:
-
-```markdown
-# Workspace Event Log
-
-## 2026-08-16
-
-- **Review started** `review:2026-08-16-weekly`
-  — mode: periodic
-  — scope: [Weekly Review](/_views/review/weekly-review.md)
-
-- **Signal dispositioned** `review:2026-08-16-weekly`
-  — signal: action-without-progress
-  — subject: [Prepare structure](/_projects/open-work-format/_actions.md#prepare-structure)
-  — disposition: retained
-  — rationale: Still relevant for the next planning window.
-```
-
 Append-only means that recorded historical events are not edited or removed.
-New entries are inserted at the top to preserve OKF's newest-first convention;
-it does not require byte-level appending at the end of the file.
+Inserting new entries at the top preserves OKF's newest-first convention and
+does not require byte-level appending.
 
-Local `log.md` files are not currently part of the OWF profile. The one root
-log avoids competing histories. Its exact event-entry grammar remains open.
+### 13.2 Operational Event Log
+
+The Operational Store contains a separate Operational Event Log for semantic
+changes to Inbox Items, Actions, and their outgoing relationships. Its physical
+schema and retention rules remain open. It is not an event-sourced authority;
+current operational objects remain the source of truth.
+
+A cross-representation event MAY reference the other representation using
+`owf:action:<id>` or `MarkdownObjectReference`. Neither log requires a
+correlation ID, global sequence, cross-log transaction, or unified materialized
+timeline. Logs record completed changes and do not coordinate the operation that
+produced them.
+
+A completed Review has its durable summary in the Markdown Event Log. Changes it
+performs on operational objects may independently appear in the Operational
+Event Log. Exact event-entry grammar remains open for both logs.
 
 ## 14. Archive
 
-A possible owner MAY contain a reserved `_archive/` directory. It is a
-representation container, not a Core object and not a structural owner.
+A Markdown structural owner MAY contain a reserved `_archive/` directory. It
+is a representation container, not a Core object or structural owner.
 
-The archive is transparent to ownership but not to identity:
+For Markdown Projects and Outcomes, Archive preserves ownership but changes
+baseline path identity. A stable optional `owf.id`, when present, remains
+unchanged and may help tools update path references. An OWF-aware Archive
+operation MUST update affected path links, and a linter SHOULD report broken
+references.
 
-- archived contents remain owned by the nearest enclosing Workspace, Project,
-  or Outcome;
-- at the `_projects/` level, archived Projects remain top-level Workspace
-  Projects; and
-- moving an object into `_archive/` changes its identity because the physical
-  path changes.
-
-An OWF-aware Archive operation MUST update affected links. A linter SHOULD
-report references that remain broken after the move.
-
-Typical contents are:
-
-| Archive location | Permitted archived work |
+| Archive location | Permitted archived Markdown work |
 | --- | --- |
-| Workspace `_archive/` | standalone Actions |
 | `_projects/_archive/` | Projects |
-| Project `_archive/` | Project-owned Actions and child Outcomes |
-| Outcome `_archive/` | Outcome-owned Actions and child Outcomes |
+| Project `_archive/` | child Outcomes |
+| Outcome `_archive/` | child Outcomes |
 
-Archived Actions are stored in:
+Actions are archived within the Operational Store. Their
+`owf:action:<id>` identity and owner reference remain unchanged, and the store
+preserves the preceding Completed or Cancelled disposition.
 
-```text
-<owner>/_archive/_actions.md
-```
-
-Their identities therefore also change to the archived collection path plus
-their stable fragment. Action fragment identifiers remain unique across the
-owner's active and archived Action collections together.
-
-Archived Projects and Outcomes retain their directory representation,
-`README.md`, and `index.md` under the appropriate local `_archive/`.
-
-Archiving MUST NOT be achieved merely by moving files. Core lifecycle and
-Closure Review requirements apply first. An archived object preserves its
-preceding successful or unsuccessful terminal disposition.
+Archiving MUST follow the Core lifecycle and Closure Review rules. It MUST NOT
+be achieved merely by moving Markdown files or hiding an operational object.
 
 ## 15. OKF Compatibility Profile
 
-The intended compatibility boundary is:
-
-> An OWF representation is an OKF v0.2-conformant Knowledge Bundle. Every
-> non-reserved Markdown document is an OKF Concept. Some collection Concepts
-> contain multiple nested OWF objects that are not separate OKF Concepts.
+The durable Markdown part of an OWF Workspace is an OKF v0.2-conformant
+Knowledge Bundle. Every non-reserved Markdown document is an OKF Concept. The
+Operational Store accompanies the same OWF Workspace but its Actions, Inbox
+Items, relationships, and Operational Event Log are outside the OKF document
+model.
 
 Consequently:
 
 - every non-reserved `.md` has parseable YAML frontmatter and non-empty
   `type`;
-- `index.md` and `log.md` follow their reserved OKF structures;
+- `index.md` and the Markdown `log.md` follow their reserved OKF structures;
 - unknown OKF fields and producer-defined extension fields remain permitted;
-- standard Markdown links are used for physical navigation;
-- Actions and Inbox Items remain visible within OKF Concept documents; and
+- standard Markdown links are used for physical Markdown navigation;
+- `owf:action:<id>` addresses Actions across the representation boundary; and
 - OWF-specific frontmatter belongs under the `owf` namespace.
 
-OKF `status` and OWF `owf.state` have different meanings:
-
-- `status` describes the OKF document lifecycle such as `draft`, `stable`,
-  or `deprecated`;
-- `owf.state` represents the intrinsic lifecycle or execution state of the OWF
-  object represented by that document.
-
-The OKF actor, provenance, trust, freshness, and attestation families remain
-optional. Their presence does not add actor identity or collaboration semantics
-to OWF Core.
+OKF `status` describes document lifecycle, while `owf.state` represents the
+intrinsic lifecycle state of the OWF object represented by that document. OKF
+actor, provenance, trust, freshness, and attestation fields remain optional and
+do not introduce actor identity or collaboration semantics into OWF Core.
 
 ## 16. External Structure Baseline
 
@@ -1037,11 +1011,16 @@ The external structure baseline now defines:
 - directory-based Workspace, Project, and Outcome objects;
 - `README.md` as their canonical landing page and metadata representation;
 - reserved OKF `index.md` for navigation;
-- a shared OKF/OWF root `log.md`;
-- an open operational-representation boundary for Actions and Inbox Items;
+- a root Markdown Event Log and a separate Operational Event Log;
+- Operational Store authority for Inbox Items, Actions, and their outgoing
+  relationships;
+- source-owned dependency placement across both representations;
+- stable Action URIs and a common `MarkdownObjectReference` for
+  Operational-to-Markdown links;
+- path identity with optional stable IDs for Markdown objects;
 - Markdown placement for scoped and Workspace-level Knowledge;
 - hierarchical Markdown Views;
-- directory, document, and fragment-based identity rules; and
+- directory, document, and operational identity rules; and
 - local Archive containers that preserve ownership but change identity.
 
 These decisions remain non-normative until incorporated into a representation
@@ -1052,24 +1031,21 @@ field naming or presentation preference alone should not reopen this baseline.
 
 The following representation decisions remain open:
 
-- the authoritative operational representation for Actions and Inbox Items;
-- the storage and interoperability contract binding operational objects to the
-  locally available Workspace;
-- stable operational identity and links between Actions and Markdown owners;
+- the physical format, placement, versioning, backup, and migration model of the
+  Operational Store;
+- the exact Action and Inbox Item ID format;
+- the detailed storage and interoperability contract;
 - the minimum human GUI and agent CLI/API capability surface;
 - compact Action projections and the command surface for frequent state
   transitions;
 - progressive Action enrichment without burdening title-only creation;
-- stable Action identity across renaming, ownership change, dependency change,
-  and Archive;
-- whether Markdown Action and Inbox collections remain a fallback, interchange
-  form, snapshot, or optional representation profile;
+- whether the superseded Markdown Action and Inbox collections remain useful as
+  interchange formats, snapshots, or optional profiles;
+- Operational Event Log schema and retention;
+- exact Markdown Event Log and Review-entry grammar;
 - representation of `review_after` beyond the agreed README fields;
-- the field used to preserve an archived object's preceding terminal
-  disposition;
 - exact index completeness lint severity;
 - serialization of Computed View queries and Curated View membership;
 - representation of View Snapshots;
-- the machine-readable convention within OKF-compatible Event Log entries;
 - extension compatibility rules; and
 - the normative lint catalogue.
