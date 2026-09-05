@@ -1034,6 +1034,11 @@ These decisions remain non-normative until incorporated into a representation
 specification. Internal design may reveal a genuine structural problem, but
 field naming or presentation preference alone should not reopen this baseline.
 
+The minimum logical InboxItem and Action fields, dependency reference values,
+and operation capabilities are defined in
+[Operational Store Design Notes](operational-store-notes.md#9-minimum-logical-data-model).
+These are not a physical serialization or a concrete API contract.
+
 ## 17. Current Open Questions
 
 The following representation decisions remain open:
@@ -1042,10 +1047,10 @@ The following representation decisions remain open:
   Operational Store;
 - the exact Action and Inbox Item ID format;
 - the detailed storage and interoperability contract;
-- the minimum human GUI and agent CLI/API capability surface;
+- concrete human GUI and agent CLI/API design for the agreed minimum capabilities;
 - compact Action projections and the command surface for frequent state
   transitions;
-- progressive Action enrichment without burdening title-only creation;
+- detailed interaction design for the agreed progressive Action enrichment;
 - whether the superseded Markdown Action and Inbox collections remain useful as
   interchange formats, snapshots, or optional profiles;
 - Operational Event Log schema and retention;
