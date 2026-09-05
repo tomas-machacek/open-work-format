@@ -32,9 +32,12 @@ requirements.
 | Markdown Event Log | Workspace-root `log.md` |
 | Operational Event Log | Operational Store |
 
-The Operational Store belongs to exactly one logical OWF Workspace and is
-locally available with it. Its physical format and placement remain open.
-An isolated cloud task system is not the authoritative Operational Store.
+The Operational Store belongs to exactly one logical OWF Workspace. Physical
+co-location is recommended, not required. The Operational Store and screenshot
+storage may independently be local or external, including cloud-hosted.
+Workspace-root configuration identifies their locations; external storage must
+still satisfy OWF identity, navigation, operation, and lifecycle requirements.
+See Section 12 for discovery, portability, and availability rules.
 
 Implementations MAY index objects from the other representation for navigation,
 search, and query evaluation. Such indexes are derived and rebuildable; they
@@ -214,8 +217,9 @@ the item's age. After successful processing the item is consumed, not archived.
 It MUST remain available if intended processing operations fail. Valuable input,
 including screenshots, MUST be preserved in suitable resulting objects when it
 needs to outlive processing; the Event Log is not durable content storage.
-Screenshot representation remains open, but transfer and backup of the Workspace
-must preserve the screenshots.
+Screenshot representation remains open. A complete Workspace backup must preserve
+the screenshot data, not just references. Moving a Workspace with external
+storage preserves its pointers but does not relocate the external data.
 
 ### 9.2 Action
 
@@ -359,14 +363,78 @@ This guarantee does not require transactions spanning Markdown and the
 Operational Store, or coordination through Event Logs. Logs explain completed
 changes; they do not coordinate them.
 
-## 12. Deferred Work
+## 12. Storage Configuration and Discovery
+
+Logical membership in a Workspace does not require physical containment in its
+directory. Storing the Operational Store and managed screenshots inside the
+Workspace root is RECOMMENDED because a directory move carries them together.
+Either storage location MAY instead be external, including in the cloud.
+
+### 12.1 Declaration in the root README
+
+The Workspace declares storage locations in its existing root `README.md`,
+under the `owf.storage` frontmatter mapping. No separate configuration file
+is required.
+
+```yaml
+owf:
+  version: "0.1"
+  storage:
+    operational:
+      url: ./_store/
+    screenshots:
+      url: ./_screenshots/
+```
+
+These are illustrative directory names, not newly reserved or mandatory names.
+The URL declarations locate storage; they do not select a database format,
+communication protocol, or provider-specific connection contract.
+
+- `owf.storage.operational.url` is required.
+- `owf.storage.screenshots.url` is required when screenshot capture is supported.
+- Relative storage URLs resolve against the Workspace root.
+- External storage uses stable addresses in the same URL fields.
+- Storage declaration URLs locate stores; they are not MarkdownObjectReference
+  values. References from Actions to Markdown owners remain Workspace-rooted.
+- Authentication secrets MUST NOT be embedded in portable Workspace
+  configuration. Tools manage authentication; the mechanism remains open.
+
+### 12.2 Move, copy, and backup
+
+Moving a Workspace directory with internally stored data carries its Markdown,
+configuration, Operational Store, and screenshots together. For external storage,
+moving the directory carries only the configuration and local content; the
+configuration continues to point to the same external locations.
+
+Copying the directory is not automatically an independent Workspace clone:
+a copied configuration may still point to the same Operational Store and
+screenshots. Creating an independent clone requires separate handling of that
+data and its configuration; the detailed procedure remains open.
+
+A directory copy alone is not a complete backup when data is external. A complete
+Workspace backup must also include an export or separately recoverable backup
+of the external operational data and screenshots. The exact consistent backup
+and restore procedure remains open.
+
+### 12.3 Unavailable storage
+
+A tool MUST distinguish an unavailable declared Operational Store from an empty
+Inbox or Action collection. It MUST report unavailability and MUST NOT silently
+initialize a replacement store. An inability to access work is not evidence
+that no work exists.
+
+Local-first and offline-capable operation remain recommended, not a prerequisite
+for compatibility. External storage changes availability and backup obligations,
+not the logical authority boundary.
+
+## 13. Deferred Work
 
 The following remain open:
 
-- physical store format, placement, and Workspace discovery;
+- physical store format and provider-specific connection details;
 - Action and Inbox Item ID format;
 - physical serialization, schema versioning, and migrations;
-- screenshot storage and reference representation;
+- screenshot data format and per-screenshot reference representation;
 - backup, restore, export, and migration;
 - concrete command/API contracts, query syntax, and detailed filter capabilities;
 - human GUI and agent CLI/API design;
