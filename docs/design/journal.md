@@ -557,6 +557,46 @@ OWF does not require correlation IDs, global ordering, cross-log transactions,
 or a combined history. Logs describe completed changes and never coordinate
 them or replace current state.
 
+## 2026-09-05 -- Operational Data Model and Minimum Operations
+
+The minimum logical InboxItem model was agreed: tool-generated id and
+captured_at, plus text, URL, and optional screenshot references. At least one
+input form must contain content. No separate title, owner, capture context, work
+state, or archive fields are introduced. Edits preserve original capture time.
+Successful processing consumes the item; failure retains the input. Content
+that must outlive processing belongs in resulting objects, not only in a log.
+
+The Action model retains stable id, title, state, and an explicit owner
+MarkdownObjectReference. Optional description uses Markdown; waiting_for,
+manual_block, depends_on, and archived_from follow their state-specific rules.
+Tool-managed created_at and updated_at support inspection, but a data change
+is not evidence of progress.
+
+Dependencies are reference values owned by their source Action, not separate
+entities with their own identity or lifecycle. Action targets use
+owf:action:<id>; Outcome targets use MarkdownObjectReference. Dependencies have
+set semantics, successful-terminal satisfaction rules, cross-Project support,
+and cycle linting. Reverse dependents and satisfaction/blocking observations
+remain derived. Outcome-source dependencies remain in Markdown.
+
+The minimum operation capabilities cover Inbox capture, reading/listing,
+editing, resolution, and discard, plus Action creation, retrieval/filtering,
+content and state updates, owner changes, waiting reasons, manual blocks,
+dependencies, and Archive. Humans and agents receive equivalent capabilities
+through suitable interfaces, not necessarily identical calls or gestures.
+
+Create Action permits an explicitly supplied owner, which takes precedence
+over any current context. Contextual creation may prefill Project or Outcome;
+otherwise it defaults to Workspace. The human interface must expose the
+prefilled owner and allow quick changes. Working in one Project never prevents
+creating an Action in another.
+
+A single-object change persists completely and validly or leaves the original
+object unchanged with an explanation. Related field changes may be combined.
+This does not introduce cross-store transactions or log-based coordination.
+Physical storage, screenshots, concrete APIs/queries, concurrency, and
+cross-representation recovery remain open.
+
 ## Historical Open Questions
 
 The original exploration deferred representation of dynamic Views, ordered
