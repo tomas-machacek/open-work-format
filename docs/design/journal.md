@@ -597,6 +597,32 @@ This does not introduce cross-store transactions or log-based coordination.
 Physical storage, screenshots, concrete APIs/queries, concurrency, and
 cross-representation recovery remain open.
 
+## 2026-09-05 -- Configured Storage and Optional Locality
+
+The previous requirement for one locally available Workspace is relaxed.
+Logical membership and a single authoritative source of truth remain required,
+while physical co-location of the Operational Store and managed screenshots
+inside the Workspace root is recommended, not mandatory. Either storage
+location may be external, including cloud-hosted. This supersedes mandatory
+locality in the earlier operational UX and authority-boundary entries.
+
+Storage locations are declared in the root README frontmatter under
+owf.storage.operational.url and owf.storage.screenshots.url. The operational
+declaration is required; the screenshot declaration is required when screenshot
+capture is supported. Relative locations resolve against the Workspace root.
+The declarations locate storage without choosing a database or protocol.
+Portable configuration contains no authentication secrets; tools handle access.
+
+Moving a Workspace with external stores carries their pointers, not the data.
+A directory copy can still address the same external data and is neither an
+independent clone nor a complete backup. Full backup must include the external
+operational data and screenshots. Local co-location is recommended precisely
+because it simplifies portability.
+
+An unavailable declared store must be reported as unavailable, not treated as
+empty and not silently replaced with a newly initialized store. Offline support
+remains recommended rather than a conformance prerequisite.
+
 ## Historical Open Questions
 
 The original exploration deferred representation of dynamic Views, ordered
