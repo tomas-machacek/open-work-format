@@ -617,6 +617,22 @@ summary belongs in `README.md`; and semantic history belongs in `log.md`.
 Unlike the Event Log, `_notes.md` is not append-only. Entries may be edited,
 removed, consolidated, or promoted into more durable artifacts.
 
+### 9.2 Images accompanying Markdown documents
+
+A screenshot incorporated into a Markdown document is copied into the same
+directory as the document, with no special image subdirectory. The document
+uses a standard relative image reference, for example
+`![Screen proposal](screen-proposal.png)`. The image is supporting content,
+not a separate OWF work object or Markdown Concept.
+
+The original screenshot remains in configured screenshot storage so existing
+Inbox and Action references remain valid. Name collisions must be resolved by
+choosing an available filename, never by overwriting an existing file.
+
+Moving a document must preserve its relative image references. Tools must not
+assume exclusive use of an image by one document. See the
+[screenshot and Markdown image rules](operational-store-notes.md#14-screenshots-and-markdown-images).
+
 ## 10. Superseded Experiment: Markdown Action Collections
 
 > This section preserves the previously completed Markdown experiment for
@@ -1056,7 +1072,10 @@ field naming or presentation preference alone should not reopen this baseline.
 The minimum logical InboxItem and Action fields, dependency reference values,
 and operation capabilities are defined in
 [Operational Store Design Notes](operational-store-notes.md#9-minimum-logical-data-model).
-These are not a physical serialization or a concrete API contract.
+The same notes define
+[minimum query capabilities](operational-store-notes.md#13-minimum-query-capabilities)
+for the first tool version. These are not a physical serialization, a concrete
+API contract, or the Computed View query language.
 
 ## 17. Current Open Questions
 
