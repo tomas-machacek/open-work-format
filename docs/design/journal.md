@@ -557,6 +557,110 @@ OWF does not require correlation IDs, global ordering, cross-log transactions,
 or a combined history. Logs describe completed changes and never coordinate
 them or replace current state.
 
+## 2026-09-05 -- Operational Data Model and Minimum Operations
+
+The minimum logical InboxItem model was agreed: tool-generated id and
+captured_at, plus text, URL, and optional screenshot references. At least one
+input form must contain content. No separate title, owner, capture context, work
+state, or archive fields are introduced. Edits preserve original capture time.
+Successful processing consumes the item; failure retains the input. Content
+that must outlive processing belongs in resulting objects, not only in a log.
+
+The Action model retains stable id, title, state, and an explicit owner
+MarkdownObjectReference. Optional description uses Markdown; waiting_for,
+manual_block, depends_on, and archived_from follow their state-specific rules.
+Tool-managed created_at and updated_at support inspection, but a data change
+is not evidence of progress.
+
+Dependencies are reference values owned by their source Action, not separate
+entities with their own identity or lifecycle. Action targets use
+owf:action:<id>; Outcome targets use MarkdownObjectReference. Dependencies have
+set semantics, successful-terminal satisfaction rules, cross-Project support,
+and cycle linting. Reverse dependents and satisfaction/blocking observations
+remain derived. Outcome-source dependencies remain in Markdown.
+
+The minimum operation capabilities cover Inbox capture, reading/listing,
+editing, resolution, and discard, plus Action creation, retrieval/filtering,
+content and state updates, owner changes, waiting reasons, manual blocks,
+dependencies, and Archive. Humans and agents receive equivalent capabilities
+through suitable interfaces, not necessarily identical calls or gestures.
+
+Create Action permits an explicitly supplied owner, which takes precedence
+over any current context. Contextual creation may prefill Project or Outcome;
+otherwise it defaults to Workspace. The human interface must expose the
+prefilled owner and allow quick changes. Working in one Project never prevents
+creating an Action in another.
+
+A single-object change persists completely and validly or leaves the original
+object unchanged with an explanation. Related field changes may be combined.
+This does not introduce cross-store transactions or log-based coordination.
+Physical storage, screenshots, concrete APIs/queries, concurrency, and
+cross-representation recovery remain open.
+
+## 2026-09-05 -- Configured Storage and Optional Locality
+
+The previous requirement for one locally available Workspace is relaxed.
+Logical membership and a single authoritative source of truth remain required,
+while physical co-location of the Operational Store and managed screenshots
+inside the Workspace root is recommended, not mandatory. Either storage
+location may be external, including cloud-hosted. This supersedes mandatory
+locality in the earlier operational UX and authority-boundary entries.
+
+Storage locations are declared in the root README frontmatter under
+owf.storage.operational.url and owf.storage.screenshots.url. The operational
+declaration is required; the screenshot declaration is required when screenshot
+capture is supported. Relative locations resolve against the Workspace root.
+The declarations locate storage without choosing a database or protocol.
+Portable configuration contains no authentication secrets; tools handle access.
+
+Moving a Workspace with external stores carries their pointers, not the data.
+A directory copy can still address the same external data and is neither an
+independent clone nor a complete backup. Full backup must include the external
+operational data and screenshots. Local co-location is recommended precisely
+because it simplifies portability.
+
+An unavailable declared store must be reported as unavailable, not treated as
+empty and not silently replaced with a newly initialized store. Offline support
+remains recommended rather than a conformance prerequisite.
+
+## 2026-09-05 -- MVP Queries, Sequential Processing, and Images
+
+The first tool version defers concurrent editing, revision tokens, conflict
+detection, and automatic merging. Atomic changes to one operational object
+remain required; they are not a guarantee against concurrent lost updates.
+
+Inbox processing is performed by the human or agent as individual operations.
+Each reports success or failure; earlier successful operations remain saved if
+a later operation fails. Resolve is invoked only after intended processing is
+complete. No automatic multi-object conversion, rollback, or recovery coordinator
+is required.
+
+Minimum queries include reading Action or InboxItem by ID, listing the current
+Inbox, listing Actions, filtering Actions by state and direct owner, and
+combining those filters. Multiple states use OR; different filters use AND.
+Archived Actions require an explicit request. Owner filtering is not recursive.
+Inbox presentation can be oldest first; Action result order does not mean
+priority. Blocked, executable, reverse dependencies, and Project subtrees can
+be derived by an OWF-aware tool or agent instead of queried in the store.
+
+Screenshots are copied to configured storage before capture is acknowledged;
+both the screenshot and Inbox Item must be saved. InboxItem and Action share
+an optional screenshots field using storage-root-relative references. Inbox
+processing can transfer references to Actions without moving the image data.
+Consumption does not automatically delete screenshots; unused-image cleanup
+is deferred.
+
+An image incorporated into Markdown is copied into the document's own directory
+and embedded using a standard relative Markdown link. No special image
+subdirectory or URI format is introduced. The original screenshot is retained.
+A collision requires an available filename, never overwriting. Document moves
+must preserve image references without assuming exclusive image ownership.
+
+For the MVP, a documented full backup and restore process with writes paused
+is sufficient. It includes Markdown and adjacent images, configuration,
+Operational Store, and screenshot data, including externally stored content.
+Online backup and a dedicated independent-cloning feature are not required.
+
 ## Historical Open Questions
 
 The original exploration deferred representation of dynamic Views, ordered
