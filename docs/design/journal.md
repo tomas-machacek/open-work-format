@@ -623,6 +623,44 @@ An unavailable declared store must be reported as unavailable, not treated as
 empty and not silently replaced with a newly initialized store. Offline support
 remains recommended rather than a conformance prerequisite.
 
+## 2026-09-05 -- MVP Queries, Sequential Processing, and Images
+
+The first tool version defers concurrent editing, revision tokens, conflict
+detection, and automatic merging. Atomic changes to one operational object
+remain required; they are not a guarantee against concurrent lost updates.
+
+Inbox processing is performed by the human or agent as individual operations.
+Each reports success or failure; earlier successful operations remain saved if
+a later operation fails. Resolve is invoked only after intended processing is
+complete. No automatic multi-object conversion, rollback, or recovery coordinator
+is required.
+
+Minimum queries include reading Action or InboxItem by ID, listing the current
+Inbox, listing Actions, filtering Actions by state and direct owner, and
+combining those filters. Multiple states use OR; different filters use AND.
+Archived Actions require an explicit request. Owner filtering is not recursive.
+Inbox presentation can be oldest first; Action result order does not mean
+priority. Blocked, executable, reverse dependencies, and Project subtrees can
+be derived by an OWF-aware tool or agent instead of queried in the store.
+
+Screenshots are copied to configured storage before capture is acknowledged;
+both the screenshot and Inbox Item must be saved. InboxItem and Action share
+an optional screenshots field using storage-root-relative references. Inbox
+processing can transfer references to Actions without moving the image data.
+Consumption does not automatically delete screenshots; unused-image cleanup
+is deferred.
+
+An image incorporated into Markdown is copied into the document's own directory
+and embedded using a standard relative Markdown link. No special image
+subdirectory or URI format is introduced. The original screenshot is retained.
+A collision requires an available filename, never overwriting. Document moves
+must preserve image references without assuming exclusive image ownership.
+
+For the MVP, a documented full backup and restore process with writes paused
+is sufficient. It includes Markdown and adjacent images, configuration,
+Operational Store, and screenshot data, including externally stored content.
+Online backup and a dedicated independent-cloning feature are not required.
+
 ## Historical Open Questions
 
 The original exploration deferred representation of dynamic Views, ordered
