@@ -14,7 +14,7 @@ The representation should remain:
 - usable by humans without requiring an AI agent;
 - equally operable by humans and AI agents through suitable interfaces;
 - independent of any one application;
-- part of one logical and locally available Workspace; and
+- part of one logical Workspace with explicit storage locations; and
 - structurally simple even where the Core semantics are richer.
 
 Generic file and Markdown editability remains desirable for durable context, but
@@ -41,7 +41,7 @@ The profile therefore no longer assumes that Actions and Inbox Items are
 authoritative nested records in Markdown collections. A conforming operational
 representation may use another open store, provided that it:
 
-- belongs to the same logical and locally available Workspace;
+- belongs to the same logical Workspace, with local storage recommended;
 - provides strong bidirectional navigation between Actions and their owners;
 - exposes equivalent operations to humans and agents through suitable
   interfaces;
@@ -133,8 +133,8 @@ my-workspace/
 
 Optional files and directories are omitted when empty unless a later normative
 rule says otherwise. The Operational Store belongs to this Workspace but its
-physical format and placement are not yet defined and therefore are not shown in
-the directory example.
+physical format remains open and its configured local or external location is
+not shown in the directory example.
 
 ## 3. Reserved Names
 
@@ -289,6 +289,11 @@ title: My Workspace
 description: Personal workspace for software architecture and related work.
 owf:
   version: "0.1"
+  storage:
+    operational:
+      url: ./_store/
+    screenshots:
+      url: ./_screenshots/
 ---
 
 # My Workspace
@@ -303,6 +308,20 @@ Workspace MUST NOT declare an `owf.state` because it is not a work item.
 
 The root `index.md` MAY separately declare its targeted `okf_version` as
 permitted by OKF.
+
+The root README also declares storage locations under `owf.storage`.
+`operational.url` is required; `screenshots.url` is required when screenshot
+capture is supported. Relative URLs resolve against the Workspace root.
+The illustrated directory names are examples, not reserved names. Local storage
+is recommended for portability, but either store may use an external address,
+including a cloud location. Portable configuration must not contain
+authentication secrets.
+
+An unavailable declared Operational Store must be reported, never interpreted
+as empty or silently replaced. Moving external-store configuration preserves
+its targets; copying it does not create an independent store or a complete
+backup. See [storage configuration and discovery](operational-store-notes.md#12-storage-configuration-and-discovery)
+for the shared rules.
 
 ### 6.2 Project README
 
@@ -1043,8 +1062,8 @@ These are not a physical serialization or a concrete API contract.
 
 The following representation decisions remain open:
 
-- the physical format, placement, versioning, backup, and migration model of the
-  Operational Store;
+- the physical format, provider-specific connection, versioning, backup, and
+  migration model of the Operational Store;
 - the exact Action and Inbox Item ID format;
 - the detailed storage and interoperability contract;
 - concrete human GUI and agent CLI/API design for the agreed minimum capabilities;
