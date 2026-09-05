@@ -272,10 +272,13 @@ context is already known, direct Action creation is normally the better path.
 
 ### O5. One Workspace, one operational source of truth
 
-Inbox Items and Actions belong to the same logical and locally available OWF
-Workspace as Projects, Outcomes, and Knowledge. Their technical representation
-may differ, but they must not form an isolated external system with unrelated
-identity, navigation, access, or lifecycle.
+Inbox Items and Actions belong to the same logical OWF Workspace as Projects,
+Outcomes, and Knowledge. Their technical representation and physical location
+may differ, but they must not form an isolated system with unrelated identity,
+navigation, access, or lifecycle. Local storage inside the Workspace is
+recommended for portability; external and cloud storage are permitted when
+identified by configuration in the Workspace. Unavailable operational storage
+must never be presented as an empty Inbox or Action collection.
 
 ### O6. Equal human and agent capabilities
 
