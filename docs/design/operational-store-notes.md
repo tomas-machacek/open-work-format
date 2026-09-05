@@ -217,7 +217,7 @@ the item's age. After successful processing the item is consumed, not archived.
 It MUST remain available if intended processing operations fail. Valuable input,
 including screenshots, MUST be preserved in suitable resulting objects when it
 needs to outlive processing; the Event Log is not durable content storage.
-Screenshot representation remains open. A complete Workspace backup must preserve
+Screenshot references follow Section 14. A complete Workspace backup must preserve
 the screenshot data, not just references. Moving a Workspace with external
 storage preserves its pointers but does not relocate the external data.
 
@@ -230,6 +230,7 @@ storage preserves its pointers but does not relocate the external data.
 | `state` | yes | Execution state; defaults to `open`. |
 | `owner` | yes | MarkdownObjectReference to this Workspace, a Project, or an Outcome. |
 | `description` | no | Additional context as Markdown text. |
+| `screenshots` | no | References relative to the configured screenshot store, as for InboxItem. |
 | `waiting_for` | no | Human-readable explanation of waiting. |
 | `manual_block` | no | Non-empty human-readable blocking reason. |
 | `depends_on` | no | Set of references to prerequisite Actions or Outcomes. |
@@ -313,9 +314,12 @@ and validation, while their interfaces and interaction counts may differ.
 
 Resolve is not restricted to Inbox-to-Action conversion. Processing may produce
 one or more Actions, update Knowledge, or perform other applicable operations.
-Consumption follows success of all intended processing operations. Failure must
-not silently lose the input. This does not prescribe cross-store transactions
-or a particular retry/recovery mechanism.
+The human or agent performs the intended operations individually, and each
+operation reports success or failure. Successful earlier operations remain saved
+if a later one fails; the tool does not automatically roll them back. The caller
+invokes Resolve only after the intended processing is complete. The Inbox Item
+remains available until then. The MVP requires neither a multi-object conversion
+operation nor automatic cross-store coordination, rollback, or recovery.
 
 ### 11.2 Action operations
 
@@ -323,7 +327,7 @@ or a particular retry/recovery mechanism.
 | --- | --- |
 | Create | Create from a title, with optional explicit owner; default to Open. |
 | Read / List / Filter | Find Actions, including by owner and state. |
-| Update content | Change title or description. |
+| Update content | Change title, description, or screenshot references. |
 | Change state | Apply a transition under Core rules. |
 | Change owner | Set a valid Workspace, Project, or Outcome owner without changing ID. |
 | Set / Clear waiting reason | Manage waiting_for consistently with state. |
@@ -362,6 +366,13 @@ unchanged, and the interface explains the reason.
 This guarantee does not require transactions spanning Markdown and the
 Operational Store, or coordination through Event Logs. Logs explain completed
 changes; they do not coordinate them.
+
+### 11.5 Concurrency scope for the MVP
+
+Concurrent editing, object revision tokens, conflict detection, and automatic
+merging are deferred beyond the first tool version. Single-object atomicity
+remains required, but does not by itself protect against lost updates from
+concurrent writers. No parallel-editing safety guarantee is implied.
 
 ## 12. Storage Configuration and Discovery
 
@@ -413,8 +424,10 @@ data and its configuration; the detailed procedure remains open.
 
 A directory copy alone is not a complete backup when data is external. A complete
 Workspace backup must also include an export or separately recoverable backup
-of the external operational data and screenshots. The exact consistent backup
-and restore procedure remains open.
+of the external operational data and screenshots, as well as images copied next
+to Markdown documents. For the MVP, a documented backup and restore procedure
+with writes paused is sufficient. Online backup and a dedicated independent-clone
+feature are not required. The storage-specific procedure remains to be defined.
 
 ### 12.3 Unavailable storage
 
@@ -427,19 +440,95 @@ Local-first and offline-capable operation remain recommended, not a prerequisite
 for compatibility. External storage changes availability and backup obligations,
 not the logical authority boundary.
 
-## 13. Deferred Work
+## 13. Minimum Query Capabilities
+
+The MVP requires these capabilities, not a general query language:
+
+| Capability | Purpose |
+| --- | --- |
+| Read Action or InboxItem by ID | Details, references, and edits. |
+| List current Inbox | Processing and age inspection. |
+| List Actions | Retrieve the current operational work set. |
+| Filter Actions by state | Working lists and simple Kanban projections. |
+| Filter Actions by direct owner | Project/Outcome-to-Action navigation. |
+| Combine direct owner and state filters | For example, Open Actions of an Outcome. |
+
+A state filter may contain multiple states. State alternatives use OR; different
+filters use AND. Owner filtering means direct ownership, not recursive subtree
+membership. Archived Actions are excluded by default and must be explicitly
+requested when needed.
+
+The Inbox can be presented oldest first using captured_at. Action result order
+does not express priority; intentional ordering remains the responsibility of
+Views.
+
+Blocked, executable, reverse dependencies, and complete Project subtrees are not
+required store-side queries for the MVP. An OWF-aware tool or agent may derive
+them from loaded Actions and Markdown objects. In particular, the Operational
+Store need not independently maintain Outcome state or the Markdown ownership
+hierarchy. These minimum filters do not define the Computed View query language.
+
+## 14. Screenshots and Markdown Images
+
+### 14.1 Managed screenshot capture
+
+Capture copies screenshots into the configured screenshot storage. A temporary
+file or clipboard reference is not sufficient. Capture with a screenshot MUST
+be confirmed successful only after both the screenshot data and the Inbox Item
+have been saved. A failure must be reported without claiming successful capture;
+this does not require a distributed transaction mechanism.
+
+InboxItem and Action use the same optional screenshots field containing
+references relative to the configured screenshot storage root, for example:
+
+```yaml
+screenshots:
+  - capture-123.png
+```
+
+Changing the location of the entire screenshot store requires updating its
+configuration, not each relative reference, provided its internal paths are
+preserved. Processing an Inbox Item into an Action can reuse the references
+without copying or moving screenshot files.
+
+Consuming an Inbox Item MUST NOT automatically delete its screenshots: an Action
+or document may still use them. Automatic cleanup of unused screenshots is not
+required for the MVP.
+
+### 14.2 Images incorporated into Markdown
+
+When a captured screenshot is incorporated into a Markdown document, it is
+copied into the same directory as that document. No special image subdirectory
+or new URI scheme is introduced. The document embeds its local copy using a
+standard relative Markdown image reference:
+
+```markdown
+![Screen proposal](screen-proposal.png)
+```
+
+The original screenshot remains in the configured screenshot store, preserving
+existing Inbox and Action references. If the destination filename already exists,
+the tool MUST choose an available filename and MUST NOT overwrite the existing
+file.
+
+The copied image is supporting document content, not a separate OWF work object.
+It remains usable in generic Markdown tools without knowledge of OWF storage
+configuration. Moving a document must preserve working relative image references;
+the tool must not assume that no other document uses the image.
+
+## 15. Deferred Work
 
 The following remain open:
 
 - physical store format and provider-specific connection details;
 - Action and Inbox Item ID format;
 - physical serialization, schema versioning, and migrations;
-- screenshot data format and per-screenshot reference representation;
+- supported screenshot encodings and storage-specific transfer details;
 - backup, restore, export, and migration;
-- concrete command/API contracts, query syntax, and detailed filter capabilities;
+- concrete command/API syntax and query capabilities beyond the MVP minimum;
 - human GUI and agent CLI/API design;
-- concurrent access by a human interface and agents;
-- cross-representation processing recovery and retry behavior;
+- concurrent editing and conflict handling (not required for the MVP);
+- automated multi-object processing and cross-representation recovery (not required for the MVP);
 - Operational Event Log schema and retention;
 - exact Markdown Event Log grammar; and
 - detailed conformance and validation diagnostics.
