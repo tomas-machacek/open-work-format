@@ -29,6 +29,9 @@ Operational Store are under active design.
   — working decisions for Actions, Inbox Items, cross-representation references,
   and operational history.
 
+- [Tool MVP Scope](docs/design/mvp-scope.md) — agreed scope and acceptance
+  scenarios for the first local web and CLI implementation; screenshots deferred.
+
 ### Examples
 
 The [examples](examples/) directory is reserved for non-normative example
