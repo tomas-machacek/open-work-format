@@ -28,7 +28,6 @@ Operational Store are under active design.
 - [Operational Store Design Notes](docs/design/operational-store-notes.md)
   — working decisions for Actions, Inbox Items, cross-representation references,
   and operational history.
-
 - [Tool MVP Scope](docs/design/mvp-scope.md) — agreed scope and acceptance
   scenarios for the first local web and CLI implementation; screenshots deferred.
 
@@ -60,7 +59,12 @@ Except where otherwise noted, the Open Work Format specification,
 documentation, and examples are licensed under the
 [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
 
-Suggested attribution:
+The implementation and accompanying tool documentation under [tools/owf/](tools/owf/)
+are licensed separately under the [Apache License 2.0](tools/owf/LICENSE),
+except where otherwise noted. Third-party components retain their respective
+licenses.
+
+Suggested attribution for the CC BY 4.0 material:
 
 > Open Work Format (OWF) by Tomáš Macháček, licensed under CC BY 4.0.  
 > https://github.com/tomas-machacek/open-work-format
