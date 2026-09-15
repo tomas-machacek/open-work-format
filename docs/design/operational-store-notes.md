@@ -4,6 +4,9 @@
 > cross-representation references, minimum logical data model, and operation
 > capabilities established
 
+> Implementation scope: see [Tool MVP Scope](mvp-scope.md). Screenshot support
+> described below is deferred beyond the first tool MVP.
+
 ## 1. Purpose
 
 These notes define the boundary between OWF's durable Markdown representation
