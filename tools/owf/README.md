@@ -10,6 +10,17 @@ Keeping the tool in the specification repository allows related design, code,
 and test changes to be reviewed together. The tool's technology choices and
 Kanban interface are implementation decisions, not OWF Core requirements.
 
+## Development documents
+
+- [Architecture](docs/architecture.md) — layers, processes, persistence and technologies.
+- [Development guidelines](docs/development-guidelines.md) — testing, lint, local verification and releases.
+- [Agent instructions](AGENTS.md) — entry point for implementation and review agents.
+
+Development uses Node.js 24 LTS and TypeScript, with a standalone CLI and local
+web GUI. Verification is local; GitHub Actions are deferred. These documents
+record decisions only: commands/configuration do not exist yet, and the first
+implementation increment is still to be agreed.
+
 ## License
 
 Copyright 2026 Tomáš Macháček.
