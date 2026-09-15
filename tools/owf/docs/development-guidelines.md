@@ -19,6 +19,44 @@ abstractions, dependencies and features. Report conflicts with the
 [architecture](architecture.md), [MVP scope](../../../docs/design/mvp-scope.md)
 or domain documents. The first increment has not yet been selected.
 
+## Increment documents
+
+Every planned implementation increment, for the MVP or later features, has a
+separate document in [increments/](increments/README.md). Use the
+[template](increments/template.md) and add an index row with a one-line
+description. Keep scope, proposed solution and acceptance criteria concrete
+enough for another agent to implement and review without reconstructing a chat.
+
+The workflow is:
+
+1. Human and agent discuss the next increment and record a draft.
+2. Record the agreed scope, solution and acceptance criteria before development.
+   Agreement already given in the conversation is sufficient; do not request
+   duplicate approval merely to update the document status.
+3. The implementation agent works from that document and marks it in_progress.
+   Report substantive scope/behavior changes and resolve them with the human;
+   routine implementation choices within the agreed design need no new approval.
+4. The review agent checks the actual diff against the same document.
+5. Record delivered behavior, deviations, verification evidence, review outcome
+   and limitations. Mark completed and update the index after implementation,
+   review and required verification; a release is a separate action.
+
+Use stable sequential NNNN-short-title.md names. Statuses and their meanings are
+listed in the index. Keep cancelled proposals with a reason; do not recycle IDs.
+Document length follows complexity, not a fixed quota.
+
+Retain completed documents as design and implementation history. Record the
+actual outcome rather than leaving a misleading proposal. Substantive decision
+changes must retain their rationale; Git preserves detailed revision history.
+Later behavioral changes belong in a new increment linked to earlier work.
+Keep shared architecture/guidelines current when a cross-cutting decision changes;
+increment documents do not override those documents or the domain specification.
+
+Gherkin can initially be drafted in the proposal. Once executable .feature files
+exist, link to their scenarios as the canonical executable criteria instead of
+maintaining duplicate scenario text. Keep criterion intent, traceability and
+material changes visible in the increment document.
+
 ## Development technologies
 
 | Area | Decision |
