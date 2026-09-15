@@ -159,20 +159,28 @@ The MVP is usable when the following flows work end to end:
 
 None of these scenarios requires screenshot support.
 
-## 6. First Implementation Slice
+## 6. Candidate Implementation Slice
 
-Start with one complete path: register a Workspace, create an Action through the
+The following remains a candidate, not the agreed first increment. The first
+increment and its acceptance criteria will be selected after architecture and
+development decisions have been recorded and checked.
+
+A possible complete path is: register a Workspace, create an Action through the
 CLI, display it in the web interface, change its state in the GUI, verify the
 result through the CLI, and exercise navigation to Markdown and back.
 
 Then expand to the remaining capabilities above. This slice establishes the
 shared operational logic and cross-application navigation before broader UI work.
 
-The technology stack, physical store schema, exact CLI syntax, and implementation
-details of the URI handler remain implementation decisions.
+The agreed technology stack and structural decisions are recorded in the
+[Tool Architecture](../../tools/owf/docs/architecture.md). The physical store
+schema, exact CLI syntax and URI handler lifecycle details remain open
+implementation decisions.
 
 ## 7. Related Design Documents
 
+- [Tool Architecture](../../tools/owf/docs/architecture.md)
+- [Development Guidelines](../../tools/owf/docs/development-guidelines.md)
 - [Design Principles](principles.md)
 - [Operational Store Design Notes](operational-store-notes.md)
 - [Representation Profile Design Notes](representation-profile-notes.md)
