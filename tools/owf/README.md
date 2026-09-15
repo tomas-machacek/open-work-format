@@ -14,6 +14,7 @@ Kanban interface are implementation decisions, not OWF Core requirements.
 
 - [Architecture](docs/architecture.md) — layers, processes, persistence and technologies.
 - [Development guidelines](docs/development-guidelines.md) — testing, lint, local verification and releases.
+- [Increment index](docs/increments/README.md) — individual designs and implementation outcomes.
 - [Agent instructions](AGENTS.md) — entry point for implementation and review agents.
 
 Development uses Node.js 24 LTS and TypeScript, with a standalone CLI and local
