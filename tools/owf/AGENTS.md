@@ -7,9 +7,15 @@ scope; AI agents implement and review changes.
 
 - [Architecture](docs/architecture.md): structure, dependencies and technology choices.
 - [Development guidelines](docs/development-guidelines.md): tests, lint, review and releases.
+- [Increment index](docs/increments/README.md) and the agreed document for the current increment.
 - [MVP scope](../../docs/design/mvp-scope.md): included and deferred capabilities.
 - Relevant [Core specification](../../spec/core-v0.md) and
   [Operational Store design](../../docs/design/operational-store-notes.md) sections.
+
+Use the increment document as the implementation and review brief. Keep its
+status and index row current and record the actual outcome, verification and
+review evidence at completion. Existing conversational agreement does not need
+to be requested again just to update the document.
 
 Follow the agreed increment and its acceptance criteria. The first increment
 has not yet been agreed: current work is documentation only. Do not scaffold
