@@ -26,7 +26,7 @@ References:
 - [Storage rules](../../../../docs/design/operational-store-notes.md#12-storage-configuration-and-discovery)
 
 Included:
-- Initialize the current directory; an explicit or directory-derived name.
+- Initialize the current directory; an explicit or directory-derived title.
 - Discover the Workspace from the current directory or ancestors.
 - Safe repeat initialization, collision detection and clear failure reporting.
 - Human-readable and JSON results, CLI help and version.
@@ -44,12 +44,12 @@ Deferred:
 
 ## Proposed solution
 
-### CLI and naming
+### CLI and title
 
 ```text
 owf init
-owf init --name "My work"
-owf init --name "My work" --json
+owf init --title "My work"
+owf init --title "My work" --json
 owf --help
 owf --version
 ```
@@ -57,15 +57,15 @@ owf --version
 Initialize the existing current working directory itself, not a child directory.
 No interactive prompts are needed.
 
-If --name is absent, derive the title from the current directory's basename.
-Trim surrounding whitespace; reject an explicitly empty/whitespace-only name.
+If --title is absent, derive the title from the current directory's basename.
+Trim surrounding whitespace; reject an explicitly empty/whitespace-only title.
 Preserve internal text, Unicode and punctuation. Reject embedded line breaks
-for a predictable single-line name. If no usable basename exists (for example
-at a filesystem root), require --name.
+for a predictable single-line title. If no usable basename exists (for example
+at a filesystem root), require --title.
 
 The CLI option maps to the existing README frontmatter title and initial H1.
 It introduces neither a second name property nor a Workspace state.
-Use YAML serialization and Markdown escaping so names remain literal content.
+Use YAML serialization and Markdown escaping so titles remain literal content.
 
 ### Discovery and existing Workspaces
 
@@ -91,8 +91,8 @@ On init:
 - A Workspace found with missing, invalid, inaccessible or unsupported storage:
   report an error without creating a replacement.
 
-For already_initialized, a supplied different --name does not rename anything:
-the result reports the existing title. Name syntax validation still applies.
+For already_initialized, a supplied different --title does not rename anything:
+the result reports the existing title. Title syntax validation still applies.
 
 The general discovery service is reusable by later CLI operations. No extra
 public discovery command is needed now: repeated init from a descendant exposes
@@ -192,7 +192,7 @@ argument validation errors must also follow the JSON contract.
 
 | Exit | Error categories |
 | --- | --- |
-| 2 | INVALID_ARGUMENT, INVALID_NAME |
+| 2 | INVALID_ARGUMENT, INVALID_TITLE |
 | 1 | PATH_CONFLICT, INVALID_WORKSPACE, UNSUPPORTED_PROFILE, STORE_UNAVAILABLE, INVALID_STORE, UNSUPPORTED_STORAGE, UNSUPPORTED_STORE_VERSION, INITIALIZATION_FAILED |
 
 Error codes are machine-readable; message text may evolve. Include an affected
@@ -201,7 +201,7 @@ the operational init output mode, not a promise of JSON help formatting.
 
 ### Layer responsibilities
 
-- domain/workspaces/: small name/metadata rules, independent of filesystem/YAML.
+- domain/workspaces/: small title/metadata rules, independent of filesystem/YAML.
 - application/workspaces/: initialize/discover orchestration and typed results.
 - application/ports/: only the filesystem/metadata/store/clock capabilities this
   increment needs. No speculative Action repositories or generic framework.
@@ -289,30 +289,30 @@ Feature: Initialize a local Workspace
   @AC3
   Scenario: Initialize a named Workspace
     Given an existing directory outside any Workspace
-    When I initialize it with the name "My work"
+    When I initialize it with the title "My work"
     Then it contains Workspace metadata with title "My work"
     And a navigation index and one initialization log entry exist
     And the declared local store has recognized schema version 1
     And the result identifies the directory as the Workspace root
 
   @AC4
-  Scenario: Derive the name from the directory
+  Scenario: Derive the title from the directory
     Given an existing directory named "personal" outside any Workspace
-    When I initialize it without an explicit name
+    When I initialize it without an explicit title
     Then the Workspace title is "personal"
 
   @AC5
-  Scenario: Reject an empty explicit name
+  Scenario: Reject an empty explicit title
     Given an existing directory outside any Workspace
-    When I initialize it with a whitespace-only name
-    Then initialization fails with INVALID_NAME
+    When I initialize it with a whitespace-only title
+    Then initialization fails with INVALID_TITLE
     And no Workspace artifacts are created
 
   @AC6
   Scenario Outline: Repeated initialization discovers the existing root
     Given an initialized Workspace with title "Original"
     And I am in its <location>
-    When I initialize with the name "Different"
+    When I initialize with the title "Different"
     Then the result is already_initialized with title "Original"
     And it identifies the existing Workspace root
     And existing Workspace artifacts are unchanged
@@ -359,7 +359,7 @@ possible disk error.
 Launch the built CLI in a temporary directory containing spaces/Unicode.
 Initialize with --json, then invoke it again in a descendant as a separate process.
 Verify parseable result envelopes, root/title consistency, exit codes and
-unchanged artifacts on the second invocation. A representative invalid-name
+unchanged artifacts on the second invocation. A representative invalid-title
 invocation produces the JSON error contract and exit 2.
 
 ### AC12 — Readiness and documentation
@@ -374,7 +374,7 @@ Record independent review outcome and verification evidence before completion.
 
 | Risk or criterion | Primary evidence |
 | --- | --- |
-| Naming rules, literal Unicode/punctuation | Small domain unit cases, including blank and line-break rejection |
+| Title rules, literal Unicode/punctuation | Small domain unit cases, including blank and line-break rejection |
 | AC3–AC8 | Cucumber through application API with real temporary filesystem/SQLite |
 | AC9 | Focused adapter integration tests, including relative store resolution |
 | AC10 | Controlled fault injection; test application cleanup behavior |
@@ -388,7 +388,7 @@ Report actual platform and checks; no coverage percentage or test-count quota.
 The creation date comes through the clock port so log assertions are deterministic.
 
 Manual trial after build: in a disposable folder outside the repository, run
-`node <absolute-tool-path>/dist/bootstrap/cli.js init --name "My work"`,
+`node <absolute-tool-path>/dist/bootstrap/cli.js init --title "My work"`,
 inspect the artifacts, create/enter a child directory and repeat with --json.
 The second result must point to the same root without changing the Workspace.
 
