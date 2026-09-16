@@ -1,7 +1,8 @@
 # OWF Tool Architecture
 
 > Status: Agreed implementation baseline, 2026-09-15. No implementation or
-> configuration has been created. The first increment remains to be agreed.
+> configuration has been created. The first increment's
+> [definition](increments/0001-workspace-init.md) is in draft review.
 
 ## Purpose and authority
 
@@ -26,6 +27,8 @@ Planned layout; directories and abstractions are created only when needed:
 
 | Path | Responsibility |
 | --- | --- |
+| src/domain/workspaces/ | Workspace metadata/name rules; no filesystem access |
+| src/application/workspaces/ | Workspace initialization and discovery use cases |
 | src/domain/actions/ | Action aggregate, value objects and domain rules |
 | src/domain/inbox/ | Inbox Item aggregate and rules |
 | src/domain/references/ | Shared domain identifiers and references |
