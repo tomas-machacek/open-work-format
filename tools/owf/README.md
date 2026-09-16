@@ -20,7 +20,8 @@ Kanban interface are implementation decisions, not OWF Core requirements.
 Development uses Node.js 24 LTS and TypeScript, with a standalone CLI and local
 web GUI. Verification is local; GitHub Actions are deferred. These documents
 record decisions only: commands/configuration do not exist yet, and the first
-implementation increment is still to be agreed.
+increment, [Workspace initialization](docs/increments/0001-workspace-init.md),
+is defined in a draft for review.
 
 ## License
 
