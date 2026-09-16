@@ -13,11 +13,12 @@ define the workflow and how to keep the record useful after implementation.
 
 ## Index
 
-No increment has been agreed yet. Add one row when its draft is created, with
-a document link and a one-line description; keep its status in sync.
+The first increment is being defined. Add one row for each draft with a document
+link and a one-line description; keep its status in sync.
 
 | Increment | Description | Status |
 | --- | --- | --- |
+| [0001 — Workspace initialization](0001-workspace-init.md) | Establish CLI tooling and initialize/discover a named local Workspace. | draft |
 
 Statuses: `draft`, `agreed`, `in_progress`, `completed`, `cancelled`.
 Completed means implemented, reviewed and verified against the agreed criteria;
