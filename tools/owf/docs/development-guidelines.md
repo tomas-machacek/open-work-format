@@ -1,7 +1,7 @@
 # OWF Tool Development Guidelines
 
 > Status: Agreed engineering baseline, 2026-09-15.
-> Commands and configurations below are planned, not yet implemented.
+> Commands and configurations are established by increment 0001.
 
 ## Working model and document ownership
 
@@ -18,7 +18,7 @@ Work only on the agreed increment. Avoid unrelated refactors, speculative
 abstractions, dependencies and features. Report conflicts with the
 [architecture](architecture.md), [MVP scope](../../../docs/design/mvp-scope.md)
 or domain documents. The first increment's
-[definition](increments/0001-workspace-init.md) is in draft review.
+[definition](increments/0001-workspace-init.md) is approved and in progress.
 
 ## Increment documents
 
@@ -60,22 +60,22 @@ material changes visible in the increment document.
 
 ## Development technologies
 
-| Area | Decision |
-| --- | --- |
-| Runtime | Node.js 24 LTS, with a pinned concrete version |
-| Language/modules | TypeScript, strict mode, ESM |
-| Package management | npm, one committed package-lock.json under tools/owf/ |
-| Backend build/types | tsc |
-| Development execution | tsx; type checking remains a separate step |
-| Frontend build | Vite |
-| Unit/integration tests | Vitest |
-| Gherkin acceptance | Cucumber.js with TypeScript step definitions |
-| Browser E2E | Playwright Test, initially Chromium |
-| Lint | ESLint recommended plus typescript-eslint recommendedTypeChecked |
-| Formatting | Prettier, with conflicting ESLint formatting rules disabled |
-| Architecture checks | dependency-cruiser |
-| Releases | release-it |
-| CI | Deferred; no GitHub Actions in the initial setup |
+| Area                   | Decision                                                         |
+| ---------------------- | ---------------------------------------------------------------- |
+| Runtime                | Node.js 24 LTS, with a pinned concrete version                   |
+| Language/modules       | TypeScript, strict mode, ESM                                     |
+| Package management     | npm, one committed package-lock.json under tools/owf/            |
+| Backend build/types    | tsc                                                              |
+| Development execution  | tsx; type checking remains a separate step                       |
+| Frontend build         | Vite                                                             |
+| Unit/integration tests | Vitest                                                           |
+| Gherkin acceptance     | Cucumber.js with TypeScript step definitions                     |
+| Browser E2E            | Playwright Test, initially Chromium                              |
+| Lint                   | ESLint recommended plus typescript-eslint recommendedTypeChecked |
+| Formatting             | Prettier, with conflicting ESLint formatting rules disabled      |
+| Architecture checks    | dependency-cruiser                                               |
+| Releases               | release-it                                                       |
+| CI                     | Deferred; no GitHub Actions in the initial setup                 |
 
 Use npm ci for reproducible installs. Separate backend, frontend and test
 TypeScript configurations as needed so browser globals do not leak into core.
@@ -95,13 +95,13 @@ Each additional case needs a distinct failure reason. There is no tests-per-clas
 quota, mandatory test file for every module or coverage percentage target.
 Coverage is diagnostic, not the goal.
 
-| Level | Purpose |
-| --- | --- |
-| Domain unit | Invariants, state transitions, derived rules and meaningful edges |
-| Application unit | Coordination and failure handling through simple test ports |
-| Integration | Real SQLite mapping, filters, transactions, rollback and Markdown reading |
-| Acceptance | Observable OWF behavior through the application API |
-| E2E | A small set of real CLI-process and browser journeys |
+| Level            | Purpose                                                                   |
+| ---------------- | ------------------------------------------------------------------------- |
+| Domain unit      | Invariants, state transitions, derived rules and meaningful edges         |
+| Application unit | Coordination and failure handling through simple test ports               |
+| Integration      | Real SQLite mapping, filters, transactions, rollback and Markdown reading |
+| Acceptance       | Observable OWF behavior through the application API                       |
+| E2E              | A small set of real CLI-process and browser journeys                      |
 
 Unit tests are colocated as *.test.ts. Other suites live under tests/ as defined
 by architecture. Prefer real domain objects and small test implementations of
@@ -159,19 +159,19 @@ No dependency or configuration may bypass a layer check to make a build pass.
 
 ## Planned command interface
 
-| Command | Purpose |
-| --- | --- |
-| npm run typecheck | Types including tests |
-| npm run lint | ESLint |
-| npm run format:check | Formatting |
-| npm run architecture:check | Module boundaries and cycles |
-| npm test | Unit tests |
-| npm run test:integration | Technical integration |
-| npm run test:acceptance | Cucumber scenarios |
-| npm run test:e2e | Applicable CLI and browser journeys |
-| npm run build | Production output |
-| npm run verify | All applicable required checks above |
-| npm run release | Local version commit and tag |
+| Command                    | Purpose                              |
+| -------------------------- | ------------------------------------ |
+| npm run typecheck          | Types including tests                |
+| npm run lint               | ESLint                               |
+| npm run format:check       | Formatting                           |
+| npm run architecture:check | Module boundaries and cycles         |
+| npm test                   | Unit tests                           |
+| npm run test:integration   | Technical integration                |
+| npm run test:acceptance    | Cucumber scenarios                   |
+| npm run test:e2e           | Applicable CLI and browser journeys  |
+| npm run build              | Production output                    |
+| npm run verify             | All applicable required checks above |
+| npm run release            | Local version commit and tag         |
 
 Use focused checks during development, then verify before handoff. Suites are
 introduced with the behavior they cover; do not claim nonexistent tests ran.

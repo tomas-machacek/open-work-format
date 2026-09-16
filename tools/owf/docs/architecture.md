@@ -1,8 +1,6 @@
 # OWF Tool Architecture
 
-> Status: Agreed implementation baseline, 2026-09-15. No implementation or
-> configuration has been created. The first increment's
-> [definition](increments/0001-workspace-init.md) is in draft review.
+> Status: Agreed implementation baseline, 2026-09-15. The approved first increment is in progress.
 
 ## Purpose and authority
 
@@ -25,31 +23,31 @@ Separate packages are deferred until distribution or reuse needs justify them.
 
 Planned layout; directories and abstractions are created only when needed:
 
-| Path | Responsibility |
-| --- | --- |
-| src/domain/workspaces/ | Workspace metadata/name rules; no filesystem access |
-| src/application/workspaces/ | Workspace initialization and discovery use cases |
-| src/domain/actions/ | Action aggregate, value objects and domain rules |
-| src/domain/inbox/ | Inbox Item aggregate and rules |
-| src/domain/references/ | Shared domain identifiers and references |
-| src/application/actions/ | Action use cases |
-| src/application/inbox/ | Inbox use cases |
-| src/application/ports/ | Repositories, transactions, Markdown lookup, clock and ID generation interfaces |
-| src/infrastructure/sqlite/ | SQL, mapping, migrations and repository/transaction implementations |
-| src/infrastructure/markdown/ | Reading Markdown objects and metadata |
-| src/infrastructure/configuration/ | Workspace configuration and registration storage |
-| src/interfaces/cli/ | Argument parsing, use-case invocation and output |
-| src/interfaces/http/ | HTTP requests, use-case invocation and responses |
-| src/interfaces/uri/ | Incoming OWF URI handling and navigation coordination |
-| src/contracts/ | Transport schemas and types, without domain rules |
-| src/bootstrap/ | Entry points and concrete dependency wiring |
-| src/web/ | Browser UI and API client |
-| tests/acceptance/features/ | Gherkin acceptance scenarios |
-| tests/acceptance/steps/ | Scenario bindings to application operations |
-| tests/integration/ | Technical integration tests |
-| tests/e2e/ | CLI process and browser journeys |
-| tests/support/ | Small genuinely shared test fixtures |
-| scripts/ | Portable development/release support when needed |
+| Path                              | Responsibility                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------- |
+| src/domain/workspaces/            | Workspace metadata/name rules; no filesystem access                             |
+| src/application/workspaces/       | Workspace initialization and discovery use cases                                |
+| src/domain/actions/               | Action aggregate, value objects and domain rules                                |
+| src/domain/inbox/                 | Inbox Item aggregate and rules                                                  |
+| src/domain/references/            | Shared domain identifiers and references                                        |
+| src/application/actions/          | Action use cases                                                                |
+| src/application/inbox/            | Inbox use cases                                                                 |
+| src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces |
+| src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations             |
+| src/infrastructure/markdown/      | Reading Markdown objects and metadata                                           |
+| src/infrastructure/configuration/ | Workspace configuration and registration storage                                |
+| src/interfaces/cli/               | Argument parsing, use-case invocation and output                                |
+| src/interfaces/http/              | HTTP requests, use-case invocation and responses                                |
+| src/interfaces/uri/               | Incoming OWF URI handling and navigation coordination                           |
+| src/contracts/                    | Transport schemas and types, without domain rules                               |
+| src/bootstrap/                    | Entry points and concrete dependency wiring                                     |
+| src/web/                          | Browser UI and API client                                                       |
+| tests/acceptance/features/        | Gherkin acceptance scenarios                                                    |
+| tests/acceptance/steps/           | Scenario bindings to application operations                                     |
+| tests/integration/                | Technical integration tests                                                     |
+| tests/e2e/                        | CLI process and browser journeys                                                |
+| tests/support/                    | Small genuinely shared test fixtures                                            |
+| scripts/                          | Portable development/release support when needed                                |
 
 Unit tests live beside the code as *.test.ts. Other tests live under tests/.
 Organize by domain responsibility within layers, not global entities/services
@@ -57,15 +55,15 @@ folders. Avoid generic utils/common dumping grounds and speculative base classes
 
 ## Dependency boundaries
 
-| Part | Allowed internal dependencies |
-| --- | --- |
-| domain | Domain modules only |
-| application | Domain and application ports |
-| infrastructure | Application ports and required domain types |
-| interfaces | Public application API and contracts |
-| contracts | No other implementation layers |
-| web | Contracts and frontend modules |
-| bootstrap | Modules required to assemble the application |
+| Part           | Allowed internal dependencies                |
+| -------------- | -------------------------------------------- |
+| domain         | Domain modules only                          |
+| application    | Domain and application ports                 |
+| infrastructure | Application ports and required domain types  |
+| interfaces     | Public application API and contracts         |
+| contracts      | No other implementation layers               |
+| web            | Contracts and frontend modules               |
+| bootstrap      | Modules required to assemble the application |
 
 Each layer has designated public exports. Cross-layer imports must use them;
 relative paths, aliases and re-exports must not bypass the boundaries.
@@ -133,20 +131,20 @@ Retain the paused-write backup/restore requirement in the MVP scope.
 
 ## Application technologies
 
-| Area | Decision and rationale |
-| --- | --- |
-| Core | Plain TypeScript; no application framework or DI container |
-| Persistence | node:sqlite; embedded and supplied with Node |
-| HTTP | Fastify; thin HTTP adapter with TypeScript support and test facilities |
-| CLI | Commander.js; commands, options and help |
-| Input validation | Zod; boundary schemas and inferred transport types |
-| Browser | React + Vite; interactive UI and development/production build |
-| Routing | React Router; explicit board, Inbox and Action URLs |
-| Drag and drop | dnd-kit; card movement, with an alternative state control |
-| Styling | CSS Modules |
-| HTTP client | Native fetch in a small shared frontend data-access layer |
-| Frontend state | Local React state; no global state framework initially |
-| Metadata | yaml package for YAML frontmatter; Node filesystem APIs |
+| Area             | Decision and rationale                                                 |
+| ---------------- | ---------------------------------------------------------------------- |
+| Core             | Plain TypeScript; no application framework or DI container             |
+| Persistence      | node:sqlite; embedded and supplied with Node                           |
+| HTTP             | Fastify; thin HTTP adapter with TypeScript support and test facilities |
+| CLI              | Commander.js; commands, options and help                               |
+| Input validation | Zod; boundary schemas and inferred transport types                     |
+| Browser          | React + Vite; interactive UI and development/production build          |
+| Routing          | React Router; explicit board, Inbox and Action URLs                    |
+| Drag and drop    | dnd-kit; card movement, with an alternative state control              |
+| Styling          | CSS Modules                                                            |
+| HTTP client      | Native fetch in a small shared frontend data-access layer              |
+| Frontend state   | Local React state; no global state framework initially                 |
+| Metadata         | yaml package for YAML frontmatter; Node filesystem APIs                |
 
 Zod checks external shapes, not OWF business rules. Keep transport schemas in
 contracts where shared. Do not maintain a second handwritten HTTP schema set.
@@ -186,7 +184,7 @@ versions and distribution packaging.
 
 The technology choices and directory responsibilities are agreed. None of the
 open details or illustrative paths authorizes additional MVP features.
-Agree and record the first increment and its acceptance criteria before coding.
+The approved first increment establishes Workspace initialization and CLI tooling.
 
 ## Technology references
 

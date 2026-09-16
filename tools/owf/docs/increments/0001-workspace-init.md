@@ -1,12 +1,11 @@
 # 0001 — Workspace initialization and CLI foundation
 
-> Status: draft
+> Status: in_progress
 > Description: Establish the CLI project and development checks, and initialize
 > a named local OWF Workspace from the current directory.
 > Depends on: No earlier implementation increment.
 
-The scope was agreed in conversation; the detailed contract below is a proposal
-for review before implementation. This document does not authorize coding yet.
+The scope, solution and acceptance criteria are approved. Implementation is underway; independent review is required before completion.
 
 ## Goal and scope
 
@@ -19,6 +18,7 @@ architectural checks and release configuration. These are deliverables, not
 prerequisites assumed to exist.
 
 References:
+
 - [Architecture](../architecture.md)
 - [Development guidelines](../development-guidelines.md)
 - [MVP scope](../../../../docs/design/mvp-scope.md)
@@ -26,6 +26,7 @@ References:
 - [Storage rules](../../../../docs/design/operational-store-notes.md#12-storage-configuration-and-discovery)
 
 Included:
+
 - Initialize the current directory; an explicit or directory-derived title.
 - Discover the Workspace from the current directory or ancestors.
 - Safe repeat initialization, collision detection and clear failure reporting.
@@ -33,6 +34,7 @@ Included:
 - The development foundation and meaningful tests described below.
 
 Deferred:
+
 - Actions, Inbox Items and their database tables/operations.
 - Project/Outcome creation, owner selection, Workspace renaming and repair.
 - Workspace registration, an active-Workspace setting or a --workspace option.
@@ -42,7 +44,7 @@ Deferred:
 - Git repository initialization or changes to user Git configuration.
 - Advanced concurrent initialization or crash-recovery automation.
 
-## Proposed solution
+## Agreed solution
 
 ### CLI and title
 
@@ -84,6 +86,7 @@ links do not produce an unbounded or misleading walk. Return an absolute root
 path; do not infer ownership context beyond Workspace discovery in this increment.
 
 On init:
+
 - No Workspace found: initialize the current directory after preflight checks.
 - A valid Workspace with a recognized accessible local store found at the
   current directory or an ancestor: return already_initialized and its root,
@@ -101,26 +104,26 @@ the separate registry-based design.
 
 ### Initial artifacts and store
 
-| Path relative to new Workspace | Content |
-| --- | --- |
-| README.md | Workspace type, title, profile version, storage configuration and H1 |
-| index.md | Minimal navigation following the existing index profile |
-| log.md | One dated, human-readable Workspace initialization entry |
-| _store/owf.sqlite | Recognized SQLite store with version metadata only |
+| Path relative to new Workspace | Content                                                              |
+| ------------------------------ | -------------------------------------------------------------------- |
+| README.md                      | Workspace type, title, profile version, storage configuration and H1 |
+| index.md                       | Minimal navigation following the existing index profile              |
+| log.md                         | One dated, human-readable Workspace initialization entry             |
+| _store/owf.sqlite              | Recognized SQLite store with version metadata only                   |
 
 _store is this tool's chosen default directory, not a new OWF-reserved name.
 Use `owf.storage.operational.url: ./_store/`; this SQLite adapter expects
 owf.sqlite in that directory. A relative store location is resolved against the
 discovered Workspace root, never the caller's current subdirectory.
 
-Proposed README metadata:
+README metadata:
 
 ```yaml
 ---
 type: OWF Workspace
 title: My work
 owf:
-  version: "0.1"
+  version: '0.1'
   storage:
     operational:
       url: ./_store/
@@ -171,7 +174,8 @@ Success exits 0. Human output shows whether initialization was performed,
 the root path, title and store path. In --json mode stdout contains exactly one
 JSON result object and no progress banners.
 
-Proposed result shape:
+Result shape:
+
 ```json
 {
   "ok": true,
@@ -190,10 +194,10 @@ on stdout in JSON mode. Optional diagnostics go to stderr; no stack traces are
 needed in normal user output. For a successfully parsed --json invocation,
 argument validation errors must also follow the JSON contract.
 
-| Exit | Error categories |
-| --- | --- |
-| 2 | INVALID_ARGUMENT, INVALID_TITLE |
-| 1 | PATH_CONFLICT, INVALID_WORKSPACE, UNSUPPORTED_PROFILE, STORE_UNAVAILABLE, INVALID_STORE, UNSUPPORTED_STORAGE, UNSUPPORTED_STORE_VERSION, INITIALIZATION_FAILED |
+| Exit | Error categories                                                                                                                                               |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2    | INVALID_ARGUMENT, INVALID_TITLE                                                                                                                                |
+| 1    | PATH_CONFLICT, INVALID_WORKSPACE, UNSUPPORTED_PROFILE, STORE_UNAVAILABLE, INVALID_STORE, UNSUPPORTED_STORAGE, UNSUPPORTED_STORE_VERSION, INITIALIZATION_FAILED |
 
 Error codes are machine-readable; message text may evolve. Include an affected
 path where useful. Help and version are informational CLI behavior; --json is
@@ -226,6 +230,7 @@ Action/Inbox/web directories in architecture; do not populate them with empty
 classes or placeholder files merely to mirror the complete layout.
 
 Deliver:
+
 - One package.json and package-lock.json, ESM, private package, Apache-2.0,
   initial development version 0.0.0, and an owf bin entry.
 - Pin a concrete compatible Node 24 LTS version with the selected SQLite API,
@@ -280,64 +285,7 @@ do not build a large test suite for the lint tools themselves.
 
 ### AC3–AC8 — Workspace behavior
 
-These are draft Gherkin criteria; move to canonical .feature files during
-implementation and retain links and AC identifiers here.
-
-```gherkin
-Feature: Initialize a local Workspace
-
-  @AC3
-  Scenario: Initialize a named Workspace
-    Given an existing directory outside any Workspace
-    When I initialize it with the title "My work"
-    Then it contains Workspace metadata with title "My work"
-    And a navigation index and one initialization log entry exist
-    And the declared local store has recognized schema version 1
-    And the result identifies the directory as the Workspace root
-
-  @AC4
-  Scenario: Derive the title from the directory
-    Given an existing directory named "personal" outside any Workspace
-    When I initialize it without an explicit title
-    Then the Workspace title is "personal"
-
-  @AC5
-  Scenario: Reject an empty explicit title
-    Given an existing directory outside any Workspace
-    When I initialize it with a whitespace-only title
-    Then initialization fails with INVALID_TITLE
-    And no Workspace artifacts are created
-
-  @AC6
-  Scenario Outline: Repeated initialization discovers the existing root
-    Given an initialized Workspace with title "Original"
-    And I am in its <location>
-    When I initialize with the title "Different"
-    Then the result is already_initialized with title "Original"
-    And it identifies the existing Workspace root
-    And existing Workspace artifacts are unchanged
-    And no nested Workspace is created
-
-    Examples:
-      | location     |
-      | root         |
-      | subdirectory |
-
-  @AC7
-  Scenario: Preserve a conflicting README
-    Given a directory outside any Workspace containing an ordinary README
-    When I initialize that directory
-    Then initialization fails with PATH_CONFLICT
-    And all existing content is unchanged
-    And no new Workspace artifacts are created
-
-  @AC8
-  Scenario: Do not replace a missing store
-    Given an initialized Workspace whose declared store is missing
-    When I initialize from a subdirectory
-    Then initialization fails with STORE_UNAVAILABLE
-    And no replacement store or nested Workspace is created
-```
+Canonical executable criteria: [Workspace initialization feature](../../../tests/acceptance/features/workspace-init.feature). AC3 initializes a named Workspace; AC4 derives the title; AC5 rejects blank titles; AC6 repeats initialization at root and descendants without mutation; AC7 preserves collisions; AC8 never replaces a missing store.
 
 ### AC9 — Discovery and artifact integrity
 
@@ -372,15 +320,15 @@ Record independent review outcome and verification evidence before completion.
 
 ## Verification plan
 
-| Risk or criterion | Primary evidence |
-| --- | --- |
-| Title rules, literal Unicode/punctuation | Small domain unit cases, including blank and line-break rejection |
-| AC3–AC8 | Cucumber through application API with real temporary filesystem/SQLite |
-| AC9 | Focused adapter integration tests, including relative store resolution |
-| AC10 | Controlled fault injection; test application cleanup behavior |
-| AC11 | Vitest launching actual built CLI processes |
-| AC1–AC2 | Clean install/build/verify and temporary negative configuration probes |
-| AC12 | Documentation walkthrough, safe release dry run, independent review |
+| Risk or criterion                        | Primary evidence                                                       |
+| ---------------------------------------- | ---------------------------------------------------------------------- |
+| Title rules, literal Unicode/punctuation | Small domain unit cases, including blank and line-break rejection      |
+| AC3–AC8                                  | Cucumber through application API with real temporary filesystem/SQLite |
+| AC9                                      | Focused adapter integration tests, including relative store resolution |
+| AC10                                     | Controlled fault injection; test application cleanup behavior          |
+| AC11                                     | Vitest launching actual built CLI processes                            |
+| AC1–AC2                                  | Clean install/build/verify and temporary negative configuration probes |
+| AC12                                     | Documentation walkthrough, safe release dry run, independent review    |
 
 Use isolated directories; do not run tests against the user's real Workspace.
 Do not duplicate the entire Gherkin matrix in unit and CLI tests.
@@ -394,19 +342,61 @@ The second result must point to the same root without changing the Workspace.
 
 ## Open questions
 
-No implementation is requested by this document-only change. The detailed choices
-(store filename/metadata, discovery diagnostics and output contract) are proposed
-for review. Dependency patch versions and the physical metadata-table definition
-can be selected within this contract during implementation.
+Dependency versions are pinned in package.json and package-lock.json. The initial
+SQLite table is `owf_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT`,
+with `format=owf-tool-operational` and `schema_version=1`.
 
 Recovery after a process crash, adopting an existing non-OWF README, Workspace
 repair/rename, URI registration and broader migration support remain deferred.
 
 ## Implementation and review outcome
 
-Not implemented. No code tests, release dry run or Windows execution have been
-performed. Complete this section with the delivered behavior, deviations, actual
-verification evidence, independent review outcome and implementation PR links.
+Implemented on `agent/increment-0001-workspace-init`. Status remains
+`in_progress`: independent code review has not taken place. The implementation
+is prepared for commit and push on this branch at the user's request. No release,
+merge or PR was created by this session.
+
+Delivered the ESM/TypeScript CLI foundation, all agreed development commands,
+layer/public-export checks, local release configuration, initialization and
+physical-path ancestor discovery. Initialization validates titles and metadata,
+uses exclusive creation, writes README last, preserves unrelated content and
+reports cleanup failures. Existing stores are validated read-only without
+implicit creation. AC3–AC8 now live in the linked canonical feature file.
+No acceptance criteria or agreed scope were changed.
+
+Verification on Windows, 2026-09-16, Node 24.21.0 and npm 11.4.1:
+
+- `npm ci` and `npm run verify` passed in the working package and in an isolated
+  clean source copy without node_modules or dist. This tested the uncommitted
+  implementation based on Git revision `0b13bfd47c5892186d13e0a46ec72520842a7a0f`,
+  not a newly committed checkout.
+- Type checking, ESLint, Prettier, dependency-cruiser and production build passed.
+  Production output contains no tests and includes source maps.
+- Vitest: 9 unit/application tests, 21 integration tests and 5 CLI process tests
+  passed. Cucumber: 7 scenarios and 43 steps passed, bound to application calls
+  with real isolated filesystem/SQLite fixtures.
+- Temporary forbidden domain-to-infrastructure import, production cycle and
+  domain `Date.now()` probes each failed the intended check. Probes were removed.
+- `npm run dev -- --help` passed. CLI tests ran outside the checkout in paths with
+  spaces and Unicode and checked help/version, human/JSON output, exit codes and
+  unchanged artifacts after descendant initialization.
+- release-it 21.0.3 dry run passed in a disposable Git repository. It proposed
+  version 0.0.1, commit `chore(owf): release 0.0.1` and tag `owf-v0.0.1`. Afterwards
+  the fixture remained clean with its one setup commit and no tags; no release
+  commit, push or publication occurred.
+- npm audit after the release-it update, and the final clean install, reported
+  zero vulnerabilities. `git diff --check` passed.
+
+Initial setup attempts exposed and then corrected build/lint/Cucumber
+configuration errors. Sandbox-blocked subprocess checks were rerun with approval
+outside the sandbox; the successful results above are from those actual runs.
+The user installed Node 24.21.0 after antivirus blocked the automated installer.
+
+Not performed: independent code review, Linux execution, optional npm-link
+installation, a separate human walkthrough, real release or publication.
+Windows use is documented in the [tool README](../../README.md#try-it-outside-the-checkout).
+Process-kill/power-loss recovery and fully concurrent initialization remain
+deferred; caught failures and cleanup diagnostics are covered by fault injection.
 
 ## Decision changes and follow-up
 
