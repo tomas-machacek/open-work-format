@@ -17,7 +17,8 @@ changes to agreed decisions; do not silently invent missing domain semantics.
 Work only on the agreed increment. Avoid unrelated refactors, speculative
 abstractions, dependencies and features. Report conflicts with the
 [architecture](architecture.md), [MVP scope](../../../docs/design/mvp-scope.md)
-or domain documents. The first increment has not yet been selected.
+or domain documents. The first increment's
+[definition](increments/0001-workspace-init.md) is in draft review.
 
 ## Increment documents
 
