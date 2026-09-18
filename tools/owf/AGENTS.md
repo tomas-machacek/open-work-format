@@ -17,9 +17,7 @@ status and index row current and record the actual outcome, verification and
 review evidence at completion. Existing conversational agreement does not need
 to be requested again just to update the document.
 
-Follow the agreed increment and its acceptance criteria. The first increment
-has not yet been agreed: current work is documentation only. Do not scaffold
-implementation or executable configuration until that step is agreed.
+Follow the agreed increment and its acceptance criteria. The first increment is approved and in progress. Keep it in_progress until independent code review has completed.
 
 ## Implementation
 
