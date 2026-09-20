@@ -16,9 +16,10 @@ define the workflow and how to keep the record useful after implementation.
 The first increment is complete. Add each subsequent increment with a document
 link and a one-line description; keep its status in sync.
 
-| Increment                                                 | Description                                                            | Status    |
-| --------------------------------------------------------- | ---------------------------------------------------------------------- | --------- |
-| [0001 — Workspace initialization](0001-workspace-init.md) | Establish CLI tooling and initialize/discover a named local Workspace. | completed |
+| Increment                                                               | Description                                                            | Status    |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------- |
+| [0001 — Workspace initialization](0001-workspace-init.md)               | Establish CLI tooling and initialize/discover a named local Workspace. | completed |
+| [0002 — Project and Outcome creation](0002-project-outcome-creation.md) | Create Markdown work contexts and generate Workspace CLI guidance.     | draft     |
 
 Statuses: `draft`, `agreed`, `in_progress`, `completed`, `cancelled`.
 Completed means implemented, reviewed and verified against the agreed criteria;

@@ -58,6 +58,16 @@ exist, link to their scenarios as the canonical executable criteria instead of
 maintaining duplicate scenario text. Keep criterion intent, traceability and
 material changes visible in the increment document.
 
+## Workspace agent guidance
+
+The tool-generated Workspace AGENTS.md is user-facing operational guidance,
+separate from repository development instructions. Starting with increment 0002,
+every increment adding or changing fundamental CLI commands must update the
+Workspace guide template alongside command help and examples. Keep one source
+for generated guidance, and verify its examples against implemented commands.
+Do not silently overwrite user-edited instructions in existing Workspaces;
+compatibility and any refresh mechanism must be specified in the increment.
+
 ## Development technologies
 
 | Area                   | Decision                                                         |
