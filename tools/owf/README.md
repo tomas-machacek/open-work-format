@@ -2,7 +2,7 @@
 
 The CLI initializes a named local OWF Workspace and discovers it from descendant
 directories. Actions, Inbox operations and the future web interface are not yet
-implemented. Increment 0001 remains in progress pending independent code review.
+implemented. Increment 0001 is complete.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
 deferred features, and acceptance scenarios.
@@ -36,8 +36,22 @@ npm run verify
 boundaries, builds production code, then runs unit, integration, Cucumber and CLI
 process suites. `npm run test:e2e` runs only CLI tests and requires a prior build.
 `npm run format` applies formatting. All checks are local; no Git hooks or CI are
-installed. Scripts also use portable Node/npm commands for Linux, which has not
-been validated in this increment.
+installed. Linux verification also passed; platform/runtime details are recorded in the
+increment outcome.
+
+### Windows: Vitest cannot find the current suite
+
+If Vitest reports "failed to find the current suite", enter the package directory
+with an uppercase drive letter before running tests. This workaround was confirmed
+locally by the user with Node 24.21.0 and Vitest 5.0.1:
+
+```powershell
+cd C:\Users\tomas\Projects\open-work-format\tools\owf
+npm run verify
+```
+
+Use your own checkout path and preserve the uppercase `C:` (or your drive letter).
+See [Vitest issue 10692](https://github.com/vitest-dev/vitest/issues/10692).
 
 ## Try it outside the checkout
 

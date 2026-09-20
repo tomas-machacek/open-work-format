@@ -13,12 +13,12 @@ define the workflow and how to keep the record useful after implementation.
 
 ## Index
 
-The first increment is approved and implementation is underway. Add each increment with a document
+The first increment is complete. Add each subsequent increment with a document
 link and a one-line description; keep its status in sync.
 
-| Increment                                                 | Description                                                            | Status      |
-| --------------------------------------------------------- | ---------------------------------------------------------------------- | ----------- |
-| [0001 — Workspace initialization](0001-workspace-init.md) | Establish CLI tooling and initialize/discover a named local Workspace. | in_progress |
+| Increment                                                 | Description                                                            | Status    |
+| --------------------------------------------------------- | ---------------------------------------------------------------------- | --------- |
+| [0001 — Workspace initialization](0001-workspace-init.md) | Establish CLI tooling and initialize/discover a named local Workspace. | completed |
 
 Statuses: `draft`, `agreed`, `in_progress`, `completed`, `cancelled`.
 Completed means implemented, reviewed and verified against the agreed criteria;

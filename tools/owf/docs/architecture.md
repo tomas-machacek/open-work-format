@@ -1,6 +1,6 @@
 # OWF Tool Architecture
 
-> Status: Agreed implementation baseline, 2026-09-15. The approved first increment is in progress.
+> Status: Agreed implementation baseline, 2026-09-15. The first increment is complete.
 
 ## Purpose and authority
 

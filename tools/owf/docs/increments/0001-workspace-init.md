@@ -1,11 +1,11 @@
 # 0001 — Workspace initialization and CLI foundation
 
-> Status: in_progress
+> Status: completed
 > Description: Establish the CLI project and development checks, and initialize
 > a named local OWF Workspace from the current directory.
 > Depends on: No earlier implementation increment.
 
-The scope, solution and acceptance criteria are approved. Implementation is underway; independent review is required before completion.
+Implementation and review corrections are complete. The user accepted the result and authorized merge on 2026-09-20.
 
 ## Goal and scope
 
@@ -351,10 +351,9 @@ repair/rename, URI registration and broader migration support remain deferred.
 
 ## Implementation and review outcome
 
-Implemented on `agent/increment-0001-workspace-init`. Status remains
-`in_progress`: the initial independent review is complete and its findings have
-been corrected; the corrective diff awaits independent review. Implementation
-and corrections are tracked in PR #6. No release or merge has been performed.
+Implemented on `agent/increment-0001-workspace-init` and tracked in PR #6.
+The initial independent review and corrections are documented below. The user
+accepted completion and authorized merge on 2026-09-20; no release was requested.
 
 Delivered the ESM/TypeScript CLI foundation, all agreed development commands,
 layer/public-export checks, local release configuration, initialization and
@@ -445,6 +444,20 @@ present, the full `npm run verify` passed (9 unit/application, 24 integration,
 The separate "current suite" error was not reproduced on Linux; its cause is
 not established and Windows rerun remains required. This change fixes confirmed
 test discovery, not a claimed diagnosis of all Windows failures.
+
+### Completion accepted, 2026-09-20
+
+The user confirmed that entering the checkout with uppercase `C:` resolved the
+Windows Vitest failure and authorized merge. Their successful command used `cd`
+without `/d`; the README records that form. This confirmation concerns the
+reported failure; no additional full Windows test transcript was supplied.
+The existing Linux full verification remains the evidence for all suites.
+
+The user accepted the reviewed implementation and corrections for merge without
+an additional independent review session for the corrective diff. Earlier pending
+status notes above describe the state at those checkpoints. Increment 0001 is now
+completed under that explicit acceptance. The Vitest dependency workaround remains
+a documented limitation; no framework patch or dependency upgrade was made.
 
 ## Decision changes and follow-up
 

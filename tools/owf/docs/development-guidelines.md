@@ -18,7 +18,7 @@ Work only on the agreed increment. Avoid unrelated refactors, speculative
 abstractions, dependencies and features. Report conflicts with the
 [architecture](architecture.md), [MVP scope](../../../docs/design/mvp-scope.md)
 or domain documents. The first increment's
-[definition](increments/0001-workspace-init.md) is approved and in progress.
+[definition](increments/0001-workspace-init.md) records its completed outcome.
 
 ## Increment documents
 
