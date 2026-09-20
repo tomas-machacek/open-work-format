@@ -1,7 +1,7 @@
 # OWF Tool Development Guidelines
 
 > Status: Agreed engineering baseline, 2026-09-15.
-> Commands and configurations below are planned, not yet implemented.
+> Commands and configurations are established by increment 0001.
 
 ## Working model and document ownership
 
@@ -17,7 +17,8 @@ changes to agreed decisions; do not silently invent missing domain semantics.
 Work only on the agreed increment. Avoid unrelated refactors, speculative
 abstractions, dependencies and features. Report conflicts with the
 [architecture](architecture.md), [MVP scope](../../../docs/design/mvp-scope.md)
-or domain documents. The first increment has not yet been selected.
+or domain documents. The first increment's
+[definition](increments/0001-workspace-init.md) records its completed outcome.
 
 ## Increment documents
 
@@ -59,22 +60,22 @@ material changes visible in the increment document.
 
 ## Development technologies
 
-| Area | Decision |
-| --- | --- |
-| Runtime | Node.js 24 LTS, with a pinned concrete version |
-| Language/modules | TypeScript, strict mode, ESM |
-| Package management | npm, one committed package-lock.json under tools/owf/ |
-| Backend build/types | tsc |
-| Development execution | tsx; type checking remains a separate step |
-| Frontend build | Vite |
-| Unit/integration tests | Vitest |
-| Gherkin acceptance | Cucumber.js with TypeScript step definitions |
-| Browser E2E | Playwright Test, initially Chromium |
-| Lint | ESLint recommended plus typescript-eslint recommendedTypeChecked |
-| Formatting | Prettier, with conflicting ESLint formatting rules disabled |
-| Architecture checks | dependency-cruiser |
-| Releases | release-it |
-| CI | Deferred; no GitHub Actions in the initial setup |
+| Area                   | Decision                                                         |
+| ---------------------- | ---------------------------------------------------------------- |
+| Runtime                | Node.js 24 LTS, with a pinned concrete version                   |
+| Language/modules       | TypeScript, strict mode, ESM                                     |
+| Package management     | npm, one committed package-lock.json under tools/owf/            |
+| Backend build/types    | tsc                                                              |
+| Development execution  | tsx; type checking remains a separate step                       |
+| Frontend build         | Vite                                                             |
+| Unit/integration tests | Vitest                                                           |
+| Gherkin acceptance     | Cucumber.js with TypeScript step definitions                     |
+| Browser E2E            | Playwright Test, initially Chromium                              |
+| Lint                   | ESLint recommended plus typescript-eslint recommendedTypeChecked |
+| Formatting             | Prettier, with conflicting ESLint formatting rules disabled      |
+| Architecture checks    | dependency-cruiser                                               |
+| Releases               | release-it                                                       |
+| CI                     | Deferred; no GitHub Actions in the initial setup                 |
 
 Use npm ci for reproducible installs. Separate backend, frontend and test
 TypeScript configurations as needed so browser globals do not leak into core.
@@ -94,13 +95,13 @@ Each additional case needs a distinct failure reason. There is no tests-per-clas
 quota, mandatory test file for every module or coverage percentage target.
 Coverage is diagnostic, not the goal.
 
-| Level | Purpose |
-| --- | --- |
-| Domain unit | Invariants, state transitions, derived rules and meaningful edges |
-| Application unit | Coordination and failure handling through simple test ports |
-| Integration | Real SQLite mapping, filters, transactions, rollback and Markdown reading |
-| Acceptance | Observable OWF behavior through the application API |
-| E2E | A small set of real CLI-process and browser journeys |
+| Level            | Purpose                                                                   |
+| ---------------- | ------------------------------------------------------------------------- |
+| Domain unit      | Invariants, state transitions, derived rules and meaningful edges         |
+| Application unit | Coordination and failure handling through simple test ports               |
+| Integration      | Real SQLite mapping, filters, transactions, rollback and Markdown reading |
+| Acceptance       | Observable OWF behavior through the application API                       |
+| E2E              | A small set of real CLI-process and browser journeys                      |
 
 Unit tests are colocated as *.test.ts. Other suites live under tests/ as defined
 by architecture. Prefer real domain objects and small test implementations of
@@ -123,10 +124,31 @@ and persisted results. Playwright covers a few key browser flows and is added
 with the first web journey. Actual Windows protocol dispatch and opening
 Obsidian also require a documented manual integration check.
 
+Scope test discovery explicitly to the intended source/test directories. Gitignore
+and linter exclusions do not configure the test runner. Keep disposable source
+copies outside the package where possible; verify that artifacts cannot become
+additional test suites when changing discovery configuration.
+
 Review tests for both missing important cases and redundant/brittle cases.
 Do not weaken checks, skip tests or rewrite acceptance expectations simply to
 make an implementation pass. If a criterion is wrong, identify the conflict and
 record the resolution explicitly.
+
+## Boundary and verification discipline
+
+Treat URLs, filesystem paths and identifiers according to their semantics.
+Convert explicitly at adapter boundaries using standard conversion APIs; do not
+pass an encoded URL directly to filesystem operations. Test representative
+encoding cases where these boundaries are crossed.
+
+Derive changing values, such as the tool version, from their authoritative source
+in tests. Fixed expectations remain appropriate for contractual constants such as
+an agreed store schema version.
+
+When adding or changing a quality gate, demonstrate that a representative
+forbidden example fails, then remove the probe. Architecture checks must also
+cover direct external dependencies that could bypass internal layer boundaries,
+such as a database driver imported by an input adapter.
 
 ## Lint and architecture rules
 
@@ -158,19 +180,19 @@ No dependency or configuration may bypass a layer check to make a build pass.
 
 ## Planned command interface
 
-| Command | Purpose |
-| --- | --- |
-| npm run typecheck | Types including tests |
-| npm run lint | ESLint |
-| npm run format:check | Formatting |
-| npm run architecture:check | Module boundaries and cycles |
-| npm test | Unit tests |
-| npm run test:integration | Technical integration |
-| npm run test:acceptance | Cucumber scenarios |
-| npm run test:e2e | Applicable CLI and browser journeys |
-| npm run build | Production output |
-| npm run verify | All applicable required checks above |
-| npm run release | Local version commit and tag |
+| Command                    | Purpose                              |
+| -------------------------- | ------------------------------------ |
+| npm run typecheck          | Types including tests                |
+| npm run lint               | ESLint                               |
+| npm run format:check       | Formatting                           |
+| npm run architecture:check | Module boundaries and cycles         |
+| npm test                   | Unit tests                           |
+| npm run test:integration   | Technical integration                |
+| npm run test:acceptance    | Cucumber scenarios                   |
+| npm run test:e2e           | Applicable CLI and browser journeys  |
+| npm run build              | Production output                    |
+| npm run verify             | All applicable required checks above |
+| npm run release            | Local version commit and tag         |
 
 Use focused checks during development, then verify before handoff. Suites are
 introduced with the behavior they cover; do not claim nonexistent tests ran.
@@ -183,6 +205,15 @@ Review should happen in a separate agent session, based on the agreed increment,
 acceptance criteria and actual diff. The implementer's summary is a guide, not
 evidence. Inspect domain correctness, layer boundaries, failure paths, persistence
 behavior and test value. A green test run alone does not establish correctness.
+
+Keep the PR description, increment status/outcome and relevant README consistent
+with the actual diff. Distinguish historical verification from checks of the
+current revision and state which findings remain unresolved.
+
+For each review finding, consider a correction, a focused regression test and a
+general guideline. Add only what addresses the actual risk; not every finding
+needs all three. Extend existing guidance rather than accumulating one rule per
+bug or duplicating it in AGENTS.md.
 
 Each handoff records:
 

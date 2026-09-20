@@ -17,9 +17,7 @@ status and index row current and record the actual outcome, verification and
 review evidence at completion. Existing conversational agreement does not need
 to be requested again just to update the document.
 
-Follow the agreed increment and its acceptance criteria. The first increment
-has not yet been agreed: current work is documentation only. Do not scaffold
-implementation or executable configuration until that step is agreed.
+Follow the agreed increment and its acceptance criteria. Consult the increment index for current status; subsequent implementation requires an agreed increment.
 
 ## Implementation
 
@@ -28,6 +26,9 @@ Respect public module boundaries. Do not add unrelated abstractions,
 dependencies, refactors or features.
 Develop meaningful tests alongside behavior; use the guidelines rather than
 a test-count or coverage quota.
+Apply the guidelines' boundary and verification discipline: preserve URL/path
+semantics, derive changing expectations from their source, and validate new gates
+with forbidden examples.
 Distinguish mandatory rules, recommendations, examples and open decisions.
 Report semantic conflicts rather than silently changing agreed requirements.
 
@@ -43,6 +44,10 @@ For review, read the diff and acceptance criteria independently of the
 implementer's explanation. Check domain correctness, architecture, errors,
 atomicity and test value. Prefer a separate review session.
 Reuse applicable verification evidence; rerun checks for a concrete reason.
+
+Keep PR metadata and increment outcome consistent with the actual changes.
+Turn review findings into proportionate fixes, tests and reusable guidance as
+specified in the development guidelines.
 
 Report observable changes, how the human can try them, checks actually run,
 platform, limitations and unresolved findings. Follow the development

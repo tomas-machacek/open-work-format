@@ -1,0 +1,12 @@
+{
+  "git": {
+    "requireCleanWorkingDir": true,
+    "requireUpstream": false,
+    "commitMessage": "chore(owf): release ${version}",
+    "tagName": "owf-v${version}",
+    "push": false
+  },
+  "npm": { "publish": false },
+  "github": { "release": false },
+  "gitlab": { "release": false }
+}

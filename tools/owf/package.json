@@ -1,0 +1,47 @@
+{
+  "name": "@owf/tool",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "owf": "dist/bootstrap/cli.js"
+  },
+  "engines": {
+    "node": "24.21.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx src/bootstrap/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "architecture:check": "depcruise src --config .dependency-cruiser.cjs",
+    "test": "vitest run src",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "test:acceptance": "node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run architecture:check && npm run build && npm test && npm run test:integration && npm run test:acceptance && npm run test:e2e",
+    "release": "release-it"
+  },
+  "dependencies": {
+    "commander": "15.0.0",
+    "yaml": "2.9.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "13.2.1",
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.13.5",
+    "dependency-cruiser": "18.3.1",
+    "eslint": "10.10.0",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.7",
+    "release-it": "21.0.3",
+    "tsx": "4.23.13",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.1"
+  }
+}
