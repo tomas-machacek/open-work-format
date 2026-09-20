@@ -37,7 +37,7 @@ boundaries, builds production code, then runs unit, integration, Cucumber and CL
 process suites. `npm run test:e2e` runs only CLI tests and requires a prior build.
 `npm run format` applies formatting. All checks are local; no Git hooks or CI are
 installed. Platform/runtime evidence for each change is recorded in its increment
-outcome; historical Linux validation of 0001 does not cover later increments.
+outcome; increment 0002 also passed Linux verification on Node 24.19.0.
 
 ### Windows: Vitest cannot find the current suite
 

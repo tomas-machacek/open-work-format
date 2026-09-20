@@ -266,9 +266,10 @@ at the time. A subsequent independent review found two additional issues, now fi
   example alone cannot validate an Outcome owner.
 
 Regression tests cover both findings, log rename failure, invalid ancestors of
-explicit nested owners, and the nearest Workspace boundary. Changes remain in the
-working tree of `agent/increment-0002-project-outcome-creation`; the fixes were
-verified locally, not subjected to another separate-agent review.
+explicit nested owners, and the nearest Workspace boundary. The implementation and fixes are committed as
+`99b711b9944d991da03574432e26f2ebfb7dfa76` on
+`agent/increment-0002-project-outcome-creation`. A subsequent independent review
+of that revision confirmed the corrections and found no further blocking issues.
 
 ### Test-value audit and adjustments
 
@@ -309,17 +310,32 @@ was updated afterward.
   unsafe matcher assignments in new tests; those assertions were corrected and the
   complete command then passed without skips or weakened checks.
 
-No Linux run, installed `npm link` trial or separate manual UI trial was performed
+No installed `npm link` trial or separate manual UI trial was performed
 for this increment. The built CLI journey covers the documented creation trial
 automatically; human trial instructions are in the tool README. No checks were
 weakened or skipped to obtain the passing result.
+
+Final independent review and Linux verification of committed revision
+`99b711b9944d991da03574432e26f2ebfb7dfa76` completed on 2026-09-20:
+
+- Reviewed the diff against main, corrections, architecture and test value;
+  no further blocking code findings. The remaining stale handoff text and PR
+  description were corrected in a documentation-only follow-up.
+- `npm run verify` passed on Linux with Node 24.19.0/npm 11.9.0: typecheck,
+  lint, formatting, architecture, build, 39 unit, 70 integration, 15 CLI tests,
+  and 11 acceptance scenarios / 63 steps. This runtime differs from the pinned
+  Node 24.21.0; the Windows evidence above covers the pinned runtime.
+- The test audit found the parametrized boundary cases justified; no blanket
+  test-count reduction was recommended.
+- The user accepted the review and authorized merge. Increment 0002 is completed;
+  merge does not create a release. Production code did not change after this run.
 
 Limitations: explicit owner paths require physical directories (internal aliases
 as well as escaping symlinks/junctions are rejected). Contextual discovery follows
 the physical working directory. Log validation supports the generated Log/date/
 flat-list structure; broader Markdown parsing remains deferred. Concurrent writers,
 crash recovery, automatic index updates and guide refresh remain out of scope.
-No merge, release, tag or dependency update is included.
+No release, tag or dependency update is included.
 
 ## Decision changes and follow-up
 
