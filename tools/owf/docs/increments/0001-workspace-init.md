@@ -245,7 +245,7 @@ Deliver:
 - Cucumber.js for the acceptance scenarios below, bound to application operations.
 - ESLint/typescript-eslint, Prettier and dependency-cruiser configured according
   to the development guidelines, including public module boundaries.
-- release-it configuration for local version commit/tag only: owf-v<version>,
+- release-it configuration for local version commit/tag only: `owf-v{version}`,
   npm publication/push/GitHub Release disabled. Configure it but do not release.
 - Scoped ignores for dependencies, build outputs and test artifacts, preserving
   existing repository ignore rules. Do not ignore user Workspace content globally.
