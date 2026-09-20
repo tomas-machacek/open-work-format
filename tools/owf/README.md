@@ -1,8 +1,8 @@
 # OWF Tool
 
-The CLI initializes a named local OWF Workspace and discovers it from descendant
-directories. Actions, Inbox operations and the future web interface are not yet
-implemented. Increment 0001 is complete.
+The CLI initializes a named local OWF Workspace, discovers it from descendant
+directories, and creates Markdown Projects and Outcomes. Actions, Inbox operations
+and the future web interface are not yet implemented.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
 deferred features, and acceptance scenarios.
@@ -36,8 +36,8 @@ npm run verify
 boundaries, builds production code, then runs unit, integration, Cucumber and CLI
 process suites. `npm run test:e2e` runs only CLI tests and requires a prior build.
 `npm run format` applies formatting. All checks are local; no Git hooks or CI are
-installed. Linux verification also passed; platform/runtime details are recorded in the
-increment outcome.
+installed. Platform/runtime evidence for each change is recorded in its increment
+outcome; increment 0002 also passed Linux verification on Node 24.19.0.
 
 ### Windows: Vitest cannot find the current suite
 
@@ -69,7 +69,7 @@ node $cli --help
 node $cli --version
 ```
 
-The first call creates `README.md`, `index.md`, `log.md` and `_store/owf.sqlite`.
+The first call creates `README.md`, `index.md`, `log.md`, `AGENTS.md` and `_store/owf.sqlite`.
 The second returns `already_initialized`, the original title and the same absolute
 root, without changing existing artifacts. Omit `--title` to use the directory
 basename. Omit `--json` for human output. No prompts are required.
@@ -78,6 +78,42 @@ basename. Omit `--json` for human output. No prompts are required.
 the working directory. Use the absolute built CLI path above for a user Workspace.
 Alternatively, run `npm link` in the package directory, then use `owf init` from
 the intended Workspace. Local linking is optional.
+
+### Create Projects and Outcomes
+
+From the trial Workspace root, using the same absolute `$cli` path:
+
+```powershell
+node $cli create project --title "Rekonštrukcia kuchyne" --slug kitchen --json
+Set-Location _projects/kitchen
+node $cli create outcome --title "Schválený návrh kuchyne"
+node $cli create outcome --title "Materiály" --owner /_projects/kitchen/ --expected-result "Materiály sú vybrané." --json
+node $cli create outcome --help
+```
+
+Projects always become top-level entries in `/_projects/`. Outcomes use the nearest
+Project/Outcome from the physical working directory; explicit `--owner` overrides
+that context. Owners are Workspace-rooted directory URLs with a trailing slash,
+not native filesystem paths. Encode special characters in each URL segment.
+Owner paths use physical directories; explicit symlinks/junctions are rejected.
+Archived owners and malformed owner hierarchies are rejected. A recognized,
+accessible store remains required, but creation does not modify it.
+
+Titles are trimmed single-line literal text. An Outcome's Expected Result defaults
+to its title. `--slug` accepts lowercase ASCII letters/digits separated by single
+hyphens (excluding Windows device names); otherwise it is derived from the title.
+Existing targets, including case-only collisions, are errors. Existing navigation
+indexes stay unchanged and can be maintained manually.
+
+Successful JSON creation returns `ok`, `result` (status, type, title, root, url,
+path, owner) and `warnings`. Log failures keep the usable object and return exit 0
+with `LOG_WRITE_FAILED`; do not retry creation. Invalid arguments return exit 2;
+Workspace, owner, collision and I/O errors return exit 1.
+
+Fresh initialization provides command examples in `AGENTS.md`. Repeat init never
+overwrites or backfills that guide. Older Workspaces remain supported; existing
+instructions can be updated manually using the commands documented here. An
+existing `AGENTS.md` in a fresh directory prevents initialization.
 
 The tool refuses target collisions and unavailable/unsupported stores. It does
 not rename, repair, overwrite, or create nested Workspaces. The initial store

@@ -58,6 +58,16 @@ exist, link to their scenarios as the canonical executable criteria instead of
 maintaining duplicate scenario text. Keep criterion intent, traceability and
 material changes visible in the increment document.
 
+## Workspace agent guidance
+
+The tool-generated Workspace AGENTS.md is user-facing operational guidance,
+separate from repository development instructions. Starting with increment 0002,
+every increment adding or changing fundamental CLI commands must update the
+Workspace guide template alongside command help and examples. Keep one source
+for generated guidance, and verify its examples against implemented commands.
+Do not silently overwrite user-edited instructions in existing Workspaces;
+compatibility and any refresh mechanism must be specified in the increment.
+
 ## Development technologies
 
 | Area                   | Decision                                                         |
@@ -140,6 +150,11 @@ Treat URLs, filesystem paths and identifiers according to their semantics.
 Convert explicitly at adapter boundaries using standard conversion APIs; do not
 pass an encoded URL directly to filesystem operations. Test representative
 encoding cases where these boundaries are crossed.
+
+When replacing existing text, validate lossless decoding before writing and test
+preservation of malformed input bytes. When recognizing required Markdown
+structure, test that examples inside code blocks cannot satisfy that structure.
+Preservation snapshots should include empty directories, not only file contents.
 
 Derive changing values, such as the tool version, from their authoritative source
 in tests. Fixed expectations remain appropriate for contractual constants such as
