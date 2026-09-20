@@ -2,6 +2,7 @@ import { afterEach, expect, test } from 'vitest';
 import {
   mkdirSync,
   readFileSync,
+  renameSync,
   writeFileSync,
   unlinkSync,
   symlinkSync,
@@ -163,3 +164,25 @@ test('external local directory resolves from workspace rather than descendant', 
   mkdirSync(child);
   expect(initialize(child).store).toBe(externalStore);
 });
+
+test.each(['my store', 'Život', 'literal%20 #store'])(
+  'encoded relative storage URL resolves %s from workspace root',
+  (name) => {
+    const root = directory();
+    initialize(root, 'Root');
+    renameSync(join(root, '_store'), join(root, name));
+    const readme = join(root, 'README.md');
+    writeFileSync(
+      readme,
+      readFileSync(readme, 'utf8').replace(
+        './_store/',
+        `./${encodeURIComponent(name)}/`,
+      ),
+    );
+    const child = join(root, 'child');
+    mkdirSync(child);
+    const before = snapshot(root);
+    expect(initialize(child).store).toBe(join(root, name, 'owf.sqlite'));
+    expect(snapshot(root)).toEqual(before);
+  },
+);

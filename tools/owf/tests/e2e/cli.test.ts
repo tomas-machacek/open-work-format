@@ -1,9 +1,17 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { z } from 'zod';
 import { afterEach, expect, test } from 'vitest';
 import { cleanup, snapshot, temporaryDirectory } from '../support/workspace.js';
 
+const metadata = z
+  .object({ version: z.string() })
+  .parse(
+    JSON.parse(
+      readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+    ),
+  );
 const cli = resolve('dist/bootstrap/cli.js');
 const roots: string[] = [];
 function run(root: string, args: string[]) {
@@ -54,7 +62,7 @@ test('help, version and human output run outside checkout', () => {
   const root = temporaryDirectory();
   roots.push(root);
   expect(run(root, ['--help']).stdout).toContain('init');
-  expect(run(root, ['--version']).stdout.trim()).toBe('0.0.0');
+  expect(run(root, ['--version']).stdout.trim()).toBe(metadata.version);
   const result = run(root, ['init', '--title', 'Human']);
   expect(result.status).toBe(0);
   expect(result.stdout).toContain(`Root: ${root}`);

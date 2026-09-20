@@ -129,6 +129,22 @@ Do not weaken checks, skip tests or rewrite acceptance expectations simply to
 make an implementation pass. If a criterion is wrong, identify the conflict and
 record the resolution explicitly.
 
+## Boundary and verification discipline
+
+Treat URLs, filesystem paths and identifiers according to their semantics.
+Convert explicitly at adapter boundaries using standard conversion APIs; do not
+pass an encoded URL directly to filesystem operations. Test representative
+encoding cases where these boundaries are crossed.
+
+Derive changing values, such as the tool version, from their authoritative source
+in tests. Fixed expectations remain appropriate for contractual constants such as
+an agreed store schema version.
+
+When adding or changing a quality gate, demonstrate that a representative
+forbidden example fails, then remove the probe. Architecture checks must also
+cover direct external dependencies that could bypass internal layer boundaries,
+such as a database driver imported by an input adapter.
+
 ## Lint and architecture rules
 
 Mandatory baseline:
@@ -184,6 +200,15 @@ Review should happen in a separate agent session, based on the agreed increment,
 acceptance criteria and actual diff. The implementer's summary is a guide, not
 evidence. Inspect domain correctness, layer boundaries, failure paths, persistence
 behavior and test value. A green test run alone does not establish correctness.
+
+Keep the PR description, increment status/outcome and relevant README consistent
+with the actual diff. Distinguish historical verification from checks of the
+current revision and state which findings remain unresolved.
+
+For each review finding, consider a correction, a focused regression test and a
+general guideline. Add only what addresses the actual risk; not every finding
+needs all three. Extend existing guidance rather than accumulating one rule per
+bug or duplicating it in AGENTS.md.
 
 Each handoff records:
 

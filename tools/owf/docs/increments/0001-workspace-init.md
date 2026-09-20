@@ -352,9 +352,9 @@ repair/rename, URI registration and broader migration support remain deferred.
 ## Implementation and review outcome
 
 Implemented on `agent/increment-0001-workspace-init`. Status remains
-`in_progress`: independent code review has not taken place. The implementation
-is prepared for commit and push on this branch at the user's request. No release,
-merge or PR was created by this session.
+`in_progress`: the initial independent review is complete and its findings have
+been corrected; the corrective diff awaits independent review. Implementation
+and corrections are tracked in PR #6. No release or merge has been performed.
 
 Delivered the ESM/TypeScript CLI foundation, all agreed development commands,
 layer/public-export checks, local release configuration, initialization and
@@ -392,11 +392,43 @@ configuration errors. Sandbox-blocked subprocess checks were rerun with approval
 outside the sandbox; the successful results above are from those actual runs.
 The user installed Node 24.21.0 after antivirus blocked the automated installer.
 
-Not performed: independent code review, Linux execution, optional npm-link
+Not performed during the initial implementation session: independent code review,
+Linux execution, optional npm-link
 installation, a separate human walkthrough, real release or publication.
 Windows use is documented in the [tool README](../../README.md#try-it-outside-the-checkout).
 Process-kill/power-loss recovery and fully concurrent initialization remain
 deferred; caught failures and cleanup diagnostics are covered by fault injection.
+
+### Review corrections, 2026-09-20
+
+Independent review of revision `eb280f19dc4ff4188f3673a8a96e2b2eca2c5d8b`
+identified three issues, corrected in the follow-up diff:
+
+- Relative storage URLs now resolve through URL-to-filesystem conversion, with
+  regression cases for spaces, Unicode and literal percent/hash characters.
+- The architecture gate confines the SQLite driver to the persistence adapter,
+  preventing input adapters from bypassing the application layer.
+- CLI version expectations come from package metadata rather than a fixed
+  development version.
+
+Development guidelines and AGENTS.md now cover semantic boundaries, authoritative
+sources for changing expectations, negative quality-gate probes and coherent
+handoff documentation. The PR description is updated to reflect implementation.
+
+Verification of the corrective working tree on Linux, Node 24.19.0/npm 11.9.0:
+
+- `npm run verify` passed: types, lint, formatting, architecture, build,
+  9 unit/application tests, 24 integration tests, 5 CLI tests and 7 Cucumber
+  scenarios (43 steps).
+- A temporary direct SQLite import in CLI failed the intended architecture rule.
+- The focused CLI version test passed after temporarily changing package metadata
+  to 0.0.1. Both probes were restored; no version change or release was retained.
+- `git diff --check` passed.
+
+This runtime differs from the pinned Node 24.21.0. Windows was not rerun for these
+corrections. The original Windows results above are historical evidence, not
+verification of this corrective diff. Independent review of the corrective diff
+remains pending; the increment therefore remains in_progress.
 
 ## Decision changes and follow-up
 

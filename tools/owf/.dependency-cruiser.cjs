@@ -54,6 +54,12 @@ module.exports = {
       to: { pathNot: '^src/(domain|application)/' },
     },
     {
+      name: 'sqlite-only-in-persistence-adapter',
+      severity: 'error',
+      from: { path: '^src/', pathNot: '^src/infrastructure/sqlite/' },
+      to: { path: '^(node:)?sqlite$' },
+    },
+    {
       name: 'adapters-only-ports',
       severity: 'error',
       from: { path: '^src/infrastructure/' },

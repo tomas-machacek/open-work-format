@@ -10,8 +10,8 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { basename, dirname, isAbsolute, join, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { WorkspaceFiles } from '../../application/ports/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
 
@@ -93,7 +93,9 @@ export const workspaceFiles: WorkspaceFiles = {
           'UNSUPPORTED_STORAGE',
           `Unsupported storage: ${location}`,
         );
-      } else directory = resolve(root, location);
+      } else {
+        directory = fileURLToPath(new URL(location, pathToFileURL(root + sep)));
+      }
       if (!statSync(directory).isDirectory())
         throw new Error('Storage must be a directory');
     } catch (error) {
