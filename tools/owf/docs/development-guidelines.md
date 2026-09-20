@@ -124,6 +124,11 @@ and persisted results. Playwright covers a few key browser flows and is added
 with the first web journey. Actual Windows protocol dispatch and opening
 Obsidian also require a documented manual integration check.
 
+Scope test discovery explicitly to the intended source/test directories. Gitignore
+and linter exclusions do not configure the test runner. Keep disposable source
+copies outside the package where possible; verify that artifacts cannot become
+additional test suites when changing discovery configuration.
+
 Review tests for both missing important cases and redundant/brittle cases.
 Do not weaken checks, skip tests or rewrite acceptance expectations simply to
 make an implementation pass. If a criterion is wrong, identify the conflict and

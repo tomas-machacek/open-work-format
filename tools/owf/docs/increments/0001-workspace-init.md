@@ -430,6 +430,22 @@ corrections. The original Windows results above are historical evidence, not
 verification of this corrective diff. Independent review of the corrective diff
 remains pending; the increment therefore remains in_progress.
 
+### Local Windows test-discovery follow-up, 2026-09-20
+
+The user's Windows verification collected duplicate suites from
+`.test-artifacts/clean-source` and failed with "current suite" errors, including
+in the normal source suites. Added `vitest.config.mjs` with explicit include
+patterns for source, integration and CLI tests, preventing artifact copies from
+being collected. Development guidance now requires explicit discovery scope.
+
+On Linux (Node 24.19.0), a deliberately failing test under the artifact copy was
+collected before this change and ignored afterwards. With that probe still
+present, the full `npm run verify` passed (9 unit/application, 24 integration,
+5 CLI tests; 7 acceptance scenarios/43 steps). The probe was then removed.
+The separate "current suite" error was not reproduced on Linux; its cause is
+not established and Windows rerun remains required. This change fixes confirmed
+test discovery, not a claimed diagnosis of all Windows failures.
+
 ## Decision changes and follow-up
 
 The earlier candidate "create and get Action" is deferred: initializing a
