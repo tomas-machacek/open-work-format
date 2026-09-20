@@ -1,4 +1,7 @@
 export type ErrorCode =
+  | 'ACTION_NOT_FOUND'
+  | 'ACTION_CREATE_FAILED'
+  | 'ACTION_READ_FAILED'
   | 'INVALID_ARGUMENT'
   | 'INVALID_TITLE'
   | 'INVALID_SLUG'

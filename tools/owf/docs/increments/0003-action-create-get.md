@@ -1,11 +1,11 @@
 # 0003 — Action creation and retrieval
 
-> Status: reviewed
+> Status: completed
 > Description: Create an Action through the CLI and retrieve it by stable ID.
 > Depends on: [0002 — Project and Outcome creation](0002-project-outcome-creation.md).
 
 The user reviewed and approved this design for implementation on 2026-09-20,
-including the detailed contracts below. Implementation has not started.
+including the detailed contracts below. Implementation, independent review and required verification are complete.
 
 ## Goal and scope
 
@@ -92,15 +92,15 @@ owf:action:{id}; it is interpreted within the discovered Workspace.
 
 The created Action contains:
 
-| Field | Initial value |
-| --- | --- |
-| id | Generated UUID v4. |
-| title | Validated title. |
-| state | open. |
-| owner | Resolved reference with Workspace-rooted url. |
-| description | Supplied Markdown text; absent if omitted. |
-| created_at | Clock-supplied UTC ISO 8601 timestamp. |
-| updated_at | Exactly the same timestamp as created_at. |
+| Field       | Initial value                                 |
+| ----------- | --------------------------------------------- |
+| id          | Generated UUID v4.                            |
+| title       | Validated title.                              |
+| state       | open.                                         |
+| owner       | Resolved reference with Workspace-rooted url. |
+| description | Supplied Markdown text; absent if omitted.    |
+| created_at  | Clock-supplied UTC ISO 8601 timestamp.        |
+| updated_at  | Exactly the same timestamp as created_at.     |
 
 The remaining optional Action fields are absent. In particular, do not store
 blocked/executable flags or introduce lifecycle/dependency options. Use one
@@ -233,29 +233,13 @@ commands. Valid current-schema repeat init remains a no-op.
 AC7: Human/JSON results, exit codes, CLI help, README and generated Workspace
 guidance agree. Both operations work through the built CLI without a server.
 
-Draft domain scenarios (replace with links to canonical executable scenarios
-when implemented):
-
-```gherkin
-Scenario: Create and retrieve standalone work
-  Given an initialized Workspace with no current Project or Outcome
-  When I create an Action titled "Call the supplier"
-  Then it is open and owned by the Workspace
-  And I can retrieve the same Action by its assigned identity
-
-Scenario: Explicit ownership overrides the current context
-  Given I am working inside one Project
-  And another Project contains a parked Outcome
-  When I create an Action explicitly owned by that Outcome
-  Then the new Action belongs to that Outcome
-  And the Outcome remains parked
-
-Scenario: Read work after its owner is removed
-  Given an Action owned by an Outcome
-  When that Outcome's directory is removed
-  Then I can still retrieve the Action by its identity
-  And its stored owner reference is unchanged
-```
+Canonical executable domain journeys live in
+[action-create-get.feature](../../tests/acceptance/features/action-create-get.feature):
+standalone creation/retrieval (AC1), explicit parked ownership (AC2), and retrieval
+after the owner disappears (AC4). Detailed persistence/failure coverage lives in
+[actions.test.ts](../../tests/integration/actions.test.ts), identity/lifecycle
+rules in [domain tests](../../src/domain/actions/actions.test.ts), and built CLI
+contracts/examples in [cli.test.ts](../../tests/e2e/cli.test.ts).
 
 ## Verification plan
 
@@ -289,8 +273,53 @@ names are routine implementation choices.
 
 ## Implementation and review outcome
 
-Not implemented. No runtime verification or independent implementation review
-has been performed for this increment. Complete this section at code handoff.
+Implemented on 2026-09-20 in the existing increment branch and PR #8.
+
+- Delivered direct CLI/application Action create/get, UUID v4 identity and URI
+  normalization, literal optional descriptions, complete human/JSON output,
+  and focused repository, ID and clock ports/adapters.
+- Reused context owner discovery and hierarchy validation without changing
+  Outcome creation semantics. Action-specific domain rules reject terminal or
+  archived ancestry and permit parked ownership without Markdown mutation.
+- Fresh stores use schema 2 with explicit Action/event tables. Action and event
+  inserts share a short transaction; controlled Action-write, event-write and
+  deferred-constraint COMMIT failures preserve prior data with neither new row.
+  Unsupported schema 1/newer stores are rejected without writes by shared
+  discovery, including existing init/context commands. No migration was added.
+- Retrieval opens SQLite read-only, checks persisted data, and preserves owner
+  references even after Markdown moves or becomes malformed/terminal. Missing
+  Action and store failures remain distinct.
+- CLI help, README and generated Workspace guidance include the new commands.
+  Built CLI processes execute generated examples outside the repository using
+  returned IDs, verify full JSON/human results, and reject unsupported options.
+  Existing user-edited Workspace instructions remain untouched.
+
+Final `npm run verify` passed on Windows, Node 24.21.0, npm 11.4.1:
+types, lint, formatting, architecture (28 modules), build, 49 domain tests,
+79 integration tests, 14 Cucumber scenarios / 76 steps, and 16 CLI process tests.
+Tests ran from the uppercase-drive checkout path; the documented Windows
+workaround remains in README. Sandbox process restrictions required running
+process-based verification outside the sandbox. No Linux run was performed
+for this increment. Final documentation-only outcome edits were format/diff
+checked after the verified code revision.
+
+Independent read-only review by GPT-6 Astra inspected the actual tracked and
+new-file diff against AC1-AC7, architectural boundaries, failure behavior and
+test value. Its README clarification (Markdown log warnings versus atomic
+Action failure) was applied; no unresolved actionable findings remain. The
+small final move of UUID/clock adapters into infrastructure was also reviewed
+without findings. Main-agent inspection additionally corrected a delegated
+JSON-envelope nesting defect before final verification.
+
+Delegation: GPT-5.6 Luna implemented bounded CLI/help/contracts and README /
+generated Workspace guidance edits, then corrected review feedback. The main
+agent implemented domain rules, owner integration, SQLite, tests and final
+integration. No implementation subagent recursively delegated.
+
+No scope deviations, release or merge. Remaining limitations are the agreed
+ones: no list/update/history interface, migration, stable Markdown IDs, owner
+repair or concurrency snapshot across Markdown and SQLite. Use a fresh
+directory for schema 2; do not overwrite an old Workspace.
 
 ## Decision changes and follow-up
 

@@ -3,6 +3,7 @@ import {
   prepareContext,
   validateOwner,
   type ContextInput,
+  type ContextMetadata,
 } from '../../domain/contexts/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
 import type { ContextPorts } from '../ports/index.js';
@@ -41,43 +42,7 @@ export function createContext(
   const root = workspace.root;
   let owner: string[] = [];
   if (value.type === 'outcome') {
-    if (explicit !== undefined) owner = explicit;
-    else {
-      let candidate = files.physicalDirectory(start);
-      while (candidate !== root) {
-        const segments = contexts.segments(root, candidate);
-        const text = contexts.readOwner(candidate);
-        if (text !== undefined && documents.parse(text) !== undefined) {
-          // Ordinary documentation is not an owner; malformed claimed owners must fail.
-          owner = segments;
-          break;
-        }
-        candidate = files.parent(candidate);
-      }
-      if (!owner.length)
-        throw new WorkspaceError(
-          'OWNER_REQUIRED',
-          'Supply --owner or enter a Project or Outcome context.',
-        );
-    }
-    ownerType(owner);
-    for (let length = 2; length <= owner.length; length++) {
-      const segments = owner.slice(0, length);
-      const path = contexts.directory(root, segments);
-      const text = contexts.readOwner(path);
-      if (text === undefined)
-        throw new WorkspaceError(
-          'INVALID_OWNER',
-          `Missing owner README: ${path}`,
-        );
-      const metadata = documents.parse(text);
-      if (!metadata)
-        throw new WorkspaceError(
-          'INVALID_OWNER',
-          `Not a Project or Outcome: ${path}`,
-        );
-      validateOwner(metadata, ownerType(segments));
-    }
+    owner = resolveContextOwner(start, root, explicit, ports, true).segments;
   }
   const parentSegments = value.type === 'project' ? ['_projects'] : owner;
   const parent = files.join(root, parentSegments.join('/'));
@@ -148,4 +113,55 @@ export function createContext(
     },
     warnings,
   };
+}
+
+export function resolveContextOwner(
+  start: string,
+  root: string,
+  explicit: string[] | undefined,
+  ports: ContextPorts,
+  required: boolean,
+) {
+  let owner: string[] = [];
+  const chain: ContextMetadata[] = [];
+  const { files, contexts, contextDocuments: documents } = ports;
+  if (explicit !== undefined) owner = explicit;
+  else {
+    let candidate = files.physicalDirectory(start);
+    while (candidate !== root) {
+      const segments = contexts.segments(root, candidate);
+      const text = contexts.readOwner(candidate);
+      if (text !== undefined && documents.parse(text) !== undefined) {
+        // Ordinary documentation is not an owner; malformed claimed owners must fail.
+        owner = segments;
+        break;
+      }
+      candidate = files.parent(candidate);
+    }
+    if (!owner.length && required)
+      throw new WorkspaceError(
+        'OWNER_REQUIRED',
+        'Supply --owner or enter a Project or Outcome context.',
+      );
+  }
+  if (owner.length || required) ownerType(owner);
+  for (let length = 2; length <= owner.length; length++) {
+    const segments = owner.slice(0, length);
+    const path = contexts.directory(root, segments);
+    const text = contexts.readOwner(path);
+    if (text === undefined)
+      throw new WorkspaceError(
+        'INVALID_OWNER',
+        `Missing owner README: ${path}`,
+      );
+    const metadata = documents.parse(text);
+    if (!metadata)
+      throw new WorkspaceError(
+        'INVALID_OWNER',
+        `Not a Project or Outcome: ${path}`,
+      );
+    validateOwner(metadata, ownerType(segments));
+    chain.push(metadata);
+  }
+  return { segments: owner, chain };
 }

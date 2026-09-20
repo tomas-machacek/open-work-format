@@ -6,7 +6,7 @@ Feature: Initialize a local Workspace
     When I initialize it with the title "My work"
     Then it contains Workspace metadata with title "My work"
     And a navigation index and one initialization log entry exist
-    And the declared local store has recognized schema version 1
+    And the declared local store has recognized schema version 2
     And the result identifies the directory as the Workspace root
 
   @AC4

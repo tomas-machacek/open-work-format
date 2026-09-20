@@ -75,17 +75,22 @@ test('generated guide examples execute through the built CLI outside checkout', 
   expect(run(root, ['init', '--title', 'Trial']).status).toBe(0);
   const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
   let cwd = root;
+  let actionId = '';
   for (const line of guide.split('\n')) {
     if (line.startsWith('cd ')) {
       cwd = join(root, line.slice(3));
       continue;
     }
     if (!line.startsWith('owf ')) continue;
-    const args = [...line.slice(4).matchAll(/"([^"]*)"|(\S+)/gu)].map(
-      (match) => match[1] ?? match[2] ?? '',
+    const args = [...line.slice(4).matchAll(/"([^"]*)"|(\S+)/gu)].map((match) =>
+      (match[1] ?? match[2] ?? '').replace('{id}', actionId),
     );
     const result = run(cwd, args);
     expect(result.status, result.stderr).toBe(0);
+    if (args[0] === 'create' && args[1] === 'action' && args.includes('--json'))
+      actionId = z
+        .object({ result: z.object({ action: z.object({ id: z.string() }) }) })
+        .parse(JSON.parse(result.stdout)).result.action.id;
   }
   expect(
     readFileSync(
@@ -200,4 +205,90 @@ test('explicit owner overrides cwd, conflicts exit 1, log warning succeeds in bo
     else expect(warning.stderr).toContain('LOG_WRITE_FAILED');
   }
   expect(readFileSync(join(root, 'log.md'), 'utf8')).toBe('Do not overwrite');
+});
+
+test('Action commands round trip across processes with complete envelopes, human fields and precise errors', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  expect(run(root, ['init']).status).toBe(0);
+  const created = run(root, [
+    'create',
+    'action',
+    '--title',
+    'Call supplier',
+    '--description',
+    '',
+    '--json',
+  ]);
+  expect(created.status).toBe(0);
+  const saved = z
+    .object({
+      ok: z.literal(true),
+      result: z.object({
+        uri: z.string(),
+        action: z
+          .object({ id: z.string(), description: z.literal('') })
+          .passthrough(),
+      }),
+      warnings: z.array(z.unknown()),
+    })
+    .parse(JSON.parse(created.stdout));
+  const before = snapshot(root);
+  const found = run(root, ['get', 'action', saved.result.uri, '--json']);
+  expect(found.status).toBe(0);
+  expect(JSON.parse(found.stdout)).toMatchObject({
+    ok: true,
+    result: { status: 'found', action: saved.result.action },
+    warnings: [],
+  });
+  const human = run(root, ['get', 'action', saved.result.action.id]);
+  for (const field of [
+    'Title:',
+    'ID:',
+    'URI:',
+    'State: open',
+    'Owner: /',
+    'Description:',
+    'Created:',
+    'Updated:',
+    'Root:',
+  ])
+    expect(human.stdout).toContain(field);
+  for (const [args, code, status] of [
+    [
+      ['create', 'action', '--title', 'X', '--state', 'open', '--json'],
+      'INVALID_ARGUMENT',
+      2,
+    ],
+    [
+      ['create', 'action', '--title', 'X', '--slug', 'x', '--json'],
+      'INVALID_ARGUMENT',
+      2,
+    ],
+    [['create', 'action', '--title', ' ', '--json'], 'INVALID_TITLE', 2],
+    [
+      ['get', 'action', saved.result.uri, 'extra', '--json'],
+      'INVALID_ARGUMENT',
+      2,
+    ],
+    [['get', 'action', '--json'], 'INVALID_ARGUMENT', 2],
+    [['get', 'action', 'invalid', '--json'], 'INVALID_ARGUMENT', 2],
+    [
+      ['get', 'action', '00000000-0000-4000-8000-000000000000', '--json'],
+      'ACTION_NOT_FOUND',
+      1,
+    ],
+  ] as const) {
+    const result = run(root, [...args]);
+    expect(result.status).toBe(status);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: { code },
+    });
+  }
+  expect(run(root, ['create', 'action', '--help']).stdout).toContain(
+    '/ selects',
+  );
+  expect(run(root, ['get', 'action', '--help']).stdout).toContain('owf:action');
+  expect(snapshot(root)).toEqual(before);
 });

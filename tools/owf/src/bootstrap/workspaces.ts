@@ -1,3 +1,14 @@
+import {
+  newActionId,
+  currentTimestamp,
+} from '../infrastructure/runtime/index.js';
+import { actionRepository } from '../infrastructure/sqlite/index.js';
+import {
+  createAction as createActionUseCase,
+  getAction as getActionUseCase,
+  type ActionInput,
+} from '../application/actions/index.js';
+import type { ActionPorts } from '../application/ports/index.js';
 import { initializeWorkspace } from '../application/workspaces/index.js';
 import {
   workspaceFiles,
@@ -30,3 +41,14 @@ export const contextPorts: ContextPorts = {
 };
 export const create = (root: string, input: ContextInput) =>
   createContext(root, input, contextPorts);
+
+export const actionPorts: ActionPorts = {
+  ...contextPorts,
+  actions: actionRepository,
+  newId: newActionId,
+  now: currentTimestamp,
+};
+export const createAction = (root: string, input: ActionInput) =>
+  createActionUseCase(root, input, actionPorts);
+export const getAction = (root: string, identifier: string) =>
+  getActionUseCase(root, identifier, actionPorts);

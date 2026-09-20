@@ -1,3 +1,4 @@
+import type { Action } from '../../../src/application/actions/index.js';
 import {
   After,
   Given,
@@ -9,6 +10,7 @@ import {
 import assert from 'node:assert/strict';
 import {
   existsSync,
+  renameSync,
   mkdirSync,
   readFileSync,
   unlinkSync,
@@ -17,6 +19,8 @@ import {
 import { join } from 'node:path';
 import {
   initialize,
+  createAction,
+  getAction,
   workspacePorts,
   create,
 } from '../../../src/bootstrap/workspaces.js';
@@ -35,6 +39,8 @@ import {
 } from '../../support/workspace.js';
 
 class WorkspaceWorld extends World {
+  action: Action | undefined;
+  actionOwner = '';
   base = temporaryDirectory();
   root = this.base;
   cwd = this.root;
@@ -252,7 +258,7 @@ Then(
   },
 );
 Then(
-  'the declared local store has recognized schema version 1',
+  'the declared local store has recognized schema version 2',
   function (this: WorkspaceWorld) {
     assert.ok(this.result);
     workspacePorts.store.validate(this.result.store);
@@ -312,6 +318,103 @@ Then('no new Workspace artifacts are created', function (this: WorkspaceWorld) {
 Then(
   'no replacement store or nested Workspace is created',
   function (this: WorkspaceWorld) {
+    assert.deepEqual(snapshot(this.root), this.before);
+  },
+);
+
+Given('a standalone Action workspace', function (this: WorkspaceWorld) {
+  initialize(this.root, 'Actions');
+});
+When(
+  'I capture executable work titled {string}',
+  function (this: WorkspaceWorld, title: string) {
+    this.action = createAction(this.cwd, { title }).result.action;
+  },
+);
+Then(
+  'the open Action belongs to the Workspace and is retrievable',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    assert.equal(this.action.state, 'open');
+    assert.deepEqual(this.action.owner, { url: '/' });
+    assert.deepEqual(
+      getAction(this.root, this.action.id).result.action,
+      this.action,
+    );
+  },
+);
+Given(
+  'another Project contains a parked Outcome',
+  function (this: WorkspaceWorld) {
+    const project = create(this.root, {
+      type: 'project',
+      title: 'Garden',
+    }).result;
+    const outcome = create(project.path, {
+      type: 'outcome',
+      title: 'Ready',
+    }).result;
+    const path = join(outcome.path, 'README.md');
+    writeFileSync(
+      path,
+      readFileSync(path, 'utf8').replace(
+        'state: active',
+        'state: parked\n  parking_reason: Later',
+      ),
+    );
+    this.actionOwner = outcome.url;
+    this.before = snapshot(outcome.path);
+  },
+);
+When(
+  'I capture work explicitly owned by that Outcome',
+  function (this: WorkspaceWorld) {
+    this.action = createAction(this.cwd, {
+      title: 'Call supplier',
+      owner: this.actionOwner,
+    }).result.action;
+  },
+);
+Then(
+  'the Action belongs to that Outcome without reactivating it',
+  function (this: WorkspaceWorld) {
+    assert.equal(this.action?.owner.url, this.actionOwner);
+    assert.deepEqual(
+      snapshot(join(this.root, '_projects/garden/ready')),
+      this.before,
+    );
+  },
+);
+Given('an Action owned by an Outcome', function (this: WorkspaceWorld) {
+  initialize(this.root, 'Actions');
+  const project = create(this.root, {
+    type: 'project',
+    title: 'Kitchen',
+  }).result;
+  const outcome = create(project.path, {
+    type: 'outcome',
+    title: 'Ready',
+  }).result;
+  this.actionOwner = outcome.path;
+  this.action = createAction(outcome.path, {
+    title: 'Call supplier',
+  }).result.action;
+});
+When(
+  'that owner disappears from its original location',
+  function (this: WorkspaceWorld) {
+    renameSync(this.actionOwner, join(this.root, 'moved-outcome'));
+    this.before = snapshot(this.root);
+  },
+);
+Then(
+  'retrieval returns the unchanged Action and leaves the Workspace untouched',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    assert.deepEqual(
+      getAction(this.root, this.action.id).result.action,
+      this.action,
+    );
     assert.deepEqual(snapshot(this.root), this.before);
   },
 );
