@@ -1,12 +1,11 @@
 # 0003 — Action creation and retrieval
 
-> Status: draft
+> Status: reviewed
 > Description: Create an Action through the CLI and retrieve it by stable ID.
 > Depends on: [0002 — Project and Outcome creation](0002-project-outcome-creation.md).
 
-The scope and principal decisions below were agreed in conversation on
-2026-09-20. This document is a draft for design review, not an implementation
-record. Detailed contracts below are proposed as part of that review.
+The user reviewed and approved this design for implementation on 2026-09-20,
+including the detailed contracts below. Implementation has not started.
 
 ## Goal and scope
 
@@ -165,7 +164,7 @@ validation and SQLite is promised; concurrent external edits remain outside scop
 ### Results and errors
 
 Both operations return the complete Action and its derived URI using the existing
-envelope style. Proposed success contract:
+envelope style. Success contract:
 
 ```text
 { ok: true, result: { status, type: "action", root, uri, action }, warnings: [] }
@@ -284,9 +283,9 @@ Markdown. Try a well-formed unknown ID and inspect its diagnostic.
 
 ## Open questions
 
-No unresolved principal scope decisions. This draft's detailed result/error
-contract, identifier normalization and description representation are proposed
-for review. SQL layout and port names are routine implementation choices.
+No blocking design questions remain. Scope, result/error contracts, identifier
+normalization and description representation are approved. SQL layout and port
+names are routine implementation choices.
 
 ## Implementation and review outcome
 
