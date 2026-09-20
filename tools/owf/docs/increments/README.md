@@ -19,8 +19,10 @@ link and a one-line description; keep its status in sync.
 | Increment                                                               | Description                                                            | Status    |
 | ----------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------- |
 | [0001 — Workspace initialization](0001-workspace-init.md)               | Establish CLI tooling and initialize/discover a named local Workspace. | completed |
-| [0002 — Project and Outcome creation](0002-project-outcome-creation.md) | Create Markdown work contexts and generate Workspace CLI guidance.     | draft     |
+| [0002 — Project and Outcome creation](0002-project-outcome-creation.md) | Create Markdown work contexts and generate Workspace CLI guidance.     | reviewed  |
 
-Statuses: `draft`, `agreed`, `in_progress`, `completed`, `cancelled`.
+Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
+`reviewed` means the design has been reviewed and approved for implementation;
+it does not mean implementation or code review is complete.
 Completed means implemented, reviewed and verified against the agreed criteria;
 it does not imply a release has been published.

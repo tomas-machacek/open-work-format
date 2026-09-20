@@ -1,11 +1,12 @@
 # 0002 — Project and Outcome creation, Workspace agent guidance
 
-> Status: draft
+> Status: reviewed
 > Description: Create Projects and Outcomes through the CLI and give Workspace agents a local guide to fundamental commands.
 > Depends on: [0001 — Workspace initialization](0001-workspace-init.md).
 
-The scope is agreed. This document proposes the detailed behavior for review;
-implementation has not started and is not authorized by this documentation step.
+The user reviewed and approved this design for implementation on 2026-09-20.
+Implementation has not started. Follow this document and the repository agent
+instructions; change status to in_progress when implementation begins.
 
 ## Goal and scope
 
@@ -258,15 +259,16 @@ explicit owner from the Workspace root; inspect README/index/log and JSON output
 
 ## Open questions
 
-Review the proposed Expected Result default, portable slug rules, warning
-semantics and guidance compatibility policy before marking this draft agreed.
+No blocking design questions remain. The Expected Result default, portable slug
+rules, warning semantics and guidance compatibility policy are approved.
 Broader Markdown parsing, index maintenance and guidance refresh are deferred.
 
 ## Implementation and review outcome
 
 Documentation only. No production code, generated Workspace template or tests
 have been added. Implementation/review/verification evidence will be recorded
-here when delivered. No release or merge is requested by this draft.
+here when delivered. Design review is complete; implementation code review remains
+required after development. No release or merge is requested by this approval.
 
 ## Decision changes and follow-up
 
