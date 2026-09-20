@@ -2,6 +2,9 @@ import { parseDocument, stringify } from 'yaml';
 import { z } from 'zod';
 import type { WorkspaceDocuments } from '../../application/ports/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
+import { workspaceGuide } from './agents.js';
+import { literal } from './literal.js';
+export { contextDocuments } from './contexts.js';
 
 const metadataSchema = z.object({
   type: z.literal('OWF Workspace'),
@@ -13,12 +16,6 @@ const metadataSchema = z.object({
     })
     .passthrough(),
 });
-
-function literal(text: string): string {
-  return text.replace(/[\\`*_{}[\]()#+.!|>~<&]/gu, (character) =>
-    character === '&' ? '&amp;' : character === '<' ? '&lt;' : `\\${character}`,
-  );
-}
 
 export const workspaceDocuments: WorkspaceDocuments = {
   parse(content, path) {
@@ -59,6 +56,7 @@ export const workspaceDocuments: WorkspaceDocuments = {
       owf: { version: '0.1', storage: { operational: { url: './_store/' } } },
     };
     return {
+      agents: workspaceGuide,
       readme: `---\n${stringify(metadata)}---\n\n# ${literal(title)}\n`,
       index: '# Index\n\n- [Workspace](README.md)\n- [Event log](log.md)\n',
       log: `# Log\n\n## ${date}\n\n- Initialized Workspace ${literal(title)}.\n`,

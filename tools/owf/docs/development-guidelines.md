@@ -151,6 +151,11 @@ Convert explicitly at adapter boundaries using standard conversion APIs; do not
 pass an encoded URL directly to filesystem operations. Test representative
 encoding cases where these boundaries are crossed.
 
+When replacing existing text, validate lossless decoding before writing and test
+preservation of malformed input bytes. When recognizing required Markdown
+structure, test that examples inside code blocks cannot satisfy that structure.
+Preservation snapshots should include empty directories, not only file contents.
+
 Derive changing values, such as the tool version, from their authoritative source
 in tests. Fixed expectations remain appropriate for contractual constants such as
 an agreed store schema version.

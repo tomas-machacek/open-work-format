@@ -14,6 +14,7 @@ import { basename, dirname, isAbsolute, join, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { WorkspaceFiles } from '../../application/ports/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
+export { contextFiles } from './contexts.js';
 
 function missing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT';

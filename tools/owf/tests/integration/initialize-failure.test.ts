@@ -1,12 +1,9 @@
 import { afterEach, expect, test } from 'vitest';
 import { existsSync, writeFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { initializeWorkspace } from './index.js';
-import { workspacePorts } from '../../bootstrap/workspaces.js';
-import {
-  cleanup,
-  temporaryDirectory,
-} from '../../../tests/support/workspace.js';
+import { initializeWorkspace } from '../../src/application/workspaces/index.js';
+import { workspacePorts } from '../../src/bootstrap/workspaces.js';
+import { cleanup, temporaryDirectory } from '../support/workspace.js';
 
 const roots: string[] = [];
 afterEach(() => {

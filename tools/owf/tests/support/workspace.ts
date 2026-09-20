@@ -12,6 +12,7 @@ export function snapshot(root: string): Record<string, string> {
   const result: Record<string, string> = {};
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (entry.isDirectory()) {
+      result[`${entry.name}/`] = 'directory';
       for (const [name, value] of Object.entries(
         snapshot(join(root, entry.name)),
       ))

@@ -53,8 +53,8 @@ export function initializeWorkspace(
   const { files, documents, store } = ports;
   const root = files.physicalDirectory(start);
   title = validateTitle(title ?? files.basename(root));
-  const paths = ['README.md', 'index.md', 'log.md', '_store'].map((name) =>
-    files.join(root, name),
+  const paths = ['README.md', 'index.md', 'log.md', 'AGENTS.md', '_store'].map(
+    (name) => files.join(root, name),
   );
   for (const path of paths) {
     if (files.exists(path))
@@ -79,6 +79,7 @@ export function initializeWorkspace(
     store.initializeReserved(storePath);
     write('index.md', content.index);
     write('log.md', content.log);
+    write('AGENTS.md', content.agents);
     write('README.md', content.readme);
   } catch (error) {
     const remaining: string[] = [];

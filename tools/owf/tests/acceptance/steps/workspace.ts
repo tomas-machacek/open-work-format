@@ -18,7 +18,12 @@ import { join } from 'node:path';
 import {
   initialize,
   workspacePorts,
+  create,
 } from '../../../src/bootstrap/workspaces.js';
+import type {
+  CreateResult,
+  ContextInput,
+} from '../../../src/application/contexts/index.js';
 import {
   WorkspaceError,
   type WorkspaceResult,
@@ -34,8 +39,17 @@ class WorkspaceWorld extends World {
   root = this.base;
   cwd = this.root;
   result: WorkspaceResult | undefined;
+  created: CreateResult | undefined;
   error: WorkspaceError | undefined;
   before: Record<string, string> = {};
+  create(input: ContextInput) {
+    try {
+      this.created = create(this.cwd, input);
+    } catch (error) {
+      if (!(error instanceof WorkspaceError)) throw error;
+      this.error = error;
+    }
+  }
   initialize(title?: string) {
     try {
       this.result = initialize(this.cwd, title);
@@ -46,6 +60,93 @@ class WorkspaceWorld extends World {
   }
 }
 setWorldConstructor(WorkspaceWorld);
+Given(
+  'I am working inside Project {string}',
+  function (this: WorkspaceWorld, title: string) {
+    initialize(this.root, 'Work');
+    this.cwd = create(this.root, { type: 'project', title }).result.path;
+    this.before = snapshot(this.cwd);
+  },
+);
+Given(
+  'Project {string} exists in the same Workspace',
+  function (this: WorkspaceWorld, title: string) {
+    create(this.root, { type: 'project', title });
+  },
+);
+When(
+  'I create a Project titled {string}',
+  function (this: WorkspaceWorld, title: string) {
+    this.create({ type: 'project', title });
+  },
+);
+Then(
+  'an active Project {string} exists directly in the Workspace project collection',
+  function (this: WorkspaceWorld, title: string) {
+    assert.equal(this.created?.result.owner, '/');
+    assert.equal(this.created.result.title, title);
+    assert.equal(
+      this.created.result.path,
+      join(this.root, '_projects', 'garden'),
+    );
+    assert.match(
+      readFileSync(join(this.created.result.path, 'README.md'), 'utf8'),
+      /state: active/u,
+    );
+  },
+);
+Then('the existing Project is unchanged', function (this: WorkspaceWorld) {
+  assert.deepEqual(snapshot(this.cwd), this.before);
+});
+When(
+  'I create an Outcome titled {string} owned by Project Garden',
+  function (this: WorkspaceWorld, title: string) {
+    this.create({ type: 'outcome', title, owner: '/_projects/garden/' });
+  },
+);
+Then(
+  'the new active Outcome belongs to Project Garden',
+  function (this: WorkspaceWorld) {
+    assert.equal(this.created?.result.owner, '/_projects/garden/');
+    assert.match(
+      readFileSync(join(this.created.result.path, 'README.md'), 'utf8'),
+      /state: active/u,
+    );
+  },
+);
+Then(
+  'its expected result is {string}',
+  function (this: WorkspaceWorld, result: string) {
+    assert.ok(this.created);
+    assert.ok(
+      readFileSync(
+        join(this.created.result.path, 'README.md'),
+        'utf8',
+      ).includes(`## Expected Result\n\n${result}\n`),
+    );
+  },
+);
+When(
+  'I create an Outcome without selecting an owner',
+  function (this: WorkspaceWorld) {
+    this.create({ type: 'outcome', title: 'Result' });
+  },
+);
+Then(
+  'creation fails because an owner is required',
+  function (this: WorkspaceWorld) {
+    assert.equal(this.error?.code, 'OWNER_REQUIRED');
+    assert.equal(this.created, undefined);
+  },
+);
+Given(
+  'an initialized Workspace with user-edited agent guidance',
+  function (this: WorkspaceWorld) {
+    initialize(this.root, 'Work');
+    writeFileSync(join(this.root, 'AGENTS.md'), 'My custom instructions\n');
+    this.before = snapshot(this.root);
+  },
+);
 After(function (this: WorkspaceWorld) {
   cleanup(this.base);
 });
@@ -72,6 +173,7 @@ Given('I am in its {word}', function (this: WorkspaceWorld, location: string) {
   if (location === 'subdirectory') {
     this.cwd = join(this.root, 'child');
     mkdirSync(this.cwd);
+    this.before = snapshot(this.root);
   }
 });
 Given(
@@ -119,6 +221,7 @@ When('I initialize that directory', function (this: WorkspaceWorld) {
 When('I initialize from a subdirectory', function (this: WorkspaceWorld) {
   this.cwd = join(this.root, 'child');
   mkdirSync(this.cwd);
+  this.before = snapshot(this.root);
   this.initialize();
 });
 Then(

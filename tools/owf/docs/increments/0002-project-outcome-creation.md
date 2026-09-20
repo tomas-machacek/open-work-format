@@ -1,12 +1,11 @@
 # 0002 — Project and Outcome creation, Workspace agent guidance
 
-> Status: reviewed
+> Status: completed
 > Description: Create Projects and Outcomes through the CLI and give Workspace agents a local guide to fundamental commands.
 > Depends on: [0001 — Workspace initialization](0001-workspace-init.md).
 
 The user reviewed and approved this design for implementation on 2026-09-20.
-Implementation has not started. Follow this document and the repository agent
-instructions; change status to in_progress when implementation begins.
+Implementation started on 2026-09-20 in `agent/increment-0002-project-outcome-creation`.
 
 ## Goal and scope
 
@@ -213,33 +212,12 @@ Workspaces still support the create commands.
 AC7: CLI help, output envelopes, exit codes and generated guidance match actual
 behavior. Both commands work from an installed/built CLI outside the checkout.
 
-Draft domain scenarios (move to canonical .feature files during implementation):
-
-```gherkin
-Scenario: Create a Project while working inside another Project
-  Given an initialized Workspace with an existing Project
-  When I create a Project titled "Kitchen" from inside the existing Project
-  Then an active Project "Kitchen" exists directly in the Workspace project collection
-  And the existing Project is unchanged
-
-Scenario: Explicit ownership overrides current context
-  Given I am working inside Project "Kitchen"
-  And Project "Garden" exists in the same Workspace
-  When I create an Outcome titled "Design approved" owned by Project "Garden"
-  Then the new active Outcome belongs to Project "Garden"
-  And its expected result is "Design approved"
-
-Scenario: No implicit Workspace-owned Outcome
-  Given I am at the root of an initialized Workspace
-  When I create an Outcome without selecting an owner
-  Then creation fails because an owner is required
-  And existing Workspace content is unchanged
-
-Scenario: Existing agent guidance is preserved
-  Given an initialized Workspace with user-edited agent guidance
-  When I initialize the Workspace again
-  Then the agent guidance and all existing content are unchanged
-```
+Canonical executable scenarios are in
+[context-creation.feature](../../tests/acceptance/features/context-creation.feature):
+top-level Project creation from another Project (AC1), explicit owner precedence
+and default Expected Result (AC2–AC3), rejection without an owner (AC2/AC4), and
+preservation of edited guidance (AC6). Detailed boundary and failure checks remain
+in domain, integration and CLI suites, rather than duplicated Gherkin.
 
 ## Verification plan
 
@@ -265,10 +243,83 @@ Broader Markdown parsing, index maintenance and guidance refresh are deferred.
 
 ## Implementation and review outcome
 
-Documentation only. No production code, generated Workspace template or tests
-have been added. Implementation/review/verification evidence will be recorded
-here when delivered. Design review is complete; implementation code review remains
-required after development. No release or merge is requested by this approval.
+Implemented the two create commands through domain rules, application ports and
+filesystem/Markdown adapters, with deterministic naming, structural owner
+validation, literal documents, exclusive creation and owned-artifact rollback.
+Fresh init generates the single-source Workspace guide; repeat init preserves
+edited or missing guidance. Existing indexes and the operational database are
+unchanged by creation. No dependency or schema changes were needed.
+
+Independent review of the actual working-tree diff identified an in-place log
+rewrite that could damage history after a partial write. It was replaced by an
+exclusive temporary sibling and rename after the complete write; regression tests
+inject a partial write and verify preserved history and usable created objects.
+Review also prompted inference through ordinary non-owner README documents while
+still rejecting malformed claimed owners. That review reported no further findings
+at the time. A subsequent independent review found two additional issues, now fixed:
+
+- Existing log bytes are decoded strictly as UTF-8 before replacement. Invalid
+  encoding leaves history untouched and returns `LOG_WRITE_FAILED` with the usable
+  newly created object.
+- Expected Result recognition ignores headings inside backtick and tilde fences,
+  while preserving fenced content within a real Expected Result section. A code
+  example alone cannot validate an Outcome owner.
+
+Regression tests cover both findings, log rename failure, invalid ancestors of
+explicit nested owners, and the nearest Workspace boundary. Changes remain in the
+working tree of `agent/increment-0002-project-outcome-creation`; the fixes were
+verified locally, not subjected to another separate-agent review.
+
+### Test-value audit and adjustments
+
+The reviewed tree contained 119 Vitest cases and 11 acceptance scenarios (130 total),
+versus 45 total on main. The audit retained distinct URL, collision, lifecycle,
+rollback and CLI-boundary cases rather than optimizing for a target count.
+
+| Adjustment                                                                                          | Remaining protection or added risk coverage                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Remove the generic append-adapter failure case                                                      | Malformed-log and partial-write tests still verify successful creation with a warning.                                                                                               |
+| Remove the ordinary README init-collision case from integration                                     | Acceptance scenario "Preserve a conflicting README" verifies the same real I/O and preservation.                                                                                     |
+| Remove repeated top-level Project and owner-override operations from the nested integration journey | Canonical acceptance scenarios and CLI owner-override coverage remain; integration retains nearest nested inference and literal explicit Expected Result.                            |
+| Stop repeating edited-guide init in integration                                                     | Acceptance retains edited-guide repeat init; integration retains create preservation and missing-guide compatibility.                                                                |
+| Move three init failure tests from application unit to integration                                  | These already use real filesystem/store adapters; no cases were removed.                                                                                                             |
+| Strengthen existing assertions                                                                      | Snapshots include empty directories; document shape is checked independently of the production context parser; Project terminal states and a non-device uppercase slug are explicit. |
+| Add seven integration cases                                                                         | Invalid UTF-8, failed log rename, two distinct fence forms, real-section fenced content, invalid owner ancestor, and nested Workspace boundary.                                      |
+
+Final totals are 124 Vitest cases plus 11 acceptance scenarios (135 total). The
+decrease in repeated journeys is independent of this net increase of five cases.
+Guidelines now require lossless-decoding checks, negative Markdown code examples,
+and directory-aware preservation snapshots. The directory-in-place-of-log test is
+named accurately; it does not claim to exercise actual ACL denial.
+
+Post-review verification on 2026-09-20: `npm run verify` exited 0 on Windows with Node.js
+24.21.0 and npm 11.4.1, using the uppercase-drive checkout path. This verified the
+implementation/test working tree based on commit
+`3206f0f15fc4c2fbf693e849b1381aa45154af49`; only this outcome/status documentation
+was updated afterward.
+
+- Typecheck, ESLint, Prettier, architecture (23 modules / 50 dependencies) and build passed.
+- Unit: 39 tests in 2 files passed.
+- Integration: 70 tests in 4 files passed, including encoding, fence parsing,
+  partial log writes, rename failure, Workspace boundaries and rollback.
+- Acceptance: 11 scenarios / 63 steps passed (including the four new scenarios).
+- CLI E2E: 15 tests passed, including generated guide examples executed through
+  the built CLI outside the checkout, explicit ownership, warning output and errors.
+- `git diff --check` passed. The first post-review verify attempt stopped at two
+  unsafe matcher assignments in new tests; those assertions were corrected and the
+  complete command then passed without skips or weakened checks.
+
+No Linux run, installed `npm link` trial or separate manual UI trial was performed
+for this increment. The built CLI journey covers the documented creation trial
+automatically; human trial instructions are in the tool README. No checks were
+weakened or skipped to obtain the passing result.
+
+Limitations: explicit owner paths require physical directories (internal aliases
+as well as escaping symlinks/junctions are rejected). Contextual discovery follows
+the physical working directory. Log validation supports the generated Log/date/
+flat-list structure; broader Markdown parsing remains deferred. Concurrent writers,
+crash recovery, automatic index updates and guide refresh remain out of scope.
+No merge, release, tag or dependency update is included.
 
 ## Decision changes and follow-up
 

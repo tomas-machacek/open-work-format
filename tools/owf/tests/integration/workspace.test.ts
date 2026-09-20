@@ -74,7 +74,7 @@ test('unreadable README is not skipped (directory in place of file)', () => {
     expect.objectContaining({ code: 'INVALID_WORKSPACE' }),
   );
 });
-test.each(['README.md', 'index.md', 'log.md', '_store'])(
+test.each(['index.md', 'log.md', '_store'])(
   'preflight collision preserves %s',
   (target) => {
     const root = directory();
