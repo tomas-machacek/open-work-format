@@ -93,7 +93,7 @@ leading/trailing hyphens. Apply the same validation. If no valid slug results,
 require an explicit --slug; preserve the original Unicode title in metadata.
 For example, Rekonštrukcia kuchyne becomes rekonstrukcia-kuchyne.
 
-Targets are /_projects/<slug>/ and <owner>/<slug>/. An existing target of any
+Targets are `/_projects/{slug}/` and `{owner}/{slug}/`. An existing target of any
 kind, including an empty directory or dangling link, is a conflict. Treat an
 existing sibling name that differs only by case as a conflict on both platforms.
 Never overwrite, adopt, or append a numeric suffix automatically. Repeated create
