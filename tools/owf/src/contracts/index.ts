@@ -10,3 +10,9 @@ export const createOptions = z.object({
   expectedResult: z.string().optional(),
   json: z.boolean().optional(),
 });
+export const createActionOptions = z.object({
+  title: z.string(),
+  owner: z.string().optional(),
+  description: z.string().optional(),
+  json: z.boolean().optional(),
+});

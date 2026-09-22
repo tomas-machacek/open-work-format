@@ -1,8 +1,9 @@
 # OWF Tool
 
 The CLI initializes a named local OWF Workspace, discovers it from descendant
-directories, and creates Markdown Projects and Outcomes. Actions, Inbox operations
-and the future web interface are not yet implemented.
+directories, creates Markdown Projects and Outcomes, and creates or retrieves
+Actions in the Workspace Operational Store. Inbox operations and the future web
+interface are not yet implemented.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
 deferred features, and acceptance scenarios.
@@ -79,7 +80,7 @@ the working directory. Use the absolute built CLI path above for a user Workspac
 Alternatively, run `npm link` in the package directory, then use `owf init` from
 the intended Workspace. Local linking is optional.
 
-### Create Projects and Outcomes
+### Create Projects, Outcomes and Actions
 
 From the trial Workspace root, using the same absolute `$cli` path:
 
@@ -89,6 +90,10 @@ Set-Location _projects/kitchen
 node $cli create outcome --title "Schválený návrh kuchyne"
 node $cli create outcome --title "Materiály" --owner /_projects/kitchen/ --expected-result "Materiály sú vybrané." --json
 node $cli create outcome --help
+$action = node $cli create action --title "Call the supplier" --json | ConvertFrom-Json
+node $cli create action --title "Confirm delivery" --owner / --description "Check the delivery date."
+node $cli get action $action.result.action.id
+node $cli get action $action.result.uri --json
 ```
 
 Projects always become top-level entries in `/_projects/`. Outcomes use the nearest
@@ -97,7 +102,7 @@ that context. Owners are Workspace-rooted directory URLs with a trailing slash,
 not native filesystem paths. Encode special characters in each URL segment.
 Owner paths use physical directories; explicit symlinks/junctions are rejected.
 Archived owners and malformed owner hierarchies are rejected. A recognized,
-accessible store remains required, but creation does not modify it.
+accessible store remains required; Project/Outcome creation does not modify it.
 
 Titles are trimmed single-line literal text. An Outcome's Expected Result defaults
 to its title. `--slug` accepts lowercase ASCII letters/digits separated by single
@@ -105,23 +110,46 @@ hyphens (excluding Windows device names); otherwise it is derived from the title
 Existing targets, including case-only collisions, are errors. Existing navigation
 indexes stay unchanged and can be maintained manually.
 
-Successful JSON creation returns `ok`, `result` (status, type, title, root, url,
+Actions start in `open`. Creation uses explicit `--owner` when supplied,
+otherwise the nearest Project or Outcome in the working directory ancestry,
+otherwise the Workspace (`/`). Use `--owner /` to select the Workspace
+explicitly. Descriptions are literal Markdown text and may contain newlines.
+The successful result includes all Action fields, its stable UUID and
+`owf:action:<uuid>` URI. `get action` accepts either identifier from anywhere
+inside that Workspace and returns the stored owner reference without resolving
+the current Markdown owner. Human output shows title, ID, URI, state, owner,
+description and timestamps; `--json` emits the complete result envelope.
+The PowerShell example saves the creation response and passes its real ID/URI
+to get. In the generated Workspace guide, `{id}` denotes that returned UUID.
+
+Successful Project/Outcome JSON creation returns `ok`, `result` (status, type, title, root, url,
 path, owner) and `warnings`. Log failures keep the usable object and return exit 0
 with `LOG_WRITE_FAILED`; do not retry creation. Invalid arguments return exit 2;
 Workspace, owner, collision and I/O errors return exit 1.
 
+Action create/get return `{ ok: true, result: { status, type, root, uri, action },
+warnings: [] }`. Action creation and its `action.created` event commit together;
+a failure returns `ACTION_CREATE_FAILED` and saves neither record. Get is
+read-only; a valid absent ID returns `ACTION_NOT_FOUND`, while store failures
+retain their store diagnostics. Both commands use exit 2 for invalid arguments
+or titles and exit 1 for operational errors.
+
 Fresh initialization provides command examples in `AGENTS.md`. Repeat init never
-overwrites or backfills that guide. Older Workspaces remain supported; existing
-instructions can be updated manually using the commands documented here. An
+overwrites or backfills that guide. Schema 1 Workspaces require a fresh
+disposable directory for this version; existing instructions can be updated
+manually using the commands documented here. An
 existing `AGENTS.md` in a fresh directory prevents initialization.
 
 The tool refuses target collisions and unavailable/unsupported stores. It does
-not rename, repair, overwrite, or create nested Workspaces. The initial store
-contains only `owf_metadata` with format `owf-tool-operational` and schema version
-`1`; profile version `0.1` and package version `0.0.0` are independent. This is
+not rename, repair, overwrite, or create nested Workspaces. Fresh initialization
+creates `owf_metadata`, Actions, and the Operational Event Log with format
+`owf-tool-operational` and schema version `2`; profile version `0.1` and package
+version `0.0.0` are independent. Schema 1 and unknown versions are rejected
+without upgrade. Use a fresh disposable directory to try this version; do not
+overwrite an existing Workspace. This is
 limited profile support, not a claim of complete conformance.
 
-Caught creation failures clean up owned artifacts and report paths if cleanup
+Caught Workspace/Project/Outcome creation failures clean up owned artifacts and report paths if cleanup
 fails. Process termination or power loss can leave partial artifacts requiring
 manual inspection. Concurrent initialization and crash recovery are deferred.
 

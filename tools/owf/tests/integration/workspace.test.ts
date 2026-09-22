@@ -9,7 +9,13 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { initialize, workspacePorts } from '../../src/bootstrap/workspaces.js';
+import {
+  initialize,
+  create,
+  createAction,
+  getAction,
+  workspacePorts,
+} from '../../src/bootstrap/workspaces.js';
 import { initializeWorkspace } from '../../src/application/workspaces/index.js';
 import { workspaceDocuments } from '../../src/infrastructure/markdown/index.js';
 import { cleanup, snapshot, temporaryDirectory } from '../support/workspace.js';
@@ -57,6 +63,8 @@ test.each([
   ['---\ntype: OWF Workspace\n---', 'INVALID_WORKSPACE'],
   ['---\ntype: A\ntype: B\n---', 'INVALID_WORKSPACE'],
   ['---\ntype: !custom value\n---', 'INVALID_WORKSPACE'],
+  ['---\ntype: OWF Workspace\ntitle: [broken\n---', 'INVALID_WORKSPACE'],
+  ['---\ntype: OWF Project\ntype: OWF Workspace\n---', 'INVALID_WORKSPACE'],
 ])('ambiguous descendant frontmatter stops discovery', (text, code) => {
   const root = directory();
   initialize(root, 'Root');
@@ -64,8 +72,20 @@ test.each([
   mkdirSync(child);
   writeFileSync(join(child, 'README.md'), text);
   const before = snapshot(root);
-  expect(() => initialize(child)).toThrow(expect.objectContaining({ code }));
-  expect(snapshot(root)).toEqual(before);
+  for (const operation of [
+    () => initialize(child),
+    () =>
+      create(child, {
+        type: 'outcome',
+        title: 'Rejected',
+        owner: '/_projects/absent/',
+      }),
+    () => createAction(child, { title: 'Rejected', owner: '/' }),
+    () => getAction(child, '00000000-0000-4000-8000-000000000000'),
+  ]) {
+    expect(operation).toThrow(expect.objectContaining({ code }));
+    expect(snapshot(root)).toEqual(before);
+  }
 });
 test('unreadable README is not skipped (directory in place of file)', () => {
   const root = directory();

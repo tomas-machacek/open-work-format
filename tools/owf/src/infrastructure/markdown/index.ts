@@ -1,4 +1,4 @@
-import { parseDocument, stringify } from 'yaml';
+import { isMap, isScalar, parseDocument, stringify } from 'yaml';
 import { z } from 'zod';
 import type { WorkspaceDocuments } from '../../application/ports/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
@@ -26,10 +26,29 @@ export const workspaceDocuments: WorkspaceDocuments = {
     );
     const invalid = () =>
       new WorkspaceError('INVALID_WORKSPACE', `Invalid frontmatter: ${path}`);
+    const document = parseDocument(
+      lines.slice(1, end < 0 ? undefined : end).join('\n'),
+      {
+        uniqueKeys: true,
+      },
+    );
+    // A clearly declared work context is not a Workspace, even if its other
+    // metadata is damaged. Owner validation belongs to the selected use case.
+    // Ambiguous declarations and actual Workspaces still fail closed below.
+    if (isMap(document.contents)) {
+      const declarations = document.contents.items.filter(
+        (pair) => isScalar(pair.key) && pair.key.value === 'type',
+      );
+      const type =
+        declarations.length === 1 ? declarations[0]?.value : undefined;
+      if (
+        isScalar(type) &&
+        !type.tag &&
+        (type.value === 'OWF Project' || type.value === 'OWF Outcome')
+      )
+        return undefined;
+    }
     if (end < 0) throw invalid();
-    const document = parseDocument(lines.slice(1, end).join('\n'), {
-      uniqueKeys: true,
-    });
     if (document.errors.length || document.warnings.length) throw invalid();
     let value: unknown;
     try {

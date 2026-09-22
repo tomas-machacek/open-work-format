@@ -1,4 +1,15 @@
 import type { WorkspaceMetadata } from '../../domain/workspaces/index.js';
+import type { Action } from '../../domain/actions/index.js';
+
+export interface ActionRepository {
+  create(path: string, action: Action): void;
+  get(path: string, id: string): Action | undefined;
+}
+export interface ActionPorts extends ContextPorts {
+  actions: ActionRepository;
+  newId(): string;
+  now(): string;
+}
 import type {
   ContextMetadata,
   ContextType,

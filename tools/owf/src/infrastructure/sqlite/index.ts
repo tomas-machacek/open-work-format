@@ -17,7 +17,18 @@ export const workspaceStore: WorkspaceStore = {
         'INSERT INTO owf_metadata (key, value) VALUES (?, ?)',
       );
       insert.run('format', 'owf-tool-operational');
-      insert.run('schema_version', '1');
+      insert.run('schema_version', '2');
+      db.exec(`
+        CREATE TABLE actions (
+          id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
+          state TEXT NOT NULL CHECK(state = 'open'), owner_url TEXT NOT NULL,
+          description TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        ) STRICT;
+        CREATE TABLE action_events (
+          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind = 'action.created'),
+          action_id TEXT NOT NULL REFERENCES actions(id), created_at TEXT NOT NULL
+        ) STRICT;
+      `);
       db.exec('COMMIT');
     } finally {
       db.close();
@@ -52,11 +63,19 @@ export const workspaceStore: WorkspaceStore = {
           'INVALID_STORE',
           `Unrecognized store: ${path}`,
         );
-      if (version !== '1')
+      if (version !== '2')
         throw new WorkspaceError(
           'UNSUPPORTED_STORE_VERSION',
           `Unsupported store schema ${version}: ${path}`,
         );
+      db.prepare(
+        'SELECT id, title, state, owner_url, description, created_at, updated_at FROM actions LIMIT 0',
+      ).all();
+      db.prepare(
+        'SELECT event_id, kind, action_id, created_at FROM action_events LIMIT 0',
+      ).all();
+      const integrity = db.prepare('PRAGMA quick_check').get();
+      if (integrity?.quick_check !== 'ok') throw new Error('Corrupt store');
     } catch (error) {
       if (error instanceof WorkspaceError) throw error;
       throw new WorkspaceError(
@@ -68,3 +87,5 @@ export const workspaceStore: WorkspaceStore = {
     }
   },
 };
+
+export { actionRepository } from './actions.js';

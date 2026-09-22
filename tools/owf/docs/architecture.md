@@ -106,7 +106,13 @@ Use one local SQLite database per Workspace, located inside it by default.
 Both processes use the same Workspace configuration and store. Local placement
 is an implementation choice, not a restriction on the general OWF model.
 
-Use node:sqlite, parameterized SQL and simple versioned migrations, without ORM.
+Use node:sqlite and parameterized SQL, without ORM. The store has an explicit
+schema version. At this early PoC stage, backward compatibility and migrations
+are deferred: initialize new Workspaces with the supported schema and reject
+unsupported versions without mutation. Do not upgrade implicitly during reads,
+writes or repeat initialization. This decision was agreed during
+[increment 0003 design](increments/0003-action-create-get.md); migration mechanics
+require a later explicit design when compatibility becomes necessary.
 Node 24's SQLite API is Release Candidate: this trade-off is accepted for the
 MVP in exchange for avoiding a separate native npm driver on Windows. Pin the
 runtime and isolate the API in the SQLite adapter.

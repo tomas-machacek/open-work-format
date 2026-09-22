@@ -70,7 +70,10 @@ test('nested inferred owner through supporting notes and literal explicit expect
   const child = create(parent, { type: 'outcome', title: 'Approved' }).result;
   const nested = join(child.path, 'notes');
   mkdirSync(nested);
-  writeFileSync(join(nested, 'README.md'), '# Ordinary supporting notes\n');
+  writeFileSync(
+    join(nested, 'README.md'),
+    '---\ntags: [notes]\n---\n# Ordinary supporting notes\n',
+  );
   const explicit = create(nested, {
     type: 'outcome',
     title: 'Detail',
