@@ -1,11 +1,11 @@
 # 0003 — Action creation and retrieval
 
-> Status: completed
+> Status: in_progress
 > Description: Create an Action through the CLI and retrieve it by stable ID.
 > Depends on: [0002 — Project and Outcome creation](0002-project-outcome-creation.md).
 
 The user reviewed and approved this design for implementation on 2026-09-20,
-including the detailed contracts below. Implementation, independent review and required verification are complete.
+including the detailed contracts below. Review fixes are in progress; the corrected implementation awaits independent review.
 
 ## Goal and scope
 
@@ -294,7 +294,7 @@ Implemented on 2026-09-20 in the existing increment branch and PR #8.
   returned IDs, verify full JSON/human results, and reject unsupported options.
   Existing user-edited Workspace instructions remain untouched.
 
-Final `npm run verify` passed on Windows, Node 24.21.0, npm 11.4.1:
+Historical implementation handoff reported `npm run verify` on Windows, Node 24.21.0, npm 11.4.1:
 types, lint, formatting, architecture (28 modules), build, 49 domain tests,
 79 integration tests, 14 Cucumber scenarios / 76 steps, and 16 CLI process tests.
 Tests ran from the uppercase-drive checkout path; the documented Windows
@@ -306,7 +306,7 @@ checked after the verified code revision.
 Independent read-only review by GPT-6 Astra inspected the actual tracked and
 new-file diff against AC1-AC7, architectural boundaries, failure behavior and
 test value. Its README clarification (Markdown log warnings versus atomic
-Action failure) was applied; no unresolved actionable findings remain. The
+Action failure) was applied; that review reported no unresolved findings. The
 small final move of UUID/clock adapters into infrastructure was also reviewed
 without findings. Main-agent inspection additionally corrected a delegated
 JSON-envelope nesting defect before final verification.
@@ -315,6 +315,32 @@ Delegation: GPT-5.6 Luna implemented bounded CLI/help/contracts and README /
 generated Workspace guidance edits, then corrected review feedback. The main
 agent implemented domain rules, owner integration, SQLite, tests and final
 integration. No implementation subagent recursively delegated.
+
+### Review corrections, 2026-09-22
+
+A subsequent independent review of `0fcd2d19767d046232ebe71fe5de9e49315fe59a`
+confirmed two P2 defects. The corrected implementation awaits independent review;
+the increment and index remain `in_progress`.
+
+- Workspace discovery no longer validates damaged Project/Outcome metadata when
+  the YAML syntax tree has one unambiguous work-context type declaration. Get
+  from that context and explicit owner selection can reach the actual Workspace.
+  Actual Workspace metadata, ambiguous declarations and store errors still fail
+  closed. Inferred owners still undergo strict context validation without fallback.
+- Ordinary supporting README documents with valid YAML mappings but no `type`
+  are traversed during owner inference, including Outcome creation.
+- Regression tests cover both reproduced failures, preserving repeat init,
+  explicit Outcome creation from damaged context, refusal of malformed Workspace
+  candidates and refusal of invalid inferred owners without writes.
+- Tests now pair creation events by `action_id`, accurately name structural
+  rejection, verify complete CLI fields and human values, cover parked/terminal/
+  archived Outcome ancestry and representative corrupt persisted fields.
+  Owner-move retrieval remains in acceptance; its duplicate integration step was
+  removed while retaining uppercase URI, read-only and store-error checks.
+
+Verification of the correction commit is pending. The historical run above is
+not evidence for the corrected revision. No independent review of these fixes
+has yet been performed.
 
 No scope deviations, release or merge. Remaining limitations are the agreed
 ones: no list/update/history interface, migration, stable Markdown IDs, owner

@@ -1,13 +1,7 @@
 import { afterEach, expect, test } from 'vitest';
 import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
-import {
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-  unlinkSync,
-} from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import {
   initialize,
   create,
@@ -57,20 +51,23 @@ test('literal descriptions, omitted versus empty, identity and one shared clock 
       ).result.action,
   );
   expect(new Set(actions.map((action) => action.id)).size).toBe(3);
-  actions.forEach((action, index) => {
+  const events = rows(store, 'action_events');
+  actions.forEach((action) => {
     expect(action.title).toBe('Same title');
     expect(action.updated_at).toBe(action.created_at);
     expect(getAction(root, action.id).result.action).toEqual(action);
-    expect(rows(store, 'action_events')[index]).toMatchObject({
-      kind: 'action.created',
-      action_id: action.id,
-      created_at: action.created_at,
-    });
+    expect(events.filter((event) => event.action_id === action.id)).toEqual([
+      expect.objectContaining({
+        kind: 'action.created',
+        action_id: action.id,
+        created_at: action.created_at,
+      }),
+    ]);
   });
   expect(actions[0]).not.toHaveProperty('description');
   expect(actions[1]?.description).toBe('');
   expect(actions[2]?.description).toBe("\n# Literal ' ?\nŽivot **yes**\n");
-  expect(rows(store, 'action_events')).toHaveLength(3);
+  expect(events).toHaveLength(3);
   expect(
     Object.fromEntries(
       Object.entries(snapshot(root)).filter(
@@ -142,7 +139,10 @@ test('nearest owner inference traverses ordinary docs; explicit Workspace wins; 
   }).result;
   const notes = join(outcome.path, 'notes');
   mkdirSync(notes);
-  writeFileSync(join(notes, 'README.md'), '# Ordinary documentation');
+  writeFileSync(
+    join(notes, 'README.md'),
+    '---\ntags: [notes]\n---\n# Ordinary documentation',
+  );
   expect(
     createAction(notes, { title: 'Inferred' }).result.action.owner.url,
   ).toBe(outcome.url);
@@ -168,7 +168,7 @@ test('nearest owner inference traverses ordinary docs; explicit Workspace wins; 
   }
 });
 
-test('malformed or disallowed nearest candidate is not skipped', () => {
+test('a nearest candidate in an infrastructure directory is not skipped', () => {
   const { root } = workspace();
   const project = create(root, { type: 'project', title: 'Kitchen' }).result;
   const invalid = join(project.path, '_hidden');
@@ -184,21 +184,21 @@ test('malformed or disallowed nearest candidate is not skipped', () => {
   expect(snapshot(root)).toEqual(before);
 });
 
-test('get is read-only after owner moves, becomes malformed or terminal; missing and broken stores differ', () => {
+test('get is read-only from a malformed or terminal owner; missing and broken stores differ', () => {
   const { root, store } = workspace();
   const owner = create(root, { type: 'project', title: 'Owner' }).result;
   const action = createAction(owner.path, { title: 'Read me' }).result.action;
   const readme = join(owner.path, 'README.md');
   for (const text of [
-    '---\ntype: [broken',
+    '---\ntype: OWF Project\ntitle: [broken\n---',
     readFileSync(readme, 'utf8').replace('state: active', 'state: completed'),
   ]) {
     writeFileSync(readme, text);
     const before = snapshot(root);
     expect(getAction(root, action.id).result.action).toEqual(action);
+    expect(getAction(owner.path, action.id).result.action).toEqual(action);
     expect(snapshot(root)).toEqual(before);
   }
-  renameSync(owner.path, join(root, 'moved'));
   const before = snapshot(root);
   expect(
     getAction(root, `owf:action:${action.id.toUpperCase()}`).result.action,
@@ -215,4 +215,94 @@ test('get is read-only after owner moves, becomes malformed or terminal; missing
   expect(() => getAction(root, action.id)).toThrow(
     expect.objectContaining({ code: 'STORE_UNAVAILABLE' }),
   );
+});
+
+test('explicit owners bypass damaged context; inferred Action and Outcome owners fail without fallback', () => {
+  const { root } = workspace();
+  const project = create(root, { type: 'project', title: 'Project' }).result;
+  const outcome = create(project.path, {
+    type: 'outcome',
+    title: 'Outcome',
+  }).result;
+  writeFileSync(
+    join(outcome.path, 'README.md'),
+    '---\ntype: OWF Outcome\ntitle: [broken\n---',
+  );
+  const before = snapshot(root);
+  expect(initialize(outcome.path).root).toBe(root);
+  for (const operation of [
+    () => createAction(outcome.path, { title: 'No fallback' }),
+    () => create(outcome.path, { type: 'outcome', title: 'No fallback' }),
+  ]) {
+    expect(operation).toThrow(
+      expect.objectContaining({ code: 'INVALID_OWNER' }),
+    );
+    expect(snapshot(root)).toEqual(before);
+  }
+  expect(
+    createAction(outcome.path, { title: 'Workspace', owner: '/' }).result.action
+      .owner.url,
+  ).toBe('/');
+  expect(
+    createAction(outcome.path, { title: 'Project', owner: project.url }).result
+      .action.owner.url,
+  ).toBe(project.url);
+  expect(
+    create(outcome.path, {
+      type: 'outcome',
+      title: 'Sibling',
+      owner: project.url,
+    }).result.owner,
+  ).toBe(project.url);
+  expect(readFileSync(join(outcome.path, 'README.md'), 'utf8')).toBe(
+    '---\ntype: OWF Outcome\ntitle: [broken\n---',
+  );
+});
+
+test('parked Outcome ancestry permits active children without reactivation; terminal and archived ancestry rejects them', () => {
+  const { root } = workspace();
+  const project = create(root, { type: 'project', title: 'Project' }).result;
+  const parent = create(project.path, {
+    type: 'outcome',
+    title: 'Parent',
+  }).result;
+  const child = create(parent.path, { type: 'outcome', title: 'Child' }).result;
+  const readme = join(parent.path, 'README.md');
+  const original = readFileSync(readme, 'utf8');
+  writeFileSync(
+    readme,
+    original.replace('state: active', 'state: parked\n  parking_reason: Later'),
+  );
+  const parked = snapshot(parent.path);
+  expect(
+    createAction(child.path, { title: 'Allowed' }).result.action.owner.url,
+  ).toBe(child.url);
+  expect(snapshot(parent.path)).toEqual(parked);
+  for (const state of [
+    'achieved',
+    'abandoned',
+    'archived\n  archived_from: achieved',
+  ]) {
+    writeFileSync(readme, original.replace('state: active', `state: ${state}`));
+    const before = snapshot(root);
+    expect(() => createAction(child.path, { title: 'Rejected' })).toThrow(
+      expect.objectContaining({ code: 'INVALID_OWNER' }),
+    );
+    expect(snapshot(root)).toEqual(before);
+  }
+});
+
+test.each([
+  "title = ' padded '",
+  "created_at = 'not-a-time'",
+  "updated_at = '2020-01-01T00:00:00.000Z'",
+])('get rejects malformed persisted data (%s) without writes', (assignment) => {
+  const { root, store } = workspace();
+  const action = createAction(root, { title: 'Existing' }).result.action;
+  sql(store, `UPDATE actions SET ${assignment}`);
+  const before = snapshot(root);
+  expect(() => getAction(root, action.id)).toThrow(
+    expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
+  );
+  expect(snapshot(root)).toEqual(before);
 });

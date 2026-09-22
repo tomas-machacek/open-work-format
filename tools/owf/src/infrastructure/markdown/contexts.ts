@@ -64,8 +64,9 @@ export const contextDocuments: ContextDocuments = {
     } catch {
       throw invalid();
     }
-    if (typeof value !== 'object' || value === null || !('type' in value))
+    if (typeof value !== 'object' || value === null || Array.isArray(value))
       throw invalid();
+    if (!('type' in value)) return undefined;
     if (value.type !== 'OWF Project' && value.type !== 'OWF Outcome')
       return undefined;
     const parsed = schema.safeParse(value);

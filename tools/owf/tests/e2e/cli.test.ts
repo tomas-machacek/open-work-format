@@ -224,36 +224,50 @@ test('Action commands round trip across processes with complete envelopes, human
   const saved = z
     .object({
       ok: z.literal(true),
-      result: z.object({
+      result: z.strictObject({
+        status: z.literal('created'),
+        type: z.literal('action'),
+        root: z.literal(root),
         uri: z.string(),
-        action: z
-          .object({ id: z.string(), description: z.literal('') })
-          .passthrough(),
+        action: z.strictObject({
+          id: z.uuidv4(),
+          title: z.literal('Call supplier'),
+          state: z.literal('open'),
+          owner: z.strictObject({ url: z.literal('/') }),
+          description: z.literal(''),
+          created_at: z.iso.datetime(),
+          updated_at: z.iso.datetime(),
+        }),
       }),
-      warnings: z.array(z.unknown()),
+      warnings: z.tuple([]),
     })
     .parse(JSON.parse(created.stdout));
+  expect(saved.result.uri).toBe(`owf:action:${saved.result.action.id}`);
+  expect(saved.result.action.id).toBe(saved.result.action.id.toLowerCase());
+  expect(saved.result.action.updated_at).toBe(saved.result.action.created_at);
   const before = snapshot(root);
   const found = run(root, ['get', 'action', saved.result.uri, '--json']);
   expect(found.status).toBe(0);
-  expect(JSON.parse(found.stdout)).toMatchObject({
+  expect(JSON.parse(found.stdout)).toEqual({
     ok: true,
-    result: { status: 'found', action: saved.result.action },
+    result: { ...saved.result, status: 'found' },
     warnings: [],
   });
   const human = run(root, ['get', 'action', saved.result.action.id]);
+  expect(human.status).toBe(0);
   for (const field of [
-    'Title:',
-    'ID:',
-    'URI:',
+    'found action',
+    'Title: Call supplier',
+    `ID: ${saved.result.action.id}`,
+    `URI: ${saved.result.uri}`,
     'State: open',
     'Owner: /',
-    'Description:',
-    'Created:',
-    'Updated:',
-    'Root:',
+    'Description: ',
+    `Created: ${saved.result.action.created_at}`,
+    `Updated: ${saved.result.action.updated_at}`,
+    `Root: ${root}`,
   ])
-    expect(human.stdout).toContain(field);
+    expect(human.stdout.split(/\r?\n/u)).toContain(field);
   for (const [args, code, status] of [
     [
       ['create', 'action', '--title', 'X', '--state', 'open', '--json'],
