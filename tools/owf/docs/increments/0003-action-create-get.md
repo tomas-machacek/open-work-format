@@ -1,6 +1,6 @@
 # 0003 — Action creation and retrieval
 
-> Status: in_progress
+> Status: completed
 > Description: Create an Action through the CLI and retrieve it by stable ID.
 > Depends on: [0002 — Project and Outcome creation](0002-project-outcome-creation.md).
 
@@ -319,8 +319,8 @@ integration. No implementation subagent recursively delegated.
 ### Review corrections, 2026-09-22
 
 A subsequent independent review of `0fcd2d19767d046232ebe71fe5de9e49315fe59a`
-confirmed two P2 defects. The corrected implementation awaits independent review;
-the increment and index remain `in_progress`.
+confirmed two P2 defects. Both were corrected and independently reviewed on
+`15a267713bd1f7f773fd0cdb3f5aa99f1d03212b`; no blocking finding remains.
 
 - Workspace discovery no longer validates damaged Project/Outcome metadata when
   the YAML syntax tree has one unambiguous work-context type declaration. Get
@@ -346,8 +346,20 @@ scenarios / 76 steps, and 16 built CLI tests. Process-based checks ran outside
 the sandbox after its runner startup failed with `spawn EPERM`. No Linux run
 was performed. This verification record is a subsequent documentation-only
 change, checked with Prettier and `git diff --check`; implementation and tests
-are unchanged from the verified commit. No independent review of these fixes
-has yet been performed.
+are unchanged from the verified commit.
+
+A focused independent read-only review of the corrections on
+`15a267713bd1f7f773fd0cdb3f5aa99f1d03212b` found no further blocking
+issue. It inspected the changed discovery and context parsers, Action/Outcome
+integration regressions, test adjustments and the documentation-only delta
+from the verified revision. On Linux with Node 24.19.0, the reviewer ran
+78 focused integration tests covering Actions, contexts and Workspaces; all
+passed. Additional parser probes covered damaged context declarations, a
+missing frontmatter delimiter, malformed Workspace metadata, both duplicate
+`type` orders and ordinary metadata without `type`. `git diff --check` passed.
+The full verification suite was not repeated on Linux; the Windows full-suite
+result above applies to the unchanged implementation and tests. The increment
+is completed after implementation, verification and independent review.
 
 No scope deviations, release or merge. Remaining limitations are the agreed
 ones: no list/update/history interface, migration, stable Markdown IDs, owner
