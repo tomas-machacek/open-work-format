@@ -338,8 +338,15 @@ the increment and index remain `in_progress`.
   Owner-move retrieval remains in acceptance; its duplicate integration step was
   removed while retaining uppercase URI, read-only and store-error checks.
 
-Verification of the correction commit is pending. The historical run above is
-not evidence for the corrected revision. No independent review of these fixes
+`npm run verify` passed on the clean correction commit
+`0341b99854aa85f8a2ca231ab08bb4de0a0518f4` on 2026-09-22, Windows,
+Node 24.21.0, npm 11.4.1: typecheck, lint, formatting, architecture (28 modules,
+70 dependencies), build, 49 unit tests, 86 integration tests, 14 acceptance
+scenarios / 76 steps, and 16 built CLI tests. Process-based checks ran outside
+the sandbox after its runner startup failed with `spawn EPERM`. No Linux run
+was performed. This verification record is a subsequent documentation-only
+change, checked with Prettier and `git diff --check`; implementation and tests
+are unchanged from the verified commit. No independent review of these fixes
 has yet been performed.
 
 No scope deviations, release or merge. Remaining limitations are the agreed
