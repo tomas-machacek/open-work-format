@@ -1,12 +1,11 @@
 # 0004 — Action listing and owner filtering
 
-> Status: draft
+> Status: reviewed
 > Description: List Actions in the current Workspace, optionally filtered by direct owner or a stored owner subtree.
 > Depends on: [0003 — Action creation and retrieval](0003-action-create-get.md).
 
-The user agreed to a small listing increment after 0003. This document records
-the proposed interface and acceptance criteria for design review; implementation
-has not started.
+The user reviewed and approved this design for implementation on 2026-09-23.
+Implementation has not started.
 
 ## Goal and scope
 
@@ -215,10 +214,10 @@ Actions.
 
 ## Open questions
 
-No blocking conceptual question. The exact CLI/envelope contract, stable order,
-literal stored-prefix matching and missing-owner filter behavior in this draft
-are proposed for review. State filtering is reserved for the increment that
-introduces additional Action states.
+No blocking design questions remain. The CLI/envelope contract, stable order,
+literal stored-prefix matching and missing-owner filter behavior are approved.
+State filtering is reserved for the increment that introduces additional Action
+states.
 
 ## Implementation and review outcome
 
