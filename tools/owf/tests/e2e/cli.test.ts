@@ -253,6 +253,80 @@ test('Action commands round trip across processes with complete envelopes, human
     result: { ...saved.result, status: 'found' },
     warnings: [],
   });
+  const human = run(root, ['get', 'action', saved.result.action.id]);
+  expect(human.status).toBe(0);
+  for (const field of [
+    'found action',
+    'Title: Call supplier',
+    `ID: ${saved.result.action.id}`,
+    `URI: ${saved.result.uri}`,
+    'State: open',
+    'Owner: /',
+    'Description: ',
+    `Created: ${saved.result.action.created_at}`,
+    `Updated: ${saved.result.action.updated_at}`,
+    `Root: ${root}`,
+  ])
+    expect(human.stdout.split(/\r?\n/u)).toContain(field);
+  for (const [args, code, status] of [
+    [
+      ['create', 'action', '--title', 'X', '--state', 'open', '--json'],
+      'INVALID_ARGUMENT',
+      2,
+    ],
+    [
+      ['create', 'action', '--title', 'X', '--slug', 'x', '--json'],
+      'INVALID_ARGUMENT',
+      2,
+    ],
+    [['create', 'action', '--title', ' ', '--json'], 'INVALID_TITLE', 2],
+    [
+      ['get', 'action', saved.result.uri, 'extra', '--json'],
+      'INVALID_ARGUMENT',
+      2,
+    ],
+    [['get', 'action', '--json'], 'INVALID_ARGUMENT', 2],
+    [['get', 'action', 'invalid', '--json'], 'INVALID_ARGUMENT', 2],
+    [
+      ['get', 'action', '00000000-0000-4000-8000-000000000000', '--json'],
+      'ACTION_NOT_FOUND',
+      1,
+    ],
+  ] as const) {
+    const result = run(root, [...args]);
+    expect(result.status).toBe(status);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      ok: false,
+      error: { code },
+    });
+  }
+  expect(run(root, ['create', 'action', '--help']).stdout).toContain(
+    '/ selects',
+  );
+  expect(run(root, ['get', 'action', '--help']).stdout).toContain('owf:action');
+  expect(snapshot(root)).toEqual(before);
+});
+
+test('Action listing renders complete JSON, compact human output and argument errors', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  expect(run(root, ['init']).status).toBe(0);
+  const created = run(root, [
+    'create',
+    'action',
+    '--title',
+    'Call supplier',
+    '--description',
+    '',
+    '--json',
+  ]);
+  expect(created.status).toBe(0);
+  const saved = z
+    .object({
+      result: z.object({ action: z.object({ id: z.string() }).passthrough() }),
+    })
+    .parse(JSON.parse(created.stdout));
+  const before = snapshot(root);
   const listed = run(root, [
     'list',
     'actions',
@@ -320,56 +394,5 @@ test('Action commands round trip across processes with complete envelopes, human
     '--json',
   ])
     expect(help).toContain(text);
-  const human = run(root, ['get', 'action', saved.result.action.id]);
-  expect(human.status).toBe(0);
-  for (const field of [
-    'found action',
-    'Title: Call supplier',
-    `ID: ${saved.result.action.id}`,
-    `URI: ${saved.result.uri}`,
-    'State: open',
-    'Owner: /',
-    'Description: ',
-    `Created: ${saved.result.action.created_at}`,
-    `Updated: ${saved.result.action.updated_at}`,
-    `Root: ${root}`,
-  ])
-    expect(human.stdout.split(/\r?\n/u)).toContain(field);
-  for (const [args, code, status] of [
-    [
-      ['create', 'action', '--title', 'X', '--state', 'open', '--json'],
-      'INVALID_ARGUMENT',
-      2,
-    ],
-    [
-      ['create', 'action', '--title', 'X', '--slug', 'x', '--json'],
-      'INVALID_ARGUMENT',
-      2,
-    ],
-    [['create', 'action', '--title', ' ', '--json'], 'INVALID_TITLE', 2],
-    [
-      ['get', 'action', saved.result.uri, 'extra', '--json'],
-      'INVALID_ARGUMENT',
-      2,
-    ],
-    [['get', 'action', '--json'], 'INVALID_ARGUMENT', 2],
-    [['get', 'action', 'invalid', '--json'], 'INVALID_ARGUMENT', 2],
-    [
-      ['get', 'action', '00000000-0000-4000-8000-000000000000', '--json'],
-      'ACTION_NOT_FOUND',
-      1,
-    ],
-  ] as const) {
-    const result = run(root, [...args]);
-    expect(result.status).toBe(status);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      ok: false,
-      error: { code },
-    });
-  }
-  expect(run(root, ['create', 'action', '--help']).stdout).toContain(
-    '/ selects',
-  );
-  expect(run(root, ['get', 'action', '--help']).stdout).toContain('owf:action');
   expect(snapshot(root)).toEqual(before);
 });
