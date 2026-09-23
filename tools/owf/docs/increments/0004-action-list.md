@@ -1,11 +1,11 @@
 # 0004 — Action listing and owner filtering
 
-> Status: reviewed
+> Status: in_progress
 > Description: List Actions in the current Workspace, optionally filtered by direct owner or a stored owner subtree.
 > Depends on: [0003 — Action creation and retrieval](0003-action-create-get.md).
 
 The user reviewed and approved this design for implementation on 2026-09-23.
-Implementation has not started.
+Implementation is in progress; independent implementation review is pending.
 
 ## Goal and scope
 
@@ -170,25 +170,9 @@ AC5: The built CLI, help, README and generated Workspace guide agree and work
 without a web server. Existing Action create/get and Project/Outcome creation
 retain their behavior. No schema change or migration occurs.
 
-Draft domain scenario (replace with canonical executable scenario links when
-implemented):
-
-```gherkin
-Scenario: Find work by direct owner
-  Given a Workspace with a standalone Action
-  And a Project with its own Action and an Outcome with another Action
-  When I list Actions owned directly by the Project
-  Then the Project Action is included
-  And the standalone and Outcome Actions are excluded
-
-Scenario: Include nested work on request
-  Given a Project with its own Action
-  And its nested Outcomes each have an Action
-  And a sibling Project has an Action
-  When I list the first Project's Actions recursively
-  Then its own and descendant Outcomes' Actions are included
-  And the sibling Project Action is excluded
-```
+Canonical executable criteria: [Action listing scenarios](../../tests/acceptance/features/action-list.feature)
+cover Workspace-wide, direct-owner and recursive selection from a deeply nested
+Outcome, including the sibling-prefix boundary.
 
 ## Verification plan
 
@@ -221,8 +205,23 @@ states.
 
 ## Implementation and review outcome
 
-Not implemented or independently reviewed. Record actual delivery, checks,
-review findings and limitations here at handoff.
+Implemented `list actions` through the existing application, repository and CLI
+layers. Owner filters use the existing URL decoder and canonical encoder before
+Workspace discovery. SQLite uses parameterized equality or literal `substr`
+prefix comparison and stable `created_at DESC, id ASC` ordering. Returned rows
+reuse get's validation. Reads open the store read-only and do not resolve or
+repair Markdown owner references.
+
+CLI help, README and the single Workspace guide template include listing.
+Existing user guides and repeat-init behavior are preserved. Acceptance scenarios
+cover ownership semantics; integration tests cover ordering, full records,
+literal URL characters, stale/damaged context, empty results, error distinctions
+and byte-for-byte preservation. Built-CLI checks cover rendering, argument errors
+and generated examples without duplicating the ownership matrix.
+
+Verification evidence will be recorded after the implementation commit is checked.
+Independent review is pending; status remains `in_progress`. No schema change,
+migration, new dependency, state filter, release or merge is included.
 
 ## Decision changes and follow-up
 

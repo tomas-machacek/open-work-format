@@ -18,6 +18,10 @@ owf create action --title "Call the supplier" --json
 owf create action --title "Confirm delivery" --owner / --description "Check the delivery date."
 owf get action {id}
 owf get action owf:action:{id} --json
+owf list actions --json
+owf list actions --owner / --json
+owf list actions --owner /_projects/kitchen/ --json
+owf list actions --owner /_projects/kitchen/ --recursive --json
 \`\`\`
 
 Inside a Project or Outcome, create an Outcome using the nearest owner:
@@ -42,6 +46,16 @@ returned UUID or owf:action:<uuid> URI to retrieve the Action from any directory
 inside its Workspace. --json emits one machine-readable result or error.
 In command examples, {id} is a placeholder: replace it with the UUID returned
 by create; do not pass the braces or placeholder text literally.
+
+\`list actions\` returns every Action in the discovered Workspace, regardless of
+the current directory. \`--owner /\` selects Actions directly owned by the
+Workspace. An owner URL without \`--recursive\` selects only Actions directly
+owned by that Workspace, Project or Outcome. Add \`--recursive\` to include
+Actions whose stored owner URLs are beneath the selected URL, including nested
+Outcomes. This uses stored references and complete path segments; moving or
+removing an owner directory does not repair or change an Action's stored owner.
+A valid filter with no matches succeeds with an empty list. \`--recursive\`
+requires \`--owner\`.
 
 Preserve existing files. Never recreate or repair a Workspace by overwriting
 content. Projects and Outcomes are Markdown; Actions use the Operational Store.

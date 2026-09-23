@@ -14,6 +14,47 @@ import { resolveContextOwner } from '../contexts/index.js';
 import { discoverWorkspace } from '../workspaces/index.js';
 
 export type { Action, ActionInput } from '../../domain/actions/index.js';
+export interface ListActionsInput {
+  owner?: string | undefined;
+  recursive?: boolean | undefined;
+}
+export interface ListActionsResult {
+  result: {
+    status: 'listed';
+    type: 'actions';
+    root: string;
+    actions: Action[];
+  };
+  warnings: [];
+}
+export function listActions(
+  start: string,
+  input: ListActionsInput,
+  ports: ActionPorts,
+): ListActionsResult {
+  if (input.recursive && input.owner === undefined)
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      '--recursive requires --owner.',
+    );
+  const filter =
+    input.owner === undefined
+      ? undefined
+      : {
+          owner: ports.contexts.url(ports.contexts.decodeOwner(input.owner)),
+          recursive: input.recursive ?? false,
+        };
+  const found = workspace(start, ports);
+  return {
+    result: {
+      status: 'listed',
+      type: 'actions',
+      root: found.root,
+      actions: ports.actions.list(found.store, filter),
+    },
+    warnings: [],
+  };
+}
 export interface ActionResult {
   result: {
     status: 'created' | 'found';

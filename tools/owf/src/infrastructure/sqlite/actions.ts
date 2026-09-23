@@ -62,6 +62,39 @@ function mapRow(value: unknown): Action {
 }
 
 export const actionRepository: ActionRepository = {
+  list(path, filter) {
+    let db: DatabaseSync | undefined;
+    try {
+      db = new DatabaseSync(path, { readOnly: true });
+      db.exec('PRAGMA busy_timeout = 1000');
+      // Canonical owner URLs end in /, so a literal prefix respects path segments.
+      const where =
+        filter === undefined
+          ? ''
+          : filter.recursive
+            ? ' WHERE substr(owner_url, 1, length(?)) = ?'
+            : ' WHERE owner_url = ?';
+      const parameters =
+        filter === undefined
+          ? []
+          : filter.recursive
+            ? [filter.owner, filter.owner]
+            : [filter.owner];
+      return db
+        .prepare(
+          `SELECT id,title,state,owner_url,description,created_at,updated_at FROM actions${where} ORDER BY created_at DESC, id ASC`,
+        )
+        .all(...parameters)
+        .map(mapRow);
+    } catch {
+      throw new WorkspaceError(
+        'ACTION_READ_FAILED',
+        'Could not read valid Actions. Check store access and integrity.',
+      );
+    } finally {
+      db?.close();
+    }
+  },
   create(path, action) {
     let db: DatabaseSync | undefined;
     try {

@@ -6,6 +6,8 @@ import { actionRepository } from '../infrastructure/sqlite/index.js';
 import {
   createAction as createActionUseCase,
   getAction as getActionUseCase,
+  listActions as listActionsUseCase,
+  type ListActionsInput,
   type ActionInput,
 } from '../application/actions/index.js';
 import type { ActionPorts } from '../application/ports/index.js';
@@ -52,3 +54,5 @@ export const createAction = (root: string, input: ActionInput) =>
   createActionUseCase(root, input, actionPorts);
 export const getAction = (root: string, identifier: string) =>
   getActionUseCase(root, identifier, actionPorts);
+export const listActions = (root: string, input: ListActionsInput = {}) =>
+  listActionsUseCase(root, input, actionPorts);

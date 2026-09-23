@@ -253,6 +253,73 @@ test('Action commands round trip across processes with complete envelopes, human
     result: { ...saved.result, status: 'found' },
     warnings: [],
   });
+  const listed = run(root, [
+    'list',
+    'actions',
+    '--owner',
+    '/',
+    '--recursive',
+    '--json',
+  ]);
+  expect(listed.status).toBe(0);
+  expect(JSON.parse(listed.stdout)).toEqual({
+    ok: true,
+    result: {
+      status: 'listed',
+      type: 'actions',
+      root,
+      actions: [saved.result.action],
+    },
+    warnings: [],
+  });
+  const listHuman = run(root, ['list', 'actions']);
+  expect(listHuman.status).toBe(0);
+  for (const field of [
+    'Title: Call supplier',
+    `ID: ${saved.result.action.id}`,
+    'State: open',
+    'Owner: /',
+  ])
+    expect(listHuman.stdout.split(/\r?\n/u)).toContain(field);
+  for (const json of [false, true]) {
+    const empty = run(root, [
+      'list',
+      'actions',
+      '--owner',
+      '/missing/',
+      ...(json ? ['--json'] : []),
+    ]);
+    expect(empty.status).toBe(0);
+    if (json)
+      expect(JSON.parse(empty.stdout)).toEqual({
+        ok: true,
+        result: { status: 'listed', type: 'actions', root, actions: [] },
+        warnings: [],
+      });
+    else expect(empty.stdout.trim()).toBe('No Actions found.');
+  }
+  for (const args of [
+    ['--recursive'],
+    ['--owner', '/../'],
+    ['--json', '--owner'],
+    ['--state', 'open'],
+    ['extra'],
+  ]) {
+    const failed = run(root, ['list', 'actions', '--json', ...args]);
+    expect(failed.status).toBe(2);
+    expect(JSON.parse(failed.stdout)).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' },
+    });
+  }
+  const help = run(root, ['list', 'actions', '--help']).stdout;
+  for (const text of [
+    'regardless of working directory',
+    '--owner',
+    '--recursive',
+    '--json',
+  ])
+    expect(help).toContain(text);
   const human = run(root, ['get', 'action', saved.result.action.id]);
   expect(human.status).toBe(0);
   for (const field of [
