@@ -219,7 +219,19 @@ literal URL characters, stale/damaged context, empty results, error distinctions
 and byte-for-byte preservation. Built-CLI checks cover rendering, argument errors
 and generated examples without duplicating the ownership matrix.
 
-Verification evidence will be recorded after the implementation commit is checked.
+Verification on 2026-09-23: `npm run verify` passed on exact implementation/test
+commit `f4c361576c752f9ad4ab7d212d09702e01f315a6`, with a clean working tree,
+on Windows x64 (`win32`), Node.js `v24.21.0`, npm `11.4.1`. Typecheck, lint,
+formatting, architecture and build passed; 49 unit tests, 89 integration tests,
+21 acceptance scenarios (104 steps), and 17 built-CLI tests passed. Generated
+guide examples executed through the built CLI. `git diff --check` also passed.
+Earlier verify attempts exposed index formatting and a CLI scenario timeout;
+formatting was corrected and listing was separated from the create/get scenario
+without changing the timeout or dropping assertions. The final full run passed.
+This subsequent evidence update changes documentation only; it does not claim
+the full suite ran on the evidence commit. Linux and manual OS integration were
+not tested. No independent review has yet been performed.
+
 Independent review is pending; status remains `in_progress`. No schema change,
 migration, new dependency, state filter, release or merge is included.
 
