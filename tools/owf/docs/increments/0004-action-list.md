@@ -1,7 +1,7 @@
-# 0004 — Action listing and direct-owner filtering
+# 0004 — Action listing and owner filtering
 
 > Status: draft
-> Description: List Actions in the current Workspace, optionally filtered by their stored direct owner.
+> Description: List Actions in the current Workspace, optionally filtered by direct owner or a stored owner subtree.
 > Depends on: [0003 — Action creation and retrieval](0003-action-create-get.md).
 
 The user agreed to a small listing increment after 0003. This document records
@@ -11,9 +11,9 @@ has not started.
 ## Goal and scope
 
 Allow a person or agent to discover Action IDs without keeping the create output
-elsewhere, and to inspect the Actions directly owned by a Workspace, Project or
-Outcome. The list is a projection of the same authoritative SQLite Actions read
-by `get action`.
+elsewhere, inspect work directly owned by a Workspace, Project or Outcome, and
+see all work beneath a chosen Project or Outcome. The list is a projection of
+the same authoritative SQLite Actions read by `get action`.
 
 References: [architecture](../architecture.md),
 [development guidelines](../development-guidelines.md),
@@ -22,12 +22,13 @@ References: [architecture](../architecture.md),
 (especially Sections 11.2 and 13), and
 [MVP scope](../../../../docs/design/mvp-scope.md).
 
-Included: `owf list actions` with optional `--owner` and `--json`, direct-owner
-filtering, stable display order, full Action records in JSON, human-readable
-output, and updates to CLI help, tool README and generated Workspace AGENTS.md.
+Included: `owf list actions` with optional `--owner`, `--recursive` and `--json`,
+direct-owner and descendant-owner filtering, stable display order, full Action
+records in JSON, human-readable output, and updates to CLI help, tool README
+and generated Workspace AGENTS.md.
 
-Deferred: filtering by state, title search, subtree/recursive owner queries,
-pagination, sorting options, updates, state transitions, archive, and GUI/HTTP.
+Deferred: filtering by state, title search, pagination, sorting options, updates,
+state transitions, archive, and GUI/HTTP.
 This increment does not change the SQLite schema, store version or Action
 representation. No migrations, new dependencies or release are needed.
 
@@ -45,31 +46,48 @@ invent an archived state or introduce an option that cannot yet be exercised.
 owf list actions
 owf list actions --owner /
 owf list actions --owner /_projects/kitchen/
+owf list actions --owner /_projects/kitchen/ --recursive
 owf list actions --owner /_projects/kitchen/approved-design/ --json
 ```
 
 Both words in `list actions` are literal; no Action ID is required.
-Only `--owner` and `--json` are supported in this increment. Unknown options,
-unexpected positional arguments and missing owner values are errors. Command
-help describes the default scope and direct-owner behavior.
+Only `--owner`, `--recursive` and `--json` are supported in this increment.
+`--recursive` requires `--owner`; without it, report `INVALID_ARGUMENT` rather
+than silently treating the option as a request for the full Workspace. Unknown
+options, unexpected positional arguments and missing owner values are errors.
+Command help describes the default scope and both owner filter modes.
 
 Without `--owner`, return every Action in the discovered Workspace, regardless
 of the invocation directory. In particular, calling `list actions` inside a
-Project does not implicitly restrict the result to that Project. With `--owner`,
-return only Actions whose stored `owner.url` equals the requested Workspace-rooted
-directory URL. `/` selects standalone Workspace-owned Actions. This is direct
-ownership: a Project query does not include Actions owned by descendant
-Outcomes. A valid owner filter with no matches succeeds with an empty list.
+Project does not implicitly restrict the result to that Project. With `--owner`
+alone, return only Actions whose stored `owner.url` equals the requested
+Workspace-rooted directory URL. `/` selects standalone Workspace-owned Actions.
+This is direct ownership: a Project query does not include Actions owned by
+descendant Outcomes.
+
+With `--owner` and `--recursive`, include both directly owned Actions and those
+whose stored owner URL lies beneath the requested directory URL. For a Project,
+that includes Actions of nested Outcomes at any depth, but not a sibling Project.
+For an Outcome, it includes its own Actions and those of descendant Outcomes.
+`--owner / --recursive` covers the entire Workspace. A valid owner filter with
+no matches succeeds with an empty list.
 
 Parse the owner filter with the existing directory URL rules and canonicalize
 it before matching, using the same URL representation as Action creation. Reject
 invalid URL syntax as `INVALID_ARGUMENT` before discovery. Do not require the
 owner's Markdown directory or README to exist, or validate its state: a stored
 owner can move, disappear or become malformed, and a syntactically valid unknown
-owner simply has no matches. Do not traverse ownership trees or mutate stored
-references. Workspace discovery still validates the actual Workspace and its
-store; damaged Project/Outcome context in the current directory does not block
-this read, following the corrected behavior of increment 0003.
+owner simply has no matches. Recursive matching is over canonical, slash-terminated
+stored owner URLs. Compare complete path segments: `/_projects/kitchen/` includes
+`/_projects/kitchen/design/`, but not `/_projects/kitchenette/`. Treat URL text
+literally, including percent-encoded segments; `%` and `_` are not SQL wildcards.
+Do not traverse current Markdown ownership trees or mutate stored references.
+A moved Outcome whose Action references still contain the old URL continues to
+appear beneath the old URL prefix until those references are explicitly repaired
+in a future operation. This matches the path-based ownership model rather than
+guessing a new owner from incidental filesystem state. Workspace discovery still
+validates the actual Workspace and its store; damaged Project/Outcome context in
+the current directory does not block this read, following increment 0003.
 
 ### Ordering and output
 
@@ -100,7 +118,9 @@ Avoid conflating owner URL and native filesystem path.
 ### Storage, validation and errors
 
 Add a focused list method to the existing Action repository/application API;
-keep parameterized SQLite queries in the infrastructure adapter. Reuse `get`'s
+keep parameterized SQLite queries in the infrastructure adapter. Implement
+recursive filtering with literal, slash-bounded URL prefix comparisons rather
+than unescaped SQL `LIKE` patterns. Reuse `get`'s
 Action row validation and preserve the same distinction between a valid empty
 result and store failure. A malformed stored Action makes the list fail with a
 clear read error, rather than returning a partial or silently filtered result.
@@ -130,13 +150,18 @@ An empty Workspace returns a successful empty result. Repeated lists do not
 change Workspace files or store content.
 
 AC2: `--owner /` matches only Workspace-owned Actions. A Project or Outcome URL
-matches its directly owned Actions, excluding children and other owners. A
-syntactically valid filter with no matches returns an empty list.
+without `--recursive` matches its directly owned Actions, excluding children
+and other owners. With `--recursive`, it includes all descendant Outcome owners
+at any depth, while excluding sibling path prefixes. `%` and `_` in URLs are
+literal text, not wildcards. `--recursive` without `--owner` is an argument
+error. A syntactically valid filter with no matches returns an empty list.
 
-AC3: Owner filtering works after the owner's Markdown directory moves,
-disappears, becomes terminal or has malformed metadata. Malformed current
-Project/Outcome context does not obstruct the read; malformed real Workspace
-metadata still fails. Invalid owner URL syntax causes no writes and exit 2.
+AC3: Both owner filters use stored references even after the owner's Markdown
+directory moves, disappears, becomes terminal or has malformed metadata. A
+stale reference stays under its stored URL prefix, not an inferred new path.
+Malformed current Project/Outcome context does not obstruct the read; malformed
+real Workspace metadata still fails. Invalid owner URL syntax causes no writes
+and exit 2.
 
 AC4: JSON yields the agreed complete envelope and Action fields; human output
 identifies each result and explains emptiness. A damaged Action row or unavailable,
@@ -156,33 +181,44 @@ Scenario: Find work by direct owner
   When I list Actions owned directly by the Project
   Then the Project Action is included
   And the standalone and Outcome Actions are excluded
+
+Scenario: Include nested work on request
+  Given a Project with its own Action
+  And its nested Outcomes each have an Action
+  And a sibling Project has an Action
+  When I list the first Project's Actions recursively
+  Then its own and descendant Outcomes' Actions are included
+  And the sibling Project Action is excluded
 ```
 
 ## Verification plan
 
-- Acceptance via application API for direct-owner selection across Workspace,
-  Project and Outcome; avoid repeating that entire journey in CLI tests (AC1–AC2).
+- Acceptance via application API for direct and recursive selection across
+  Workspace, Project and nested Outcomes; avoid repeating those entire journeys
+  in CLI tests (AC1–AC2).
 - Focused integration checks on real SQLite for deterministic order including
-  tied timestamps, empty list, literal optional fields, unchanged store and
-  missing/invalid owner context. Reuse existing get-row corruption fixtures
-  where practical (AC1–AC4).
-- Small built-CLI process checks for `--owner`, empty and JSON/human results,
-  invalid argument exit codes, and runnable generated examples (AC4–AC5).
+  tied timestamps, empty list, literal optional fields, unchanged store,
+  missing/invalid owner context, path-prefix boundaries and literal `%`/`_`
+  matching. Reuse existing get-row corruption fixtures where practical (AC1–AC4).
+- Small built-CLI process checks for `--owner`, `--recursive`, empty and
+  JSON/human results, invalid argument exit codes, and runnable generated
+  examples (AC4–AC5).
 - Run `npm run verify` before code handoff; record actual runtime/platform.
   Inspect test value and avoid duplicating every scenario across layers.
 
 Manual trial: in a fresh schema 2 Workspace, create a Project and Outcome, then
 create one Action owned by each of Workspace, Project and Outcome. Compare
-`list actions`, `list actions --owner /`, and `list actions --owner
-/_projects/kitchen/`; use a returned ID with `get action`. Try an empty
-Workspace and a valid owner URL that has no Actions.
+`list actions`, `list actions --owner /`, `list actions --owner
+/_projects/kitchen/`, and the same owner with `--recursive`; use a returned ID
+with `get action`. Try an empty Workspace and a valid owner URL that has no
+Actions.
 
 ## Open questions
 
-No blocking conceptual question. The exact CLI/envelope contract, stable order
-and missing-owner filter behavior in this draft are proposed for review. State
-filtering is deliberately reserved for the increment that introduces additional
-Action states.
+No blocking conceptual question. The exact CLI/envelope contract, stable order,
+literal stored-prefix matching and missing-owner filter behavior in this draft
+are proposed for review. State filtering is reserved for the increment that
+introduces additional Action states.
 
 ## Implementation and review outcome
 
@@ -191,7 +227,8 @@ review findings and limitations here at handoff.
 
 ## Decision changes and follow-up
 
-- 0003 postponed list/filter. This increment adds listing and direct-owner
-  filtering, while state filters wait until non-open states can be persisted.
+- 0003 postponed list/filter. This increment adds listing and direct-owner and
+  recursive stored-owner filtering, while state filters wait until non-open
+  states can be persisted.
 - Future state/archive support should explicitly preserve the ordinary-list
   exclusion of archived Actions agreed during the design discussion.
