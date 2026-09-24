@@ -15,8 +15,11 @@ Make created Actions usable through their active and terminal execution states.
 The current store supports only `open`; this increment adds `in_progress`,
 `waiting`, `completed` and `cancelled`, and an optional `waiting_for` reason.
 `get action` and `list actions` show the persisted values; `list actions` can
-filter by state. See [Core v0](../../../../spec/core-v0.md#6-actions) and the
-[Operational Store model](../../../../docs/design/operational-store-notes.md).
+filter by state. References: [architecture](../architecture.md),
+[development guidelines](../development-guidelines.md),
+[Core v0](../../../../spec/core-v0.md),
+[Operational Store model](../../../../docs/design/operational-store-notes.md),
+and [MVP scope](../../../../docs/design/mvp-scope.md).
 
 Deferred: `archived` and `archived_from`, dependencies and derived blocking,
 manual block, changing content or owner, searching, GUI and migrations. A
