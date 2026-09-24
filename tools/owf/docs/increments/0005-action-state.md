@@ -38,6 +38,7 @@ owf set action UUID --state completed
 owf set action UUID --state cancelled
 owf set action UUID --state open
 owf list actions --state waiting --json
+owf list actions --state open --state waiting --owner /_projects/kitchen/ --recursive
 ```
 
 Accept a UUID v4 or `owf:action:UUID`, as `get action` does. `--state` is required
@@ -60,11 +61,13 @@ the reason in the same update. Clearing a reason while remaining `waiting` is
 deferred. JSON and human output show the resulting Action, including the reason
 when present.
 
-`list actions --state STATE` selects precisely one of the five states. It can be
-combined with `--owner` and `--recursive`, which retain their current semantics.
-Without a state filter, list returns all stored Actions, including `completed`
-and `cancelled`. A state filter with no matches returns a successful empty list.
-Multiple `--state` options are rejected rather than silently choosing one.
+Each `list actions --state STATE` occurrence selects one of the five states.
+Repeated occurrences select Actions in **any** specified state, without
+duplicating an Action when a value is repeated. State selection combines with
+`--owner` and `--recursive` using **and**; owner filtering retains its existing
+semantics. The comma-separated form `--state open,waiting` is invalid. Without
+a state filter, list returns all stored Actions, including `completed` and
+`cancelled`. A state filter with no matches returns a successful empty list.
 
 ### Persistence and errors
 
@@ -113,9 +116,11 @@ while remaining `waiting`, and is absent after leaving it. It is optional,
 nonblank and preserved literally when supplied, and rejected for other target
 states. Failed validation makes no partial change.
 
-AC3: List without a state filter includes terminal Actions. The state filter
-matches exactly and composes with direct or recursive owner filtering. Empty
-results succeed; `get` and list return full and valid Action data.
+AC3: List without a state filter includes terminal Actions. Repeated `--state`
+values match any named state, with no duplicate Actions; invalid values and
+comma-separated lists are rejected. State selection composes with direct or
+recursive owner filtering. Empty results succeed; `get` and list return full
+and valid Action data.
 
 AC4: The transition and event are atomic even when event insertion or commit
 fails. A missing Action, damaged row, store problem or concurrent change is
@@ -177,4 +182,6 @@ here; set `completed` only after implementation, verification and review.
   decision.
 - Repeating the same state and reason succeeds idempotently without a timestamp
   or event change, per user decision.
+- Repeated `--state` options mean any listed state; comma-separated values are
+  not accepted, per user discussion.
 - Archive, dependency checks and derived blocking remain separate increments.
