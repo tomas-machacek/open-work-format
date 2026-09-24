@@ -178,9 +178,34 @@ migration, reset or replacement. Reads remain read-only; stored ownership stays
 usable after a Markdown owner moves. CLI help, README and the single generated
 guide source are updated; existing user guides remain untouched.
 
-Verification evidence will be recorded against the committed implementation
-before handoff. Independent review is pending; status remains in_progress.
-No merge or release is part of this increment handoff.
+Verified implementation commit: `7581a71edb190c01875ae8f8e3f5cbca06baf455`.
+On 2026-09-24, `npm run verify` passed on Windows 11 (build 26200),
+Node 24.21.0 and npm 11.4.1: typecheck, ESLint, Prettier, architecture
+(28 modules, 70 dependencies), build, 56 unit tests, 101 integration tests,
+24 acceptance scenarios / 123 steps, and 19 built-CLI tests. The working tree
+was clean for this run. A following documentation-only commit records this
+evidence; it does not alter implementation, tests or configuration.
+
+Earlier checks: typecheck, lint and build passed; unit tests passed (56).
+The targeted integration invocation also selected the colocated Action tests
+(118 tests total). Acceptance passed (24 scenarios). Sandbox Vitest startup
+failed with spawn EPERM; tests were rerun successfully outside the sandbox.
+The first CLI run passed 18 tests but timed out executing the expanded guide
+at 5 seconds. That one test now has a 15-second budget for over twenty separate
+Node processes; all examples remain executed, and the final verify passed.
+
+Manual built-CLI trial in a fresh temporary Workspace passed: initialize,
+create Project and Action, enter waiting, edit its reason, omit the reason for
+an unchanged result with the same updated_at, combine repeated states with
+recursive owner filtering (one result), complete, reopen, and retrieve by URI.
+JSON and human output matched the persisted values. Existing user-written guides
+are covered by the unchanged initialization acceptance scenario.
+
+Independent review is pending; status remains in_progress in this document and
+index. No merge or release was performed. Linux was not tested for this increment.
+No migration, archive, dependencies, derived blocking, or clearing a waiting
+reason while remaining waiting is included. Review should assess the PR diff
+against the canonical tests and acceptance criteria above.
 
 ## Decision changes and follow-up
 
