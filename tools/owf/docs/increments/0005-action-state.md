@@ -1,11 +1,12 @@
 # 0005 — Action state changes
 
-> Status: draft
+> Status: reviewed
 > Description: Change an Action's execution state, record waiting context and filter lists by state.
 > Depends on: [0004 — Action listing](0004-action-list.md).
 
-The user agreed to state changes, a waiting reason, editing that reason while
-remaining in `waiting`, and a state filter. For this PoC, existing Workspaces
+The user reviewed and approved this design for implementation. It covers state
+changes, a waiting reason, editing that reason while remaining in `waiting`,
+and a state filter. For this PoC, existing Workspaces
 need no migration or compatibility path: assume all
 Workspaces used after delivery are initialized with this increment's schema.
 
@@ -163,9 +164,9 @@ Scenario: Find work by state and owner
 
 ## Open questions
 
-No blocking question. Reopening terminal Actions and replacing `waiting_for`
-while remaining in `waiting` were confirmed by the user. Other transition
-details in this draft remain subject to design review.
+No blocking question. Reopening terminal Actions, replacing `waiting_for`
+while remaining in `waiting`, idempotent requests and repeated state filters
+were confirmed by the user.
 
 ## Implementation and review outcome
 
