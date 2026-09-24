@@ -59,6 +59,12 @@ export function changeActionState(
   const reason =
     state === 'waiting' ? (input.waitingFor ?? action.waiting_for) : undefined;
   if (state === action.state && reason === action.waiting_for) return action;
+  // eslint-disable-next-line no-restricted-globals -- Parse supplied timestamps only; never read the system clock in the domain.
+  if (Date.parse(time) < Date.parse(action.created_at))
+    throw new WorkspaceError(
+      'ACTION_UPDATE_FAILED',
+      'Current time precedes Action creation. Check the system clock and retry.',
+    );
   const changed = { ...action, state, updated_at: time };
   delete changed.waiting_for;
   if (reason !== undefined) changed.waiting_for = reason;

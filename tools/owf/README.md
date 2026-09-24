@@ -156,6 +156,9 @@ A failed transaction saves neither change nor event. `ACTION_NOT_FOUND` means
 the ID is absent; invalid stored data and store errors remain distinct.
 `ACTION_CONFLICT` reports a rejected conditional write; `ACTION_UPDATE_FAILED`
 reports other transaction failures, including competing writer lock timeout.
+If the system clock precedes the Action's creation time, a real change returns
+`ACTION_UPDATE_FAILED` without changing the Action or its events. Correct the
+clock and retry. An identical request still succeeds unchanged.
 State changes work even after the Markdown owner directory disappears.
 
 Repeat `list actions --state STATE` to match any listed state; duplicates do not

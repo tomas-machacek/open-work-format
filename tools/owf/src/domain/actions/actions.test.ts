@@ -55,10 +55,14 @@ test('waiting reasons are optional, literal, editable and idempotent when omitte
       'unused',
     ),
   ).toBe(explained);
+  const editedAt = '2026-09-21T11:00:00.000Z';
   expect(
-    changeActionState(explained, { state: 'waiting', waitingFor: 'New' }, later)
-      .waiting_for,
-  ).toBe('New');
+    changeActionState(
+      explained,
+      { state: 'waiting', waitingFor: 'New' },
+      editedAt,
+    ),
+  ).toEqual({ ...explained, waiting_for: 'New', updated_at: editedAt });
 });
 test.each([
   { state: 'archived' },

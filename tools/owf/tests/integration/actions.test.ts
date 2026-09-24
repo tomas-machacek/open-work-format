@@ -57,7 +57,10 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
     { ...actionPorts, now: () => '2026-09-20T10:00:00.000Z' },
   ).result.action;
   renameSync(owner.path, join(root, 'moved-owner'));
-  const at = '2026-09-21T10:00:00.000Z';
+  const enteredAt = '2026-09-21T10:00:00.000Z';
+  const editedAt = '2026-09-21T11:00:00.000Z';
+  const completedAt = '2026-09-21T12:00:00.000Z';
+  let at = enteredAt;
   const change = (state: string, waitingFor?: string) =>
     setWithPorts(
       root,
@@ -66,6 +69,7 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
       { ...actionPorts, now: () => at },
     );
   change('waiting', 'First');
+  at = editedAt;
   const changed = change('waiting', '  Second\nŽivot  ');
   expect(changed.result.status).toBe('updated');
   expect(changed.result.action).toEqual({
@@ -75,6 +79,7 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
     updated_at: at,
   });
   const before = snapshot(root);
+  at = completedAt;
   expect(change('waiting').result.status).toBe('unchanged');
   expect(change('waiting', '  Second\nŽivot  ').result.action).toEqual(
     changed.result.action,
@@ -91,7 +96,7 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
     expect.objectContaining({
       action_id: initial.id,
       kind: 'action.state_changed',
-      created_at: at,
+      created_at: enteredAt,
       old_state: 'open',
       new_state: 'waiting',
       old_waiting_for: null,
@@ -99,7 +104,7 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
     }),
     expect.objectContaining({
       action_id: initial.id,
-      created_at: at,
+      created_at: editedAt,
       old_state: 'waiting',
       new_state: 'waiting',
       old_waiting_for: 'First',
@@ -107,11 +112,91 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
     }),
     expect.objectContaining({
       action_id: initial.id,
-      created_at: at,
+      created_at: completedAt,
       old_state: 'waiting',
       new_state: 'completed',
       old_waiting_for: '  Second\nŽivot  ',
       new_waiting_for: null,
+    }),
+  ]);
+});
+
+test('clock rollback rejects a real change without damaging the Action or Event Log', () => {
+  const { root, store } = workspace();
+  const createdAt = '2026-09-24T12:00:00.000Z';
+  const action = createWithPorts(
+    root,
+    { title: 'Clock rollback' },
+    { ...actionPorts, now: () => createdAt },
+  ).result.action;
+  const ports = {
+    ...actionPorts,
+    now: () => '2026-09-24T11:59:59.000Z',
+  };
+  const before = snapshot(root);
+  expect(
+    setWithPorts(root, action.id, { state: 'open' }, ports).result.status,
+  ).toBe('unchanged');
+  expect(() =>
+    setWithPorts(root, action.id, { state: 'completed' }, ports),
+  ).toThrow(expect.objectContaining({ code: 'ACTION_UPDATE_FAILED' }));
+  expect(snapshot(root)).toEqual(before);
+  expect(getAction(root, action.id).result.action).toEqual(action);
+  expect(listActions(root).result.actions).toEqual([action]);
+  expect(rows(store, 'action_events')).toHaveLength(1);
+  expect(
+    setWithPorts(
+      root,
+      action.id,
+      { state: 'completed' },
+      {
+        ...actionPorts,
+        now: () => createdAt,
+      },
+    ).result.status,
+  ).toBe('updated');
+});
+
+test('the write transaction excludes a competing writer after the Action is read', () => {
+  const { root, store } = workspace();
+  const action = createAction(root, { title: 'Concurrent change' }).result
+    .action;
+  const result = setWithPorts(
+    root,
+    action.id,
+    { state: 'completed' },
+    {
+      ...actionPorts,
+      actions: {
+        ...actionPorts.actions,
+        changeState(path, id, change) {
+          return actionPorts.actions.changeState(path, id, (current) => {
+            const writer = new DatabaseSync(path);
+            try {
+              writer.exec('PRAGMA busy_timeout = 0');
+              expect(() =>
+                writer
+                  .prepare('UPDATE actions SET state = ? WHERE id = ?')
+                  .run('cancelled', id),
+              ).toThrow(/locked/);
+            } finally {
+              writer.close();
+            }
+            return change(current);
+          });
+        },
+      },
+    },
+  );
+  expect(getAction(root, action.id).result.action).toEqual(
+    result.result.action,
+  );
+  expect(result.result.action.state).toBe('completed');
+  expect(rows(store, 'action_events').slice(1)).toEqual([
+    expect.objectContaining({
+      action_id: action.id,
+      old_state: 'open',
+      new_state: 'completed',
     }),
   ]);
 });

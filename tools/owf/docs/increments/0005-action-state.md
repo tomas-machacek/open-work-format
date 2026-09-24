@@ -201,14 +201,35 @@ recursive owner filtering (one result), complete, reopen, and retrieve by URI.
 JSON and human output matched the persisted values. Existing user-written guides
 are covered by the unchanged initialization acceptance scenario.
 
-Independent review is pending; status remains in_progress in this document and
-index. No merge or release was performed. Linux was not tested for this increment.
+Independent review found the clock issue recorded below; review of its fixes
+is pending. Status remains in_progress in this document and index. No merge or
+release was performed. Linux was not tested for this increment.
 No migration, archive, dependencies, derived blocking, or clearing a waiting
 reason while remaining waiting is included. Review should assess the PR diff
 against the canonical tests and acceptance criteria above.
 
 ## Decision changes and follow-up
 
+- Independent review of `5d5c1dc532682f1222578d189a3af9e2eb29c6ed` found
+  that a backward system-clock adjustment could persist `updated_at` before
+  `created_at`, making the Action and all lists unreadable. The follow-up rejects
+  such real changes with `ACTION_UPDATE_FAILED` before writing; no-ops still
+  succeed. A regression test checks unchanged store bytes, readable data and
+  retry after clock correction. It failed on the reviewed code before the fix.
+- Waiting-reason tests now use distinct times for entry, editing and subsequent
+  no-ops, checking the timestamp and matching events. A second-connection test
+  also attempts a write after the Action has been read inside the transaction.
+- Follow-up `npm run verify` passed on 2026-09-24 on Windows, Node 24.21.0,
+  npm 11.4.1, for the follow-up changes based on
+  `5d5c1dc532682f1222578d189a3af9e2eb29c6ed`: typecheck, lint, formatting,
+  architecture, build, 56 unit tests, 103 integration tests, 24 acceptance
+  scenarios / 123 steps, and 19 built-CLI tests. The first follow-up verify
+  stopped at the domain's blanket Date lint restriction; the successful run
+  includes a narrowly documented exception for parsing supplied timestamps,
+  without reading the clock. The three targeted regression checks also passed.
+  The historical verify result above applies to the original implementation;
+  this result covers the follow-up code and tests. Only this outcome record
+  changed after verification. Review of the fixes remains pending.
 - No schema migration or compatibility path for pre-0005 PoC Workspaces, per
   user decision. Future changes can define migrations if persistence becomes
   necessary.

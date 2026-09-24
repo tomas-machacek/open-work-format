@@ -68,6 +68,8 @@ nonblank, and only valid with --state waiting. While already waiting, supplying
 it replaces the reason; omission keeps it. Leaving waiting clears the reason.
 An identical request returns unchanged with no new timestamp or event; a real
 change returns updated and commits the Action and its event together. State
+changes fail without writing if the system clock precedes Action creation;
+correct the clock and retry. Identical requests still succeed unchanged. State
 changes preserve identity, ownership and creation time, even if the Markdown
 owner disappears. Clearing a reason while staying waiting is not supported.
 
