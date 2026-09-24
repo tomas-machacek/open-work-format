@@ -3,6 +3,7 @@ import {
   initOptions,
   createOptions,
   createActionOptions,
+  listActionsOptions,
 } from '../../contracts/index.js';
 import type {
   ContextInput,
@@ -15,6 +16,8 @@ import {
 import type {
   ActionInput,
   ActionResult,
+  ListActionsInput,
+  ListActionsResult,
 } from '../../application/actions/index.js';
 
 export function runCli(
@@ -24,12 +27,13 @@ export function runCli(
   create: (input: ContextInput) => CreateResult,
   createAction: (input: ActionInput) => ActionResult,
   getAction: (identifier: string) => ActionResult,
+  listActions: (input: ListActionsInput) => ListActionsResult,
 ): void {
   let json = false;
   const program = new Command()
     .name('owf')
     .description(
-      'Initialize an OWF Workspace and create Projects, Outcomes, and Actions',
+      'Initialize an OWF Workspace; create contexts and create, get, or list Actions',
     )
     .version(version)
     .exitOverride();
@@ -138,6 +142,39 @@ export function runCli(
         json ? JSON.stringify({ ok: true, ...result }) : renderAction(result),
       );
     });
+  program
+    .command('list')
+    .description('List operational objects')
+    .command('actions')
+    .description(
+      'List all Actions in the current Workspace, regardless of working directory',
+    )
+    .option(
+      '--owner <url>',
+      'Match the exact direct owner URL; / selects Workspace-owned Actions',
+    )
+    .option(
+      '--recursive',
+      'Include stored descendant owner URLs; requires --owner',
+    )
+    .option('--json', 'Emit one JSON result with complete Action records')
+    .action((options: unknown) => {
+      const parsed = listActionsOptions.parse(options);
+      json = parsed.json ?? false;
+      const result = listActions(parsed);
+      console.log(
+        json
+          ? JSON.stringify({ ok: true, ...result })
+          : result.result.actions.length === 0
+            ? 'No Actions found.'
+            : result.result.actions
+                .map(
+                  (action) =>
+                    `Title: ${action.title}\nID: ${action.id}\nState: ${action.state}\nOwner: ${action.owner.url}`,
+                )
+                .join('\n\n'),
+      );
+    });
   // Recognize output options, but do not mistake option values for flags.
   const operationalArgs = argv.slice(2);
   for (let index = 0; index < operationalArgs.length; index++) {
@@ -168,7 +205,10 @@ export function runCli(
           ? 'INVALID_ARGUMENT'
           : operationalArgs[0] === 'create' && operationalArgs[1] === 'action'
             ? 'ACTION_CREATE_FAILED'
-            : operationalArgs[0] === 'get' && operationalArgs[1] === 'action'
+            : (operationalArgs[0] === 'get' &&
+                  operationalArgs[1] === 'action') ||
+                (operationalArgs[0] === 'list' &&
+                  operationalArgs[1] === 'actions')
               ? 'ACTION_READ_FAILED'
               : operationalArgs[0] === 'create'
                 ? 'CREATION_FAILED'

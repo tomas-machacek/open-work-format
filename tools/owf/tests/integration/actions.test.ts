@@ -1,12 +1,19 @@
 import { afterEach, expect, test } from 'vitest';
 import { DatabaseSync } from 'node:sqlite';
 import { join } from 'node:path';
-import { mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import {
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  unlinkSync,
+  renameSync,
+} from 'node:fs';
 import {
   initialize,
   create,
   createAction,
   getAction,
+  listActions,
   actionPorts,
 } from '../../src/bootstrap/workspaces.js';
 import { createAction as createWithPorts } from '../../src/application/actions/index.js';
@@ -121,6 +128,7 @@ test.each(['1', '99'])(
       () => create(root, { type: 'outcome', title: 'Outcome', owner: '/' }),
       () => createAction(root, { title: 'Action' }),
       () => getAction(root, action.id),
+      () => listActions(root),
     ]) {
       expect(operation).toThrow(
         expect.objectContaining({ code: 'UNSUPPORTED_STORE_VERSION' }),
@@ -197,6 +205,10 @@ test('get is read-only from a malformed or terminal owner; missing and broken st
     const before = snapshot(root);
     expect(getAction(root, action.id).result.action).toEqual(action);
     expect(getAction(owner.path, action.id).result.action).toEqual(action);
+    expect(
+      listActions(owner.path, { owner: owner.url, recursive: true }).result
+        .actions,
+    ).toEqual([action]);
     expect(snapshot(root)).toEqual(before);
   }
   const before = snapshot(root);
@@ -213,6 +225,9 @@ test('get is read-only from a malformed or terminal owner; missing and broken st
   );
   unlinkSync(store);
   expect(() => getAction(root, action.id)).toThrow(
+    expect.objectContaining({ code: 'STORE_UNAVAILABLE' }),
+  );
+  expect(() => listActions(root)).toThrow(
     expect.objectContaining({ code: 'STORE_UNAVAILABLE' }),
   );
 });
@@ -296,13 +311,158 @@ test.each([
   "title = ' padded '",
   "created_at = 'not-a-time'",
   "updated_at = '2020-01-01T00:00:00.000Z'",
-])('get rejects malformed persisted data (%s) without writes', (assignment) => {
-  const { root, store } = workspace();
-  const action = createAction(root, { title: 'Existing' }).result.action;
-  sql(store, `UPDATE actions SET ${assignment}`);
+  "owner_url = 'broken'",
+])(
+  'get and list reject malformed persisted data (%s) without writes',
+  (assignment) => {
+    const { root, store } = workspace();
+    const action = createAction(root, { title: 'Existing' }).result.action;
+    sql(store, `UPDATE actions SET ${assignment}`);
+    createAction(root, { title: 'Valid companion' });
+    const before = snapshot(root);
+    expect(() => getAction(root, action.id)).toThrow(
+      expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
+    );
+    for (const filter of [
+      {},
+      { owner: '/' },
+      { owner: '/', recursive: true },
+      { owner: '/missing/' },
+      { owner: '/missing/', recursive: true },
+    ])
+      expect(() => listActions(root, filter)).toThrow(
+        expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
+      );
+    expect(snapshot(root)).toEqual(before);
+  },
+);
+
+test('list is empty or ordered by stored creation time then ID, preserving full records and every byte', () => {
+  const { root } = workspace();
+  expect(listActions(root).result.actions).toEqual([]);
+  const actions = [
+    [
+      '00000000-0000-4000-8000-000000000002',
+      '2026-09-20T10:00:00.000Z',
+      undefined,
+    ],
+    ['00000000-0000-4000-8000-000000000001', '2026-09-20T10:00:00.000Z', ''],
+    [
+      '00000000-0000-4000-8000-000000000003',
+      '2026-09-21T10:00:00.000Z',
+      "# Literal\n' % _ Život",
+    ],
+  ].map(
+    ([id, time, description]) =>
+      createWithPorts(
+        root,
+        { title: 'Same', description },
+        {
+          ...actionPorts,
+          newId: () => id!,
+          now: () => time!,
+        },
+      ).result.action,
+  );
   const before = snapshot(root);
-  expect(() => getAction(root, action.id)).toThrow(
-    expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
+  for (let repeat = 0; repeat < 2; repeat++) {
+    expect(listActions(root)).toEqual({
+      result: {
+        status: 'listed',
+        type: 'actions',
+        root,
+        actions: [actions[2], actions[1], actions[0]],
+      },
+      warnings: [],
+    });
+    expect(listActions(root, { owner: '/unknown/' }).result.actions).toEqual(
+      [],
+    );
+  }
+  expect(snapshot(root)).toEqual(before);
+});
+
+test('canonical filters treat percent and underscore literally and keep stale stored ownership after a move', () => {
+  const { root, store } = workspace();
+  const project = create(root, { type: 'project', title: 'Original' }).result;
+  const action = createAction(project.path, { title: 'Stale' }).result.action;
+  renameSync(project.path, join(root, '_projects', 'moved'));
+  const beforeMoveRead = snapshot(root);
+  expect(
+    listActions(root, { owner: project.url, recursive: true }).result.actions,
+  ).toEqual([action]);
+  expect(
+    listActions(root, { owner: '/_projects/moved/', recursive: true }).result
+      .actions,
+  ).toEqual([]);
+  expect(snapshot(root)).toEqual(beforeMoveRead);
+  const owners = [
+    '/a_b%25/',
+    '/axb%25/',
+    '/a_bXYZ25/',
+    '/a_b%25/child/',
+    '/a_b%25suffix/',
+  ];
+  const db = new DatabaseSync(store);
+  try {
+    const insert = db.prepare(
+      'INSERT INTO actions SELECT ?,title,state,?,description,created_at,updated_at FROM actions WHERE id = ?',
+    );
+    owners.forEach((owner, index) =>
+      insert.run(
+        `00000000-0000-4000-8000-00000000000${index}`,
+        owner,
+        action.id,
+      ),
+    );
+  } finally {
+    db.close();
+  }
+  const before = snapshot(root);
+  expect(
+    listActions(root, { owner: '/%61_b%25/' }).result.actions.map(
+      (a) => a.owner.url,
+    ),
+  ).toEqual([owners[0]]);
+  expect(
+    listActions(root, {
+      owner: '/%61_b%25/',
+      recursive: true,
+    }).result.actions.map((a) => a.owner.url),
+  ).toEqual([owners[0], owners[3]]);
+  expect(
+    listActions(root, { owner: '/A_b%25/', recursive: true }).result.actions,
+  ).toEqual([]);
+  expect(snapshot(root)).toEqual(before);
+});
+
+test('list rejects invalid arguments before discovery and distinguishes corrupt store and Workspace metadata', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  for (const input of [
+    { recursive: true },
+    { owner: '/..//' },
+    { owner: '/bad%/' },
+  ])
+    expect(() => listActions(root, input)).toThrow(
+      expect.objectContaining({ code: 'INVALID_ARGUMENT' }),
+    );
+  expect(snapshot(root)).toEqual({});
+  expect(() => listActions(root)).toThrow(
+    expect.objectContaining({ code: 'WORKSPACE_NOT_FOUND' }),
+  );
+  const { store } = initialize(root);
+  writeFileSync(store, 'corrupt');
+  const before = snapshot(root);
+  expect(() => listActions(root)).toThrow(
+    expect.objectContaining({ code: 'INVALID_STORE' }),
   );
   expect(snapshot(root)).toEqual(before);
+  writeFileSync(
+    join(root, 'README.md'),
+    '---\ntype: OWF Workspace\ntitle: [broken\n---',
+  );
+  expect(() => listActions(root)).toThrow(
+    expect.objectContaining({ code: 'INVALID_WORKSPACE' }),
+  );
 });

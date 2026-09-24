@@ -62,6 +62,45 @@ function mapRow(value: unknown): Action {
 }
 
 export const actionRepository: ActionRepository = {
+  list(path, filter) {
+    let db: DatabaseSync | undefined;
+    try {
+      db = new DatabaseSync(path, { readOnly: true });
+      db.exec('PRAGMA busy_timeout = 1000');
+      // Canonical owner URLs end in /, so a literal prefix respects path segments.
+      const matches =
+        filter === undefined
+          ? '1'
+          : filter.recursive
+            ? 'substr(owner_url, 1, length(?)) = ?'
+            : 'owner_url = ?';
+      const parameters =
+        filter === undefined
+          ? []
+          : filter.recursive
+            ? [filter.owner, filter.owner]
+            : [filter.owner];
+      // Validate every row from the same read, including nonmatching owners.
+      // A WHERE clause could hide corruption as an empty or partial result.
+      const rows = db
+        .prepare(
+          `SELECT id,title,state,owner_url,description,created_at,updated_at, (${matches}) AS matches_filter FROM actions ORDER BY created_at DESC, id ASC`,
+        )
+        .all(...parameters)
+        .map(({ matches_filter, ...row }) => ({
+          action: mapRow(row),
+          matches: matches_filter === 1,
+        }));
+      return rows.filter((row) => row.matches).map((row) => row.action);
+    } catch {
+      throw new WorkspaceError(
+        'ACTION_READ_FAILED',
+        'Could not read valid Actions. Check store access and integrity.',
+      );
+    } finally {
+      db?.close();
+    }
+  },
   create(path, action) {
     let db: DatabaseSync | undefined;
     try {

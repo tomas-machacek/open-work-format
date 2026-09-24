@@ -1,9 +1,9 @@
 # OWF Tool
 
 The CLI initializes a named local OWF Workspace, discovers it from descendant
-directories, creates Markdown Projects and Outcomes, and creates or retrieves
-Actions in the Workspace Operational Store. Inbox operations and the future web
-interface are not yet implemented.
+directories, creates Markdown Projects and Outcomes, and creates, retrieves or
+lists Actions in the Workspace Operational Store. Inbox operations and the
+future web interface are not yet implemented.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
 deferred features, and acceptance scenarios.
@@ -94,6 +94,10 @@ $action = node $cli create action --title "Call the supplier" --json | ConvertFr
 node $cli create action --title "Confirm delivery" --owner / --description "Check the delivery date."
 node $cli get action $action.result.action.id
 node $cli get action $action.result.uri --json
+node $cli list actions --json
+node $cli list actions --owner / --json
+node $cli list actions --owner /_projects/kitchen/ --json
+node $cli list actions --owner /_projects/kitchen/ --recursive --json
 ```
 
 Projects always become top-level entries in `/_projects/`. Outcomes use the nearest
@@ -121,6 +125,15 @@ the current Markdown owner. Human output shows title, ID, URI, state, owner,
 description and timestamps; `--json` emits the complete result envelope.
 The PowerShell example saves the creation response and passes its real ID/URI
 to get. In the generated Workspace guide, `{id}` denotes that returned UUID.
+
+`list actions` returns every Action in the discovered Workspace, even when run
+from inside a Project. `--owner /` selects only Workspace-owned Actions;
+`--owner /_projects/kitchen/` selects only Actions directly owned by that
+Project. Add `--recursive` to include Actions whose stored owner URLs are below
+that Project, including nested Outcomes. Recursive matching uses stored URL
+references and complete path segments; a moved or missing Markdown owner does
+not repair or change those references. Valid filters with no matches succeed
+with an empty list. `--recursive` requires `--owner`.
 
 Successful Project/Outcome JSON creation returns `ok`, `result` (status, type, title, root, url,
 path, owner) and `warnings`. Log failures keep the usable object and return exit 0

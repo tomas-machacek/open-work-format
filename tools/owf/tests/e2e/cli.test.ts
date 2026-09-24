@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
@@ -305,4 +306,156 @@ test('Action commands round trip across processes with complete envelopes, human
   );
   expect(run(root, ['get', 'action', '--help']).stdout).toContain('owf:action');
   expect(snapshot(root)).toEqual(before);
+});
+
+test('Action listing renders complete JSON, compact human output and argument errors', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  expect(run(root, ['init']).status).toBe(0);
+  const created = run(root, [
+    'create',
+    'action',
+    '--title',
+    'Call supplier',
+    '--description',
+    '',
+    '--json',
+  ]);
+  expect(created.status).toBe(0);
+  const saved = z
+    .object({
+      result: z.object({ action: z.object({ id: z.string() }).passthrough() }),
+    })
+    .parse(JSON.parse(created.stdout));
+  const before = snapshot(root);
+  const listed = run(root, [
+    'list',
+    'actions',
+    '--owner',
+    '/',
+    '--recursive',
+    '--json',
+  ]);
+  expect(listed.status).toBe(0);
+  expect(JSON.parse(listed.stdout)).toEqual({
+    ok: true,
+    result: {
+      status: 'listed',
+      type: 'actions',
+      root,
+      actions: [saved.result.action],
+    },
+    warnings: [],
+  });
+  const listHuman = run(root, ['list', 'actions']);
+  expect(listHuman.status).toBe(0);
+  for (const field of [
+    'Title: Call supplier',
+    `ID: ${saved.result.action.id}`,
+    'State: open',
+    'Owner: /',
+  ])
+    expect(listHuman.stdout.split(/\r?\n/u)).toContain(field);
+  for (const json of [false, true]) {
+    const empty = run(root, [
+      'list',
+      'actions',
+      '--owner',
+      '/missing/',
+      ...(json ? ['--json'] : []),
+    ]);
+    expect(empty.status).toBe(0);
+    if (json)
+      expect(JSON.parse(empty.stdout)).toEqual({
+        ok: true,
+        result: { status: 'listed', type: 'actions', root, actions: [] },
+        warnings: [],
+      });
+    else expect(empty.stdout.trim()).toBe('No Actions found.');
+  }
+  for (const args of [
+    ['--recursive'],
+    ['--owner', '/../'],
+    ['--json', '--owner'],
+    ['--state', 'open'],
+    ['extra'],
+  ]) {
+    const failed = run(root, ['list', 'actions', '--json', ...args]);
+    expect(failed.status).toBe(2);
+    expect(JSON.parse(failed.stdout)).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' },
+    });
+  }
+  const help = run(root, ['list', 'actions', '--help']).stdout;
+  for (const text of [
+    'regardless of working directory',
+    '--owner',
+    '--recursive',
+    '--json',
+  ])
+    expect(help).toContain(text);
+  expect(snapshot(root)).toEqual(before);
+});
+
+test('listing CLI forwards recursive ownership and reports read/store failures with exit 1', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  expect(run(root, ['init']).status).toBe(0);
+  expect(run(root, ['create', 'project', '--title', 'Kitchen']).status).toBe(0);
+  expect(
+    run(join(root, '_projects/kitchen'), [
+      'create',
+      'action',
+      '--title',
+      'Nested',
+    ]).status,
+  ).toBe(0);
+  const before = snapshot(root);
+  for (const recursive of [false, true]) {
+    const result = run(root, [
+      'list',
+      'actions',
+      '--owner',
+      '/',
+      '--json',
+      ...(recursive ? ['--recursive'] : []),
+    ]);
+    expect(result.status).toBe(0);
+    const parsed = z
+      .object({
+        result: z.object({ actions: z.array(z.object({ title: z.string() })) }),
+      })
+      .parse(JSON.parse(result.stdout));
+    expect(parsed.result.actions.map((action) => action.title)).toEqual(
+      recursive ? ['Nested'] : [],
+    );
+  }
+  expect(snapshot(root)).toEqual(before);
+
+  const store = join(root, '_store/owf.sqlite');
+  const db = new DatabaseSync(store);
+  try {
+    db.prepare('UPDATE actions SET owner_url = ?').run('broken');
+  } finally {
+    db.close();
+  }
+  for (const code of ['ACTION_READ_FAILED', 'INVALID_STORE']) {
+    if (code === 'INVALID_STORE') writeFileSync(store, 'corrupt');
+    const damaged = snapshot(root);
+    const failed = run(root, [
+      'list',
+      'actions',
+      '--owner',
+      '/',
+      '--recursive',
+      '--json',
+    ]);
+    expect(failed.status).toBe(1);
+    expect(JSON.parse(failed.stdout)).toMatchObject({
+      ok: false,
+      error: { code },
+    });
+    expect(snapshot(root)).toEqual(damaged);
+  }
 });

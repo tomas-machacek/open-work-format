@@ -1,4 +1,9 @@
 import { z } from 'zod';
+export const listActionsOptions = z.object({
+  owner: z.string().optional(),
+  recursive: z.boolean().optional(),
+  json: z.boolean().optional(),
+});
 export const initOptions = z.object({
   title: z.string().optional(),
   json: z.boolean().optional(),

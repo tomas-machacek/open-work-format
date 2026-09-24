@@ -21,6 +21,7 @@ import {
   initialize,
   createAction,
   getAction,
+  listActions,
   workspacePorts,
   create,
 } from '../../../src/bootstrap/workspaces.js';
@@ -39,6 +40,7 @@ import {
 } from '../../support/workspace.js';
 
 class WorkspaceWorld extends World {
+  listed: Action[] = [];
   action: Action | undefined;
   actionOwner = '';
   base = temporaryDirectory();
@@ -66,6 +68,57 @@ class WorkspaceWorld extends World {
   }
 }
 setWorldConstructor(WorkspaceWorld);
+Given(
+  'Actions owned by Workspace, Kitchen, two nested Outcomes and Kitchenette',
+  function (this: WorkspaceWorld) {
+    initialize(this.root, 'Listing');
+    const kitchen = create(this.root, {
+      type: 'project',
+      title: 'Kitchen',
+    }).result;
+    const parent = create(kitchen.path, {
+      type: 'outcome',
+      title: 'Parent',
+    }).result;
+    const child = create(parent.path, {
+      type: 'outcome',
+      title: 'Child',
+    }).result;
+    const sibling = create(this.root, {
+      type: 'project',
+      title: 'Kitchenette',
+    }).result;
+    for (const [path, title] of [
+      [this.root, 'Workspace'],
+      [kitchen.path, 'Kitchen'],
+      [parent.path, 'Parent'],
+      [child.path, 'Child'],
+      [sibling.path, 'Kitchenette'],
+    ] as const)
+      createAction(path, { title });
+    this.cwd = child.path;
+    this.before = snapshot(this.root);
+  },
+);
+When(
+  'I list Actions with owner {string} and mode {word}',
+  function (this: WorkspaceWorld, owner: string, mode: string) {
+    this.listed = listActions(
+      this.cwd,
+      owner === 'all' ? {} : { owner, recursive: mode === 'recursive' },
+    ).result.actions;
+  },
+);
+Then(
+  'the listed titles are exactly {string}',
+  function (this: WorkspaceWorld, titles: string) {
+    assert.deepEqual(
+      this.listed.map((action) => action.title).sort(),
+      titles.split(',').sort(),
+    );
+    assert.deepEqual(snapshot(this.root), this.before);
+  },
+);
 Given(
   'I am working inside Project {string}',
   function (this: WorkspaceWorld, title: string) {
