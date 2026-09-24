@@ -1,12 +1,12 @@
 # 0004 — Action listing and owner filtering
 
-> Status: in_progress
+> Status: completed
 > Description: List Actions in the current Workspace, optionally filtered by direct owner or a stored owner subtree.
 > Depends on: [0003 — Action creation and retrieval](0003-action-create-get.md).
 
 The user reviewed and approved this design for implementation on 2026-09-23.
 Implementation was independently reviewed; review fixes and verification are
-recorded below. Follow-up independent review of the fixes is pending.
+recorded below. Follow-up independent review found no further blocking issue.
 
 ## Goal and scope
 
@@ -259,9 +259,14 @@ rerun outside the sandbox. `git diff --check` passed. Only this verification
 record was added after the successful full run; it was checked separately for
 formatting. No Linux run, commit, push or merge was performed.
 
-Follow-up independent review of the fixes is pending; status remains
-`in_progress`. No schema change,
-migration, new dependency, state filter, release or merge is included.
+Follow-up independent review on 2026-09-24 inspected `fb8ba268899594e5c6135eca70a8616c0dd46a18`
+and found no further blocking issue. On Linux with Node.js v24.19.0, all 90
+integration tests passed and `git diff --check` was clean. The reviewer did not
+repeat the full verify suite. The user also reported a successful full
+`npm run verify` on Windows after the fixes; its terminal output and exact
+runtime version were not independently captured here. The implementation is
+ready for merge. No schema change, migration, new dependency, state filter or
+release is included.
 
 ## Decision changes and follow-up
 
