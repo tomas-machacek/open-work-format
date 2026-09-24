@@ -1,6 +1,6 @@
 # 0005 — Action state changes
 
-> Status: in_progress
+> Status: completed
 > Description: Change an Action's execution state, record waiting context and filter lists by state.
 > Depends on: [0004 — Action listing](0004-action-list.md).
 
@@ -201,9 +201,8 @@ recursive owner filtering (one result), complete, reopen, and retrieve by URI.
 JSON and human output matched the persisted values. Existing user-written guides
 are covered by the unchanged initialization acceptance scenario.
 
-Independent review found the clock issue recorded below; review of its fixes
-is pending. Status remains in_progress in this document and index. No merge or
-release was performed. Linux was not tested for this increment.
+Independent review found the clock issue recorded below. Its fix was subsequently
+reviewed; no further blocking issue was found. No release was performed.
 No migration, archive, dependencies, derived blocking, or clearing a waiting
 reason while remaining waiting is included. Review should assess the PR diff
 against the canonical tests and acceptance criteria above.
@@ -229,7 +228,14 @@ against the canonical tests and acceptance criteria above.
   without reading the clock. The three targeted regression checks also passed.
   The historical verify result above applies to the original implementation;
   this result covers the follow-up code and tests. Only this outcome record
-  changed after verification. Review of the fixes remains pending.
+  changed after verification.
+- Follow-up independent review of `4039aa4f516f350d77a179f6413752b32ab5e0f9`
+  inspected the clock guard, transaction and regression tests; no further
+  blocking issue was found. On Linux with Node.js v24.19.0, 103 integration
+  tests and 56 unit tests passed. `git diff --check` was clean. The reviewer
+  did not repeat the full `npm run verify`; the Windows result above is the
+  full-suite evidence for the reviewed implementation. The documentation-only
+  completion changes were checked for formatting and diff integrity.
 - No schema migration or compatibility path for pre-0005 PoC Workspaces, per
   user decision. Future changes can define migrations if persistence becomes
   necessary.
