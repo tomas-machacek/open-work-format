@@ -4,8 +4,9 @@
 > Description: Change an Action's execution state, record waiting context and filter lists by state.
 > Depends on: [0004 — Action listing](0004-action-list.md).
 
-The user agreed to state changes, a waiting reason and a state filter. For this
-PoC, existing Workspaces need no migration or compatibility path: assume all
+The user agreed to state changes, a waiting reason, editing that reason while
+remaining in `waiting`, and a state filter. For this PoC, existing Workspaces
+need no migration or compatibility path: assume all
 Workspaces used after delivery are initialized with this increment's schema.
 
 ## Goal and scope
@@ -29,6 +30,7 @@ changes do not automatically change the owning Outcome or Project.
 ```text
 owf set action UUID --state in_progress
 owf set action UUID --state waiting --waiting-for "Odpoveď dodávateľa"
+owf set action UUID --state waiting --waiting-for "Nový termín odpovede"
 owf set action UUID --state completed
 owf set action UUID --state cancelled
 owf set action UUID --state open
@@ -39,18 +41,21 @@ Accept a UUID v4 or `owf:action:UUID`, as `get action` does. `--state` is requir
 on `set action`. The new state must be one of `open`, `in_progress`, `waiting`,
 `completed` and `cancelled`; reject `archived` in this increment. A change from
 any of those states to any _different_ one is permitted, including reopening a
-terminal Action. This proposes an explicit correction path for an accidental
-completion or cancellation; it does not introduce an automatic cascade.
-Reject setting the existing state again as `INVALID_ARGUMENT` without a write.
+terminal Action to correct an accidental completion or cancellation. There is
+no automatic cascade. While already in `waiting`, the same command with a
+different `--waiting-for` updates only the waiting reason. A repeated state
+request that changes neither state nor waiting reason is `INVALID_ARGUMENT`
+and makes no write.
 
-`--waiting-for` is optional when entering `waiting`, may be an empty string only
-if the existing string validation allows it, and is invalid with other target
-states. Entering `waiting` without the option starts with no reason; leaving
-`waiting` clears the reason in the same update. This command does not edit the
-reason while the state remains `waiting`; a later content-edit operation can
-provide that capability. Preserve the supplied reason verbatim, without
-trimming or silently replacing it. JSON and human output show the resulting
-Action, including the reason when present.
+`--waiting-for` is optional when entering `waiting` and invalid with other
+target states. If supplied, it must contain non-whitespace text; preserve the
+supplied string verbatim, without trimming or silently replacing it. Entering
+`waiting` without the option starts with no reason. While already `waiting`,
+supplying a different reason replaces the existing value; omitting the option
+leaves it unchanged and is therefore a no-op error. Leaving `waiting` clears
+the reason in the same update. Clearing a reason while remaining `waiting` is
+deferred. JSON and human output show the resulting Action, including the reason
+when present.
 
 `list actions --state STATE` selects precisely one of the five states. It can be
 combined with `--owner` and `--recursive`, which retain their current semantics.
@@ -69,7 +74,8 @@ Workspace AGENTS.md files remain untouched.
 
 Keep Action ID, owner, title, description and `created_at`. On a successful
 transition set `updated_at` to the tool's current time and append a correlated
-operational event that identifies the Action, old and new state and event time.
+operational event that identifies the Action, old and new state and event time;
+for a reason-only edit, it must also record the old and new waiting reasons.
 The Action update and event insert must commit atomically; a failed update,
 event insert or commit leaves both the Action and Event Log unchanged. Use a
 single read/write transaction and check that the intended Action still has the
@@ -94,12 +100,13 @@ fresh PoC Workspace. No compatibility promise or migration is implied.
 
 AC1: An Action can enter each supported state, leave `waiting`, and reopen from
 `completed` or `cancelled`. ID and creation time stay stable; successful changes
-update `updated_at` and record one matching operational event. Repeating the
-same state or supplying an invalid state does not write.
+update `updated_at` and record one matching operational event. A request that
+changes neither state nor reason, or supplies an invalid state, does not write.
 
-AC2: `waiting_for` can accompany a transition into `waiting` and is absent
-after leaving it. It is optional, preserved literally when supplied, and
-rejected for other target states. Failed validation makes no partial change.
+AC2: `waiting_for` can accompany a transition into `waiting`, can be replaced
+while remaining `waiting`, and is absent after leaving it. It is optional,
+nonblank and preserved literally when supplied, and rejected for other target
+states. Failed validation makes no partial change.
 
 AC3: List without a state filter includes terminal Actions. The state filter
 matches exactly and composes with direct or recursive owner filtering. Empty
@@ -121,6 +128,8 @@ Scenario: Wait for a response, then complete a step
   Given an open Action
   When I change it to Waiting with a reason
   Then the reason is available when I read the Action
+  When I change its waiting reason while it remains Waiting
+  Then the new reason is available when I read the Action
   When I change it to Completed
   Then it is Completed without a waiting reason
 
@@ -142,13 +151,11 @@ Scenario: Find work by state and owner
 - Run `npm run verify` before handoff and record exact revision, platform and
   actual results. Manually try a fresh Workspace and the commands above.
 
-## Open questions for review
+## Open questions
 
-- Confirm that terminal Actions can be reopened and that a repeated same-state
-  request is rejected. Core names terminal dispositions but does not prescribe
-  a transition graph.
-- Confirm whether editing `waiting_for` while remaining in `waiting` belongs in
-  this increment; the proposal defers it to content editing.
+No blocking question. Reopening terminal Actions and replacing `waiting_for`
+while remaining in `waiting` were confirmed by the user. Other transition
+details in this draft remain subject to design review.
 
 ## Implementation and review outcome
 
@@ -160,4 +167,7 @@ here; set `completed` only after implementation, verification and review.
 - No schema migration or compatibility path for pre-0005 PoC Workspaces, per
   user decision. Future changes can define migrations if persistence becomes
   necessary.
+- Reopening `completed`/`cancelled` corrects accidental transitions. A repeated
+  `waiting` command may replace the reason without a state change, per user
+  decision.
 - Archive, dependency checks and derived blocking remain separate increments.
