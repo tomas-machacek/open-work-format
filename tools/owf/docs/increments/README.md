@@ -22,6 +22,7 @@ link and a one-line description; keep its status in sync.
 | [0002 — Project and Outcome creation](0002-project-outcome-creation.md) | Create Markdown work contexts and generate Workspace CLI guidance.     | completed |
 | [0003 — Action creation and retrieval](0003-action-create-get.md)       | Create Actions in the Operational Store and retrieve them by ID.       | completed |
 | [0004 — Action listing](0004-action-list.md)                            | List Actions by direct owner or recursively by owner subtree.          | completed |
+| [0005 — Action state changes](0005-action-state.md)                     | Change Action state and filter Actions by state.                       | draft     |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;
