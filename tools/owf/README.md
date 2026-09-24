@@ -2,7 +2,7 @@
 
 The CLI initializes a named local OWF Workspace, discovers it from descendant
 directories, creates Markdown Projects and Outcomes, and creates, retrieves or
-lists Actions in the Workspace Operational Store. Inbox operations and the
+lists Actions and changes their execution state in the Workspace Operational Store. Inbox operations and the
 future web interface are not yet implemented.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
@@ -94,6 +94,11 @@ $action = node $cli create action --title "Call the supplier" --json | ConvertFr
 node $cli create action --title "Confirm delivery" --owner / --description "Check the delivery date."
 node $cli get action $action.result.action.id
 node $cli get action $action.result.uri --json
+node $cli set action $action.result.action.id --state waiting --waiting-for "Supplier reply" --json
+node $cli set action $action.result.uri --state waiting --waiting-for "New reply date"
+node $cli list actions --state open --state waiting --owner /_projects/kitchen/ --recursive --json
+node $cli set action $action.result.uri --state completed
+node $cli set action $action.result.uri --state open
 node $cli list actions --json
 node $cli list actions --owner / --json
 node $cli list actions --owner /_projects/kitchen/ --json
@@ -135,6 +140,33 @@ references and complete path segments; a moved or missing Markdown owner does
 not repair or change those references. Valid filters with no matches succeed
 with an empty list. `--recursive` requires `--owner`.
 
+`set action ID --state STATE` accepts `open`, `in_progress`, `waiting`,
+`completed` and `cancelled`, including reopening terminal Actions. The optional
+`--waiting-for` is valid only with `waiting` and must contain nonblank text;
+it is preserved literally. Entering waiting without it starts without a reason.
+While already waiting, supplying it replaces the reason, and omitting it keeps
+the current reason. Leaving waiting clears the reason atomically. Clearing a
+reason while remaining waiting is deferred.
+
+A real change preserves ID, owner, title, description and `created_at`, updates
+`updated_at`, and commits one `action.state_changed` event with old/new states
+and waiting reasons. JSON uses the Action envelope with status `updated`.
+An identical request succeeds as `unchanged`, with no new event or timestamp.
+A failed transaction saves neither change nor event. `ACTION_NOT_FOUND` means
+the ID is absent; invalid stored data and store errors remain distinct.
+`ACTION_CONFLICT` reports a rejected conditional write; `ACTION_UPDATE_FAILED`
+reports other transaction failures, including competing writer lock timeout.
+If the system clock precedes the Action's creation time, a real change returns
+`ACTION_UPDATE_FAILED` without changing the Action or its events. Correct the
+clock and retry. An identical request still succeeds unchanged.
+State changes work even after the Markdown owner directory disappears.
+
+Repeat `list actions --state STATE` to match any listed state; duplicates do not
+repeat Actions. Owner scope and state selection combine with AND. Comma-separated
+states are invalid. Without state selection, terminal Actions are included.
+Get and list stay read-only and include `waiting_for` only when present.
+Archive, dependencies and derived blocking are not implemented.
+
 Successful Project/Outcome JSON creation returns `ok`, `result` (status, type, title, root, url,
 path, owner) and `warnings`. Log failures keep the usable object and return exit 0
 with `LOG_WRITE_FAILED`; do not retry creation. Invalid arguments return exit 2;
@@ -148,7 +180,7 @@ retain their store diagnostics. Both commands use exit 2 for invalid arguments
 or titles and exit 1 for operational errors.
 
 Fresh initialization provides command examples in `AGENTS.md`. Repeat init never
-overwrites or backfills that guide. Schema 1 Workspaces require a fresh
+overwrites or backfills that guide. Schema 1 and 2 Workspaces require a fresh
 disposable directory for this version; existing instructions can be updated
 manually using the commands documented here. An
 existing `AGENTS.md` in a fresh directory prevents initialization.
@@ -156,8 +188,8 @@ existing `AGENTS.md` in a fresh directory prevents initialization.
 The tool refuses target collisions and unavailable/unsupported stores. It does
 not rename, repair, overwrite, or create nested Workspaces. Fresh initialization
 creates `owf_metadata`, Actions, and the Operational Event Log with format
-`owf-tool-operational` and schema version `2`; profile version `0.1` and package
-version `0.0.0` are independent. Schema 1 and unknown versions are rejected
+`owf-tool-operational` and schema version `3`; profile version `0.1` and package
+version `0.0.0` are independent. Schema 1, 2 and unknown versions are rejected
 without upgrade. Use a fresh disposable directory to try this version; do not
 overwrite an existing Workspace. This is
 limited profile support, not a claim of complete conformance.

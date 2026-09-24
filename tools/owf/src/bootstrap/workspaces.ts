@@ -7,6 +7,8 @@ import {
   createAction as createActionUseCase,
   getAction as getActionUseCase,
   listActions as listActionsUseCase,
+  setAction as setActionUseCase,
+  type SetActionInput,
   type ListActionsInput,
   type ActionInput,
 } from '../application/actions/index.js';
@@ -56,3 +58,8 @@ export const getAction = (root: string, identifier: string) =>
   getActionUseCase(root, identifier, actionPorts);
 export const listActions = (root: string, input: ListActionsInput = {}) =>
   listActionsUseCase(root, input, actionPorts);
+export const setAction = (
+  root: string,
+  identifier: string,
+  input: SetActionInput,
+) => setActionUseCase(root, identifier, input, actionPorts);

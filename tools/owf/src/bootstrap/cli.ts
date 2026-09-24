@@ -7,6 +7,7 @@ import {
   createAction,
   getAction,
   listActions,
+  setAction,
 } from './workspaces.js';
 
 const metadata: unknown = JSON.parse(
@@ -27,4 +28,5 @@ runCli(
   (input) => createAction(process.cwd(), input),
   (identifier) => getAction(process.cwd(), identifier),
   (input) => listActions(process.cwd(), input),
+  (identifier, input) => setAction(process.cwd(), identifier, input),
 );

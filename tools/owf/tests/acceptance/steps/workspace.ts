@@ -22,6 +22,7 @@ import {
   createAction,
   getAction,
   listActions,
+  setAction,
   workspacePorts,
   create,
 } from '../../../src/bootstrap/workspaces.js';
@@ -68,6 +69,81 @@ class WorkspaceWorld extends World {
   }
 }
 setWorldConstructor(WorkspaceWorld);
+When(
+  'I set its execution state to {string} with reason {string}',
+  function (this: WorkspaceWorld, state: string, waitingFor: string) {
+    assert.ok(this.action);
+    this.action = setAction(this.root, this.action.id, {
+      state,
+      waitingFor,
+    }).result.action;
+  },
+);
+When(
+  'I set its execution state to {string}',
+  function (this: WorkspaceWorld, state: string) {
+    assert.ok(this.action);
+    this.action = setAction(this.root, this.action.id, { state }).result.action;
+  },
+);
+Then(
+  'its persisted execution state is {string} with reason {string}',
+  function (this: WorkspaceWorld, state: string, reason: string) {
+    assert.ok(this.action);
+    const stored = getAction(this.root, this.action.id).result.action;
+    assert.equal(stored.state, state);
+    assert.equal(stored.waiting_for, reason);
+  },
+);
+Then(
+  'its persisted execution state is {string} without a waiting reason',
+  function (this: WorkspaceWorld, state: string) {
+    assert.ok(this.action);
+    const stored = getAction(this.root, this.action.id).result.action;
+    assert.equal(stored.state, state);
+    assert.equal('waiting_for' in stored, false);
+  },
+);
+Given(
+  'mixed Action states under Kitchen, a nested Outcome and the Workspace',
+  function (this: WorkspaceWorld) {
+    initialize(this.root, 'States');
+    const project = create(this.root, {
+      type: 'project',
+      title: 'Kitchen',
+    }).result;
+    const outcome = create(project.path, {
+      type: 'outcome',
+      title: 'Ready',
+    }).result;
+    for (const [path, title, state] of [
+      [project.path, 'Open step', 'open'],
+      [project.path, 'Done step', 'completed'],
+      [outcome.path, 'Wait step', 'waiting'],
+      [this.root, 'Other wait', 'waiting'],
+      [this.root, 'Cancelled step', 'cancelled'],
+    ] as const) {
+      const action = createAction(path, { title }).result.action;
+      setAction(this.root, action.id, { state });
+    }
+    assert.equal(listActions(this.root).result.actions.length, 5);
+    assert.deepEqual(
+      listActions(this.root, { state: ['in_progress'] }).result.actions,
+      [],
+    );
+    this.before = snapshot(this.root);
+  },
+);
+When(
+  'I select states {string} under Kitchen in {word} mode',
+  function (this: WorkspaceWorld, states: string, mode: string) {
+    this.listed = listActions(this.root, {
+      owner: '/_projects/kitchen/',
+      recursive: mode === 'recursive',
+      state: states.split(','),
+    }).result.actions;
+  },
+);
 Given(
   'Actions owned by Workspace, Kitchen, two nested Outcomes and Kitchenette',
   function (this: WorkspaceWorld) {
@@ -311,7 +387,7 @@ Then(
   },
 );
 Then(
-  'the declared local store has recognized schema version 2',
+  'the declared local store has recognized schema version 3',
   function (this: WorkspaceWorld) {
     assert.ok(this.result);
     workspacePorts.store.validate(this.result.store);
