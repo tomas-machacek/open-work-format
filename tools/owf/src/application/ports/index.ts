@@ -1,10 +1,19 @@
 import type { WorkspaceMetadata } from '../../domain/workspaces/index.js';
-import type { Action } from '../../domain/actions/index.js';
+import type { Action, ActionState } from '../../domain/actions/index.js';
 
 export interface ActionRepository {
   create(path: string, action: Action): void;
   get(path: string, id: string): Action | undefined;
-  list(path: string, filter?: { owner: string; recursive: boolean }): Action[];
+  list(
+    path: string,
+    filter?: { owner?: string; recursive?: boolean; states?: ActionState[] },
+  ): Action[];
+  changeState(
+    path: string,
+    id: string,
+    // Runs once on a validated record inside the write transaction; do not mutate current.
+    change: (current: Action) => Action,
+  ): { action: Action; changed: boolean };
 }
 export interface ActionPorts extends ContextPorts {
   actions: ActionRepository;

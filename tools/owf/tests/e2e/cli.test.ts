@@ -24,6 +24,110 @@ function run(root: string, args: string[]) {
 afterEach(() => {
   roots.splice(0).forEach(cleanup);
 });
+
+test('set CLI renders changed and unchanged Actions, validates arguments and forwards combined filters', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  expect(run(root, ['init']).status).toBe(0);
+  expect(run(root, ['create', 'project', '--title', 'Kitchen']).status).toBe(0);
+  const created = run(join(root, '_projects/kitchen'), [
+    'create',
+    'action',
+    '--title',
+    'Wait',
+    '--json',
+  ]);
+  const {
+    result: {
+      action: { id },
+    },
+  } = z
+    .object({ result: z.object({ action: z.object({ id: z.uuidv4() }) }) })
+    .parse(JSON.parse(created.stdout));
+  const command = [
+    'set',
+    'action',
+    `owf:action:${id}`,
+    '--state',
+    'waiting',
+    '--waiting-for',
+    '  Supplier reply  ',
+  ];
+  const changed = run(root, [...command, '--json']);
+  expect(changed.status).toBe(0);
+  expect(JSON.parse(changed.stdout)).toMatchObject({
+    ok: true,
+    result: {
+      status: 'updated',
+      type: 'action',
+      root,
+      uri: `owf:action:${id}`,
+      action: { id, state: 'waiting', waiting_for: '  Supplier reply  ' },
+    },
+    warnings: [],
+  });
+  const unchanged = run(root, command);
+  expect(unchanged.status).toBe(0);
+  expect(unchanged.stdout).toContain('unchanged action');
+  expect(unchanged.stdout).toContain('Waiting for:   Supplier reply  ');
+  expect(run(root, ['get', 'action', id]).stdout).toContain(
+    'Waiting for:   Supplier reply  ',
+  );
+  expect(run(root, ['list', 'actions']).stdout).toContain(
+    'Waiting for:   Supplier reply  ',
+  );
+  const listed = run(root, [
+    'list',
+    'actions',
+    '--owner',
+    '/',
+    '--recursive',
+    '--state',
+    'open',
+    '--state',
+    'waiting',
+    '--state',
+    'waiting',
+    '--json',
+  ]);
+  expect(listed.status).toBe(0);
+  expect(JSON.parse(listed.stdout)).toMatchObject({
+    result: {
+      actions: [{ id, state: 'waiting', waiting_for: '  Supplier reply  ' }],
+    },
+  });
+  const before = snapshot(root);
+  for (const args of [
+    [],
+    ['--state', 'archived'],
+    ['--state', 'waiting', '--waiting-for', ' '],
+    ['--state', 'completed', '--waiting-for', 'Reply'],
+    ['--state', 'open,waiting'],
+  ]) {
+    const failed = run(root, ['set', 'action', id, '--json', ...args]);
+    expect(failed.status).toBe(2);
+    expect(JSON.parse(failed.stdout)).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' },
+    });
+  }
+  const missing = run(root, [
+    'set',
+    'action',
+    '00000000-0000-4000-8000-000000000000',
+    '--state',
+    'open',
+    '--json',
+  ]);
+  expect(missing.status).toBe(1);
+  expect(JSON.parse(missing.stdout)).toMatchObject({
+    error: { code: 'ACTION_NOT_FOUND' },
+  });
+  expect(snapshot(root)).toEqual(before);
+  const help = run(root, ['set', 'action', '--help']).stdout;
+  expect(help).toContain('--waiting-for');
+  expect(help).toContain('unchanged');
+});
 test('real processes initialize and rediscover immutable workspace in spaces/Unicode path', () => {
   const root = temporaryDirectory();
   roots.push(root);
@@ -104,7 +208,8 @@ test('generated guide examples execute through the built CLI outside checkout', 
   expect(run(root, ['create', 'outcome', '--help']).stdout).toContain(
     '--expected-result',
   );
-});
+  // The guide starts over twenty independent Node processes on Windows.
+}, 15_000);
 
 test.each([
   [['project', '--json'], 'INVALID_ARGUMENT', 2],
@@ -377,7 +482,8 @@ test('Action listing renders complete JSON, compact human output and argument er
     ['--recursive'],
     ['--owner', '/../'],
     ['--json', '--owner'],
-    ['--state', 'open'],
+    ['--state', 'archived'],
+    ['--state', 'open,waiting'],
     ['extra'],
   ]) {
     const failed = run(root, ['list', 'actions', '--json', ...args]);

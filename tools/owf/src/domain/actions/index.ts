@@ -9,11 +9,60 @@ export interface ActionInput {
 export interface Action {
   id: string;
   title: string;
-  state: 'open';
+  state: ActionState;
+  waiting_for?: string;
   owner: { url: string };
   description?: string;
   created_at: string;
   updated_at: string;
+}
+
+export const actionStates = [
+  'open',
+  'in_progress',
+  'waiting',
+  'completed',
+  'cancelled',
+] as const;
+export type ActionState = (typeof actionStates)[number];
+export interface SetActionInput {
+  state: string;
+  waitingFor?: string | undefined;
+}
+export function actionState(value: string): ActionState {
+  const state = actionStates.find((state) => state === value);
+  if (state === undefined)
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      `State must be one of: ${actionStates.join(', ')}.`,
+    );
+  return state;
+}
+export function validateStateRequest(input: SetActionInput): ActionState {
+  const state = actionState(input.state);
+  if (
+    input.waitingFor !== undefined &&
+    (state !== 'waiting' || !input.waitingFor.trim())
+  )
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      '--waiting-for requires waiting and nonblank text.',
+    );
+  return state;
+}
+export function changeActionState(
+  action: Action,
+  input: SetActionInput,
+  time: string,
+): Action {
+  const state = validateStateRequest(input);
+  const reason =
+    state === 'waiting' ? (input.waitingFor ?? action.waiting_for) : undefined;
+  if (state === action.state && reason === action.waiting_for) return action;
+  const changed = { ...action, state, updated_at: time };
+  delete changed.waiting_for;
+  if (reason !== undefined) changed.waiting_for = reason;
+  return changed;
 }
 
 export function actionId(value: string): string {

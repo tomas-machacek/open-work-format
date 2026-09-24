@@ -4,6 +4,7 @@ import {
   createOptions,
   createActionOptions,
   listActionsOptions,
+  setActionOptions,
 } from '../../contracts/index.js';
 import type {
   ContextInput,
@@ -18,6 +19,7 @@ import type {
   ActionResult,
   ListActionsInput,
   ListActionsResult,
+  SetActionInput,
 } from '../../application/actions/index.js';
 
 export function runCli(
@@ -28,12 +30,13 @@ export function runCli(
   createAction: (input: ActionInput) => ActionResult,
   getAction: (identifier: string) => ActionResult,
   listActions: (input: ListActionsInput) => ListActionsResult,
+  setAction: (identifier: string, input: SetActionInput) => ActionResult,
 ): void {
   let json = false;
   const program = new Command()
     .name('owf')
     .description(
-      'Initialize an OWF Workspace; create contexts and create, get, or list Actions',
+      'Initialize an OWF Workspace; create contexts and create, get, set, or list Actions',
     )
     .version(version)
     .exitOverride();
@@ -124,6 +127,31 @@ export function runCli(
         json ? JSON.stringify({ ok: true, ...result }) : renderAction(result),
       );
     });
+  program
+    .command('set')
+    .description('Change operational objects')
+    .command('action')
+    .description(
+      'Change Action state; terminal Actions can be reopened; identical requests succeed unchanged',
+    )
+    .argument('<identifier>', 'UUID or owf:action:<UUID>')
+    .requiredOption(
+      '--state <state>',
+      'open, in_progress, waiting, completed, cancelled',
+    )
+    .option(
+      '--waiting-for <text>',
+      'Nonblank literal waiting reason; only with waiting; omission preserves an existing reason',
+    )
+    .option('--json', 'Emit the updated or unchanged Action')
+    .action((identifier: string, options: unknown) => {
+      const parsed = setActionOptions.parse(options);
+      json = parsed.json ?? false;
+      const result = setAction(identifier, parsed);
+      console.log(
+        json ? JSON.stringify({ ok: true, ...result }) : renderAction(result),
+      );
+    });
   const get = program
     .command('get')
     .description('Retrieve an operational object');
@@ -158,6 +186,11 @@ export function runCli(
       'Include stored descendant owner URLs; requires --owner',
     )
     .option('--json', 'Emit one JSON result with complete Action records')
+    .option(
+      '--state <state>',
+      'open, in_progress, waiting, completed, cancelled; repeat for any state, combined with owner',
+      (value: string, previous: string[] = []) => [...previous, value],
+    )
     .action((options: unknown) => {
       const parsed = listActionsOptions.parse(options);
       json = parsed.json ?? false;
@@ -170,7 +203,7 @@ export function runCli(
             : result.result.actions
                 .map(
                   (action) =>
-                    `Title: ${action.title}\nID: ${action.id}\nState: ${action.state}\nOwner: ${action.owner.url}`,
+                    `Title: ${action.title}\nID: ${action.id}\nState: ${action.state}\nOwner: ${action.owner.url}${action.waiting_for === undefined ? '' : `\nWaiting for: ${action.waiting_for}`}`,
                 )
                 .join('\n\n'),
       );
@@ -187,6 +220,8 @@ export function runCli(
         '--owner',
         '--expected-result',
         '--description',
+        '--state',
+        '--waiting-for',
       ].includes(arg ?? '')
     ) {
       index++;
@@ -203,16 +238,18 @@ export function runCli(
         ? error.code
         : error instanceof CommanderError
           ? 'INVALID_ARGUMENT'
-          : operationalArgs[0] === 'create' && operationalArgs[1] === 'action'
-            ? 'ACTION_CREATE_FAILED'
-            : (operationalArgs[0] === 'get' &&
-                  operationalArgs[1] === 'action') ||
-                (operationalArgs[0] === 'list' &&
-                  operationalArgs[1] === 'actions')
-              ? 'ACTION_READ_FAILED'
-              : operationalArgs[0] === 'create'
-                ? 'CREATION_FAILED'
-                : 'INITIALIZATION_FAILED';
+          : operationalArgs[0] === 'set' && operationalArgs[1] === 'action'
+            ? 'ACTION_UPDATE_FAILED'
+            : operationalArgs[0] === 'create' && operationalArgs[1] === 'action'
+              ? 'ACTION_CREATE_FAILED'
+              : (operationalArgs[0] === 'get' &&
+                    operationalArgs[1] === 'action') ||
+                  (operationalArgs[0] === 'list' &&
+                    operationalArgs[1] === 'actions')
+                ? 'ACTION_READ_FAILED'
+                : operationalArgs[0] === 'create'
+                  ? 'CREATION_FAILED'
+                  : 'INITIALIZATION_FAILED';
     const message = error instanceof Error ? error.message : String(error);
     if (json)
       console.log(JSON.stringify({ ok: false, error: { code, message } }));
@@ -230,5 +267,5 @@ export function runCli(
 
 function renderAction(result: ActionResult): string {
   const { action } = result.result;
-  return `${result.result.status} action\nTitle: ${action.title}\nID: ${action.id}\nURI: ${result.result.uri}\nState: ${action.state}\nOwner: ${action.owner.url}\nDescription: ${action.description ?? '(none)'}\nCreated: ${action.created_at}\nUpdated: ${action.updated_at}\nRoot: ${result.result.root}`;
+  return `${result.result.status} action\nTitle: ${action.title}\nID: ${action.id}\nURI: ${result.result.uri}\nState: ${action.state}\nOwner: ${action.owner.url}${action.waiting_for === undefined ? '' : `\nWaiting for: ${action.waiting_for}`}\nDescription: ${action.description ?? '(none)'}\nCreated: ${action.created_at}\nUpdated: ${action.updated_at}\nRoot: ${result.result.root}`;
 }

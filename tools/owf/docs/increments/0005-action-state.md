@@ -1,6 +1,6 @@
 # 0005 — Action state changes
 
-> Status: reviewed
+> Status: in_progress
 > Description: Change an Action's execution state, record waiting context and filter lists by state.
 > Depends on: [0004 — Action listing](0004-action-list.md).
 
@@ -132,23 +132,18 @@ AC5: The built CLI, help, README and newly generated Workspace guide agree;
 existing create/get/list and Project/Outcome behavior is preserved. Existing
 Workspace guides are not overwritten.
 
-Draft domain scenarios (replace with canonical executable links after delivery):
+Canonical executable criteria:
 
-```gherkin
-Scenario: Wait for a response, then complete a step
-  Given an open Action
-  When I change it to Waiting with a reason
-  Then the reason is available when I read the Action
-  When I change its waiting reason while it remains Waiting
-  Then the new reason is available when I read the Action
-  When I change it to Completed
-  Then it is Completed without a waiting reason
-
-Scenario: Find work by state and owner
-  Given a Project with a completed Action and a nested Outcome with a waiting Action
-  When I list the Project Actions recursively in Waiting
-  Then only the nested Outcome Action is returned
-```
+- [Action state acceptance scenarios](../../tests/acceptance/features/action-state.feature)
+  cover waiting context, completion/reopening and OR state selection with direct
+  or recursive owner scope (AC1–AC3).
+- [Domain rules](../../src/domain/actions/actions.test.ts) cover the complete
+  transition matrix, literal/optional reasons and no-op invariants (AC1–AC2).
+- [SQLite integration](../../tests/integration/actions.test.ts) covers correlated
+  events, rollback at update/event/commit, competing writers, rejected conditional
+  writes, damaged rows and unsupported schemas without mutation (AC1, AC4).
+- [Built CLI](../../tests/e2e/cli.test.ts) covers envelopes, human output, arguments,
+  combined filters and execution of generated guide examples (AC3–AC5).
 
 ## Verification plan
 
@@ -170,8 +165,22 @@ were confirmed by the user.
 
 ## Implementation and review outcome
 
-Not implemented or independently reviewed. Record actual delivery and evidence
-here; set `completed` only after implementation, verification and review.
+Implemented the five-state operation, optional/editable waiting reason,
+idempotent unchanged response and repeated state filters. Domain rules run via
+an application callback inside one SQLite read/write transaction. BEGIN IMMEDIATE
+serializes writers; the conditional update also checks the read state, reason
+and updated_at. An update, event insert or commit failure rolls back both records.
+Lock timeout reports ACTION_UPDATE_FAILED with concurrency guidance; a rejected
+conditional write reports ACTION_CONFLICT.
+
+New Workspaces use schema 3. Previous schema versions are refused without
+migration, reset or replacement. Reads remain read-only; stored ownership stays
+usable after a Markdown owner moves. CLI help, README and the single generated
+guide source are updated; existing user guides remain untouched.
+
+Verification evidence will be recorded against the committed implementation
+before handoff. Independent review is pending; status remains in_progress.
+No merge or release is part of this increment handoff.
 
 ## Decision changes and follow-up
 

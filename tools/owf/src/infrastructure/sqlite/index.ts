@@ -17,16 +17,18 @@ export const workspaceStore: WorkspaceStore = {
         'INSERT INTO owf_metadata (key, value) VALUES (?, ?)',
       );
       insert.run('format', 'owf-tool-operational');
-      insert.run('schema_version', '2');
+      insert.run('schema_version', '3');
       db.exec(`
         CREATE TABLE actions (
           id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
-          state TEXT NOT NULL CHECK(state = 'open'), owner_url TEXT NOT NULL,
-          description TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+          state TEXT NOT NULL CHECK(state IN ('open','in_progress','waiting','completed','cancelled')), owner_url TEXT NOT NULL,
+          description TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+          waiting_for TEXT CHECK(waiting_for IS NULL OR (state = 'waiting' AND length(trim(waiting_for)) > 0))
         ) STRICT;
         CREATE TABLE action_events (
-          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind = 'action.created'),
-          action_id TEXT NOT NULL REFERENCES actions(id), created_at TEXT NOT NULL
+          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('action.created','action.state_changed')),
+          action_id TEXT NOT NULL REFERENCES actions(id), created_at TEXT NOT NULL,
+          old_state TEXT, new_state TEXT, old_waiting_for TEXT, new_waiting_for TEXT
         ) STRICT;
       `);
       db.exec('COMMIT');
@@ -63,16 +65,16 @@ export const workspaceStore: WorkspaceStore = {
           'INVALID_STORE',
           `Unrecognized store: ${path}`,
         );
-      if (version !== '2')
+      if (version !== '3')
         throw new WorkspaceError(
           'UNSUPPORTED_STORE_VERSION',
           `Unsupported store schema ${version}: ${path}`,
         );
       db.prepare(
-        'SELECT id, title, state, owner_url, description, created_at, updated_at FROM actions LIMIT 0',
+        'SELECT id, title, state, owner_url, description, created_at, updated_at, waiting_for FROM actions LIMIT 0',
       ).all();
       db.prepare(
-        'SELECT event_id, kind, action_id, created_at FROM action_events LIMIT 0',
+        'SELECT event_id, kind, action_id, created_at, old_state, new_state, old_waiting_for, new_waiting_for FROM action_events LIMIT 0',
       ).all();
       const integrity = db.prepare('PRAGMA quick_check').get();
       if (integrity?.quick_check !== 'ok') throw new Error('Corrupt store');

@@ -1,5 +1,9 @@
 import {
   actionId,
+  actionState,
+  changeActionState,
+  validateStateRequest,
+  type SetActionInput,
   newAction,
   validateActionOwner,
   type Action,
@@ -13,10 +17,15 @@ import type { ActionPorts } from '../ports/index.js';
 import { resolveContextOwner } from '../contexts/index.js';
 import { discoverWorkspace } from '../workspaces/index.js';
 
-export type { Action, ActionInput } from '../../domain/actions/index.js';
+export type {
+  Action,
+  ActionInput,
+  SetActionInput,
+} from '../../domain/actions/index.js';
 export interface ListActionsInput {
   owner?: string | undefined;
   recursive?: boolean | undefined;
+  state?: string[] | undefined;
 }
 export interface ListActionsResult {
   result: {
@@ -37,7 +46,8 @@ export function listActions(
       'INVALID_ARGUMENT',
       '--recursive requires --owner.',
     );
-  const filter =
+  const states = input.state?.map(actionState);
+  const ownerFilter =
     input.owner === undefined
       ? undefined
       : {
@@ -50,14 +60,17 @@ export function listActions(
       status: 'listed',
       type: 'actions',
       root: found.root,
-      actions: ports.actions.list(found.store, filter),
+      actions: ports.actions.list(found.store, {
+        ...ownerFilter,
+        ...(states === undefined ? {} : { states }),
+      }),
     },
     warnings: [],
   };
 }
 export interface ActionResult {
   result: {
-    status: 'created' | 'found';
+    status: 'created' | 'found' | 'updated' | 'unchanged';
     type: 'action';
     root: string;
     uri: string;
@@ -77,7 +90,7 @@ function workspace(start: string, ports: ActionPorts) {
 function result(
   root: string,
   action: Action,
-  status: 'created' | 'found',
+  status: ActionResult['result']['status'],
 ): ActionResult {
   return {
     result: {
@@ -89,6 +102,24 @@ function result(
     },
     warnings: [],
   };
+}
+export function setAction(
+  start: string,
+  identifier: string,
+  input: SetActionInput,
+  ports: ActionPorts,
+): ActionResult {
+  const id = actionId(identifier);
+  validateStateRequest(input);
+  const found = workspace(start, ports);
+  const saved = ports.actions.changeState(found.store, id, (current) =>
+    changeActionState(current, input, ports.now()),
+  );
+  return result(
+    found.root,
+    saved.action,
+    saved.changed ? 'updated' : 'unchanged',
+  );
 }
 export function createAction(
   start: string,

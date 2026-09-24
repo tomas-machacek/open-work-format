@@ -14,9 +14,13 @@ import {
   createAction,
   getAction,
   listActions,
+  setAction,
   actionPorts,
 } from '../../src/bootstrap/workspaces.js';
-import { createAction as createWithPorts } from '../../src/application/actions/index.js';
+import {
+  createAction as createWithPorts,
+  setAction as setWithPorts,
+} from '../../src/application/actions/index.js';
 import { cleanup, snapshot, temporaryDirectory } from '../support/workspace.js';
 
 const roots: string[] = [];
@@ -43,6 +47,182 @@ function rows(store: string, table: string) {
   }
 }
 afterEach(() => roots.splice(0).forEach(cleanup));
+
+test('state and reason edits correlate events; no-ops preserve every byte even after owner disappears', () => {
+  const { root, store } = workspace();
+  const owner = create(root, { type: 'project', title: 'Owner' }).result;
+  const initial = createWithPorts(
+    owner.path,
+    { title: 'Work', description: 'Keep' },
+    { ...actionPorts, now: () => '2026-09-20T10:00:00.000Z' },
+  ).result.action;
+  renameSync(owner.path, join(root, 'moved-owner'));
+  const at = '2026-09-21T10:00:00.000Z';
+  const change = (state: string, waitingFor?: string) =>
+    setWithPorts(
+      root,
+      initial.id,
+      { state, waitingFor },
+      { ...actionPorts, now: () => at },
+    );
+  change('waiting', 'First');
+  const changed = change('waiting', '  Second\nŽivot  ');
+  expect(changed.result.status).toBe('updated');
+  expect(changed.result.action).toEqual({
+    ...initial,
+    state: 'waiting',
+    waiting_for: '  Second\nŽivot  ',
+    updated_at: at,
+  });
+  const before = snapshot(root);
+  expect(change('waiting').result.status).toBe('unchanged');
+  expect(change('waiting', '  Second\nŽivot  ').result.action).toEqual(
+    changed.result.action,
+  );
+  expect(getAction(root, initial.id).result.action).toEqual(
+    changed.result.action,
+  );
+  expect(listActions(root, { state: ['waiting'] }).result.actions).toEqual([
+    changed.result.action,
+  ]);
+  expect(snapshot(root)).toEqual(before);
+  change('completed');
+  expect(rows(store, 'action_events').slice(1)).toEqual([
+    expect.objectContaining({
+      action_id: initial.id,
+      kind: 'action.state_changed',
+      created_at: at,
+      old_state: 'open',
+      new_state: 'waiting',
+      old_waiting_for: null,
+      new_waiting_for: 'First',
+    }),
+    expect.objectContaining({
+      action_id: initial.id,
+      created_at: at,
+      old_state: 'waiting',
+      new_state: 'waiting',
+      old_waiting_for: 'First',
+      new_waiting_for: '  Second\nŽivot  ',
+    }),
+    expect.objectContaining({
+      action_id: initial.id,
+      created_at: at,
+      old_state: 'waiting',
+      new_state: 'completed',
+      old_waiting_for: '  Second\nŽivot  ',
+      new_waiting_for: null,
+    }),
+  ]);
+});
+
+test.each(['update', 'event', 'commit', 'conflict'])(
+  'state change %s failure rolls back Action and Event Log',
+  (failure) => {
+    const { root, store } = workspace();
+    const action = createAction(root, { title: 'Original' }).result.action;
+    if (failure === 'commit')
+      sql(
+        store,
+        `CREATE TABLE fault (id TEXT REFERENCES actions(id) DEFERRABLE INITIALLY DEFERRED);
+      CREATE TRIGGER fail_commit AFTER INSERT ON action_events BEGIN INSERT INTO fault VALUES ('missing'); END;`,
+      );
+    else if (failure === 'conflict')
+      sql(
+        store,
+        `CREATE TRIGGER stale BEFORE UPDATE ON actions BEGIN SELECT RAISE(IGNORE); END;`,
+      );
+    else
+      sql(
+        store,
+        `CREATE TRIGGER fail_write BEFORE ${failure === 'update' ? 'UPDATE ON actions' : 'INSERT ON action_events'} BEGIN SELECT RAISE(ABORT, 'fault'); END;`,
+      );
+    const before = snapshot(root);
+    expect(() =>
+      setAction(root, action.id, { state: 'waiting', waitingFor: 'Reply' }),
+    ).toThrow(
+      expect.objectContaining({
+        code:
+          failure === 'conflict' ? 'ACTION_CONFLICT' : 'ACTION_UPDATE_FAILED',
+      }),
+    );
+    expect(snapshot(root)).toEqual(before);
+    expect(rows(store, 'actions')).toHaveLength(1);
+    expect(rows(store, 'action_events')).toHaveLength(1);
+  },
+);
+
+test('a concurrent writer is refused without overwriting its pending state', () => {
+  const { root, store } = workspace();
+  const action = createAction(root, { title: 'Original' }).result.action;
+  const db = new DatabaseSync(store);
+  try {
+    db.exec("BEGIN IMMEDIATE; UPDATE actions SET state = 'cancelled'");
+    expect(() => setAction(root, action.id, { state: 'completed' })).toThrow(
+      expect.objectContaining({ code: 'ACTION_UPDATE_FAILED' }),
+    );
+    expect(db.prepare('SELECT state FROM actions').get()?.state).toBe(
+      'cancelled',
+    );
+    db.exec('ROLLBACK');
+  } finally {
+    db.close();
+  }
+  expect(getAction(root, action.id).result.action).toEqual(action);
+  expect(rows(store, 'action_events')).toHaveLength(1);
+});
+
+test('set distinguishes missing Action, unreadable row and missing store without mutation', () => {
+  const { root, store } = workspace();
+  const action = createAction(root, { title: 'Original' }).result.action;
+  const before = snapshot(root);
+  expect(() =>
+    setAction(root, '00000000-0000-4000-8000-000000000000', {
+      state: 'waiting',
+    }),
+  ).toThrow(expect.objectContaining({ code: 'ACTION_NOT_FOUND' }));
+  expect(snapshot(root)).toEqual(before);
+  sql(store, "UPDATE actions SET title = ' padded '");
+  const corrupt = snapshot(root);
+  expect(() => setAction(root, action.id, { state: 'waiting' })).toThrow(
+    expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
+  );
+  expect(snapshot(root)).toEqual(corrupt);
+  unlinkSync(store);
+  const missing = snapshot(root);
+  expect(() => setAction(root, action.id, { state: 'waiting' })).toThrow(
+    expect.objectContaining({ code: 'STORE_UNAVAILABLE' }),
+  );
+  expect(snapshot(root)).toEqual(missing);
+});
+
+test.each([
+  "state = 'archived'",
+  "waiting_for = 'invalid outside waiting'",
+  "state = 'waiting', waiting_for = char(9)",
+])(
+  'invalid new row fields are rejected even outside the state filter: %s',
+  (assignment) => {
+    const { root, store } = workspace();
+    const action = createAction(root, { title: 'Bad' }).result.action;
+    sql(
+      store,
+      `PRAGMA ignore_check_constraints = ON; UPDATE actions SET ${assignment}`,
+    );
+    const before = snapshot(root);
+    // Bypass discovery's quick_check to exercise row validation itself.
+    for (const read of [
+      () => actionPorts.actions.get(store, action.id),
+      () => actionPorts.actions.list(store, { states: ['completed'] }),
+      () =>
+        actionPorts.actions.changeState(store, action.id, (current) => current),
+    ])
+      expect(read).toThrow(
+        expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
+      );
+    expect(snapshot(root)).toEqual(before);
+  },
+);
 
 test('literal descriptions, omitted versus empty, identity and one shared clock value persist with events', () => {
   const { root, store } = workspace();
@@ -112,11 +292,32 @@ test.each(['action', 'event', 'commit'])(
   },
 );
 
-test.each(['1', '99'])(
+test.each(['1', '2', '99'])(
   'schema %s rejected without writes by init and all create/get operations',
   (version) => {
     const { root, store } = workspace();
     const action = createAction(root, { title: 'Existing' }).result.action;
+    if (version === '2')
+      sql(
+        store,
+        `
+        ALTER TABLE actions RENAME TO newer_actions;
+        ALTER TABLE action_events RENAME TO newer_events;
+        CREATE TABLE actions (
+          id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
+          state TEXT NOT NULL CHECK(state = 'open'), owner_url TEXT NOT NULL,
+          description TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        ) STRICT;
+        CREATE TABLE action_events (
+          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind = 'action.created'),
+          action_id TEXT NOT NULL REFERENCES actions(id), created_at TEXT NOT NULL
+        ) STRICT;
+        INSERT INTO actions SELECT id,title,state,owner_url,description,created_at,updated_at FROM newer_actions;
+        INSERT INTO action_events SELECT event_id,kind,action_id,created_at FROM newer_events;
+        DROP TABLE newer_events;
+        DROP TABLE newer_actions;
+      `,
+      );
     sql(
       store,
       `UPDATE owf_metadata SET value = '${version}' WHERE key = 'schema_version'`,
@@ -129,6 +330,7 @@ test.each(['1', '99'])(
       () => createAction(root, { title: 'Action' }),
       () => getAction(root, action.id),
       () => listActions(root),
+      () => setAction(root, action.id, { state: 'waiting' }),
     ]) {
       expect(operation).toThrow(
         expect.objectContaining({ code: 'UNSUPPORTED_STORE_VERSION' }),
@@ -406,7 +608,7 @@ test('canonical filters treat percent and underscore literally and keep stale st
   const db = new DatabaseSync(store);
   try {
     const insert = db.prepare(
-      'INSERT INTO actions SELECT ?,title,state,?,description,created_at,updated_at FROM actions WHERE id = ?',
+      'INSERT INTO actions SELECT ?,title,state,?,description,created_at,updated_at,waiting_for FROM actions WHERE id = ?',
     );
     owners.forEach((owner, index) =>
       insert.run(
