@@ -68,24 +68,30 @@ export const actionRepository: ActionRepository = {
       db = new DatabaseSync(path, { readOnly: true });
       db.exec('PRAGMA busy_timeout = 1000');
       // Canonical owner URLs end in /, so a literal prefix respects path segments.
-      const where =
+      const matches =
         filter === undefined
-          ? ''
+          ? '1'
           : filter.recursive
-            ? ' WHERE substr(owner_url, 1, length(?)) = ?'
-            : ' WHERE owner_url = ?';
+            ? 'substr(owner_url, 1, length(?)) = ?'
+            : 'owner_url = ?';
       const parameters =
         filter === undefined
           ? []
           : filter.recursive
             ? [filter.owner, filter.owner]
             : [filter.owner];
-      return db
+      // Validate every row from the same read, including nonmatching owners.
+      // A WHERE clause could hide corruption as an empty or partial result.
+      const rows = db
         .prepare(
-          `SELECT id,title,state,owner_url,description,created_at,updated_at FROM actions${where} ORDER BY created_at DESC, id ASC`,
+          `SELECT id,title,state,owner_url,description,created_at,updated_at, (${matches}) AS matches_filter FROM actions ORDER BY created_at DESC, id ASC`,
         )
         .all(...parameters)
-        .map(mapRow);
+        .map(({ matches_filter, ...row }) => ({
+          action: mapRow(row),
+          matches: matches_filter === 1,
+        }));
+      return rows.filter((row) => row.matches).map((row) => row.action);
     } catch {
       throw new WorkspaceError(
         'ACTION_READ_FAILED',

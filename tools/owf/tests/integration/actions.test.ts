@@ -311,20 +311,31 @@ test.each([
   "title = ' padded '",
   "created_at = 'not-a-time'",
   "updated_at = '2020-01-01T00:00:00.000Z'",
-])('get rejects malformed persisted data (%s) without writes', (assignment) => {
-  const { root, store } = workspace();
-  const action = createAction(root, { title: 'Existing' }).result.action;
-  sql(store, `UPDATE actions SET ${assignment}`);
-  const before = snapshot(root);
-  expect(() => getAction(root, action.id)).toThrow(
-    expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
-  );
-  for (const filter of [{}, { owner: '/' }, { owner: '/', recursive: true }])
-    expect(() => listActions(root, filter)).toThrow(
+  "owner_url = 'broken'",
+])(
+  'get and list reject malformed persisted data (%s) without writes',
+  (assignment) => {
+    const { root, store } = workspace();
+    const action = createAction(root, { title: 'Existing' }).result.action;
+    sql(store, `UPDATE actions SET ${assignment}`);
+    createAction(root, { title: 'Valid companion' });
+    const before = snapshot(root);
+    expect(() => getAction(root, action.id)).toThrow(
       expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
     );
-  expect(snapshot(root)).toEqual(before);
-});
+    for (const filter of [
+      {},
+      { owner: '/' },
+      { owner: '/', recursive: true },
+      { owner: '/missing/' },
+      { owner: '/missing/', recursive: true },
+    ])
+      expect(() => listActions(root, filter)).toThrow(
+        expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
+      );
+    expect(snapshot(root)).toEqual(before);
+  },
+);
 
 test('list is empty or ordered by stored creation time then ID, preserving full records and every byte', () => {
   const { root } = workspace();

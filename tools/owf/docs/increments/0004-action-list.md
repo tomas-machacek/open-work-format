@@ -5,7 +5,8 @@
 > Depends on: [0003 — Action creation and retrieval](0003-action-create-get.md).
 
 The user reviewed and approved this design for implementation on 2026-09-23.
-Implementation is in progress; independent implementation review is pending.
+Implementation was independently reviewed; review fixes and verification are
+recorded below. Follow-up independent review of the fixes is pending.
 
 ## Goal and scope
 
@@ -208,8 +209,9 @@ states.
 Implemented `list actions` through the existing application, repository and CLI
 layers. Owner filters use the existing URL decoder and canonical encoder before
 Workspace discovery. SQLite uses parameterized equality or literal `substr`
-prefix comparison and stable `created_at DESC, id ASC` ordering. Returned rows
-reuse get's validation. Reads open the store read-only and do not resolve or
+prefix comparison and stable `created_at DESC, id ASC` ordering. Every stored row
+reuses get's validation before nonmatching rows are excluded. Reads open the
+store read-only and do not resolve or
 repair Markdown owner references.
 
 CLI help, README and the single Workspace guide template include listing.
@@ -230,9 +232,35 @@ formatting was corrected and listing was separated from the create/get scenario
 without changing the timeout or dropping assertions. The final full run passed.
 This subsequent evidence update changes documentation only; it does not claim
 the full suite ran on the evidence commit. Linux and manual OS integration were
-not tested. No independent review has yet been performed.
+not tested. This was the evidence available before independent review.
 
-Independent review is pending; status remains `in_progress`. No schema change,
+Independent review on 2026-09-24 found one blocking P2: SQL `WHERE` excluded
+malformed Actions before validation, allowing filtered reads (including recursive
+Workspace reads) to report false empty or partial success. The fix computes a
+match flag in the same SQL read, validates every row, then selects matching
+Actions. Literal matching, ordering and read-only access are preserved; no
+stored reference is repaired. Filtered reads now load and validate all Actions,
+as required by the corruption contract for this unpaged local PoC.
+
+The extended corruption test failed on all four cases before the fix and passed
+after it. It covers malformed owners and nonmatching damaged records alongside
+a valid Action. The CLI regression distinguishes direct and recursive results
+and checks read/corrupt-store error envelopes, exit 1 and unchanged bytes.
+All 18 Action integration tests passed after the fix.
+
+Verification on 2026-09-24: `npm run verify` passed on the uncommitted review
+fixes based on `dce81cf3f36292ee7b2476a126e519c5af429d0a`, on Windows x64,
+Node.js `v24.21.0`. Typecheck, lint, formatting, architecture and build passed;
+49 unit tests, 90 integration tests, 21 acceptance scenarios (104 steps), and
+18 built-CLI tests passed. The first verify attempt stopped at a test-only lint
+error involving `expect.any`; the assertion was corrected before the successful
+full run. A focused CLI run initially hit sandbox `spawn EPERM` and passed when
+rerun outside the sandbox. `git diff --check` passed. Only this verification
+record was added after the successful full run; it was checked separately for
+formatting. No Linux run, commit, push or merge was performed.
+
+Follow-up independent review of the fixes is pending; status remains
+`in_progress`. No schema change,
 migration, new dependency, state filter, release or merge is included.
 
 ## Decision changes and follow-up

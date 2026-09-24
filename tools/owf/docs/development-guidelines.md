@@ -128,6 +128,8 @@ domain rules. Use ordinary tests for detailed technical combinations.
 An acceptance scenario and a unit test may protect different risks in the same
 feature, but do not mechanically duplicate every scenario in Vitest.
 Test rejection/no-partial-save paths as well as successful transitions.
+When a query promises to reject malformed stored data, cover corruption both
+inside and outside its filter so selection cannot silently bypass validation.
 
 CLI E2E tests use Vitest to launch the built CLI and inspect output, exit code
 and persisted results. Playwright covers a few key browser flows and is added

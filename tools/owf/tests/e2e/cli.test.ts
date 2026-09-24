@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
@@ -395,4 +396,66 @@ test('Action listing renders complete JSON, compact human output and argument er
   ])
     expect(help).toContain(text);
   expect(snapshot(root)).toEqual(before);
+});
+
+test('listing CLI forwards recursive ownership and reports read/store failures with exit 1', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  expect(run(root, ['init']).status).toBe(0);
+  expect(run(root, ['create', 'project', '--title', 'Kitchen']).status).toBe(0);
+  expect(
+    run(join(root, '_projects/kitchen'), [
+      'create',
+      'action',
+      '--title',
+      'Nested',
+    ]).status,
+  ).toBe(0);
+  const before = snapshot(root);
+  for (const recursive of [false, true]) {
+    const result = run(root, [
+      'list',
+      'actions',
+      '--owner',
+      '/',
+      '--json',
+      ...(recursive ? ['--recursive'] : []),
+    ]);
+    expect(result.status).toBe(0);
+    const parsed = z
+      .object({
+        result: z.object({ actions: z.array(z.object({ title: z.string() })) }),
+      })
+      .parse(JSON.parse(result.stdout));
+    expect(parsed.result.actions.map((action) => action.title)).toEqual(
+      recursive ? ['Nested'] : [],
+    );
+  }
+  expect(snapshot(root)).toEqual(before);
+
+  const store = join(root, '_store/owf.sqlite');
+  const db = new DatabaseSync(store);
+  try {
+    db.prepare('UPDATE actions SET owner_url = ?').run('broken');
+  } finally {
+    db.close();
+  }
+  for (const code of ['ACTION_READ_FAILED', 'INVALID_STORE']) {
+    if (code === 'INVALID_STORE') writeFileSync(store, 'corrupt');
+    const damaged = snapshot(root);
+    const failed = run(root, [
+      'list',
+      'actions',
+      '--owner',
+      '/',
+      '--recursive',
+      '--json',
+    ]);
+    expect(failed.status).toBe(1);
+    expect(JSON.parse(failed.stdout)).toMatchObject({
+      ok: false,
+      error: { code },
+    });
+    expect(snapshot(root)).toEqual(damaged);
+  }
 });
