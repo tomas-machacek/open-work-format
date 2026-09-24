@@ -47,15 +47,15 @@ any of those states to any _different_ one is permitted, including reopening a
 terminal Action to correct an accidental completion or cancellation. There is
 no automatic cascade. While already in `waiting`, the same command with a
 different `--waiting-for` updates only the waiting reason. A repeated state
-request that changes neither state nor waiting reason is `INVALID_ARGUMENT`
-and makes no write.
+request that changes neither state nor waiting reason succeeds idempotently:
+return the current Action without changing `updated_at` or appending an event.
 
 `--waiting-for` is optional when entering `waiting` and invalid with other
 target states. If supplied, it must contain non-whitespace text; preserve the
 supplied string verbatim, without trimming or silently replacing it. Entering
 `waiting` without the option starts with no reason. While already `waiting`,
 supplying a different reason replaces the existing value; omitting the option
-leaves it unchanged and is therefore a no-op error. Leaving `waiting` clears
+leaves it unchanged and therefore succeeds as a no-op. Leaving `waiting` clears
 the reason in the same update. Clearing a reason while remaining `waiting` is
 deferred. JSON and human output show the resulting Action, including the reason
 when present.
@@ -96,7 +96,8 @@ store that cannot be read.
 Update CLI help, tool README and the single generated Workspace AGENTS.md
 template. `get` and list JSON retain their envelopes and add `waiting_for`
 only when present; the set JSON response follows the existing Action result
-style, with `status: "updated"`. Document the schema break and how to create a
+style, with `status: "updated"` for a change and `status: "unchanged"` for an
+idempotent no-op. Both are successful responses. Document the schema break and how to create a
 fresh PoC Workspace. No compatibility promise or migration is implied.
 
 ## Acceptance criteria
@@ -104,7 +105,8 @@ fresh PoC Workspace. No compatibility promise or migration is implied.
 AC1: An Action can enter each supported state, leave `waiting`, and reopen from
 `completed` or `cancelled`. ID and creation time stay stable; successful changes
 update `updated_at` and record one matching operational event. A request that
-changes neither state nor reason, or supplies an invalid state, does not write.
+changes neither state nor reason succeeds with the unchanged Action, timestamp
+and event log. An invalid state is rejected without a write.
 
 AC2: `waiting_for` can accompany a transition into `waiting`, can be replaced
 while remaining `waiting`, and is absent after leaving it. It is optional,
@@ -144,8 +146,8 @@ Scenario: Find work by state and owner
 
 ## Verification plan
 
-- Domain tests for transition and waiting invariants; application/acceptance
-  scenarios for the observable journeys (AC1–AC3).
+- Domain tests for transition, waiting and idempotent no-op invariants;
+  application/acceptance scenarios for the observable journeys (AC1–AC3).
 - SQLite integration checks for event correlation, rollback on insert and commit
   failures, stale concurrent writes, schema rejection and unchanged prior data
   (AC1, AC4). Avoid duplicating all transition pairs at every layer.
@@ -173,4 +175,6 @@ here; set `completed` only after implementation, verification and review.
 - Reopening `completed`/`cancelled` corrects accidental transitions. A repeated
   `waiting` command may replace the reason without a state change, per user
   decision.
+- Repeating the same state and reason succeeds idempotently without a timestamp
+  or event change, per user decision.
 - Archive, dependency checks and derived blocking remain separate increments.
