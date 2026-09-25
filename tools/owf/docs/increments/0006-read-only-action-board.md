@@ -57,9 +57,10 @@ when present. Empty columns and an empty board have clear labels. The layout
 remains readable at narrow and wide browser widths.
 
 Fetch on page load and on return to the browser window/tab (focus or visibility
-restoration). Repeated focus events must not let an older response overwrite a
-newer result. Include manual Refresh/Retry. A CLI change becomes visible after
-returning or refreshing. No background polling is required. Initial loading
+restoration); coalesce nearby focus and visibility events into one request.
+Overlapping requests must not let an older response overwrite a newer result.
+Include manual Refresh/Retry. A CLI change becomes visible after returning or
+refreshing. No background polling is required. Initial loading
 can show a loading state. Later refreshes keep existing cards in place without
 clearing columns, blocking interaction, flashing the screen or replacing the
 board with a spinner. A subtle progress indicator may show that refresh is in
@@ -67,6 +68,14 @@ flight. On success, update only changed content without remounting the whole
 board. On failure, keep cards visible but label them as not current, show a
 clear error and offer Retry; never present stale cards as a successful fresh
 read. There are no UI controls that write to the store.
+
+This is a refresh-on-return model, not immediate synchronization while the
+board remains visible. CLI writes use another SQLite connection and do not
+notify this server directly. Server-driven updates would require separate
+change detection and browser delivery, beyond this increment. If live updates
+become necessary, design that mechanism separately rather than relying on
+filesystem events or assuming a connection-local SQLite callback observes
+CLI writes.
 
 Update CLI help, README and the single generated Workspace AGENTS.md source
 for the serve command. Existing user-authored guides stay untouched.
@@ -122,3 +131,6 @@ here; set `completed` only after implementation and review.
 
 - The first board increment presents Actions without filters or mutations, per
   user decision. Later increments can add state changes and filtering.
+- Quiet refresh on return, with a manual control, is sufficient for this first
+  view. Immediate backend-driven updates are deferred because CLI writes happen
+  in another process and would need change detection plus delivery.
