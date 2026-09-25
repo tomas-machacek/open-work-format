@@ -221,3 +221,23 @@ The OWF specification, design documents, and Workspace examples outside this
 directory remain under CC BY 4.0, as described in the
 [repository README](../../README.md#license). Third-party components retain
 their respective licenses.
+
+## Read-only Action board
+
+After `npm ci` and `npm run build` in `tools/owf`, enter an initialized Workspace
+and run `node <absolute-path-to-tools/owf>/dist/bootstrap/cli.js serve` (or
+`owf serve` when installed on PATH). Open **http://127.0.0.1:4317**.
+The process serves its built assets; Vite is not needed. Ctrl+C stops it.
+Use `serve --port 4318` for an occupied port. Only loopback access is supported.
+
+The five columns retain listing order. Cards show title, ID, stored owner URL and
+optional waiting reason. The board is read-only: change Actions through the CLI,
+then return to the window/tab or press Refresh. Refresh retains cards; errors
+mark existing data not current and offer Retry. There is no polling, filtering,
+Action detail, drag and drop or multi-Workspace registration.
+
+Install the Chromium test browser once with `npx playwright install chromium`.
+`npm run verify` includes the one browser journey against the built server and
+real CLI. `npm run test:browser` runs it alone after building; technical errors
+and response races are covered in integration and component tests. Failure
+screenshots and traces are diagnostics in `test-results/`, not snapshot assertions.

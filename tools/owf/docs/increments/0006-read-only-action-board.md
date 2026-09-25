@@ -1,6 +1,6 @@
 # 0006 — Read-only Action board
 
-> Status: reviewed
+> Status: in_progress
 > Description: Show persisted Actions in browser columns by execution state, refreshing on window focus.
 > Depends on: [0005 — Action state changes](0005-action-state.md).
 
@@ -134,8 +134,39 @@ layout are implementation choices within this approved scope.
 
 ## Implementation and review outcome
 
-Not implemented or independently reviewed. Record delivery and verification
-here; set `completed` only after implementation and review.
+Implemented; independent review is pending. Status remains `in_progress`.
+
+- `owf serve [--port 4317]` discovers and validates one Workspace, binds only
+  to `127.0.0.1`, and serves built React assets with Fastify. GET `/api/actions`
+  uses the existing application listing and shared Zod transport contracts.
+  Startup errors include occupied port, absent Workspace and unavailable or
+  unsupported store. Subsequent read errors return HTTP 503 with an error code.
+- The responsive CSS Modules board shows five ordered columns, complete IDs and
+  stored owner URLs, with optional waiting reasons. Refresh retains keyed cards;
+  focus/visibility events are coalesced, older responses are ignored, and failed
+  reads retain visibly stale data with Retry. No write controls were added.
+- CLI help, README and the single Workspace guide template document serving.
+  Existing Workspace guides are not rewritten. The architecture now records
+  the approved refresh-on-return decision instead of its earlier polling option.
+- Fast HTTP integration tests cover read-only file preservation, store loss and
+  recovery, unsupported store and startup errors. Component tests cover order,
+  retained card nodes, stale/error presentation, Retry, response races and return
+  event coalescing. Client tests reject failed/malformed transport responses.
+- One Playwright scenario exercises the built server, real CLI changes and quiet
+  return-to-tab refresh. Chromium's default focus emulation is disabled through
+  CDP for actual tab visibility events; no synthetic application event is used.
+  Screenshots/traces remain failure diagnostics, not comparison assertions.
+- Architecture gate probe: a temporary TSX browser module importing application
+  code and `node:sqlite` failed with both expected boundary violations; removed.
+- Production board visually inspected at 1440px and 390px; mobile has stacked
+  columns, no horizontal overflow. Local visual artifacts are untracked.
+
+Final revision/platform and complete verification results are recorded below
+once the implementation commit has passed `npm run verify`.
+
+Limitations: one local Workspace per server; no live polling/push, filters,
+mutations, Action detail, Inbox or registration. Linux was not exercised.
+No independent review, merge or release has been performed.
 
 ## Decision changes and follow-up
 

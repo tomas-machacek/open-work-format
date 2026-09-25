@@ -19,6 +19,8 @@
     "tests/**/*.ts",
     "*.mjs",
     "*.cjs",
-    ".dependency-cruiser.cjs"
-  ]
+    ".dependency-cruiser.cjs",
+    "*.ts"
+  ],
+  "exclude": ["src/web"]
 }
