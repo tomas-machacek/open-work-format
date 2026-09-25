@@ -1,11 +1,12 @@
 # 0006 — Read-only Action board
 
-> Status: draft
+> Status: reviewed
 > Description: Show persisted Actions in browser columns by execution state, refreshing on window focus.
 > Depends on: [0005 — Action state changes](0005-action-state.md).
 
-The user chose a smaller first web increment: load and present Actions only.
-This introduces local HTTP and browser layers without adding a mutation path.
+The user reviewed and approved a smaller first web increment: load and present
+Actions only. This introduces local HTTP and browser layers without adding a
+mutation path.
 
 ## Goal and scope
 
@@ -129,7 +130,7 @@ an Action state using the CLI, return to the browser and check its column.
 ## Open questions for review
 
 No blocking domain question. The launch command, local port and exact card
-layout are proposed interface choices for review before implementation.
+layout are implementation choices within this approved scope.
 
 ## Implementation and review outcome
 
