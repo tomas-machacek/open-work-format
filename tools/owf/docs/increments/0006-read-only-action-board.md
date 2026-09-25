@@ -112,7 +112,10 @@ and generated Workspace instructions agree. Existing CLI operations still work.
   against a temporary Workspace, checks columns/empty presentation, changes
   an Action using the real CLI and verifies a quiet refresh when the page
   becomes visible again (AC2–AC3, AC5). Keep screenshots out of routine
-  assertions; retain them as failure diagnostics.
+  assertions; retain them as failure diagnostics. Treat browser E2E as costly:
+  add another Playwright case only for a distinct risk that cannot be checked
+  adequately at a faster layer. Do not expand the suite for each state or
+  each API error.
 - Check failed refresh, cards remaining visible and out-of-order responses at
   the smallest useful UI boundary. Do not repeat the whole Action state matrix
   in Playwright or mirror HTTP integration cases (AC3).
@@ -141,5 +144,5 @@ here; set `completed` only after implementation and review.
   view. Immediate backend-driven updates are deferred because CLI writes happen
   in another process and would need change detection plus delivery.
 - Introduce a small Playwright browser E2E suite with this first web view,
-  following the development guidelines; keep technical edge cases in faster
-  focused tests.
+  following the development guidelines and the user's preference to keep
+  costly browser tests to a minimum; keep technical edge cases in faster tests.
