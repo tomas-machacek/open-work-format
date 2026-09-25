@@ -163,8 +163,26 @@ Implemented; independent review is pending. Status remains `in_progress`.
 - Production board visually inspected at 1440px and 390px; mobile has stacked
   columns, no horizontal overflow. Local visual artifacts are untracked.
 
-Final revision/platform and complete verification results are recorded below
-once the implementation commit has passed `npm run verify`.
+Verification on 2026-09-25:
+
+- Verified implementation revision: `1a258d55d9bf1dc7ab8c777839e2b7f59c626dbe`.
+  The later handoff commit changes only this verification record.
+- Platform: Windows x64, build 10.0.26200, Node v24.21.0; Playwright 1.63.0,
+  Chromium 153.0.8010.12. Linux and other browsers were not run.
+- `npm run verify`: passed (exit 0). Typecheck, ESLint, Prettier, architecture
+  boundaries and production build all passed. Unit/component/client: 59 tests;
+  integration: 105 tests; acceptance: 24 scenarios / 123 steps; CLI E2E: 19 tests;
+  browser E2E: exactly one scenario, passed in 2.5 seconds.
+- Earlier full verification of `25b53ed` exposed a CLI test timeout caused by
+  eagerly importing HTTP dependencies. The fix loads them only for `serve`;
+  existing timeout limits and assertions were preserved. An intermediate run
+  stopped on documentation line endings; normalization fixed formatting without
+  changing the committed content. The final full run above supersedes both.
+- Browser automation, Vite builds and tests required execution outside the local
+  sandbox because child-process startup was blocked with EPERM inside it.
+  Dependencies and Chromium installation succeeded; npm reported no vulnerabilities.
+- Final production UI was inspected at desktop and mobile widths with no
+  horizontal overflow; screenshots are local diagnostics, not assertions.
 
 Limitations: one local Workspace per server; no live polling/push, filters,
 mutations, Action detail, Inbox or registration. Linux was not exercised.
