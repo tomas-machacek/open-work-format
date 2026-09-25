@@ -145,6 +145,8 @@ Implemented; independent review is pending. Status remains `in_progress`.
   stored owner URLs, with optional waiting reasons. Refresh retains keyed cards;
   focus/visibility events are coalesced, older responses are ignored, and failed
   reads retain visibly stale data with Retry. No write controls were added.
+- Server dependencies load only for `serve`; ordinary CLI commands retain their
+  direct execution path without loading Fastify.
 - CLI help, README and the single Workspace guide template document serving.
   Existing Workspace guides are not rewritten. The architecture now records
   the approved refresh-on-return decision instead of its earlier polling option.

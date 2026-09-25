@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { serve } from './server.js';
 import { readFileSync } from 'node:fs';
 import { runCli } from '../interfaces/cli/index.js';
 import {
@@ -31,6 +30,7 @@ await runCli(
   (input) => listActions(process.cwd(), input),
   (identifier, input) => setAction(process.cwd(), identifier, input),
   async (port) => {
+    const { serve } = await import('./server.js');
     const server = await serve(process.cwd(), port);
     const stop = () => {
       void server.close().catch((error: unknown) => {
