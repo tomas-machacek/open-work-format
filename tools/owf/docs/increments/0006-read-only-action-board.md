@@ -107,9 +107,15 @@ and generated Workspace instructions agree. Existing CLI operations still work.
 
 - HTTP integration checks with real application reads for populated/empty
   Workspace and store loss after startup (AC1, AC4).
-- Focused browser journey for columns and refresh after an external CLI state
-  change; check that cards remain visible through refresh and an error, and
-  check stale response handling at the UI boundary (AC2–AC3).
+- Introduce Playwright with this first web journey, as required by the
+  development guidelines. One focused Chromium E2E flow runs the built server
+  against a temporary Workspace, checks columns/empty presentation, changes
+  an Action using the real CLI and verifies a quiet refresh when the page
+  becomes visible again (AC2–AC3, AC5). Keep screenshots out of routine
+  assertions; retain them as failure diagnostics.
+- Check failed refresh, cards remaining visible and out-of-order responses at
+  the smallest useful UI boundary. Do not repeat the whole Action state matrix
+  in Playwright or mirror HTTP integration cases (AC3).
 - Build and run production server, check generated guidance and help, run
   `npm run verify` before handoff and record actual revision/platform (AC5).
 
@@ -134,3 +140,6 @@ here; set `completed` only after implementation and review.
 - Quiet refresh on return, with a manual control, is sufficient for this first
   view. Immediate backend-driven updates are deferred because CLI writes happen
   in another process and would need change detection plus delivery.
+- Introduce a small Playwright browser E2E suite with this first web view,
+  following the development guidelines; keep technical edge cases in faster
+  focused tests.
