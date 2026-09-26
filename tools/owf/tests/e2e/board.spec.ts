@@ -117,7 +117,6 @@ test('built board quietly reflects a CLI change on return to the tab', async ({
         .getByText('Confirm delivery'),
     ).toBeVisible();
     await expect(page.getByText('Supplier reply')).toBeVisible();
-    await expect(page.getByText(response.result.action.id)).toBeVisible();
     await away.close();
   } finally {
     if (server.exitCode === null) {
@@ -185,7 +184,12 @@ test('create a Waiting Action with Outcome owner and verify persisted values thr
     await expect(card.getByRole('heading')).toHaveText('Confirm launch');
     await expect(card.getByText('Approval from team')).toBeVisible();
     await expect(card.getByText('/_projects/launch/ready/')).toBeVisible();
-    const id = await card.locator('dd').last().innerText();
+    const listed = z
+      .object({ result: z.object({ actions: z.array(boardAction) }) })
+      .parse(JSON.parse(run('list', 'actions', '--json'))).result.actions;
+    const saved = listed.find((action) => action.title === 'Confirm launch');
+    expect(saved).toBeDefined();
+    const id = saved!.id;
     const persisted = z
       .object({ result: z.object({ action: boardAction }) })
       .parse(JSON.parse(run('get', 'action', id, '--json'))).result.action;
@@ -198,7 +202,7 @@ test('create a Waiting Action with Outcome owner and verify persisted values thr
     });
     await page.reload();
     await expect(waiting.getByRole('article')).toHaveCount(1);
-    await expect(waiting.getByText(id)).toBeVisible();
+    await expect(waiting.getByText('Approval from team')).toBeVisible();
   } finally {
     if (server.exitCode === null) {
       const exited = once(server, 'exit');

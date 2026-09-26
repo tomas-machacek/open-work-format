@@ -238,8 +238,9 @@ and run `node <absolute-path-to-tools/owf>/dist/bootstrap/cli.js serve` (or
 The process serves its built assets; Vite is not needed. Ctrl+C stops it.
 Use `serve --port 4318` for an occupied port. Only loopback access is supported.
 
-The five columns retain listing order. Cards show title, ID, stored owner URL and
-optional waiting reason. Choose **Add Action** in any column to create directly in
+The five columns retain listing order. Cards show the full title, stored owner URL
+and optional waiting reason. Action IDs remain available through CLI and JSON
+output. Choose **Add Action** in any column to create directly in
 that state. Enter a title, optional Markdown description and an owner URL (`/`
 for the Workspace, or a Project/Outcome URL such as `/_projects/launch/`).
 Waiting also accepts an optional, nonblank **Waiting for** reason; its text is

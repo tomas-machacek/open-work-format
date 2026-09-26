@@ -58,6 +58,58 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
 });
+test('cards keep full text and semantic inline metadata without displaying IDs', async () => {
+  const longTitle = 'Review ' + 'launch details '.repeat(12);
+  const longOwner = '/_projects/' + 'long-segment/'.repeat(12);
+  const reason = '  Approval from team\nWaiting for the final response  ';
+  render(
+    <Board
+      load={() =>
+        Promise.resolve({
+          ...data,
+          actions: [
+            {
+              ...data.actions[0]!,
+              id: 'open-card-id',
+              title: longTitle,
+              owner: { url: longOwner },
+            },
+            { ...data.actions[2]!, id: 'waiting-card-id', waiting_for: reason },
+            {
+              ...data.actions[2]!,
+              id: 'waiting-without-reason',
+              title: 'No reason',
+              waiting_for: undefined,
+            },
+          ],
+        })
+      }
+    />,
+  );
+  const openCard = (
+    await screen.findByRole('heading', { name: /Review launch details/ })
+  ).closest('article')!;
+  const waitingCard = screen.getByText('Waiting task').closest('article')!;
+  const noReasonCard = screen.getByText('No reason').closest('article')!;
+  expect(within(openCard).getByRole('heading').textContent).toBe(longTitle);
+  expect(within(openCard).getByText(longOwner).textContent).toBe(longOwner);
+  expect(within(openCard).getByText('Owner:').tagName).toBe('DT');
+  expect(within(openCard).getByText(longOwner).tagName).toBe('DD');
+  expect(within(waitingCard).getByText('Waiting for:').tagName).toBe('DT');
+  const waitingValue = waitingCard.querySelectorAll('dd')[1];
+  expect(waitingValue?.textContent).toBe(reason);
+  expect(within(noReasonCard).queryByText('Waiting for:')).toBeNull();
+  for (const [card, id] of [
+    [openCard, 'open-card-id'],
+    [waitingCard, 'waiting-card-id'],
+    [noReasonCard, 'waiting-without-reason'],
+  ] as const) {
+    expect(card.textContent).not.toContain(id);
+    expect(card.querySelectorAll('dt')).toHaveLength(
+      card === waitingCard ? 2 : 1,
+    );
+  }
+});
 test('refresh retains card nodes and order, marks failed data stale, retries and ignores older responses', async () => {
   const pending = deferred();
   const older = deferred();

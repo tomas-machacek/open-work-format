@@ -1,6 +1,6 @@
 # 0009 — Compact Action cards
 
-> Status: reviewed
+> Status: in_progress
 > Description: Make board cards smaller by removing the visible ID and placing metadata values beside their labels.
 > Depends on: [0008 — Create Actions on the board](0008-board-action-create.md).
 
