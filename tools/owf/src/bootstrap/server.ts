@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { createBoardServer } from '../interfaces/http/index.js';
-import { listActions } from './workspaces.js';
+import { listActions, createAction } from './workspaces.js';
 
 export async function serve(start: string, port = 4317) {
   const { result } = listActions(start);
@@ -12,6 +12,11 @@ export async function serve(start: string, port = 4317) {
       return current;
     },
     fileURLToPath(new URL('../../dist/web/', import.meta.url)),
+    (input) => {
+      if (listActions(result.root).result.root !== result.root)
+        throw new Error('The original Workspace is no longer available.');
+      return createAction(result.root, input);
+    },
   );
   try {
     await server.listen({ host: '127.0.0.1', port });

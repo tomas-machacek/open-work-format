@@ -49,3 +49,15 @@ export const boardError = z.object({
 });
 export type BoardResponse = z.infer<typeof boardResponse>;
 export type BoardAction = z.infer<typeof boardAction>;
+
+export const createActionRequest = z
+  .object({
+    title: z.string(),
+    description: z.string().optional(),
+    owner: z.string(),
+    state: z.string(),
+    waitingFor: z.string().optional(),
+  })
+  .strict();
+export const createActionResponse = z.object({ action: boardAction });
+export type CreateActionRequest = z.infer<typeof createActionRequest>;

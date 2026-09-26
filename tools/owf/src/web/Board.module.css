@@ -284,3 +284,118 @@
     min-height: 120px;
   }
 }
+
+.add {
+  width: 100%;
+  margin: -4px 0 12px;
+  padding: 9px 8px;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #52665b;
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+}
+.add:hover {
+  background: #ffffff80;
+  border-color: #bdcbbf;
+}
+.add:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.form {
+  padding: 14px;
+  margin-bottom: 14px;
+  border: 1px solid #cbd6cc;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 3px 12px #25342f08;
+}
+.formTitle {
+  margin: 0 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.formTitle span {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #65716a;
+  font-weight: 400;
+}
+.form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.form label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.form label span {
+  font-size: 10px;
+  color: #65716a;
+}
+.form input,
+.form textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #cbd6cc;
+  border-radius: 5px;
+  background: #fcfdfb;
+  color: #25342f;
+  padding: 9px;
+  font: inherit;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.form textarea {
+  resize: vertical;
+}
+.hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #65716a;
+  overflow-wrap: anywhere;
+  margin: -6px 0 14px;
+}
+.formButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.formButtons button {
+  border: 1px solid #cad5cd;
+  border-radius: 5px;
+  padding: 9px 14px;
+  background: white;
+  color: #304c3e;
+  font-size: 12px;
+  cursor: pointer;
+}
+.formButtons button:first-child {
+  color: white;
+  background: #3e624d;
+  border-color: #3e624d;
+}
+.formButtons button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.formError {
+  color: #794422;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  margin: 12px 0 0;
+}
+.add:focus-visible,
+.form :focus-visible {
+  outline: 2px solid #50785e;
+  outline-offset: 3px;
+}

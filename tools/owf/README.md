@@ -230,7 +230,7 @@ directory remain under CC BY 4.0, as described in the
 [repository README](../../README.md#license). Third-party components retain
 their respective licenses.
 
-## Read-only Action board
+## Action board
 
 After `npm ci` and `npm run build` in `tools/owf`, enter an initialized Workspace
 and run `node <absolute-path-to-tools/owf>/dist/bootstrap/cli.js serve` (or
@@ -239,13 +239,34 @@ The process serves its built assets; Vite is not needed. Ctrl+C stops it.
 Use `serve --port 4318` for an occupied port. Only loopback access is supported.
 
 The five columns retain listing order. Cards show title, ID, stored owner URL and
-optional waiting reason. The board is read-only: change Actions through the CLI,
-then return to the window/tab or press Refresh. Refresh retains cards; errors
+optional waiting reason. Choose **Add Action** in any column to create directly in
+that state. Enter a title, optional Markdown description and an owner URL (`/`
+for the Workspace, or a Project/Outcome URL such as `/_projects/launch/`).
+Waiting also accepts an optional, nonblank **Waiting for** reason; its text is
+preserved literally. Save shows the server-confirmed card and updates counts.
+Cancel closes the form. One form can be open at a time; drafts survive refresh
+and failed saves. If a save cannot be confirmed, refresh/check before submitting
+again to avoid a duplicate.
+
+Change existing Actions through the CLI, then return to the window/tab or press Refresh. Refresh retains cards; errors
 mark existing data not current and offer Retry. There is no polling, filtering,
 Action detail, drag and drop or multi-Workspace registration.
 
 Install the Chromium test browser once with `npx playwright install chromium`.
-`npm run verify` includes the one browser journey against the built server and
-real CLI. `npm run test:browser` runs it alone after building; technical errors
+`npm run verify` includes two focused browser journeys against the built server and
+real CLI. `npm run test:browser` runs them alone after building; technical errors
 and response races are covered in integration and component tests. Failure
 screenshots and traces are diagnostics in `test-results/`, not snapshot assertions.
+
+The write endpoint accepts only same-origin `application/json` requests at
+`http://127.0.0.1:<serve-port>`; cross-origin/form requests are rejected before
+creation. `POST /api/actions` requires `title`, `owner`, `state`, with optional
+`description` and `waitingFor`; unknown fields are rejected. A 201 response is
+`{ action: ... }` with the persisted record. Errors use
+`{ error: { code, message } }`: 400 for invalid input, 403 for origin/host
+rejection, 415 for non-JSON, and 503 for unavailable/failed storage. Creation
+uses the same atomic Action + creation-event operation as the CLI.
+
+For frontend development, run `owf serve` on its default port 4317 and `npx vite`
+in `tools/owf`. Vite binds to 127.0.0.1 and proxies `/api` to that local server,
+preserving origin checks. Production assets and API share the server origin.
