@@ -180,9 +180,10 @@ with completion evidence recorded in a following documentation commit.
 
 ### Verification evidence
 
-Platform: Windows, Node.js v24.21.0, Playwright Chromium. All checks below ran
-against the implementation committed as `57dc4bb`; the subsequent edits only
-record completion evidence.
+Initial verification platform: Windows, Node.js v24.21.0, Playwright Chromium.
+The checks in this section ran against implementation `57dc4bb`; completion
+commit `2b76458` changed only documentation. See the second review below for
+the later proxy fix and its verification.
 
 - `npm run verify`: passed in full (typecheck, lint, Prettier, architecture,
   production build, 74 unit/component tests, 114 integration tests, 24 Cucumber
@@ -222,3 +223,45 @@ editing/moving existing Actions, polling and an owner picker remain deferred.
 Only Windows/Chromium was exercised; Linux, other browsers and physical mobile
 devices were not tested. The desktop/narrow check used rendered browser
 screenshots, and keyboard behavior was exercised by the browser journey.
+
+### Second independent review — 2026-09-26
+
+Reviewed the complete PR head `2b7645849dcf78288f66d945e1be78f3be471630`
+against current `main` `f1d045bec832e0d5359b1fea7779ea1c5e7a7fec`.
+A fresh review agent (`second_independent_review`) read the actual diff and
+agreed requirements without inheriting the implementation conversation.
+The review covered HTTP JSON/Host/Origin boundaries, the Vite proxy, errors,
+once-only application creation, owner validation and atomic event persistence;
+form states, focus, drafts, duplicate prevention and uncertainty; GET/POST
+ordering, reconciliation and stale indications; and tests across all layers.
+
+**P2, fixed:** `vite.config.ts`, original lines 12–14, translated matching
+Vite origins but forwarded foreign origins unchanged. When a request to Vite
+carried the backend origin `http://127.0.0.1:4317` without optional
+`Sec-Fetch-Site`, the rewritten Host and untouched Origin both passed the
+backend gate. The real proxy returned 201 and wrote an Action despite the
+request being cross-origin at the Vite boundary. This affected development
+proxy traffic; direct production origin checks were intact, and cross-port
+browser requests carrying `Sec-Fetch-Site: same-site` were already rejected.
+
+Fix `0b906227385609f844573ca482e655325598a7b4` translates only matching
+incoming origins and sends `Origin: null` for all others. The new
+[real-proxy integration test](../../tests/integration/board-proxy.test.ts)
+failed with 201 instead of 403 before the fix, then passed with rejection and
+an unchanged Workspace, followed by successful same-origin creation. Existing
+boundary/forbidden-example guidance covers this case; no additional general
+rule was added. Follow-up independent review accepted the fix and test and
+reported no remaining substantive findings.
+
+Verification on Windows / Node.js v24.21.0 after the code change:
+
+- Focused `npm run test:integration -- -t "Vite proxy"`: red before, green after.
+- `npm run verify`: passed on code committed as `0b90622`, including 74
+  unit/component tests, 115 integration tests, 24 acceptance scenarios / 123
+  steps, 20 CLI E2E tests, two Playwright journeys, types, lint, formatting,
+  architecture and production build.
+- `git diff --check`: passed. The PR still adds exactly one browser journey.
+
+Earlier desktop/narrow visual evidence is reused because this fix changes no
+UI. No new visual, physical-mobile, Linux or non-Chromium checks were run.
+Increment remains completed; no open findings, merge or release.
