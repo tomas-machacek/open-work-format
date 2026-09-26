@@ -127,6 +127,10 @@ export function createAction(
   ports: ActionPorts,
 ): ActionResult {
   const title = validateTitle(input.title);
+  validateStateRequest({
+    state: input.state ?? 'open',
+    waitingFor: input.waitingFor,
+  });
   const explicit =
     input.owner === undefined
       ? undefined

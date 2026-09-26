@@ -14,6 +14,18 @@ const original = newAction(
   '/',
 );
 const later = '2026-09-21T10:00:00.000Z';
+test('creation applies the shared waiting rule and preserves the supplied reason', () => {
+  const input = { title: 'Work', state: 'waiting', waitingFor: '  Reply\n  ' };
+  expect(newAction(input, original.id, later, '/')).toMatchObject({
+    state: 'waiting',
+    waiting_for: input.waitingFor,
+    created_at: later,
+    updated_at: later,
+  });
+  expect(() =>
+    newAction({ ...input, state: 'completed' }, original.id, later, '/'),
+  ).toThrow(expect.objectContaining({ code: 'INVALID_ARGUMENT' }));
+});
 test('all five states can transition to each other, preserving identity and clearing waiting context', () => {
   for (const from of actionStates) {
     const current = changeActionState(

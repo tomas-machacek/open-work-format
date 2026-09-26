@@ -202,7 +202,7 @@ export const actionRepository: ActionRepository = {
         'PRAGMA busy_timeout = 1000; PRAGMA foreign_keys = ON; BEGIN IMMEDIATE',
       );
       db.prepare(
-        'INSERT INTO actions (id,title,state,owner_url,description,created_at,updated_at) VALUES (?,?,?,?,?,?,?)',
+        'INSERT INTO actions (id,title,state,owner_url,description,created_at,updated_at,waiting_for) VALUES (?,?,?,?,?,?,?,?)',
       ).run(
         action.id,
         action.title,
@@ -211,10 +211,17 @@ export const actionRepository: ActionRepository = {
         action.description ?? null,
         action.created_at,
         action.updated_at,
+        action.waiting_for ?? null,
       );
       db.prepare(
-        'INSERT INTO action_events (kind,action_id,created_at) VALUES (?,?,?)',
-      ).run('action.created', action.id, action.created_at);
+        'INSERT INTO action_events (kind,action_id,created_at,new_state,new_waiting_for) VALUES (?,?,?,?,?)',
+      ).run(
+        'action.created',
+        action.id,
+        action.created_at,
+        action.state,
+        action.waiting_for ?? null,
+      );
       db.exec('COMMIT');
     } catch {
       throw new WorkspaceError(

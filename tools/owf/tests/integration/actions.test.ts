@@ -48,6 +48,84 @@ function rows(store: string, table: string) {
 }
 afterEach(() => roots.splice(0).forEach(cleanup));
 
+test('creation persists each initial state with one creation event and one supplied ID/time', () => {
+  const { root, store } = workspace();
+  const inputs = [
+    {},
+    ...['open', 'in_progress', 'waiting', 'completed', 'cancelled'].map(
+      (state) => ({ state }),
+    ),
+    { state: 'waiting', waitingFor: "  Život\n' reply  " },
+  ];
+  for (const input of inputs) {
+    let ids = 0;
+    let clocks = 0;
+    const action = createWithPorts(
+      root,
+      { title: 'Work', ...input },
+      {
+        ...actionPorts,
+        newId: () => {
+          ids++;
+          return actionPorts.newId();
+        },
+        now: () => {
+          clocks++;
+          return '2026-09-26T10:00:00.000Z';
+        },
+      },
+    ).result.action;
+    expect(ids).toBe(1);
+    expect(clocks).toBe(1);
+    expect(action.state).toBe(input.state ?? 'open');
+    expect(action.waiting_for).toBe(
+      'waitingFor' in input ? input.waitingFor : undefined,
+    );
+    expect(action.updated_at).toBe(action.created_at);
+    expect(getAction(root, action.id).result.action).toEqual(action);
+    expect(
+      listActions(root, { state: [action.state] }).result.actions,
+    ).toContainEqual(action);
+    expect(
+      rows(store, 'action_events').filter(
+        (event) => event.action_id === action.id,
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        kind: 'action.created',
+        created_at: action.created_at,
+        old_state: null,
+        old_waiting_for: null,
+        new_state: action.state,
+        new_waiting_for: action.waiting_for ?? null,
+      }),
+    ]);
+  }
+  expect(rows(store, 'actions')).toHaveLength(inputs.length);
+  expect(rows(store, 'action_events')).toHaveLength(inputs.length);
+});
+
+test('invalid initial state or waiting reason leaves the Workspace unchanged', () => {
+  const { root } = workspace();
+  const before = snapshot(root);
+  for (const input of [
+    { state: 'archived' },
+    { state: 'unknown' },
+    { state: 'open,waiting' },
+    { state: 'waiting', waitingFor: ' \n\t' },
+    { waitingFor: 'Reply' },
+    ...['open', 'in_progress', 'completed', 'cancelled'].map((state) => ({
+      state,
+      waitingFor: 'Reply',
+    })),
+  ]) {
+    expect(() => createAction(root, { title: 'Invalid', ...input })).toThrow(
+      expect.objectContaining({ code: 'INVALID_ARGUMENT' }),
+    );
+    expect(snapshot(root)).toEqual(before);
+  }
+});
+
 test('state and reason edits correlate events; no-ops preserve every byte even after owner disappears', () => {
   const { root, store } = workspace();
   const owner = create(root, { type: 'project', title: 'Owner' }).result;
@@ -368,9 +446,13 @@ test.each(['action', 'event', 'commit'])(
         `CREATE TRIGGER fail_write BEFORE INSERT ON ${failure === 'action' ? 'actions' : 'action_events'} BEGIN SELECT RAISE(ABORT, 'private SQL detail'); END;`,
       );
     const before = snapshot(root);
-    expect(() => createAction(root, { title: 'Must roll back' })).toThrow(
-      expect.objectContaining({ code: 'ACTION_CREATE_FAILED' }),
-    );
+    expect(() =>
+      createAction(root, {
+        title: 'Must roll back',
+        state: 'waiting',
+        waitingFor: 'Reply',
+      }),
+    ).toThrow(expect.objectContaining({ code: 'ACTION_CREATE_FAILED' }));
     expect(snapshot(root)).toEqual(before);
     expect(rows(store, 'actions')).toHaveLength(1);
     expect(rows(store, 'action_events')).toHaveLength(1);

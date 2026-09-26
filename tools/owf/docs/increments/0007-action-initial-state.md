@@ -1,6 +1,6 @@
 # 0007 — Action creation in a selected state
 
-> Status: reviewed
+> Status: in_progress
 > Description: Create an Action directly in any supported execution state through the CLI.
 > Depends on: [0005 — Action state changes](0005-action-state.md).
 
