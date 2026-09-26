@@ -16,14 +16,15 @@ define the workflow and how to keep the record useful after implementation.
 Add each subsequent increment with a document
 link and a one-line description; keep its status in sync.
 
-| Increment                                                               | Description                                                            | Status    |
-| ----------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------- |
-| [0001 — Workspace initialization](0001-workspace-init.md)               | Establish CLI tooling and initialize/discover a named local Workspace. | completed |
-| [0002 — Project and Outcome creation](0002-project-outcome-creation.md) | Create Markdown work contexts and generate Workspace CLI guidance.     | completed |
-| [0003 — Action creation and retrieval](0003-action-create-get.md)       | Create Actions in the Operational Store and retrieve them by ID.       | completed |
-| [0004 — Action listing](0004-action-list.md)                            | List Actions by direct owner or recursively by owner subtree.          | completed |
-| [0005 — Action state changes](0005-action-state.md)                     | Change Action state and filter Actions by state.                       | completed |
-| [0006 — Read-only Action board](0006-read-only-action-board.md)         | Display Actions by state in a local browser board.                     | completed |
+| Increment                                                                 | Description                                                            | Status    |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------- |
+| [0001 — Workspace initialization](0001-workspace-init.md)                 | Establish CLI tooling and initialize/discover a named local Workspace. | completed |
+| [0002 — Project and Outcome creation](0002-project-outcome-creation.md)   | Create Markdown work contexts and generate Workspace CLI guidance.     | completed |
+| [0003 — Action creation and retrieval](0003-action-create-get.md)         | Create Actions in the Operational Store and retrieve them by ID.       | completed |
+| [0004 — Action listing](0004-action-list.md)                              | List Actions by direct owner or recursively by owner subtree.          | completed |
+| [0005 — Action state changes](0005-action-state.md)                       | Change Action state and filter Actions by state.                       | completed |
+| [0006 — Read-only Action board](0006-read-only-action-board.md)           | Display Actions by state in a local browser board.                     | completed |
+| [0007 — Action creation in a selected state](0007-action-initial-state.md) | Create Actions directly in a chosen execution state through the CLI.   | draft     |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;
