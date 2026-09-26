@@ -132,8 +132,10 @@ Verification on Windows x64, Node.js v24.21.0, with Playwright Chromium:
   `.test-artifacts/0009-1440.png` and `.test-artifacts/0009-390.png`.
 - After the README correction, its formatting and `git diff --check` passed.
 
-An independent review agent read the agreed brief and actual diff. It found
-one outdated README sentence, which was corrected, then reported no remaining
-findings. The reviewer did not rerun tests or inspect the screenshots. Only
+A review agent in the implementation session read the agreed brief and actual
+diff. It found one outdated README sentence, which was corrected, then reported
+no remaining findings. This was an in-session code review, not a fresh-session
+independent assessment. The reviewer did not rerun tests or inspect the
+screenshots. Only
 Windows and Chromium were exercised; Linux, other browsers and physical mobile
-devices were not checked. PR #14 remains unmerged.
+devices were not checked. PR #14 was open when this review record was written.
