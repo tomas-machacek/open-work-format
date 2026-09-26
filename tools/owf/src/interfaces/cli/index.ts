@@ -64,7 +64,7 @@ export async function runCli(
   program
     .command('serve')
     .description(
-      'Serve a read-only Action board for this Workspace on 127.0.0.1; requires built web assets',
+      'Serve an Action board with inline creation for this Workspace on 127.0.0.1; requires built web assets',
     )
     .option('--port <port>', 'Local port (default: 4317)', '4317')
     .action(async (options: { port: string }) => {
@@ -78,7 +78,7 @@ export async function runCli(
           'Port must be an integer from 1 to 65535.',
         );
       console.log(
-        `Action board: ${await serve(Number(options.port))}\nRead-only; press Ctrl+C to stop.`,
+        `Action board: ${await serve(Number(options.port))}\nCreate Actions with Add Action; press Ctrl+C to stop.`,
       );
     });
   const creation = program

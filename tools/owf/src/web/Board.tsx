@@ -1,4 +1,11 @@
-import type { BoardAction, BoardResponse } from '../contracts/index.js';
+import { useState } from 'react';
+import { ActionForm } from './ActionForm.js';
+import { saveAction } from './client.js';
+import type {
+  CreateActionRequest,
+  BoardAction,
+  BoardResponse,
+} from '../contracts/index.js';
 import { useBoard } from './useBoard.js';
 import styles from './Board.module.css';
 
@@ -9,15 +16,22 @@ const columns: [BoardAction['state'], string][] = [
   ['completed', 'Completed'],
   ['cancelled', 'Cancelled'],
 ];
-export function Board({ load }: { load?: () => Promise<BoardResponse> }) {
-  const { data, error, loading, refresh } = useBoard(load);
+export function Board({
+  load,
+  save = saveAction,
+}: {
+  load?: () => Promise<BoardResponse>;
+  save?: (input: CreateActionRequest) => Promise<BoardAction>;
+}) {
+  const { data, error, loading, refresh, accept } = useBoard(load);
+  const [editing, setEditing] = useState<BoardAction['state']>();
   return (
     <main className={styles.page}>
       <header className={styles.header}>
         <span className={styles.brand}>
           owf <span>/ workspace</span>
         </span>
-        <span className={styles.readOnly}>Read-only board</span>
+        <span className={styles.readOnly}>Local board</span>
       </header>
       <section className={styles.intro} aria-labelledby="title">
         <div>
@@ -62,7 +76,7 @@ export function Board({ load }: { load?: () => Promise<BoardResponse> }) {
       )}
       {data?.actions.length === 0 && (
         <p className={styles.emptyBoard}>
-          No Actions yet. Create your first Action with the CLI, then refresh.
+          No Actions yet. Choose Add Action in a column to get started.
         </p>
       )}
       <div className={styles.board} aria-label="Action board">
@@ -83,6 +97,31 @@ export function Board({ load }: { load?: () => Promise<BoardResponse> }) {
                   {data ? actions.length : '—'}
                 </span>
               </h2>
+              <button
+                id={`add-${state}`}
+                className={styles.add}
+                disabled={!data || (editing !== undefined && editing !== state)}
+                aria-expanded={editing === state}
+                onClick={() => {
+                  if (editing === state)
+                    document.getElementById('action-title')?.focus();
+                  else setEditing(state);
+                }}
+              >
+                + Add Action
+              </button>
+              {editing === state && (
+                <ActionForm
+                  state={state}
+                  label={title}
+                  save={save}
+                  onSaved={accept}
+                  onClose={() => {
+                    setEditing(undefined);
+                    document.getElementById(`add-${state}`)?.focus();
+                  }}
+                />
+              )}
               <div className={styles.cards}>
                 {actions.map((action) => (
                   <article key={action.id} className={styles.card}>

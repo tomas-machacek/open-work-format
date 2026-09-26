@@ -1,6 +1,6 @@
 # 0008 — Create Actions on the board
 
-> Status: reviewed
+> Status: in_progress
 > Description: Create an Action directly in a board column with its initial execution state.
 > Depends on: [0006 — Read-only Action board](0006-read-only-action-board.md) and [0007 — Action creation in a selected state](0007-action-initial-state.md).
 

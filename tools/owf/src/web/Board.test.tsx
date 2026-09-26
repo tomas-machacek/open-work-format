@@ -10,7 +10,11 @@ import {
 } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { Board } from './Board.js';
-import type { BoardResponse } from '../contracts/index.js';
+import type {
+  BoardResponse,
+  BoardAction,
+  CreateActionRequest,
+} from '../contracts/index.js';
 const data: BoardResponse = {
   workspace: { root: 'C:/Work' },
   actions: [
@@ -166,3 +170,204 @@ test.each(['success', 'failure'] as const)(
     expect(load).toHaveBeenCalledTimes(3);
   },
 );
+
+function openForm(column = 'Waiting') {
+  fireEvent.click(
+    within(screen.getByRole('region', { name: column })).getByRole('button', {
+      name: /Add Action/,
+    }),
+  );
+  return screen.getByRole('form');
+}
+const created: BoardAction = {
+  id: 'accepted',
+  title: 'Saved work',
+  state: 'waiting',
+  owner: { url: '/_projects/launch/' },
+  waiting_for: '  Reply  ',
+  created_at: 'zz',
+  updated_at: 'zz',
+};
+
+test.each(['Open', 'In Progress', 'Waiting', 'Completed', 'Cancelled'])(
+  '%s form uses the column state, focuses title and defaults owner to Workspace',
+  async (column) => {
+    const save = vi
+      .fn<(input: CreateActionRequest) => Promise<BoardAction>>()
+      .mockResolvedValue(created);
+    render(<Board load={() => Promise.resolve(data)} save={save} />);
+    await screen.findByText('First');
+    openForm(column);
+    expect(document.activeElement).toBe(screen.getByLabelText('Title'));
+    expect(screen.queryByLabelText(/Waiting for/) !== null).toBe(
+      column === 'Waiting',
+    );
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Work' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(screen.queryByRole('form')).toBeNull());
+    expect(save).toHaveBeenCalledWith({
+      title: 'Work',
+      owner: '/',
+      state: column.toLowerCase().replace(' ', '_'),
+    });
+    expect(document.activeElement?.textContent).toContain('Add Action');
+  },
+);
+
+test('draft survives validation, refresh and failed save, and Cancel restores focus', async () => {
+  const save = vi
+    .fn<(input: CreateActionRequest) => Promise<BoardAction>>()
+    .mockRejectedValue(new Error('Owner does not exist.'));
+  render(<Board load={() => Promise.resolve(data)} save={save} />);
+  await screen.findByText('First');
+  const form = openForm();
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: '   ' },
+  });
+  fireEvent.submit(form);
+  expect(save).not.toHaveBeenCalled();
+  expect(screen.getByRole('alert').textContent).toContain('Enter a title');
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: 'My draft' },
+  });
+  fireEvent.change(screen.getByLabelText(/Description/), {
+    target: { value: '**Notes**' },
+  });
+  fireEvent.change(screen.getByLabelText('Owner URL'), {
+    target: { value: '/missing/' },
+  });
+  fireEvent.change(screen.getByLabelText(/Waiting for/), {
+    target: { value: '  Reply  ' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await waitFor(() =>
+    expect(screen.getByRole('status').textContent).toContain('up to date'),
+  );
+  expect(screen.getByRole('form')).toBe(form);
+  fireEvent.submit(form);
+  await screen.findByText('Owner does not exist.');
+  expect(save).toHaveBeenCalledWith({
+    title: 'My draft',
+    owner: '/missing/',
+    description: '**Notes**',
+    state: 'waiting',
+    waitingFor: '  Reply  ',
+  });
+  expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
+    'My draft',
+  );
+  expect(screen.getByLabelText<HTMLTextAreaElement>(/Description/).value).toBe(
+    '**Notes**',
+  );
+  expect(screen.getByLabelText<HTMLTextAreaElement>(/Waiting for/).value).toBe(
+    '  Reply  ',
+  );
+  expect(screen.queryByText('Saved work')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(screen.queryByRole('form')).toBeNull();
+  expect(document.activeElement?.textContent).toContain('Add Action');
+});
+
+test('pending create cannot duplicate; old GET cannot erase confirmation; subsequent GET reconciles by ID', async () => {
+  const oldRead = deferred();
+  let confirm!: (action: BoardAction) => void;
+  const save = vi
+    .fn<(input: CreateActionRequest) => Promise<BoardAction>>()
+    .mockReturnValue(
+      new Promise((resolve) => {
+        confirm = resolve;
+      }),
+    );
+  const load = vi
+    .fn<() => Promise<BoardResponse>>()
+    .mockResolvedValueOnce(data)
+    .mockReturnValueOnce(oldRead.promise)
+    .mockResolvedValue({
+      ...data,
+      actions: [...data.actions, { ...created, state: 'completed' }],
+    });
+  render(<Board load={load} save={save} />);
+  await screen.findByText('First');
+  const card = screen.getByText('First').closest('article');
+  const form = openForm();
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: 'Saved work' },
+  });
+  fireEvent.submit(form);
+  fireEvent.submit(form);
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(
+    screen.getByRole('button', { name: 'Saving…' }).matches(':disabled'),
+  ).toBe(true);
+  expect(screen.queryByText('Saved work')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  expect(load).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    confirm(created);
+    await Promise.resolve();
+  });
+  const savedCard = screen.getByText('Saved work').closest('article');
+  expect(
+    within(screen.getByRole('region', { name: 'Waiting' })).getAllByRole(
+      'article',
+    )[0],
+  ).toBe(savedCard);
+  await act(() => {
+    oldRead.resolve(data);
+    return oldRead.promise;
+  });
+  expect(screen.getAllByText('Saved work')).toHaveLength(1);
+  expect(screen.getByText('Saved work').closest('article')).toBe(savedCard);
+  expect(screen.getByText('First').closest('article')).toBe(card);
+  expect(screen.getByRole('heading', { name: 'Waiting2' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole('region', { name: 'Completed' })).getByText(
+        'Saved work',
+      ),
+    ).toBeTruthy(),
+  );
+  expect(screen.getAllByText('Saved work')).toHaveLength(1);
+});
+
+test('confirmed create keeps stale warning until GET succeeds; uncertain failure retains draft without retry', async () => {
+  const load = vi
+    .fn<() => Promise<BoardResponse>>()
+    .mockResolvedValueOnce(data)
+    .mockRejectedValue(new Error('Store unavailable'));
+  const save = vi
+    .fn<(input: CreateActionRequest) => Promise<BoardAction>>()
+    .mockResolvedValueOnce(created)
+    .mockRejectedValue(
+      new Error(
+        'Save could not be confirmed. Refresh and check the board before submitting again.',
+      ),
+    );
+  render(<Board load={load} save={save} />);
+  await screen.findByText('First');
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await screen.findByRole('alert');
+  openForm();
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: 'Saved work' },
+  });
+  fireEvent.submit(screen.getByRole('form'));
+  await screen.findByText('Saved work');
+  expect(screen.getByRole('alert').textContent).toContain('out of date');
+  openForm();
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: 'Uncertain work' },
+  });
+  fireEvent.submit(screen.getByRole('form'));
+  await screen.findByText(/Save could not be confirmed/);
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(3));
+  expect(save).toHaveBeenCalledTimes(2);
+  expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
+    'Uncertain work',
+  );
+  expect(screen.queryByText('Uncertain work')).toBeNull();
+});

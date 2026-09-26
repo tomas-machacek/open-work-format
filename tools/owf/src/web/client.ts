@@ -1,5 +1,8 @@
 import {
   boardResponse,
+  createActionResponse,
+  type CreateActionRequest,
+  type BoardAction,
   boardError,
   type BoardResponse,
 } from '../contracts/index.js';
@@ -13,4 +16,30 @@ export async function fetchBoard(): Promise<BoardResponse> {
     );
   }
   return boardResponse.parse(body);
+}
+
+export async function saveAction(
+  input: CreateActionRequest,
+): Promise<BoardAction> {
+  let response: Response;
+  let body: unknown;
+  try {
+    response = await fetch('/api/actions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    body = await response.json();
+    if (response.ok) return createActionResponse.parse(body).action;
+  } catch {
+    throw new Error(
+      'Save could not be confirmed. Refresh and check the board before submitting again.',
+    );
+  }
+  const parsed = boardError.safeParse(body);
+  throw new Error(
+    parsed.success
+      ? parsed.data.error.message
+      : 'Save could not be confirmed. Refresh and check the board before submitting again.',
+  );
 }
