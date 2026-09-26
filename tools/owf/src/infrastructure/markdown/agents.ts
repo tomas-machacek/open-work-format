@@ -55,7 +55,7 @@ is derived from the title. --expected-result defaults to the Outcome title.
 
 Actions default to open. Supply --state once to create directly in open,
 in_progress, waiting, completed or cancelled. Comma-separated states are invalid.
-With waiting, optional --waiting-for supplies a nonblank literal reason; it is
+With waiting, optional --waiting-for (supplied once) gives a nonblank literal reason; it is
 invalid with other states, including implicit open. Creation saves the state and
 reason with one action.created event atomically. Refresh the board to see it.
 Their owner is the explicit --owner when supplied,

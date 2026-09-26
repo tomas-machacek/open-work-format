@@ -70,6 +70,8 @@ test('create CLI accepts initial waiting state, renders it and rejects malformed
   for (const options of [
     ['--state', 'open', '--state', 'waiting'],
     ['--state=open', '--state=open'],
+    ['--state', 'waiting', '--waiting-for', 'First', '--waiting-for', 'Second'],
+    ['--state=waiting', '--waiting-for=', '--waiting-for=Reply'],
     ['--state', 'open,waiting'],
     ['--state', 'waiting', '--waiting-for', '  '],
     ['--waiting-for', 'Reply'],

@@ -147,7 +147,15 @@ export async function runCli(
     )
     .option(
       '--waiting-for <text>',
-      'Optional nonblank literal reason; only with --state waiting',
+      'Optional nonblank literal reason; only with --state waiting; supply once',
+      (value: string, previous: string | undefined) => {
+        if (previous !== undefined)
+          throw new WorkspaceError(
+            'INVALID_ARGUMENT',
+            'Supply --waiting-for only once.',
+          );
+        return value;
+      },
     )
     .option('--json', 'Emit one JSON result')
     .action((options: unknown) => {

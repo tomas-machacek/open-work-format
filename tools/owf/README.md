@@ -123,7 +123,7 @@ indexes stay unchanged and can be maintained manually.
 
 Actions default to `open`. Supply `--state` once to create directly in `open`,
 `in_progress`, `waiting`, `completed` or `cancelled`. With `waiting`, optional
-`--waiting-for` supplies a nonblank reason preserved literally; it is invalid
+`--waiting-for`, supplied once, supplies a nonblank reason preserved literally; it is invalid
 with other states, including implicit `open`. Comma-separated states are invalid.
 Creation saves the selected state and reason with one `action.created` event
 in a single transaction. The board shows the Action in that column after refresh.
