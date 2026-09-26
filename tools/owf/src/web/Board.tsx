@@ -126,22 +126,18 @@ export function Board({
                 {actions.map((action) => (
                   <article key={action.id} className={styles.card}>
                     <h3>{action.title}</h3>
-                    {action.state === 'waiting' &&
-                      action.waiting_for !== undefined && (
-                        <p className={styles.reason}>
-                          <span>Waiting for</span>
-                          {action.waiting_for}
-                        </p>
-                      )}
                     <dl>
                       <div>
-                        <dt>Owner</dt>
+                        <dt>Owner:</dt>
                         <dd>{action.owner.url}</dd>
                       </div>
-                      <div>
-                        <dt>ID</dt>
-                        <dd className={styles.id}>{action.id}</dd>
-                      </div>
+                      {action.state === 'waiting' &&
+                        action.waiting_for !== undefined && (
+                          <div className={styles.reason}>
+                            <dt>Waiting for:</dt>
+                            <dd>{action.waiting_for}</dd>
+                          </div>
+                        )}
                     </dl>
                   </article>
                 ))}

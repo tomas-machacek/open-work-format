@@ -173,12 +173,12 @@
   border: 1px solid #dfe5df;
   background: #fff;
   border-radius: 8px;
-  padding: 18px 14px 14px;
+  padding: 12px;
 }
 .card h3 {
-  margin: 0 0 20px;
+  margin: 0 0 8px;
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.4;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -188,37 +188,26 @@
   line-height: 1.5;
 }
 .card dl div + div {
-  margin-top: 10px;
+  margin-top: 5px;
 }
 .card dt {
+  display: inline;
   color: #6a746e;
   font-size: 11px;
-  margin-bottom: 3px;
+  margin-right: 4px;
 }
 .card dd {
+  display: inline;
   margin: 0;
   color: #4b5b52;
   overflow-wrap: anywhere;
 }
-.id {
-  font-family: ui-monospace, Consolas, monospace;
-  font-size: 11px;
-}
 .reason {
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  border-left: 2px solid #c9b27f;
-  padding-left: 10px;
-  margin: -4px 0 18px;
   color: #6e562c;
 }
-.reason span {
-  display: block;
-  font-size: 10px;
-  font-weight: 600;
-  margin-bottom: 4px;
+.reason dd {
+  color: inherit;
+  white-space: pre-wrap;
 }
 .empty {
   text-align: center;
