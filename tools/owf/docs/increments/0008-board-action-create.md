@@ -1,10 +1,12 @@
 # 0008 — Create Actions on the board
 
-> Status: draft
+> Status: reviewed
 > Description: Create an Action directly in a board column with its initial execution state.
 > Depends on: [0006 — Read-only Action board](0006-read-only-action-board.md) and [0007 — Action creation in a selected state](0007-action-initial-state.md).
 
 ## Goal and scope
+
+The user reviewed and approved this design for implementation on 2026-09-26.
 
 Let a person create an Action from the browser without first creating it in
 Open and then changing its state. The selected board column determines the
