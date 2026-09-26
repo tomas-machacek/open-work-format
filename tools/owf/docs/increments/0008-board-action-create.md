@@ -1,6 +1,6 @@
 # 0008 — Create Actions on the board
 
-> Status: in_progress
+> Status: completed
 > Description: Create an Action directly in a board column with its initial execution state.
 > Depends on: [0006 — Read-only Action board](0006-read-only-action-board.md) and [0007 — Action creation in a selected state](0007-action-initial-state.md).
 
@@ -155,4 +155,70 @@ as a later usability increment.
 
 ## Implementation and review outcome
 
-Pending implementation and review.
+Implemented on 2026-09-26 in `57dc4bb81380a2ec7e27a1a9a9590aa1e4ab4758`,
+with completion evidence recorded in a following documentation commit.
+
+### Delivered behavior
+
+- Each of the five columns has Add Action and an accessible inline form. One
+  form is open at a time; title receives focus, Cancel/confirmed Save return
+  focus to Add Action. Owner defaults to `/`; Waiting alone offers its reason.
+- `POST /api/actions` validates the strict shared JSON request contract and
+  invokes the existing creation operation once. A 201 returns the persisted
+  Action; client validation, origin/media-type rejection and storage failures
+  have machine-readable errors. Storage diagnostics do not expose SQL details.
+- The write gate requires the actual loopback Host and canonical same-origin
+  Origin, including configured ports, and JSON content. Vite proxies the same
+  API path while preserving rejection of foreign origins.
+- Confirmed cards merge by ID in listing order. Reads started before a
+  confirmation cannot erase it; later successful reads reconcile the list.
+  Refresh retains card nodes and drafts. Pending saves suppress duplicate
+  submission; failures preserve input, and uncertain results explain checking
+  the board before retrying. Successful creation does not clear stale warnings.
+- README and serve help describe creation. No schema or domain operation was
+  added; Workspace CLI guidance remains unchanged as planned.
+
+### Verification evidence
+
+Platform: Windows, Node.js v24.21.0, Playwright Chromium. All checks below ran
+against the implementation committed as `57dc4bb`; the subsequent edits only
+record completion evidence.
+
+- `npm run verify`: passed in full (typecheck, lint, Prettier, architecture,
+  production build, 74 unit/component tests, 114 integration tests, 24 Cucumber
+  scenarios / 123 steps, 20 CLI E2E tests, and two Playwright journeys).
+- [HTTP integration](../../tests/integration/board.test.ts) covers complete
+  Waiting creation and its single event, invalid input/owner/state, rejected
+  origin/Host/form requests without writes, Action/event write rollback,
+  unavailable storage and configured/default HTTP ports (AC1, AC2, AC4).
+- [Board tests](../../src/web/Board.test.tsx) and
+  [client tests](../../src/web/client.test.ts) cover each column's request,
+  draft retention, validation/failure feedback, focus, duplicate submission,
+  old-read races, reconciliation and uncertainty without retry (AC3).
+- [Browser journeys](../../tests/e2e/board.spec.ts) retain the CLI refresh flow
+  and add one keyboard-driven Waiting creation with description, reason and
+  Outcome owner under a Project. CLI get verifies the persisted values and
+  page reload verifies one retained card (AC1–AC3).
+- Manual visual inspection of rendered Chromium screenshots at 1440 px and
+  390 px: form and saved card are readable, labels/buttons fit, focus is
+  visible, columns stack at narrow width, and no controls are clipped.
+  Local screenshots: `.test-artifacts/0008-{desktop,narrow}-{form,saved}.png`.
+- `git diff --check`: passed. Early test/lint failures were corrected before
+  the final successful verify run; no checks were weakened or skipped.
+
+### Independent review and limitations
+
+A separate review agent (`review_0008`) read the actual diff, agreed brief and
+repository guidelines independently. It inspected domain reuse, atomicity,
+HTTP protection/error contracts, architecture, refresh races, accessibility
+structure and test value. Its sole P2 finding was rejection of valid browser
+origins on port 80, whose canonical Origin omits `:80`. The fix uses URL
+normalization and has a focused regression test. Follow-up review confirmed
+that fix and reported **no unresolved findings**. Existing URL-boundary guidance
+already covers the lesson; no additional general rule was needed.
+
+No scope deviations or release. Owner selection remains an explicit URL field;
+editing/moving existing Actions, polling and an owner picker remain deferred.
+Only Windows/Chromium was exercised; Linux, other browsers and physical mobile
+devices were not tested. The desktop/narrow check used rendered browser
+screenshots, and keyboard behavior was exercised by the browser journey.
