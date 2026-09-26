@@ -132,4 +132,39 @@ selection belong to the next increment.
 
 ## Implementation and review outcome
 
-Pending implementation and review.
+Implemented in `4ca6ea6b5181ed9dd0b094fa1b4e25b1121620a9` on 2026-09-26.
+Creation accepts the five initial states and optional literal Waiting reason,
+using the shared 0005 validation. It saves one Action and one `action.created`
+event with the initial values in the existing transaction. Schema 3, owner
+rules and result envelopes remain unchanged. Help, README and the generated
+Workspace guide source are updated; existing user guides are preserved.
+
+Verification on Windows, Node.js 24.21.0, npm 11.4.1:
+
+- `npm run verify` passed on implementation commit `4ca6ea6`: type checks,
+  lint, formatting, architecture, production build, 62 unit tests, 107
+  integration tests, 24 acceptance scenarios (123 steps), 20 CLI tests and
+  the existing Chromium board scenario.
+- Tests check default/explicit states through create/get/list, literal reasons,
+  invalid combinations without writes, one correlated creation event, one
+  supplied ID/time, and rollback on Action insert, event insert and commit
+  failure. Built CLI tests cover output, repeated/comma-separated state options,
+  help and executable generated-guide examples.
+- A separate built-CLI trial initialized a fresh disposable Workspace, created
+  `Počkať na HR` directly in Waiting with literal reason `  odpoveď HR  `,
+  then retrieved it with `get action` and `list actions --state waiting`.
+  Both returned the saved state/reason and equal creation/update timestamps.
+- Manual browser inspection could not run: no browser connector was available,
+  and native Computer Use twice reported an unavailable native pipe. As a
+  verification adjustment, the existing Playwright scenario now also creates
+  a Waiting Action through the real CLI while the board is open, clicks Refresh,
+  and checks its title in Waiting and its reason. This passed; no new browser
+  scenario or product browser/HTTP write behavior was added.
+- Initial sandbox test attempts failed at Vite startup with `spawn EPERM`;
+  reruns outside the sandbox passed. An initial verify stopped at index table
+  formatting, which was corrected before the successful runs.
+
+Independent code review has not been performed. The increment and index remain
+`in_progress`; completion awaits that review. Manual desktop-browser inspection
+remains unperformed; no implementation defect is currently known. Linux was not
+tested. The subsequent outcome-record commit changes documentation only.
