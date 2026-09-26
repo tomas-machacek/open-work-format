@@ -167,6 +167,9 @@ test('help, version and human output run outside checkout', () => {
   const root = temporaryDirectory();
   roots.push(root);
   expect(run(root, ['--help']).stdout).toContain('init');
+  expect(run(root, ['serve', '--help']).stdout).toContain('--port');
+  expect(run(root, ['serve', '--port', 'invalid']).status).toBe(2);
+  expect(run(root, ['serve']).stderr).toContain('WORKSPACE_NOT_FOUND');
   expect(run(root, ['--version']).stdout.trim()).toBe(metadata.version);
   const result = run(root, ['init', '--title', 'Human']);
   expect(result.status).toBe(0);
@@ -179,6 +182,8 @@ test('generated guide examples execute through the built CLI outside checkout', 
   roots.push(root);
   expect(run(root, ['init', '--title', 'Trial']).status).toBe(0);
   const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  expect(guide).toContain('owf serve');
+  expect(guide).toContain('http://127.0.0.1:4317');
   let cwd = root;
   let actionId = '';
   for (const line of guide.split('\n')) {

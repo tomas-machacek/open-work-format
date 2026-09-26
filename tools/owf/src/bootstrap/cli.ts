@@ -20,7 +20,7 @@ if (
   typeof metadata.version !== 'string'
 )
   throw new Error('Invalid package version');
-runCli(
+await runCli(
   process.argv,
   metadata.version,
   (title) => initialize(process.cwd(), title),
@@ -29,4 +29,17 @@ runCli(
   (identifier) => getAction(process.cwd(), identifier),
   (input) => listActions(process.cwd(), input),
   (identifier, input) => setAction(process.cwd(), identifier, input),
+  async (port) => {
+    const { serve } = await import('./server.js');
+    const server = await serve(process.cwd(), port);
+    const stop = () => {
+      void server.close().catch((error: unknown) => {
+        console.error(error);
+        process.exitCode = 1;
+      });
+    };
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+    return `http://127.0.0.1:${port}`;
+  },
 );

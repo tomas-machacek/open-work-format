@@ -3,3 +3,6 @@ dist/
 package-lock.json
 coverage/
 .test-artifacts/
+
+test-results/
+playwright-report/

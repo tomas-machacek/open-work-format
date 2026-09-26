@@ -6,6 +6,14 @@ Workspace Operational Store. The CLI must be installed on
 PATH, or invoked as node followed by its built dist/bootstrap/cli.js entry point.
 Use owf --help and command --help to inspect supported options.
 
+## Read-only browser board
+
+Run \`owf serve\` inside this Workspace and open http://127.0.0.1:4317.
+Use \`owf serve --port 4318\` if the default port is occupied. Keep the process
+running; Ctrl+C stops it. The tool must have been built, including web assets.
+The board refreshes on return to its tab or with Refresh. Failed reads retain
+cards marked not current; use Retry. All changes still use the CLI.
+
 ## Basic operations
 
 Initialize an existing directory (repeat init preserves the existing Workspace):

@@ -158,8 +158,9 @@ The domain does not depend on Zod. The same domain rules apply to all callers.
 
 The browser imports contracts, not application code or domain entities.
 After a mutation, display the actual accepted result or explain failure.
-Polling while the UI is open and refresh on window focus reveal CLI changes;
-the polling interval is an implementation detail.
+The first read-only board refreshes on return to the window/tab and by manual
+Refresh, coalescing focus/visibility events. Polling and push updates are deferred
+by increment 0006; CLI changes are not immediately synchronized while visible.
 
 The production Fastify process serves API and built frontend assets on
 127.0.0.1 by default. Vite's server is development-only. LAN hosting is outside

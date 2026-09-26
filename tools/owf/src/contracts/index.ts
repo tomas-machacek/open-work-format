@@ -27,3 +27,23 @@ export const createActionOptions = z.object({
   description: z.string().optional(),
   json: z.boolean().optional(),
 });
+
+export const boardAction = z.object({
+  id: z.string(),
+  title: z.string(),
+  state: z.enum(['open', 'in_progress', 'waiting', 'completed', 'cancelled']),
+  owner: z.object({ url: z.string() }),
+  description: z.string().optional(),
+  waiting_for: z.string().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export const boardResponse = z.object({
+  workspace: z.object({ root: z.string() }),
+  actions: z.array(boardAction),
+});
+export const boardError = z.object({
+  error: z.object({ code: z.string(), message: z.string() }),
+});
+export type BoardResponse = z.infer<typeof boardResponse>;
+export type BoardAction = z.infer<typeof boardAction>;

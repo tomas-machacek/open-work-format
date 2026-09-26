@@ -22,7 +22,7 @@ import type {
   SetActionInput,
 } from '../../application/actions/index.js';
 
-export function runCli(
+export async function runCli(
   argv: string[],
   version: string,
   initialize: (title: string | undefined) => WorkspaceResult,
@@ -31,7 +31,8 @@ export function runCli(
   getAction: (identifier: string) => ActionResult,
   listActions: (input: ListActionsInput) => ListActionsResult,
   setAction: (identifier: string, input: SetActionInput) => ActionResult,
-): void {
+  serve: (port: number) => Promise<string>,
+): Promise<void> {
   let json = false;
   const program = new Command()
     .name('owf')
@@ -58,6 +59,26 @@ export function runCli(
         json
           ? JSON.stringify({ ok: true, result })
           : `${result.status}\nRoot: ${result.root}\nTitle: ${result.title}\nStore: ${result.store}`,
+      );
+    });
+  program
+    .command('serve')
+    .description(
+      'Serve a read-only Action board for this Workspace on 127.0.0.1; requires built web assets',
+    )
+    .option('--port <port>', 'Local port (default: 4317)', '4317')
+    .action(async (options: { port: string }) => {
+      if (
+        !/^\d+$/.test(options.port) ||
+        Number(options.port) < 1 ||
+        Number(options.port) > 65535
+      )
+        throw new WorkspaceError(
+          'INVALID_ARGUMENT',
+          'Port must be an integer from 1 to 65535.',
+        );
+      console.log(
+        `Action board: ${await serve(Number(options.port))}\nRead-only; press Ctrl+C to stop.`,
       );
     });
   const creation = program
@@ -230,7 +251,7 @@ export function runCli(
     if (arg === '--json') json = true;
   }
   try {
-    program.parse(argv);
+    await program.parseAsync(argv);
   } catch (error) {
     if (error instanceof CommanderError && error.exitCode === 0) return;
     const code =
@@ -249,7 +270,9 @@ export function runCli(
                 ? 'ACTION_READ_FAILED'
                 : operationalArgs[0] === 'create'
                   ? 'CREATION_FAILED'
-                  : 'INITIALIZATION_FAILED';
+                  : operationalArgs[0] === 'serve'
+                    ? 'SERVER_START_FAILED'
+                    : 'INITIALIZATION_FAILED';
     const message = error instanceof Error ? error.message : String(error);
     if (json)
       console.log(JSON.stringify({ ok: false, error: { code, message } }));

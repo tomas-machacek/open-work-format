@@ -3,7 +3,15 @@ import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', '.test-artifacts/**'] },
+  {
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      '.test-artifacts/**',
+      'test-results/**',
+      'playwright-report/**',
+    ],
+  },
   eslint.configs.recommended,
   { files: ['*.cjs'], languageOptions: { globals: { module: 'readonly' } } },
   tseslint.configs.recommendedTypeChecked,
