@@ -1,10 +1,12 @@
 # 0007 — Action creation in a selected state
 
-> Status: draft
+> Status: reviewed
 > Description: Create an Action directly in any supported execution state through the CLI.
 > Depends on: [0005 — Action state changes](0005-action-state.md).
 
 ## Goal and scope
+
+The user reviewed and approved this design for implementation on 2026-09-26.
 
 Allow a person or agent to create an Action already in the state that describes
 it. In particular, a Waiting Action should not briefly exist as Open or require
@@ -124,7 +126,7 @@ Waiting column.
 
 ## Open questions for review
 
-No blocking question. This draft applies the existing five-state and
+No blocking question. This design applies the existing five-state and
 `waiting_for` rules to initial creation. The browser form and its owner
 selection belong to the next increment.
 
