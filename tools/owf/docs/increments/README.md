@@ -25,7 +25,7 @@ link and a one-line description; keep its status in sync.
 | [0005 — Action state changes](0005-action-state.md)                        | Change Action state and filter Actions by state.                       | completed |
 | [0006 — Read-only Action board](0006-read-only-action-board.md)            | Display Actions by state in a local browser board.                     | completed |
 | [0007 — Action creation in a selected state](0007-action-initial-state.md) | Create Actions directly in a chosen execution state through the CLI.   | completed |
-| [0008 — Create Actions on the board](0008-board-action-create.md)          | Create Actions directly in a chosen board column.                      | draft     |
+| [0008 — Create Actions on the board](0008-board-action-create.md)          | Create Actions directly in a chosen board column.                      | reviewed  |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;
