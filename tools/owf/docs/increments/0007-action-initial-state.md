@@ -1,6 +1,6 @@
 # 0007 — Action creation in a selected state
 
-> Status: in_progress
+> Status: completed
 > Description: Create an Action directly in any supported execution state through the CLI.
 > Depends on: [0005 — Action state changes](0005-action-state.md).
 
@@ -53,7 +53,8 @@ with their current meaning and owner validation.
 `--waiting-for` is optional only when the initial state is `waiting`, and is
 invalid with other states, including implicit `open`. If supplied, it must
 contain non-whitespace text; store it verbatim. Waiting without a reason is
-valid, as for `owf set action --state waiting`. Reuse the state and waiting
+valid, as for `owf set action --state waiting`. Supply `--waiting-for` only once;
+repeated occurrences are rejected. Reuse the state and waiting
 validation from 0005 rather than establishing a separate creation rule.
 
 The successful human and JSON outputs show the persisted initial state and
@@ -164,7 +165,37 @@ Verification on Windows, Node.js 24.21.0, npm 11.4.1:
   reruns outside the sandbox passed. An initial verify stopped at index table
   formatting, which was corrected before the successful runs.
 
-Independent code review has not been performed. The increment and index remain
-`in_progress`; completion awaits that review. Manual desktop-browser inspection
-remains unperformed; no implementation defect is currently known. Linux was not
-tested. The subsequent outcome-record commit changes documentation only.
+### Independent review
+
+Reviewed the complete PR #12 diff at `0e90cbae28875eae17093057acc69a3538bf2ebb`
+against `main` at `7154d715fe7abe44040b0e43d5c476bdad91b5ed` on 2026-09-26,
+including tests and documentation, against this approved increment, architecture,
+development guidelines, Core and Operational Store rules.
+
+- **P2, fixed:** `src/interfaces/cli/index.ts:148` accepted repeated
+  `--waiting-for` options and silently saved only the last reason. Creation now
+  rejects duplicates with `INVALID_ARGUMENT` before calling the application.
+  Two cases in the existing CLI test cover separate arguments and equals syntax
+  with an empty first value, including byte-for-byte Workspace preservation.
+  The regression failed against the original build (exit 0 instead of 2).
+- Reviewed default and all explicit states, shared validation, literal reasons,
+  unchanged owner/title/description rules and output envelopes, and existing
+  get/list/board mapping. Creation constructs the final state before its single
+  insert and writes exactly one matching creation event. Existing rollback tests
+  exercise both insert failures and a genuinely deferred foreign-key failure at
+  commit. Schema 3 and read-only HTTP/browser behavior remain unchanged.
+- The full state matrix is confined to integration tests. The small domain check
+  protects direct construction, and CLI checks protect parsing and rendering.
+  The existing browser scenario's extra CLI creation and Refresh assertions are
+  proportionate evidence for AC4; no additional Playwright scenario was needed.
+- Fix commit `f4d66a0db567998a646e1b3f031ea8b3db23a98c` passed `npm run verify`
+  on Windows, Node.js 24.21.0, npm 11.4.1, before committing the identical tree:
+  type checks, lint, formatting, architecture, production build, 62 unit tests,
+  107 integration tests, 24 acceptance scenarios (123 steps), 20 CLI tests and
+  the existing Chromium scenario. Sandbox Vite startup failed with `spawn EPERM`;
+  verification outside the sandbox passed.
+
+No unresolved review findings. The subsequent completion record changes only
+documentation and was formatting-checked. Manual desktop-browser inspection and
+Linux execution remain unperformed; automated Chromium refresh verification
+passed. The increment and index are now `completed`; no release was created.
