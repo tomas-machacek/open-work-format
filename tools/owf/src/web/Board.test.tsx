@@ -50,7 +50,10 @@ function deferred() {
   });
   return { promise, resolve, reject };
 }
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 test('refresh retains card nodes and order, marks failed data stale, retries and ignores older responses', async () => {
   const pending = deferred();
   const older = deferred();
@@ -113,14 +116,53 @@ test('initial error is not empty; nearby focus and visibility events are coalesc
   fireEvent.focus(window);
   fireEvent(document, new Event('visibilitychange'));
   await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
-  fireEvent.focus(window);
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 160));
-  });
-  expect(load).toHaveBeenCalledTimes(2);
   await act(() => {
     pending.resolve({ ...data, actions: [] });
     return pending.promise;
   });
   expect(screen.getByText(/No Actions yet/)).toBeTruthy();
 });
+
+test.each(['success', 'failure'] as const)(
+  'return during a pending refresh reads again after its %s without presenting the old result as current',
+  async (outcome) => {
+    vi.useFakeTimers();
+    const older = deferred();
+    const current = deferred();
+    const load = vi
+      .fn<() => Promise<BoardResponse>>()
+      .mockResolvedValueOnce(data)
+      .mockReturnValueOnce(older.promise)
+      .mockReturnValueOnce(current.promise);
+    render(<Board load={load} />);
+    await act(async () => {});
+    const card = screen.getByText('First').closest('article');
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    fireEvent.focus(window);
+    fireEvent(document, new Event('visibilitychange'));
+    await act(() => vi.advanceTimersByTimeAsync(100));
+    expect(load).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      if (outcome === 'success') older.resolve({ ...data, actions: [] });
+      else older.reject(new Error('Old read failed'));
+      await older.promise.catch(() => undefined);
+    });
+    expect(load).toHaveBeenCalledTimes(3);
+    expect(screen.getByText('First').closest('article')).toBe(card);
+    expect(screen.getByRole('status').textContent).toBe('Refreshing…');
+    expect(screen.queryByRole('alert')).toBeNull();
+    await act(() => {
+      current.resolve({
+        ...data,
+        actions: [{ ...data.actions[0]!, title: 'Changed through CLI' }],
+      });
+      return current.promise;
+    });
+    expect(screen.getByText('Changed through CLI').closest('article')).toBe(
+      card,
+    );
+    expect(screen.getByRole('status').textContent).toContain('up to date');
+    await act(() => vi.advanceTimersByTimeAsync(200));
+    expect(load).toHaveBeenCalledTimes(3);
+  },
+);

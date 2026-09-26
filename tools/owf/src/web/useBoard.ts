@@ -8,19 +8,24 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
   const [loading, setLoading] = useState(true);
   const generation = useRef(0);
   const inFlight = useRef(false);
+  const pendingReturn = useRef(false);
   const refresh = useCallback(
-    async (automatic = false) => {
-      if (automatic && inFlight.current) return;
+    async function refresh(automatic = false) {
+      if (automatic && inFlight.current) {
+        pendingReturn.current = true;
+        return;
+      }
+      pendingReturn.current = false;
       const request = ++generation.current;
       inFlight.current = true;
       setLoading(true);
       try {
         const next = await load();
-        if (request !== generation.current) return;
+        if (request !== generation.current || pendingReturn.current) return;
         setData(next);
         setError(undefined);
       } catch (failure) {
-        if (request !== generation.current) return;
+        if (request !== generation.current || pendingReturn.current) return;
         setError(
           failure instanceof Error
             ? failure.message
@@ -29,7 +34,10 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
       } finally {
         if (request === generation.current) {
           inFlight.current = false;
-          setLoading(false);
+          // A return can follow a CLI write after this request read its snapshot.
+          // Keep the cards and progress state until that return has its own read.
+          if (pendingReturn.current) void refresh();
+          else setLoading(false);
         }
       }
     },
@@ -50,6 +58,7 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
     return () => {
       ++generation.current;
       inFlight.current = false;
+      pendingReturn.current = false;
       clearTimeout(timer);
       window.removeEventListener('focus', onReturn);
       document.removeEventListener('visibilitychange', onReturn);

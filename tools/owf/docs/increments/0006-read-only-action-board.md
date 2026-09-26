@@ -1,6 +1,6 @@
 # 0006 — Read-only Action board
 
-> Status: in_progress
+> Status: completed
 > Description: Show persisted Actions in browser columns by execution state, refreshing on window focus.
 > Depends on: [0005 — Action state changes](0005-action-state.md).
 
@@ -134,7 +134,8 @@ layout are implementation choices within this approved scope.
 
 ## Implementation and review outcome
 
-Implemented; independent review is pending. Status remains `in_progress`.
+Implemented and independently reviewed. The review's refresh finding is fixed
+and covered by component regressions. Status is `completed`.
 
 - `owf serve [--port 4317]` discovers and validates one Workspace, binds only
   to `127.0.0.1`, and serves built React assets with Fastify. GET `/api/actions`
@@ -186,7 +187,35 @@ Verification on 2026-09-25:
 
 Limitations: one local Workspace per server; no live polling/push, filters,
 mutations, Action detail, Inbox or registration. Linux was not exercised.
-No independent review, merge or release has been performed.
+No merge or release has been performed.
+
+Independent review and correction on 2026-09-26:
+
+- Reviewed HEAD: `631db3f5c2e42534cff2cd41dc7ed18b08b1f73c`, against
+  `a1df3f1cbc5eab40b39994de1c04623d4d8e4307` (PR #11 base).
+- One confirmed P2 finding: returning during an outstanding request dropped
+  the refresh and could label an older snapshot current after a CLI change.
+  The hook now queues one follow-up read, discards the superseded response,
+  and retains cards and progress until the follow-up settles. Manual refresh
+  still supersedes earlier requests; nearby return events remain coalesced.
+- Component regressions cover both success and failure of the older request,
+  one follow-up read, retained card identity and the fresh final result. Fake
+  timers replace the previous real-time wait. The single Playwright journey
+  remains unchanged; HTTP errors and response races stay at cheaper layers.
+- Independent checks of the reviewed HEAD passed: production build, five
+  focused tests, one browser journey, built-server reads from a Workspace
+  subdirectory, loopback binding, complete records, rejected write methods,
+  store loss/corruption/unsupported-version recovery and byte preservation.
+  Chromium DOM measurements found no overflow at 1440, 390 and 320 pixels
+  with long titles, owner URLs and waiting reasons.
+- Correction verification: `npm run verify` passed on Windows x64 with Node
+  v24.21.0 for the implementation and tests in this correction commit, based
+  on the reviewed HEAD above. Typecheck, lint, formatting, architecture and
+  build passed; 61 unit/component/client tests, 105 integration tests,
+  24 acceptance scenarios (123 steps), 19 CLI E2E tests and the one Chromium
+  journey passed. The browser scenario took 3.0 seconds. Only this review
+  record and the increment index changed after that run; their formatting
+  was checked separately. No blocking findings remain.
 
 ## Decision changes and follow-up
 
