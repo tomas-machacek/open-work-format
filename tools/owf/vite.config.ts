@@ -9,9 +9,14 @@ export default defineConfig({
         changeOrigin: true,
         configure(proxy) {
           proxy.on('proxyReq', (outgoing, incoming) => {
-            // Preserve rejection of foreign origins through the dev proxy.
-            if (incoming.headers.origin === `http://${incoming.headers.host}`)
-              outgoing.setHeader('Origin', 'http://127.0.0.1:4317');
+            // Translate only the proxy's own origin. A foreign origin may
+            // equal the backend origin, so preserving it would bypass the gate.
+            outgoing.setHeader(
+              'Origin',
+              incoming.headers.origin === `http://${incoming.headers.host}`
+                ? 'http://127.0.0.1:4317'
+                : 'null',
+            );
           });
         },
       },
