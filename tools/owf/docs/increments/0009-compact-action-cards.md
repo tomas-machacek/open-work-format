@@ -1,10 +1,12 @@
 # 0009 — Compact Action cards
 
-> Status: draft
+> Status: reviewed
 > Description: Make board cards smaller by removing the visible ID and placing metadata values beside their labels.
 > Depends on: [0008 — Create Actions on the board](0008-board-action-create.md).
 
 ## Goal and scope
+
+The user reviewed and approved this design for implementation on 2026-09-27.
 
 Show more Actions at a glance without making cards harder to read. The current
 card uses a separate row for the ID and places owner and waiting values under
