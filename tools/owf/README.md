@@ -92,6 +92,8 @@ node $cli create outcome --title "Materiály" --owner /_projects/kitchen/ --expe
 node $cli create outcome --help
 $action = node $cli create action --title "Call the supplier" --json | ConvertFrom-Json
 node $cli create action --title "Confirm delivery" --owner / --description "Check the delivery date."
+node $cli create action --title "Wait for HR" --state waiting --waiting-for "HR reply" --json
+node $cli create action --title "Finished call" --state completed
 node $cli get action $action.result.action.id
 node $cli get action $action.result.uri --json
 node $cli set action $action.result.action.id --state waiting --waiting-for "Supplier reply" --json
@@ -119,7 +121,13 @@ hyphens (excluding Windows device names); otherwise it is derived from the title
 Existing targets, including case-only collisions, are errors. Existing navigation
 indexes stay unchanged and can be maintained manually.
 
-Actions start in `open`. Creation uses explicit `--owner` when supplied,
+Actions default to `open`. Supply `--state` once to create directly in `open`,
+`in_progress`, `waiting`, `completed` or `cancelled`. With `waiting`, optional
+`--waiting-for`, supplied once, supplies a nonblank reason preserved literally; it is invalid
+with other states, including implicit `open`. Comma-separated states are invalid.
+Creation saves the selected state and reason with one `action.created` event
+in a single transaction. The board shows the Action in that column after refresh.
+Creation uses explicit `--owner` when supplied,
 otherwise the nearest Project or Outcome in the working directory ancestry,
 otherwise the Workspace (`/`). Use `--owner /` to select the Workspace
 explicitly. Descriptions are literal Markdown text and may contain newlines.

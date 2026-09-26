@@ -24,6 +24,8 @@ owf create project --title "Kitchen" --slug kitchen --json
 owf create outcome --title "Design approved" --owner /_projects/kitchen/ --expected-result "The kitchen design is approved." --slug approved-design --json
 owf create action --title "Call the supplier" --json
 owf create action --title "Confirm delivery" --owner / --description "Check the delivery date."
+owf create action --title "Wait for HR" --state waiting --waiting-for "HR reply" --json
+owf create action --title "Finished call" --state completed
 owf get action {id}
 owf get action owf:action:{id} --json
 owf set action {id} --state waiting --waiting-for "Supplier reply" --json
@@ -51,7 +53,12 @@ Projects always go under /_projects/. --slug sets the directory name; otherwise 
 is derived from the title. --expected-result defaults to the Outcome title.
 --json emits one machine-readable result, including warnings or errors.
 
-Actions start open. Their owner is the explicit --owner when supplied,
+Actions default to open. Supply --state once to create directly in open,
+in_progress, waiting, completed or cancelled. Comma-separated states are invalid.
+With waiting, optional --waiting-for (supplied once) gives a nonblank literal reason; it is
+invalid with other states, including implicit open. Creation saves the state and
+reason with one action.created event atomically. Refresh the board to see it.
+Their owner is the explicit --owner when supplied,
 otherwise the nearest Project or Outcome in the current directory ancestry,
 otherwise this Workspace (URL /). An explicit --owner / always selects the
 Workspace. Action descriptions may contain Markdown and newlines. Copy the

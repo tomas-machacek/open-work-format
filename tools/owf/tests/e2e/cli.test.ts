@@ -25,6 +25,78 @@ afterEach(() => {
   roots.splice(0).forEach(cleanup);
 });
 
+test('create CLI accepts initial waiting state, renders it and rejects malformed options without writes', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  expect(run(root, ['init']).status).toBe(0);
+  const args = [
+    'create',
+    'action',
+    '--title',
+    'Wait',
+    '--state',
+    'waiting',
+    '--waiting-for',
+    '  Supplier reply  ',
+  ];
+  const created = run(root, [
+    ...args,
+    '--owner',
+    '/',
+    '--description',
+    'Details',
+    '--json',
+  ]);
+  expect(created.status).toBe(0);
+  expect(JSON.parse(created.stdout)).toMatchObject({
+    ok: true,
+    result: {
+      status: 'created',
+      type: 'action',
+      action: {
+        state: 'waiting',
+        waiting_for: '  Supplier reply  ',
+        owner: { url: '/' },
+        description: 'Details',
+      },
+    },
+  });
+  const human = run(root, args);
+  expect(human.status).toBe(0);
+  expect(human.stdout).toContain('created action');
+  expect(human.stdout).toContain('State: waiting');
+  expect(human.stdout).toContain('Waiting for:   Supplier reply  ');
+  const before = snapshot(root);
+  for (const options of [
+    ['--state', 'open', '--state', 'waiting'],
+    ['--state=open', '--state=open'],
+    ['--state', 'waiting', '--waiting-for', 'First', '--waiting-for', 'Second'],
+    ['--state=waiting', '--waiting-for=', '--waiting-for=Reply'],
+    ['--state', 'open,waiting'],
+    ['--state', 'waiting', '--waiting-for', '  '],
+    ['--waiting-for', 'Reply'],
+  ]) {
+    const failed = run(root, [
+      'create',
+      'action',
+      '--title',
+      'Invalid',
+      '--json',
+      ...options,
+    ]);
+    expect(failed.status).toBe(2);
+    expect(JSON.parse(failed.stdout)).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' },
+    });
+    expect(snapshot(root)).toEqual(before);
+  }
+  const help = run(root, ['create', 'action', '--help']).stdout;
+  expect(help).toContain('--state');
+  expect(help).toContain('--waiting-for');
+  expect(help).toContain('open (default)');
+});
+
 test('set CLI renders changed and unchanged Actions, validates arguments and forwards combined filters', () => {
   const root = temporaryDirectory();
   roots.push(root);
@@ -381,7 +453,7 @@ test('Action commands round trip across processes with complete envelopes, human
     expect(human.stdout.split(/\r?\n/u)).toContain(field);
   for (const [args, code, status] of [
     [
-      ['create', 'action', '--title', 'X', '--state', 'open', '--json'],
+      ['create', 'action', '--title', 'X', '--state', 'archived', '--json'],
       'INVALID_ARGUMENT',
       2,
     ],

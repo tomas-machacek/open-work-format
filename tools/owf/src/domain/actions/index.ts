@@ -3,6 +3,8 @@ import type { ContextMetadata } from '../contexts/index.js';
 
 export interface ActionInput {
   title: string;
+  state?: string | undefined;
+  waitingFor?: string | undefined;
   description?: string | undefined;
   owner?: string | undefined;
 }
@@ -108,7 +110,13 @@ export function newAction(
   return {
     id: actionId(id),
     title: validateTitle(input.title),
-    state: 'open',
+    state: validateStateRequest({
+      state: input.state ?? 'open',
+      waitingFor: input.waitingFor,
+    }),
+    ...(input.waitingFor === undefined
+      ? {}
+      : { waiting_for: input.waitingFor }),
     owner: { url: owner },
     ...(input.description === undefined
       ? {}

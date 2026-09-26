@@ -49,6 +49,16 @@ test('built board quietly reflects a CLI change on return to the tab', async ({
       'Completed0',
       'Cancelled0',
     ]);
+    run(
+      'create',
+      'action',
+      '--title',
+      'Wait for HR',
+      '--state',
+      'waiting',
+      '--waiting-for',
+      'HR reply',
+    );
     const response = z
       .object({ result: z.object({ action: z.object({ id: z.string() }) }) })
       .parse(
@@ -57,6 +67,12 @@ test('built board quietly reflects a CLI change on return to the tab', async ({
         ),
       );
     await page.getByRole('button', { name: 'Refresh' }).click();
+    await expect(
+      page
+        .getByRole('region', { name: 'Waiting', exact: true })
+        .getByText('Wait for HR'),
+    ).toBeVisible();
+    await expect(page.getByText('HR reply')).toBeVisible();
     await expect(
       page
         .getByRole('region', { name: 'Open', exact: true })

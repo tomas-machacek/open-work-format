@@ -23,6 +23,8 @@ export const createOptions = z.object({
 });
 export const createActionOptions = z.object({
   title: z.string(),
+  state: z.string().optional(),
+  waitingFor: z.string().optional(),
   owner: z.string().optional(),
   description: z.string().optional(),
   json: z.boolean().optional(),

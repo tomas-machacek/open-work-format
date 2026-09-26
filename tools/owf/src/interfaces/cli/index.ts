@@ -125,7 +125,7 @@ export async function runCli(
   creation
     .command('action')
     .description(
-      'Create an open Action; owner defaults to nearest Project/Outcome, then Workspace (/)',
+      'Create an Action (default open); owner defaults to nearest Project/Outcome, then Workspace (/)',
     )
     .requiredOption('--title <title>', 'Nonempty single-line title')
     .option(
@@ -133,12 +133,38 @@ export async function runCli(
       'Workspace-rooted owner URL; overrides context; / selects the Workspace',
     )
     .option('--description <text>', 'Markdown description')
+    .option(
+      '--state <state>',
+      'Initial state: open (default), in_progress, waiting, completed, cancelled; supply once',
+      (value: string, previous: string | undefined) => {
+        if (previous !== undefined)
+          throw new WorkspaceError(
+            'INVALID_ARGUMENT',
+            'Supply --state only once.',
+          );
+        return value;
+      },
+    )
+    .option(
+      '--waiting-for <text>',
+      'Optional nonblank literal reason; only with --state waiting; supply once',
+      (value: string, previous: string | undefined) => {
+        if (previous !== undefined)
+          throw new WorkspaceError(
+            'INVALID_ARGUMENT',
+            'Supply --waiting-for only once.',
+          );
+        return value;
+      },
+    )
     .option('--json', 'Emit one JSON result')
     .action((options: unknown) => {
       const parsed = createActionOptions.parse(options);
       json = parsed.json ?? false;
       const result = createAction({
         title: parsed.title,
+        state: parsed.state,
+        waitingFor: parsed.waitingFor,
         ...(parsed.owner === undefined ? {} : { owner: parsed.owner }),
         ...(parsed.description === undefined
           ? {}
