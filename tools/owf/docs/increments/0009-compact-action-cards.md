@@ -1,6 +1,6 @@
 # 0009 — Compact Action cards
 
-> Status: in_progress
+> Status: completed
 > Description: Make board cards smaller by removing the visible ID and placing metadata values beside their labels.
 > Depends on: [0008 — Create Actions on the board](0008-board-action-create.md).
 
@@ -102,4 +102,38 @@ not add one.
 
 ## Implementation and review outcome
 
-Pending implementation and review.
+Implemented in `6cc934349bae94691b26d95c50eecc5d54762f0e` on 2026-09-27.
+Cards now show the full title, `Owner: value`, and, when present on a Waiting
+Action, `Waiting for: value` in a compact description list. The visible ID row
+is gone. Card spacing is smaller; long text wraps and Waiting newlines are
+preserved. IDs remain in Action data, CLI/JSON, React keys and sorting. The
+creation form, endpoint, schema, refresh and save behavior did not change.
+The tool README now describes the current card content. There was no scope
+deviation or release.
+
+Verification on Windows x64, Node.js v24.21.0, with Playwright Chromium:
+
+- `npm run verify` passed on the implementation working tree before the
+  documentation-only completion update: typecheck, lint, formatting,
+  architecture, production build, 75 unit/component tests, 115 integration
+  tests, 24 acceptance scenarios (123 steps), 20 CLI E2E tests and the two
+  existing Playwright journeys.
+- The new board component test checks full long text, semantic `dt`/`dd`
+  pairs, the present and absent Waiting reason, and absence of card ID text.
+  The existing creation journey finds the saved ID through CLI list and uses
+  CLI get to verify persisted values. No Playwright scenario was added.
+- Manual Chromium inspection at 1440 px and 390 px covered short and long
+  Open and Waiting cards, a long owner URL, a multiline reason and a Waiting
+  card without a reason. The sample Action response was supplied to the built
+  board for this visual inspection; the browser journey separately exercised
+  real persistence. Compared with the earlier 0008 desktop image, the short
+  cards are visibly denser. DOM measurements found no horizontal page or
+  card-text overflow at either width. Local diagnostic screenshots are
+  `.test-artifacts/0009-1440.png` and `.test-artifacts/0009-390.png`.
+- After the README correction, its formatting and `git diff --check` passed.
+
+An independent review agent read the agreed brief and actual diff. It found
+one outdated README sentence, which was corrected, then reported no remaining
+findings. The reviewer did not rerun tests or inspect the screenshots. Only
+Windows and Chromium were exercised; Linux, other browsers and physical mobile
+devices were not checked. PR #14 remains unmerged.
