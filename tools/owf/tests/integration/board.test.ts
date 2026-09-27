@@ -573,6 +573,7 @@ test('expected Waiting reason detects a conflict even when timestamps coincide',
 test('edit route saves combined fields once, preserves no-ops, and rejects stale content with equal timestamps', async () => {
   const root = directory();
   const { store } = initialize(root);
+  create(root, { type: 'project', title: 'Launch', slug: 'launch' });
   const action = createAction(root, {
     title: 'Await',
     state: 'waiting',
@@ -646,7 +647,7 @@ test('edit route saves combined fields once, preserves no-ops, and rejects stale
         await request(action.id, {
           expected,
           title: 'Await reply',
-          owner: '/',
+          owner: '/_projects/launch/',
           clearDescription: true,
           clearWaitingFor: true,
         })
@@ -655,7 +656,7 @@ test('edit route saves combined fields once, preserves no-ops, and rejects stale
     expect(changed.status).toBe('updated');
     expect(changed.action).toMatchObject({
       title: 'Await reply',
-      owner: { url: '/' },
+      owner: { url: '/_projects/launch/' },
       state: 'waiting',
     });
     expect(changed.action.description).toBeUndefined();
@@ -665,10 +666,16 @@ test('edit route saves combined fields once, preserves no-ops, and rejects stale
       expect(
         db
           .prepare(
-            "SELECT kind FROM action_events WHERE kind = 'action.updated'",
+            "SELECT kind, old_owner_url, new_owner_url FROM action_events WHERE kind = 'action.updated'",
           )
           .all(),
-      ).toHaveLength(1);
+      ).toEqual([
+        {
+          kind: 'action.updated',
+          old_owner_url: '/',
+          new_owner_url: '/_projects/launch/',
+        },
+      ]);
       const after = snapshot(root);
       const currentExpected = {
         title: changed.action.title,
@@ -710,7 +717,7 @@ test('edit route saves combined fields once, preserves no-ops, and rejects stale
         expect(snapshot(root)).toEqual(stale);
         db.prepare(`UPDATE actions SET ${field} = ? WHERE id = ?`).run(
           field === 'owner_url'
-            ? '/'
+            ? changed.action.owner.url
             : field === 'title'
               ? changed.action.title
               : null,

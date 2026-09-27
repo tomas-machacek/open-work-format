@@ -183,5 +183,17 @@ labels and focus were checked in component tests; a manual assistive-technology
 screen-reader session was not run. The version 4 Workspace requirement from
 0011 still applies.
 
-Code review is pending in a separate session. Keep this increment
-`in_progress` until that review and any resulting fixes are complete.
+Independent review of PR #17 found that opening the Discard/Continue choice
+left keyboard focus on the page body, and that the edit-route integration test
+supplied the Action's existing owner rather than testing an owner change. The
+dialog now focuses Continue editing when the choice opens and returns focus to
+the title field when editing resumes. The integration test changes ownership to
+a valid Project and checks the old and new owner URLs in the single update
+event. The existing Playwright journey also checks focus through Escape,
+Cancel, discard and return to the card.
+
+After these review fixes, `npm run verify` passed on Windows with Node
+24.21.0: typecheck, lint, format, architecture check, build, 83 unit/component
+tests, 125 integration tests, 24 acceptance scenarios, 21 CLI end-to-end tests
+and 4 Chromium Playwright scenarios. A manual screen-reader session remains
+unperformed. The increment stays `in_progress`; PR #17 is not merged.

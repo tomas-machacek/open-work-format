@@ -615,11 +615,18 @@ test('click and Enter open a focused detail, preserve draft on refresh, and requ
     new Event('cancel', { cancelable: true }),
   );
   expect(screen.getByText('Discard unsaved changes?')).toBeTruthy();
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'Continue editing' }),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
   expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
     'My draft',
   );
+  expect(document.activeElement).toBe(screen.getByLabelText('Title'));
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'Continue editing' }),
+  );
   fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   await waitFor(() => expect(document.activeElement).toBe(card));

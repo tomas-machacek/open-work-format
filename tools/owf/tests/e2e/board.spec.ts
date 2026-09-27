@@ -520,6 +520,21 @@ test('edit a Waiting Action in detail and still move its card by dragging', asyn
       state: 'waiting',
       waiting_for: 'New reply',
     });
+    await waiting.getByRole('article').click();
+    await detail.getByLabel('Title').fill('Unsaved title');
+    await page.keyboard.press('Escape');
+    await expect(
+      detail.getByRole('button', { name: 'Continue editing' }),
+    ).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(detail.getByLabel('Title')).toBeFocused();
+    await expect(detail.getByLabel('Title')).toHaveValue('Unsaved title');
+    await detail.getByRole('button', { name: 'Cancel' }).click();
+    await expect(
+      detail.getByRole('button', { name: 'Continue editing' }),
+    ).toBeFocused();
+    await detail.getByRole('button', { name: 'Discard changes' }).click();
+    await expect(waiting.getByRole('article')).toBeFocused();
     await dragCard(
       page,
       waiting.getByRole('article').getByRole('heading'),

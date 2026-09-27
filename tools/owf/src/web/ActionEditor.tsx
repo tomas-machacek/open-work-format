@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import type { BoardAction, EditActionRequest } from '../contracts/index.js';
 import { StateUpdateError } from './client.js';
 import styles from './Board.module.css';
@@ -28,6 +34,7 @@ export function ActionEditor({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleInput = useRef<HTMLInputElement>(null);
+  const continueButton = useRef<HTMLButtonElement>(null);
   const [baseline, setBaseline] = useState(action);
   const [title, setTitle] = useState(action.title);
   const [description, setDescription] = useState(action.description ?? '');
@@ -50,6 +57,10 @@ export function ActionEditor({
     titleInput.current?.focus();
     return () => node?.close();
   }, []);
+  useLayoutEffect(() => {
+    if (discard) continueButton.current?.focus();
+    else if (dialog.current?.open) titleInput.current?.focus();
+  }, [discard]);
   function requestClose() {
     if (saving) return;
     if (dirty) setDiscard(true);
@@ -162,10 +173,10 @@ export function ActionEditor({
                 Discard changes
               </button>
               <button
+                ref={continueButton}
                 type="button"
                 onClick={() => {
                   setDiscard(false);
-                  titleInput.current?.focus();
                 }}
               >
                 Continue editing
