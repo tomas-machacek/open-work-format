@@ -1,7 +1,7 @@
 # 0010 — Change Action state on the board
 
 > Status: draft
-> Description: Move Actions between board columns through a card control, including Waiting context.
+> Description: Change Action state by dragging a card into another board column.
 > Depends on: [0009 — Compact Action cards](0009-compact-action-cards.md) and [0005 — Action state changes](0005-action-state.md).
 
 ## Goal and scope
@@ -20,59 +20,64 @@ References: [architecture](../architecture.md),
 [0006 refresh behavior](0006-read-only-action-board.md) and
 [0008 browser write behavior](0008-board-action-create.md).
 
-Included: a compact **Move to…** control on each card, the five existing
-states including reopening Completed/Cancelled, optional Waiting reason,
-reason replacement while already Waiting, a local state-update HTTP endpoint,
-conflict feedback and quiet board reconciliation.
+Included: drag and drop between the five state columns (including reopening
+Completed/Cancelled), an accessible non-drag equivalent, a local state-update
+HTTP endpoint, conflict feedback and quiet board reconciliation.
 
-Deferred: drag and drop, changing title/description/owner, clearing a Waiting
-reason while remaining Waiting, archive, filters and bulk changes. The
-architecture's dnd-kit choice applies when drag and drop is implemented; this
-increment provides an accessible state control first. No schema migration or
-new state is needed.
+Deferred: editing Action fields including `waiting_for`, ordering cards within
+a column, archive, filters and bulk changes. Dropping into Waiting does not
+prompt for a reason; editing it belongs to a later Action editing increment.
+No schema migration or new state is needed.
 
 ## Proposed solution
 
 ### Card interaction
 
-Provide a small, keyboard-accessible **Move to…** state control on each card.
-Show the current state and the other four destinations clearly. Choosing a
-different non-Waiting state submits one update. Choosing Waiting opens a
-small inline step for optional **Waiting for** text and explicit Save/Cancel;
-the card stays in its current column until the server confirms the update.
-While already Waiting, offer **Edit Waiting for** and prefill the existing
-reason. A nonblank supplied value replaces it verbatim; leaving it unchanged
-is an idempotent no-op. An empty value when a reason exists must not appear to
-clear it: disabling Save with an explanation is acceptable, since clearing a
-reason without leaving Waiting is deferred by 0005. Waiting without a reason
-remains valid. Leaving Waiting clears the reason under the existing rule.
+Use dnd-kit for a card drag handle and five column drop targets. The handle
+must not interfere with reading/selecting card text or with Add Action. While
+dragging, show the card and target clearly without obscuring other content;
+drops outside a column or back into the source column do nothing. Position
+inside a column never changes the fixed `created_at`/ID list order. Dropping
+in another column submits one state change. All five destinations work from
+any source, including reopening Completed/Cancelled.
 
-Disable only the affected card's state controls while its request is pending;
-other cards, forms and Refresh remain usable. Keep the card visible in its old
-column during the request. On confirmed success, use the complete returned
-Action to move it once to its actual state, update its Waiting text and column
-counts, preserving existing list order (`created_at` descending, ID ascending
-for ties). A successful same-state request must not add an event or change the
-timestamp. If the request fails, keep the card and entered reason, explain the
-error locally and allow correction or retry. A network failure after sending
-may have an unknown outcome: do not automatically retry; prompt the user to
-refresh/check the board first. Preserve the quiet refresh and stale warning.
+A drop into Waiting supplies only `state: waiting`: the stored `waiting_for`
+is absent for an Action coming from another state, as in 0005. Show no dialog,
+inline form or interruption. Leaving Waiting clears its reason under the
+existing rule. Changing or clearing `waiting_for` while staying Waiting is
+deferred to Action editing. The existing CLI can still edit the reason.
 
-The control is usable at desktop and narrow widths without turning the compact
-card into a large permanent form. Use native button/select semantics, visible
-focus and labels. No hover-only action or drag-only interaction.
+Support keyboard and screen-reader users through dnd-kit's keyboard controls
+and a discreet alternate state control on the card, as required by the
+architecture. The alternate control invokes the same state update, with no
+Waiting form. Describe how keyboard dragging works in accessible instructions;
+use visible focus and a clear announcement of drag/drop outcomes. Keep the
+compact card readable at desktop and narrow widths; touch input should also
+permit a move without preventing ordinary scrolling.
+
+Disable only the affected card's movement while its request is pending;
+other cards, forms and Refresh remain usable. The source card stays visible
+while the write is pending, with subtle progress feedback. On confirmation,
+use the complete returned Action to move it once to its actual state and
+update column counts, preserving existing list order (`created_at` descending,
+ID ascending for ties). A same-column drop causes no request, timestamp or
+event. If the request fails, keep the card in the original column and explain
+the error nearby. A network failure after sending may have an unknown
+outcome: do not automatically retry; prompt the user to refresh/check the
+board first. Preserve the quiet refresh and stale warning.
 
 ### HTTP, stale data and persistence
 
 Add a local state update route such as `PATCH /api/actions/{id}/state`. A strict
-JSON request carries the target `state`, optional `waitingFor`, and the
-card's observed `state`, `updated_at` and `waiting_for` as an expected snapshot.
-The response returns the actual persisted Action and `updated` or `unchanged`
-status. Parse request/response in `src/contracts`; keep the HTTP adapter thin,
+JSON request carries the target `state` and the card's observed `state`,
+`updated_at` and `waiting_for` as an expected snapshot. The board sends no
+new Waiting reason. The response returns the actual persisted Action and
+`updated` or `unchanged` status. Parse request/response in `src/contracts`;
+keep the HTTP adapter thin,
 using `setAction` once. Reuse the same-origin JSON/Host gate established for
 POST, including Vite proxy behavior. Reject invalid input before any write;
-return machine-readable 400 for invalid state/reason, 404 for an absent Action,
-409 for a stale card, and a distinct 5xx store error without SQL details.
+return machine-readable 400 for invalid input, 404 for an absent Action, 409
+for a stale card, and a distinct 5xx store error without SQL details.
 
 The card's expected values must be compared with the current Action **inside
 the existing update transaction**, before applying the change. Extend the
@@ -99,22 +104,23 @@ only way cards change; the generated Workspace AGENTS.md remains CLI-focused.
 
 ## Acceptance criteria
 
-AC1: From each column, a user can move an Action to any other supported state,
-including reopening Completed/Cancelled. The persisted Action and one
-`action.state_changed` event reflect a real change; owner, title, ID and
-creation time remain unchanged. A same-state no-op preserves timestamp and
-event count. No automatic owning Project/Outcome change occurs.
+AC1: Dragging from each column to any other column changes the Action to that
+column's state, including reopening Completed/Cancelled. The persisted Action
+and one `action.state_changed` event reflect a real change; owner, title, ID and
+creation time remain unchanged. A drop outside a target or within the same
+column writes nothing. No automatic owning Project/Outcome change occurs.
 
-AC2: Entering Waiting can include an optional nonblank literal reason.
-Editing the reason while staying Waiting replaces it; leaving Waiting removes
-it. The UI does not imply that a blank edit clears an existing reason. Invalid
-reason/state combinations are rejected without writes.
+AC2: Dropping into Waiting changes the state without showing a form or
+populating `waiting_for`. Leaving Waiting removes an existing reason. No
+browser control in this increment edits or clears the reason while remaining
+Waiting. CLI reason editing remains available and visible after refresh.
 
-AC3: Pending updates leave the board interactive and avoid speculative moves
-or flicker. A confirmed Action appears once in its correct column and order,
-with updated counts and reason. Older GET responses cannot undo the confirmed
-result. Failure preserves the user input and card; an uncertain result is not
-automatically retried. Compact cards remain readable and keyboard accessible.
+AC3: Pointer/touch dragging indicates valid targets, and keyboard/screen-reader
+users can move a card without a pointer. Pending updates leave the board
+interactive and avoid speculative moves or flicker. A confirmed Action appears
+once in its correct column and order, with updated counts and reason. Older GET
+responses cannot undo it. Failure leaves the card in its source column; an
+uncertain result is not automatically retried.
 
 AC4: A browser card whose displayed state, timestamp or Waiting reason differs
 from the current Action cannot overwrite it, including after a CLI reason-only
@@ -125,8 +131,8 @@ machine-readable outcomes.
 
 AC5: The HTTP mutation accepts only same-origin JSON on loopback and rejects
 foreign Origin/Host or non-JSON requests without writes. Existing CLI and
-create/read browser flows continue to work. No schema migration or drag and
-drop is introduced.
+create/read browser flows continue to work. No schema migration, within-column
+ordering or browser editing of other Action fields is introduced.
 
 ## Verification plan
 
@@ -136,26 +142,27 @@ drop is introduced.
 - HTTP integration checks for accepted result, missing/invalid/conflict/store
   errors and same-origin JSON gate, with unchanged bytes on rejections (AC4–AC5).
   Avoid repeating every state at HTTP level.
-- Component/client checks for Waiting reason step, cancel, card-level pending
-  and error feedback, keyboard operation, stale read/update races and quiet
-  reconciliation (AC2–AC3). Do not mirror every HTTP case in the browser.
-- One focused Playwright journey moving an Action into Waiting with a reason,
-  then to another state, verifying persisted results through the CLI and no
-  flicker. Keep the browser suite small; no case per transition (AC1–AC3).
-- Manually inspect the control and pending/error states at desktop and narrow
-  widths. Run `npm run verify` before handoff and record the actual revision,
-  platform and results.
+- Component/client checks for target resolution, same-column/outside drops,
+  keyboard alternative, card-level pending/error feedback, stale read/update
+  races and quiet reconciliation (AC1–AC3). Do not mirror every HTTP case.
+- One focused Playwright journey dragging an Action into Waiting without a
+  reason, then to another state, verifying persisted results through the CLI.
+  Keep the browser suite small; no case per transition (AC1–AC3).
+- Manually inspect pointer, keyboard and touch behavior, drop cues and
+  pending/error states at desktop and narrow widths. Run `npm run verify`
+  before handoff and record the actual revision, platform and results.
 
-Manual trial: create an Open Action, run `owf serve`, move it to Waiting with a
-reason, then complete and reopen it. Check `owf get action {id}` after each
-step. Change its state or reason in the CLI while the board is open, then try
-an update from the stale card and confirm the conflict/refresh behavior.
+Manual trial: create an Open Action, run `owf serve`, drag it to Waiting (no
+prompt and no reason), then complete and reopen it. Check the result with
+`owf get action {id}` after each step. Change its state or reason in the CLI
+while the board is open, then try moving the stale card and confirm the
+conflict/refresh behavior.
 
 ## Open questions for review
 
-This proposal intentionally uses a card state control and defers drag and
-drop. Confirm that this is the right first interaction for the increment;
-other routine visual details can be chosen during implementation.
+No blocking question. Drag and drop is the primary interaction, per user
+decision. The alternate state control is a small accessibility fallback,
+without a Waiting prompt or editor.
 
 ## Implementation and review outcome
 
