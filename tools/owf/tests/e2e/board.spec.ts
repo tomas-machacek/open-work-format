@@ -1,11 +1,26 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { once } from 'node:events';
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { z } from 'zod';
 import { boardAction } from '../../src/contracts/index.js';
 import { cleanup, temporaryDirectory } from '../support/workspace.js';
 const cli = resolve('dist/bootstrap/cli.js');
+async function dragCard(page: Page, from: Locator, to: Locator) {
+  const start = await from.boundingBox();
+  const end = await to.boundingBox();
+  expect(start).not.toBeNull();
+  expect(end).not.toBeNull();
+  await page.mouse.move(
+    start!.x + start!.width / 2,
+    start!.y + start!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(end!.x + end!.width / 2, end!.y + end!.height / 2, {
+    steps: 12,
+  });
+  await page.mouse.up();
+}
 test('built board quietly reflects a CLI change on return to the tab', async ({
   page,
   context,
@@ -255,22 +270,11 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
     const open = page.getByRole('region', { name: 'Open', exact: true });
     const waiting = page.getByRole('region', { name: 'Waiting', exact: true });
     await expect(open.getByText('Move this')).toBeVisible();
-    const handle = open.getByRole('button', {
-      name: 'Drag Move this to change state',
-    });
-    const from = await handle.boundingBox();
-    const to = await waiting.boundingBox();
-    expect(from).not.toBeNull();
-    expect(to).not.toBeNull();
-    await page.mouse.move(
-      from!.x + from!.width / 2,
-      from!.y + from!.height / 2,
+    await dragCard(
+      page,
+      open.getByRole('heading', { name: 'Move this' }),
+      waiting,
     );
-    await page.mouse.down();
-    await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, {
-      steps: 12,
-    });
-    await page.mouse.up();
     await expect(waiting.getByText('Move this')).toBeVisible();
     expect(persisted()).toMatchObject({
       id: created.id,
@@ -278,33 +282,36 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
       owner: created.owner,
     });
     expect(persisted().waiting_for).toBeUndefined();
-    const selector = waiting.getByRole('combobox', {
-      name: 'Move Move this to',
-    });
-    await selector.selectOption('completed');
+    await dragCard(
+      page,
+      waiting.getByRole('article').getByText('/', { exact: true }),
+      page.getByRole('region', { name: 'Completed', exact: true }),
+    );
     await expect(
       page
         .getByRole('region', { name: 'Completed', exact: true })
         .getByText('Move this'),
     ).toBeVisible();
     expect(persisted().state).toBe('completed');
-    await page
-      .getByRole('region', { name: 'Completed', exact: true })
-      .getByRole('combobox', { name: 'Move Move this to' })
-      .selectOption('open');
+    await dragCard(
+      page,
+      page
+        .getByRole('region', { name: 'Completed', exact: true })
+        .getByRole('article'),
+      open,
+    );
     await expect(open.getByText('Move this')).toBeVisible();
     expect(persisted()).toMatchObject({
       state: 'open',
       id: created.id,
       created_at: created.created_at,
     });
-    await open
-      .getByRole('button', { name: 'Drag Move this to change state' })
-      .focus();
+    await open.getByRole('article').focus();
     await page.keyboard.press('Space');
-    await expect(
-      open.getByRole('button', { name: 'Drag Move this to change state' }),
-    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(open.getByRole('article')).toHaveAttribute(
+      'class',
+      /dragging/,
+    );
     // The keyboard sensor attaches its key listener on the next task.
     await page.waitForTimeout(50);
     await page.keyboard.press('ArrowRight');
@@ -329,21 +336,22 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
     try {
       const mobile = await mobileContext.newPage();
       await mobile.goto('http://127.0.0.1:14319');
-      const mobileHandle = mobile
+      const mobileCard = mobile
         .getByRole('region', { name: 'In Progress', exact: true })
-        .getByRole('button', { name: 'Drag Move this to change state' });
+        .getByRole('article');
       const mobileWaiting = mobile.getByRole('region', {
         name: 'Waiting',
         exact: true,
       });
-      await expect(mobileHandle).toBeVisible();
+      await expect(mobileCard).toBeVisible();
+      expect(await mobile.getByRole('combobox').count()).toBe(0);
       expect(
         await mobile.evaluate(
           'document.documentElement.scrollWidth <= window.innerWidth',
         ),
       ).toBe(true);
       await mobile.evaluate('window.scrollBy(0, 250)');
-      const touchFrom = await mobileHandle.boundingBox();
+      const touchFrom = await mobileCard.getByRole('heading').boundingBox();
       const touchTo = await mobileWaiting.boundingBox();
       expect(touchFrom).not.toBeNull();
       expect(touchTo).not.toBeNull();

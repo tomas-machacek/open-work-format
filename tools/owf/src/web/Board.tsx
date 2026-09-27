@@ -79,8 +79,7 @@ export function Board({
     if (state === action.state || moving.current.has(action.id)) return;
     const hadFocus =
       document.activeElement
-        ?.closest('article')
-        ?.querySelector('[data-action-id]')
+        ?.closest('[data-action-id]')
         ?.getAttribute('data-action-id') === action.id;
     moving.current.add(action.id);
     setPending(new Set(moving.current));
@@ -107,9 +106,7 @@ export function Board({
         window.setTimeout(() => {
           if (document.activeElement === document.body)
             document
-              .querySelector<HTMLButtonElement>(
-                `[data-action-id="${saved.id}"]`,
-              )
+              .querySelector<HTMLElement>(`[data-action-id="${saved.id}"]`)
               ?.focus();
         }, 0);
       }
@@ -221,8 +218,7 @@ export function Board({
       )}
       <p id="drag-instructions" className={styles.srOnly}>
         Press Space to pick up a card, use arrow keys to choose a column, then
-        press Space to drop. Press Escape to cancel. You can also use the Move
-        to selector.
+        press Space to drop. Press Escape to cancel.
       </p>
       <div className={styles.srOnly} role="status" aria-live="polite">
         {announcement}
@@ -287,12 +283,8 @@ export function Board({
                     <MovableCard
                       key={action.id}
                       action={action}
-                      columns={columns}
                       pending={pending.has(action.id)}
                       error={moveErrors[action.id]}
-                      onMove={(item, next) => {
-                        void changeState(item, next);
-                      }}
                     />
                   ))}
                   {data && actions.length === 0 && (
@@ -305,8 +297,8 @@ export function Board({
         </div>
       </DndContext>
       <footer className={styles.footer}>
-        Drag cards between columns or use Move to. CLI changes appear when you
-        return to this tab or refresh.
+        Drag cards between columns. CLI changes appear when you return to this
+        tab or refresh.
       </footer>
     </main>
   );

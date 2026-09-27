@@ -249,8 +249,8 @@ Cancel closes the form. One form can be open at a time; drafts survive refresh
 and failed saves. If a save cannot be confirmed, refresh/check before submitting
 again to avoid a duplicate.
 
-Drag a card by its handle into another column to change its state, or use its
-**Move to** selector. Keyboard dragging uses Space to pick up/drop, arrow keys
+Drag a card from anywhere on its surface into another column to change its
+state. Keyboard dragging uses Space to pick up/drop, arrow keys
 to choose a column and Escape to cancel. Moving into Waiting does not request
 or add a reason; moving out clears any existing reason. The card stays put until
 the server confirms the change. A conflict refreshes the board; after an

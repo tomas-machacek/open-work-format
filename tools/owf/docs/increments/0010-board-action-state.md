@@ -6,7 +6,9 @@
 
 ## Goal and scope
 
-The user reviewed and approved this design for implementation on 2026-09-27.
+The user reviewed and approved this design for implementation on 2026-09-27,
+then revised the card interaction: dragging starts anywhere on a card and there
+is no separate state selector.
 
 Let a person change an existing Action's execution state directly on the
 Kanban board, without switching to the CLI. The board shows the persisted
@@ -23,8 +25,8 @@ References: [architecture](../architecture.md),
 [0008 browser write behavior](0008-board-action-create.md).
 
 Included: drag and drop between the five state columns (including reopening
-Completed/Cancelled), an accessible non-drag equivalent, a local state-update
-HTTP endpoint, conflict feedback and quiet board reconciliation.
+Completed/Cancelled), keyboard dragging, a local state-update HTTP endpoint,
+conflict feedback and quiet board reconciliation.
 
 Deferred: editing Action fields including `waiting_for`, ordering cards within
 a column, archive, filters and bulk changes. Dropping into Waiting does not
@@ -35,9 +37,9 @@ No schema migration or new state is needed.
 
 ### Card interaction
 
-Use dnd-kit for a card drag handle and five column drop targets. The handle
-must not interfere with reading/selecting card text or with Add Action. While
-dragging, show the card and target clearly without obscuring other content;
+Use dnd-kit to make the entire card draggable, with five column drop targets.
+There is no handle or Move to selector. Add Action remains a separate control.
+While dragging, show the card and target clearly without obscuring other content;
 drops outside a column or back into the source column do nothing. Position
 inside a column never changes the fixed `created_at`/ID list order. Dropping
 in another column submits one state change. All five destinations work from
@@ -50,9 +52,8 @@ existing rule. Changing or clearing `waiting_for` while staying Waiting is
 deferred to Action editing. The existing CLI can still edit the reason.
 
 Support keyboard and screen-reader users through dnd-kit's keyboard controls
-and a discreet alternate state control on the card, as required by the
-architecture. The alternate control invokes the same state update, with no
-Waiting form. Describe how keyboard dragging works in accessible instructions;
+on the focusable card. Describe how keyboard dragging works in accessible
+instructions;
 use visible focus and a clear announcement of drag/drop outcomes. Keep the
 compact card readable at desktop and narrow widths; touch input should also
 permit a move without preventing ordinary scrolling.
@@ -145,7 +146,7 @@ ordering or browser editing of other Action fields is introduced.
   errors and same-origin JSON gate, with unchanged bytes on rejections (AC4–AC5).
   Avoid repeating every state at HTTP level.
 - Component/client checks for target resolution, same-column/outside drops,
-  keyboard alternative, card-level pending/error feedback, stale read/update
+  keyboard dragging, card-level pending/error feedback, stale read/update
   races and quiet reconciliation (AC1–AC3). Do not mirror every HTTP case.
 - One focused Playwright journey dragging an Action into Waiting without a
   reason, then to another state, verifying persisted results through the CLI.
@@ -162,14 +163,14 @@ conflict/refresh behavior.
 
 ## Open questions for review
 
-No blocking question. Drag and drop is the primary interaction, per user
-decision. The alternate state control is a small accessibility fallback,
-without a Waiting prompt or editor.
+No blocking question. The user revised the original fallback decision:
+drag-and-drop is the only state control, with keyboard dragging on the
+focusable card.
 
 ## Implementation and review outcome
 
-Implementation is on this PR branch. The board has dnd-kit drag handles and
-five drop targets, keyboard dragging and a per-card state selector. PATCH uses
+Implementation is on this PR branch. The board has whole-card dragging and
+five drop targets, including keyboard dragging. PATCH uses
 the existing Action transaction with an expected state/timestamp/reason check;
 the board holds the source card during a pending request and reconciles the
 returned Action over older reads. The README describes the controls and errors.
@@ -195,3 +196,11 @@ formatting, architecture, build, 79 unit tests, 118 integration tests, 24
 acceptance scenarios, 20 CLI process tests and all three Chromium journeys.
 The touch extension was also run as a focused Chromium journey after that full
 run; the final `verify` was repeated after the test and document updates.
+
+The user then removed the separate Move to control and the corner drag handle.
+The whole card is now the drag surface and remains keyboard focusable for
+Space/arrow-key dragging. The browser journey moves it from the title, owner
+text and card body, and checks touch dragging at narrow width. On Windows with
+Node 24.21.0, `npm run verify` passed again: 79 unit tests, 118 integration
+tests, 24 acceptance scenarios, 20 CLI tests and three Chromium journeys,
+along with all static checks and the build.

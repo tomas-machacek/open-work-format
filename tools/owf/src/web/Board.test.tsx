@@ -9,6 +9,7 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
+import type { DragEndEvent } from '@dnd-kit/core';
 import { Board } from './Board.js';
 import type {
   BoardResponse,
@@ -17,6 +18,27 @@ import type {
   UpdateActionStateRequest,
 } from '../contracts/index.js';
 import { StateUpdateError } from './client.js';
+let finishDrag: ((event: DragEndEvent) => void) | undefined;
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@dnd-kit/core')>();
+  const { createElement } = await import('react');
+  return {
+    ...actual,
+    DndContext: (props: React.ComponentProps<typeof actual.DndContext>) => {
+      finishDrag = (event) => props.onDragEnd?.(event);
+      return createElement(actual.DndContext, props);
+    },
+  };
+});
+function dropCard(id: string, state: string | null) {
+  if (!finishDrag) throw new Error('Board drag context is unavailable.');
+  act(() => {
+    finishDrag!({
+      active: { id },
+      over: state === null ? null : { id: state },
+    } as DragEndEvent);
+  });
+}
 const data: BoardResponse = {
   workspace: { root: 'C:/Work' },
   actions: [
@@ -93,6 +115,10 @@ test('cards keep full text and semantic inline metadata without displaying IDs',
   ).closest('article')!;
   const waitingCard = screen.getByText('Waiting task').closest('article')!;
   const noReasonCard = screen.getByText('No reason').closest('article')!;
+  expect(openCard.getAttribute('tabindex')).toBe('0');
+  expect(openCard.getAttribute('aria-describedby')).toBe('drag-instructions');
+  expect(screen.queryByRole('combobox')).toBeNull();
+  expect(within(openCard).queryByRole('button')).toBeNull();
   expect(within(openCard).getByRole('heading').textContent).toBe(longTitle);
   expect(within(openCard).getByText(longOwner).textContent).toBe(longOwner);
   expect(within(openCard).getByText('Owner:').tagName).toBe('DT');
@@ -434,7 +460,7 @@ test('confirmed create keeps stale warning until GET succeeds; uncertain failure
   expect(screen.queryByText('Uncertain work')).toBeNull();
 });
 
-test('Move to keeps the card visible while pending, then reconciles a confirmed move over an older GET', async () => {
+test('drop keeps the card visible while pending, then reconciles a confirmed move over an older GET', async () => {
   const oldRead = deferred();
   let confirm!: (action: BoardAction) => void;
   const move = vi
@@ -456,10 +482,7 @@ test('Move to keeps the card visible while pending, then reconciles a confirmed 
   await screen.findByText('First');
   const card = screen.getByText('First').closest('article')!;
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-  fireEvent.change(
-    within(card).getByRole('combobox', { name: 'Move First to' }),
-    { target: { value: 'waiting' } },
-  );
+  dropCard('one', 'waiting');
   expect(move).toHaveBeenCalledExactlyOnceWith('one', {
     state: 'waiting',
     expected: { state: 'open', updated_at: 'now' },
@@ -468,9 +491,7 @@ test('Move to keeps the card visible while pending, then reconciles a confirmed 
     within(screen.getByRole('region', { name: 'Open' })).getByText('First'),
   ).toBeTruthy();
   expect(within(card).getByText('Moving…')).toBeTruthy();
-  expect(within(card).getByRole('combobox').hasAttribute('disabled')).toBe(
-    true,
-  );
+  expect(card.getAttribute('aria-disabled')).toBe('true');
   await act(async () => {
     confirm({ ...data.actions[0]!, state: 'waiting', updated_at: 'later' });
     await Promise.resolve();
@@ -494,7 +515,7 @@ test('Move to keeps the card visible while pending, then reconciles a confirmed 
   );
 });
 
-test('same-column selection writes nothing; conflict refreshes without speculative movement; uncertain result is not retried', async () => {
+test('same-column or outside drop writes nothing; conflict refreshes and uncertain result is not retried', async () => {
   const move = vi
     .fn<(id: string, input: UpdateActionStateRequest) => Promise<BoardAction>>()
     .mockRejectedValueOnce(
@@ -506,14 +527,14 @@ test('same-column selection writes nothing; conflict refreshes without speculati
   const load = vi.fn<() => Promise<BoardResponse>>().mockResolvedValue(data);
   render(<Board load={load} move={move} />);
   const card = (await screen.findByText('First')).closest('article')!;
-  const select = within(card).getByRole('combobox');
-  fireEvent.change(select, { target: { value: 'open' } });
+  dropCard('one', 'open');
+  dropCard('one', null);
   expect(move).not.toHaveBeenCalled();
-  fireEvent.change(select, { target: { value: 'completed' } });
+  dropCard('one', 'completed');
   await within(card).findByText('Action changed.');
   await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
   expect(screen.getByText('First').closest('article')).toBe(card);
-  fireEvent.change(select, { target: { value: 'waiting' } });
+  dropCard('one', 'waiting');
   await within(card).findByText('Check before retrying.');
   expect(move).toHaveBeenCalledTimes(2);
   expect(
@@ -538,9 +559,7 @@ test('a read that finishes during a pending write does not move the source card 
   render(<Board load={load} move={move} />);
   const card = (await screen.findByText('First')).closest('article')!;
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-  fireEvent.change(within(card).getByRole('combobox'), {
-    target: { value: 'waiting' },
-  });
+  dropCard('one', 'waiting');
   await act(() => {
     inFlight.resolve({
       ...data,

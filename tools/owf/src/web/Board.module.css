@@ -179,6 +179,14 @@
   background: #fff;
   border-radius: 8px;
   padding: 12px;
+  cursor: grab;
+}
+.card:focus-visible {
+  outline: 2px solid #50785e;
+  outline-offset: 2px;
+}
+.pending {
+  cursor: wait;
 }
 .dragging {
   position: relative;
@@ -186,55 +194,7 @@
   box-shadow: 0 8px 22px #25342f30;
   border-color: #658b70;
   pointer-events: none;
-}
-.cardTop {
-  display: flex;
-  align-items: start;
-  gap: 4px;
-}
-.cardTop h3 {
-  flex: 1;
-  min-width: 0;
-}
-.handle {
-  flex: none;
-  border: 0;
-  background: transparent;
-  color: #52665b;
-  padding: 0 2px;
-  font-size: 19px;
-  cursor: grab;
-  touch-action: none;
-}
-.handle:active {
   cursor: grabbing;
-}
-.handle:disabled {
-  opacity: 0.4;
-  cursor: wait;
-}
-.handle:focus-visible,
-.moveLabel select:focus-visible {
-  outline: 2px solid #50785e;
-  outline-offset: 2px;
-}
-.moveLabel {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  color: #65716a;
-  font-size: 11px;
-}
-.moveLabel select {
-  min-width: 0;
-  max-width: 130px;
-  font: inherit;
-  color: #304c3e;
-  background: #fff;
-  border: 1px solid #cad5cd;
-  border-radius: 4px;
-  padding: 3px;
 }
 .cardStatus,
 .cardError {
