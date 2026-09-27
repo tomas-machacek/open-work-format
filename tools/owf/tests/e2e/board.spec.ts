@@ -255,9 +255,22 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
     const open = page.getByRole('region', { name: 'Open', exact: true });
     const waiting = page.getByRole('region', { name: 'Waiting', exact: true });
     await expect(open.getByText('Move this')).toBeVisible();
-    await open
-      .getByRole('button', { name: 'Drag Move this to change state' })
-      .dragTo(waiting);
+    const handle = open.getByRole('button', {
+      name: 'Drag Move this to change state',
+    });
+    const from = await handle.boundingBox();
+    const to = await waiting.boundingBox();
+    expect(from).not.toBeNull();
+    expect(to).not.toBeNull();
+    await page.mouse.move(
+      from!.x + from!.width / 2,
+      from!.y + from!.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(to!.x + to!.width / 2, to!.y + to!.height / 2, {
+      steps: 12,
+    });
+    await page.mouse.up();
     await expect(waiting.getByText('Move this')).toBeVisible();
     expect(persisted()).toMatchObject({
       id: created.id,
@@ -289,7 +302,15 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
       .getByRole('button', { name: 'Drag Move this to change state' })
       .focus();
     await page.keyboard.press('Space');
+    await expect(
+      open.getByRole('button', { name: 'Drag Move this to change state' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    // The keyboard sensor attaches its key listener on the next task.
+    await page.waitForTimeout(50);
     await page.keyboard.press('ArrowRight');
+    await expect(
+      page.getByRole('region', { name: 'In Progress', exact: true }),
+    ).toHaveAttribute('class', /dropTarget/);
     await page.keyboard.press('Space');
     await expect(
       page
@@ -297,6 +318,65 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
         .getByText('Move this'),
     ).toBeVisible();
     expect(persisted().state).toBe('in_progress');
+    const mobileContext = await page
+      .context()
+      .browser()!
+      .newContext({
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+      });
+    try {
+      const mobile = await mobileContext.newPage();
+      await mobile.goto('http://127.0.0.1:14319');
+      const mobileHandle = mobile
+        .getByRole('region', { name: 'In Progress', exact: true })
+        .getByRole('button', { name: 'Drag Move this to change state' });
+      const mobileWaiting = mobile.getByRole('region', {
+        name: 'Waiting',
+        exact: true,
+      });
+      await expect(mobileHandle).toBeVisible();
+      expect(
+        await mobile.evaluate(
+          'document.documentElement.scrollWidth <= window.innerWidth',
+        ),
+      ).toBe(true);
+      await mobile.evaluate('window.scrollBy(0, 250)');
+      const touchFrom = await mobileHandle.boundingBox();
+      const touchTo = await mobileWaiting.boundingBox();
+      expect(touchFrom).not.toBeNull();
+      expect(touchTo).not.toBeNull();
+      const x = touchFrom!.x + touchFrom!.width / 2;
+      const y = touchFrom!.y + touchFrom!.height / 2;
+      const targetX = touchTo!.x + touchTo!.width / 2;
+      const targetY = touchTo!.y + touchTo!.height / 2;
+      const session = await mobileContext.newCDPSession(mobile);
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x, y }],
+      });
+      await mobile.waitForTimeout(200);
+      for (let step = 1; step <= 12; step++) {
+        await session.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [
+            {
+              x: x + ((targetX - x) * step) / 12,
+              y: y + ((targetY - y) * step) / 12,
+            },
+          ],
+        });
+      }
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+      });
+      await expect(mobileWaiting.getByText('Move this')).toBeVisible();
+      expect(persisted().state).toBe('waiting');
+    } finally {
+      await mobileContext.close();
+    }
   } finally {
     if (server.exitCode === null) {
       const exited = once(server, 'exit');

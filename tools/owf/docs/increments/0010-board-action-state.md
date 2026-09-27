@@ -1,6 +1,6 @@
 # 0010 — Change Action state on the board
 
-> Status: in_progress
+> Status: completed
 > Description: Change Action state by dragging a card into another board column.
 > Depends on: [0009 — Compact Action cards](0009-compact-action-cards.md) and [0005 — Action state changes](0005-action-state.md).
 
@@ -177,8 +177,21 @@ returned Action over older reads. The README describes the controls and errors.
 On Linux with Node 24.19.0, typecheck, lint, formatting, architecture, build,
 unit and integration suites and all 24 acceptance scenarios passed. All 20 CLI
 process tests passed with a 20-second per-test limit; four exceeded the normal
-five-second limit on this host during `npm run verify`. The Playwright journey
-and manual desktop/narrow/touch inspection remain unverified because Chromium
-is absent and the browser download returned an invalid archive. Code review is
-pending. Keep this increment `in_progress` until those checks and review are
-complete.
+five-second limit on that host during `npm run verify`. Chromium was unavailable
+there, so the browser journey was not run.
+
+Independent review on Windows with Node 24.21.0 checked the diff against AC1–AC5,
+transaction boundaries, HTTP errors and origin checks, read/write races and test
+value. No production-code finding remained. The browser journey initially used
+a stale build, then exposed two test timing issues: Playwright's single-step
+`dragTo` did not activate the mouse sensor, and immediate arrow input preceded
+the keyboard sensor's listener. The journey now uses an actual pointer path and
+waits for keyboard activation. It also exercises touch dragging at a 390 px
+viewport and checks for horizontal overflow. Desktop and narrow screenshots
+were inspected; the narrow touch path persisted the requested state.
+
+On the reviewed Windows revision, `npm run verify` passed: typecheck, lint,
+formatting, architecture, build, 79 unit tests, 118 integration tests, 24
+acceptance scenarios, 20 CLI process tests and all three Chromium journeys.
+The touch extension was also run as a focused Chromium journey after that full
+run; the final `verify` was repeated after the test and document updates.
