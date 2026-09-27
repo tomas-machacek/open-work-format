@@ -8,7 +8,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { afterEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeAll, expect, test, vi } from 'vitest';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { Board } from './Board.js';
 import type {
@@ -16,9 +16,18 @@ import type {
   BoardAction,
   CreateActionRequest,
   UpdateActionStateRequest,
+  EditActionRequest,
 } from '../contracts/index.js';
 import { StateUpdateError } from './client.js';
 let finishDrag: ((event: DragEndEvent) => void) | undefined;
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function () {
+    this.open = true;
+  };
+  HTMLDialogElement.prototype.close = function () {
+    this.open = false;
+  };
+});
 vi.mock('@dnd-kit/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@dnd-kit/core')>();
   const { createElement } = await import('react');
@@ -578,4 +587,196 @@ test('a read that finishes during a pending write does not move the source card 
   expect(
     within(screen.getByRole('region', { name: 'Waiting' })).getByText('First'),
   ).toBeTruthy();
+});
+
+test('click and Enter open a focused detail, preserve draft on refresh, and require discard before closing', async () => {
+  const load = vi.fn<() => Promise<BoardResponse>>().mockResolvedValue(data);
+  render(<Board load={load} />);
+  const card = (await screen.findByText('Waiting task')).closest('article')!;
+  fireEvent.click(card);
+  expect(screen.getByRole('dialog').getAttribute('aria-labelledby')).toBe(
+    'editor-heading',
+  );
+  expect(document.activeElement).toBe(screen.getByLabelText('Title'));
+  expect(screen.getByLabelText<HTMLTextAreaElement>(/Waiting for/).value).toBe(
+    'Supplier reply',
+  );
+  expect(screen.getByText('waiting')).toBeTruthy();
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: 'My draft' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
+    'My draft',
+  );
+  fireEvent(
+    screen.getByRole('dialog'),
+    new Event('cancel', { cancelable: true }),
+  );
+  expect(screen.getByText('Discard unsaved changes?')).toBeTruthy();
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'Continue editing' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }));
+  expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
+    'My draft',
+  );
+  expect(document.activeElement).toBe(screen.getByLabelText('Title'));
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'Continue editing' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  await waitFor(() => expect(document.activeElement).toBe(card));
+  fireEvent.keyDown(card, { key: 'Enter', code: 'Enter' });
+  expect(screen.getByRole('dialog')).toBeTruthy();
+});
+
+test('edit sends one combined snapshot, reconciles confirmed card over an old read, and drag does not open detail', async () => {
+  const oldRead = deferred();
+  const load = vi
+    .fn<() => Promise<BoardResponse>>()
+    .mockResolvedValueOnce(data)
+    .mockReturnValueOnce(oldRead.promise);
+  let confirm!: (action: BoardAction) => void;
+  const edit = vi
+    .fn<(id: string, input: EditActionRequest) => Promise<BoardAction>>()
+    .mockReturnValue(
+      new Promise((resolve) => {
+        confirm = resolve;
+      }),
+    );
+  const move = vi
+    .fn<(id: string, input: UpdateActionStateRequest) => Promise<BoardAction>>()
+    .mockResolvedValue({ ...data.actions[2]!, state: 'completed' });
+  render(<Board load={load} editAction={edit} move={move} />);
+  const card = (await screen.findByText('Waiting task')).closest('article')!;
+  fireEvent.click(card);
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: 'New title' },
+  });
+  fireEvent.change(screen.getByLabelText(/Description/), {
+    target: { value: 'Notes' },
+  });
+  fireEvent.change(screen.getByLabelText(/Waiting for/), {
+    target: { value: '' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  expect(edit).toHaveBeenCalledExactlyOnceWith('three', {
+    expected: {
+      title: 'Waiting task',
+      owner: { url: '/' },
+      state: 'waiting',
+      waiting_for: 'Supplier reply',
+      updated_at: 'before',
+    },
+    title: 'New title',
+    description: 'Notes',
+    clearWaitingFor: true,
+  });
+  expect(
+    screen.getByRole('button', { name: 'Save changes' }).matches(':disabled'),
+  ).toBe(true);
+  await act(async () => {
+    confirm({
+      ...data.actions[2]!,
+      title: 'New title',
+      description: 'Notes',
+      waiting_for: undefined,
+      updated_at: 'later',
+    });
+    await Promise.resolve();
+  });
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(within(card).getByText('New title')).toBeTruthy();
+  await act(() => {
+    oldRead.resolve(data);
+    return oldRead.promise;
+  });
+  expect(within(card).getByText('New title')).toBeTruthy();
+  dropCard('three', 'completed');
+  fireEvent.click(card);
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test('conflict keeps draft, refreshes current values and requires an explicit reload', async () => {
+  const latest = {
+    ...data.actions[2]!,
+    title: 'Changed elsewhere',
+    updated_at: 'later',
+  };
+  const load = vi
+    .fn<() => Promise<BoardResponse>>()
+    .mockResolvedValueOnce(data)
+    .mockResolvedValue({
+      ...data,
+      actions: [data.actions[0]!, data.actions[1]!, latest],
+    });
+  const edit = vi
+    .fn<(id: string, input: EditActionRequest) => Promise<BoardAction>>()
+    .mockRejectedValue(
+      new StateUpdateError('The Action changed.', 'ACTION_CONFLICT'),
+    );
+  render(<Board load={load} editAction={edit} />);
+  fireEvent.click(
+    (await screen.findByText('Waiting task')).closest('article')!,
+  );
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: 'My draft' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await screen.findByText('The Action changed.');
+  await screen.findByText('Changed elsewhere');
+  expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
+    'My draft',
+  );
+  expect(
+    screen.getByRole('button', { name: 'Save changes' }).matches(':disabled'),
+  ).toBe(true);
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Reload current values' }),
+  );
+  expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
+    'Changed elsewhere',
+  );
+  expect(edit).toHaveBeenCalledTimes(1);
+});
+
+test('empty description sends a clear, and an uncertain save keeps the draft until a fresh read is inspected', async () => {
+  const existing = { ...data.actions[0]!, description: 'Old notes' };
+  const current = { ...data, actions: [existing] };
+  const load = vi.fn<() => Promise<BoardResponse>>().mockResolvedValue(current);
+  const edit = vi
+    .fn<(id: string, input: EditActionRequest) => Promise<BoardAction>>()
+    .mockRejectedValue(
+      new StateUpdateError('Save could not be confirmed.', 'UNCERTAIN'),
+    );
+  render(<Board load={load} editAction={edit} />);
+  fireEvent.click((await screen.findByText('First')).closest('article')!);
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: 'Draft' },
+  });
+  fireEvent.change(screen.getByLabelText(/Description/), {
+    target: { value: '' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await screen.findByText('Save could not be confirmed.');
+  expect(edit).toHaveBeenCalledWith(
+    'one',
+    expect.objectContaining({
+      title: 'Draft',
+      clearDescription: true,
+    }),
+  );
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe('Draft');
+  expect(
+    screen.getByRole('button', { name: 'Save changes' }).matches(':disabled'),
+  ).toBe(true);
+  expect(edit).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Use current values' }));
+  expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe('First');
 });

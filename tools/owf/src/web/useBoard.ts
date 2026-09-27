@@ -24,7 +24,7 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
     async function refresh(automatic = false) {
       if (automatic && inFlight.current) {
         pendingReturn.current = true;
-        return;
+        return false;
       }
       pendingReturn.current = false;
       const request = ++generation.current;
@@ -33,7 +33,8 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
       setLoading(true);
       try {
         const next = await load();
-        if (request !== generation.current || pendingReturn.current) return;
+        if (request !== generation.current || pendingReturn.current)
+          return false;
         // Only a read started after confirmation can reconcile that write.
         const newer = [...accepted.current.values()].filter(
           (entry) => entry.revision > revision,
@@ -49,13 +50,16 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
           ),
         });
         setError(undefined);
+        return true;
       } catch (failure) {
-        if (request !== generation.current || pendingReturn.current) return;
+        if (request !== generation.current || pendingReturn.current)
+          return false;
         setError(
           failure instanceof Error
             ? failure.message
             : 'Unable to read Actions.',
         );
+        return false;
       } finally {
         if (request === generation.current) {
           inFlight.current = false;

@@ -22,6 +22,12 @@ export async function serve(start: string, port = 4317) {
         throw new Error('The original Workspace is no longer available.');
       return setAction(result.root, id, { state: input.state }, input.expected);
     },
+    (id, input) => {
+      if (listActions(result.root).result.root !== result.root)
+        throw new Error('The original Workspace is no longer available.');
+      const { expected, ...changes } = input;
+      return setAction(result.root, id, changes, expected);
+    },
   );
   try {
     await server.listen({ host: '127.0.0.1', port });
