@@ -708,6 +708,8 @@ test('set action CLI supports combined edits and rejects duplicate or contradict
     ['--description=', '--description', 'A'],
     ['--owner', '/', '--owner', '/'],
     ['--waiting-for', 'A', '--waiting-for', 'B'],
+    ['--clear-description', '--clear-description'],
+    ['--clear-waiting-for', '--clear-waiting-for'],
     ['--description', 'A', '--clear-description'],
     ['--state', 'completed', '--clear-waiting-for'],
   ]) {

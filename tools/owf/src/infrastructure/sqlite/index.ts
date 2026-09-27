@@ -3,6 +3,13 @@ import { accessSync, constants, statSync } from 'node:fs';
 import type { WorkspaceStore } from '../../application/ports/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
 
+const eventTableSchema = `CREATE TABLE action_events (
+          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('action.created','action.state_changed','action.updated')),
+          action_id TEXT NOT NULL REFERENCES actions(id), created_at TEXT NOT NULL,
+          old_state TEXT, new_state TEXT, old_waiting_for TEXT, new_waiting_for TEXT,
+          changed_fields TEXT, old_owner_url TEXT, new_owner_url TEXT
+        )`;
+
 export const workspaceStore: WorkspaceStore = {
   initializeReserved(path) {
     const db = new DatabaseSync(path);
@@ -25,12 +32,7 @@ export const workspaceStore: WorkspaceStore = {
           description TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
           waiting_for TEXT CHECK(waiting_for IS NULL OR (state = 'waiting' AND length(trim(waiting_for)) > 0))
         ) STRICT;
-        CREATE TABLE action_events (
-          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('action.created','action.state_changed','action.updated')),
-          action_id TEXT NOT NULL REFERENCES actions(id), created_at TEXT NOT NULL,
-          old_state TEXT, new_state TEXT, old_waiting_for TEXT, new_waiting_for TEXT,
-          changed_fields TEXT, old_owner_url TEXT, new_owner_url TEXT
-        ) STRICT;
+        ${eventTableSchema} STRICT;
       `);
       db.exec('COMMIT');
     } finally {
@@ -84,9 +86,10 @@ export const workspaceStore: WorkspaceStore = {
         .get()?.sql;
       if (
         typeof eventTable !== 'string' ||
-        !eventTable.includes("'action.updated'")
+        eventTable.replace(/\s+/gu, ' ').trim() !==
+          `${eventTableSchema} STRICT`.replace(/\s+/gu, ' ').trim()
       )
-        throw new Error('Missing action.updated event support');
+        throw new Error('Invalid Action event table');
       const integrity = db.prepare('PRAGMA quick_check').get();
       if (integrity?.quick_check !== 'ok') throw new Error('Corrupt store');
     } catch (error) {

@@ -33,6 +33,17 @@ function once(label: string) {
   };
 }
 
+function onceFlag(label: string) {
+  return (_value: string, previous: boolean | undefined) => {
+    if (previous)
+      throw new WorkspaceError(
+        'INVALID_ARGUMENT',
+        `Supply ${label} only once.`,
+      );
+    return true;
+  };
+}
+
 export async function runCli(
   argv: string[],
   version: string,
@@ -203,14 +214,22 @@ export async function runCli(
       'Nonblank literal waiting reason; resulting state must be waiting',
       once('--waiting-for'),
     )
-    .option('--clear-waiting-for', 'Remove the reason while staying waiting')
+    .option(
+      '--clear-waiting-for',
+      'Remove the reason while staying waiting',
+      onceFlag('--clear-waiting-for'),
+    )
     .option('--title <title>', 'Nonempty single-line title', once('--title'))
     .option(
       '--description <text>',
       'Literal Markdown, including empty text',
       once('--description'),
     )
-    .option('--clear-description', 'Remove the optional description')
+    .option(
+      '--clear-description',
+      'Remove the optional description',
+      onceFlag('--clear-description'),
+    )
     .option(
       '--owner <url>',
       'Workspace-rooted owner URL; / selects Workspace',

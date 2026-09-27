@@ -179,6 +179,7 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
       new_state: 'waiting',
       old_waiting_for: null,
       new_waiting_for: 'First',
+      changed_fields: JSON.stringify(['state', 'waiting_for']),
     }),
     expect.objectContaining({
       action_id: initial.id,
@@ -187,6 +188,7 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
       new_state: 'waiting',
       old_waiting_for: 'First',
       new_waiting_for: '  Second\nŽivot  ',
+      changed_fields: JSON.stringify(['waiting_for']),
     }),
     expect.objectContaining({
       action_id: initial.id,
@@ -195,6 +197,7 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
       new_state: 'completed',
       old_waiting_for: '  Second\nŽivot  ',
       new_waiting_for: null,
+      changed_fields: JSON.stringify(['state', 'waiting_for']),
     }),
   ]);
 });
@@ -505,6 +508,26 @@ test.each(['1', '2', '3', '99'])(
     }
   },
 );
+
+test('schema 4 discovery rejects an event table that only mentions action.updated outside the kind constraint', () => {
+  const { root, store } = workspace();
+  sql(
+    store,
+    `DROP TABLE action_events;
+     CREATE TABLE action_events (
+       event_id INTEGER PRIMARY KEY,
+       kind TEXT NOT NULL CHECK(kind IN ('action.created','action.state_changed')),
+       action_id TEXT NOT NULL REFERENCES actions(id), created_at TEXT NOT NULL,
+       old_state TEXT, new_state TEXT, old_waiting_for TEXT, new_waiting_for TEXT,
+       changed_fields TEXT DEFAULT 'action.updated', old_owner_url TEXT, new_owner_url TEXT
+     ) STRICT;`,
+  );
+  const before = snapshot(root);
+  expect(() => initialize(root)).toThrow(
+    expect.objectContaining({ code: 'INVALID_STORE' }),
+  );
+  expect(snapshot(root)).toEqual(before);
+});
 
 test('nearest owner inference traverses ordinary docs; explicit Workspace wins; closed ancestors never fall back', () => {
   const { root } = workspace();

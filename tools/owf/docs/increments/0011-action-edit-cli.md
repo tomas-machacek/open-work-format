@@ -164,11 +164,11 @@ explicit migration increment rather than silently upgrading stores.
 
 ## Implementation and review outcome
 
-Implementation complete on 2026-09-27 in the PR #16 branch; independent code
-review remains pending. `set action` now supports combined edits and clears,
-explicit owner validation, one conditional SQLite transaction and a single
-appropriate event. Fresh Workspaces use schema 4; schema 3 is rejected without
-mutation. CLI help, README and generated Workspace guidance are updated.
+Implementation complete on 2026-09-27 in the PR #16 branch. `set action` now
+supports combined edits and clears, explicit owner validation, one conditional
+SQLite transaction and a single appropriate event. Fresh Workspaces use schema
+4; schema 3 is rejected without mutation. CLI help, README and generated
+Workspace guidance are updated.
 
 On Linux with Node 24.19.0, `npm run verify` passed typecheck, lint, formatting,
 architecture, build, 79 unit tests, 122 integration tests, 24 acceptance
@@ -177,3 +177,17 @@ could not launch because the Chromium executable is absent in this environment.
 The existing browser state integration tests, including stale snapshot checks,
 passed. A fresh disposable PoC Workspace is required to try the new schema;
 existing schema 3 stores are not migrated.
+
+Independent review found that repeated clear flags were accepted, state-only
+events omitted `changed_fields`, and schema discovery could mistake an unrelated
+`action.updated` literal for support in the event kind constraint. These are
+fixed with focused CLI, event and malformed-schema checks. A Windows Playwright
+run exposed a race in the keyboard drag test: a pending viewport resize cancelled
+the drag. The test now waits for the resize event before starting that drag.
+
+On Windows with Node 24.21.0, `npm run verify` passed typecheck, lint,
+formatting, architecture, build, 79 unit tests, 123 integration tests, 24
+acceptance scenarios, 21 CLI end-to-end tests and all three Playwright browser
+scenarios. The affected browser scenario also passed twice in a focused repeat
+run. Review fixes are in the PR branch; this increment remains `in_progress`
+until the remaining handoff is complete.

@@ -156,11 +156,7 @@ export const actionRepository: ActionRepository = {
           fields.includes('state') || fields.includes('waiting_for')
             ? (action.waiting_for ?? null)
             : null,
-          fields.some((field) =>
-            ['title', 'description', 'owner'].includes(field),
-          )
-            ? JSON.stringify(fields)
-            : null,
+          JSON.stringify(fields),
           fields.includes('owner') ? current.owner.url : null,
           fields.includes('owner') ? action.owner.url : null,
         );
