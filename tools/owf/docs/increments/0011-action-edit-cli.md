@@ -1,10 +1,12 @@
 # 0011 — Edit Actions through the CLI
 
-> Status: draft
+> Status: reviewed
 > Description: Edit an Action's title, description, owner and waiting reason through one CLI operation.
 > Depends on: [0005 — Action state changes](0005-action-state.md) and [0010 — Change Action state on the board](0010-board-action-state.md).
 
 ## Goal and scope
+
+The user reviewed and approved this design for implementation on 2026-09-27.
 
 Allow a person or agent to correct the content and ownership of an existing
 Action without changing its identity or recreating it. Extend `owf set action`
@@ -154,11 +156,11 @@ title and description, move the Action to that Project and then `/`, clear its
 description, set and clear a Waiting reason, and inspect `get action {id}` and
 `list actions --owner ...` after each step.
 
-## Open questions for review
+## Open questions
 
-The version 4 boundary deliberately requires a fresh PoC Workspace. If
-preserving existing version 3 data is now required, add an explicit migration
-decision before implementation rather than silently upgrading stores.
+No blocking questions. The reviewed version 4 boundary requires a fresh PoC
+Workspace. If preserving existing version 3 data becomes necessary, agree an
+explicit migration increment rather than silently upgrading stores.
 
 ## Implementation and review outcome
 
