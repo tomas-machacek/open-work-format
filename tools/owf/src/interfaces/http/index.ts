@@ -1,4 +1,8 @@
-import Fastify, { type FastifyError } from 'fastify';
+import Fastify, {
+  type FastifyError,
+  type FastifyReply,
+  type FastifyRequest,
+} from 'fastify';
 import staticFiles from '@fastify/static';
 import type {
   ListActionsResult,
@@ -10,12 +14,16 @@ import {
   createActionRequest,
   createActionResponse,
   type CreateActionRequest,
+  updateActionStateRequest,
+  updateActionStateResponse,
+  type UpdateActionStateRequest,
 } from '../../contracts/index.js';
 
 export function createBoardServer(
   read: () => ListActionsResult,
   assets: string,
   create: (input: CreateActionRequest) => ActionResult,
+  update?: (id: string, input: UpdateActionStateRequest) => ActionResult,
 ) {
   const server = Fastify({ logger: false });
   server.addHook('onRequest', async (_request, reply) => {
@@ -31,7 +39,12 @@ export function createBoardServer(
       error.statusCode && error.statusCode < 500 ? error.statusCode : 500;
     return reply.code(status).send({
       error: {
-        code: status < 500 ? 'INVALID_REQUEST' : 'ACTION_CREATE_FAILED',
+        code:
+          status < 500
+            ? 'INVALID_REQUEST'
+            : _request.method === 'PATCH'
+              ? 'ACTION_UPDATE_FAILED'
+              : 'ACTION_CREATE_FAILED',
         message:
           status < 500
             ? 'Send a valid JSON Action request.'
@@ -39,75 +52,112 @@ export function createBoardServer(
       },
     });
   });
-  server.post(
-    '/api/actions',
-    {
-      onRequest: async (request, reply) => {
-        const address = server.server.address();
-        const port =
-          address && typeof address !== 'string' ? address.port : 4317;
-        const origin = new URL(`http://127.0.0.1:${port}`);
-        if (
-          request.headers.host !== origin.host ||
-          request.headers.origin !== origin.origin ||
-          (request.headers['sec-fetch-site'] !== undefined &&
-            request.headers['sec-fetch-site'] !== 'same-origin')
-        ) {
-          return reply.code(403).send({
-            error: {
-              code: 'ORIGIN_REJECTED',
-              message: 'Create Actions from this local board only.',
-            },
-          });
-        }
-        if (
-          request.headers['content-type']
-            ?.split(';')[0]
-            ?.trim()
-            .toLowerCase() !== 'application/json'
-        ) {
-          return reply.code(415).send({
-            error: {
-              code: 'JSON_REQUIRED',
-              message: 'An application/json request is required.',
-            },
-          });
-        }
-      },
-    },
+  function trustedWrite(request: FastifyRequest, reply: FastifyReply) {
+    const address = server.server.address();
+    const port = address && typeof address !== 'string' ? address.port : 4317;
+    const origin = new URL(`http://127.0.0.1:${port}`);
+    if (
+      request.headers.host !== origin.host ||
+      request.headers.origin !== origin.origin ||
+      (request.headers['sec-fetch-site'] !== undefined &&
+        request.headers['sec-fetch-site'] !== 'same-origin')
+    ) {
+      reply.code(403).send({
+        error: {
+          code: 'ORIGIN_REJECTED',
+          message: 'Change Actions from this local board only.',
+        },
+      });
+      return Promise.resolve();
+    }
+    if (
+      request.headers['content-type']?.split(';')[0]?.trim().toLowerCase() !==
+      'application/json'
+    ) {
+      reply.code(415).send({
+        error: {
+          code: 'JSON_REQUIRED',
+          message: 'An application/json request is required.',
+        },
+      });
+      return Promise.resolve();
+    }
+    return Promise.resolve();
+  }
+  server.post('/api/actions', { onRequest: trustedWrite }, (request, reply) => {
+    const parsed = createActionRequest.safeParse(request.body);
+    if (!parsed.success)
+      return reply.code(400).send({
+        error: {
+          code: 'INVALID_REQUEST',
+          message:
+            'Supply title, owner and state, with optional description and waitingFor only.',
+        },
+      });
+    try {
+      const { result } = create(parsed.data);
+      return reply
+        .code(201)
+        .send(createActionResponse.parse({ action: result.action }));
+    } catch (error) {
+      const clientError =
+        error instanceof WorkspaceError &&
+        [
+          'INVALID_ARGUMENT',
+          'INVALID_TITLE',
+          'INVALID_OWNER',
+          'OWNER_REQUIRED',
+        ].includes(error.code);
+      return reply.code(clientError ? 400 : 503).send({
+        error: {
+          code:
+            error instanceof WorkspaceError
+              ? error.code
+              : 'ACTION_CREATE_FAILED',
+          message: clientError
+            ? error.message
+            : 'Unable to save Action. Check the Workspace store and try again.',
+        },
+      });
+    }
+  });
+  server.patch<{ Params: { id: string } }>(
+    '/api/actions/:id/state',
+    { onRequest: trustedWrite },
     (request, reply) => {
-      const parsed = createActionRequest.safeParse(request.body);
+      const parsed = updateActionStateRequest.safeParse(request.body);
       if (!parsed.success)
         return reply.code(400).send({
           error: {
             code: 'INVALID_REQUEST',
-            message:
-              'Supply title, owner and state, with optional description and waitingFor only.',
+            message: 'Supply a valid state and expected Action snapshot only.',
           },
         });
       try {
-        const { result } = create(parsed.data);
-        return reply
-          .code(201)
-          .send(createActionResponse.parse({ action: result.action }));
+        if (!update) throw new Error('State updates are unavailable.');
+        const { result } = update(request.params.id, parsed.data);
+        return updateActionStateResponse.parse({
+          status: result.status,
+          action: result.action,
+        });
       } catch (error) {
-        const clientError =
-          error instanceof WorkspaceError &&
-          [
-            'INVALID_ARGUMENT',
-            'INVALID_TITLE',
-            'INVALID_OWNER',
-            'OWNER_REQUIRED',
-          ].includes(error.code);
-        return reply.code(clientError ? 400 : 503).send({
+        const code =
+          error instanceof WorkspaceError ? error.code : 'ACTION_UPDATE_FAILED';
+        const status =
+          code === 'ACTION_NOT_FOUND'
+            ? 404
+            : code === 'ACTION_CONFLICT'
+              ? 409
+              : code === 'INVALID_ARGUMENT'
+                ? 400
+                : 503;
+        return reply.code(status).send({
           error: {
-            code:
-              error instanceof WorkspaceError
-                ? error.code
-                : 'ACTION_CREATE_FAILED',
-            message: clientError
-              ? error.message
-              : 'Unable to save Action. Check the Workspace store and try again.',
+            code,
+            message:
+              status < 500 && error instanceof Error
+                ? error.message
+                : 'Unable to update Action. Check the Workspace store and try again.',
           },
         });
       }

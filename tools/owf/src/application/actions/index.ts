@@ -78,6 +78,11 @@ export interface ActionResult {
   };
   warnings: [];
 }
+export interface ExpectedActionSnapshot {
+  state: string;
+  updated_at: string;
+  waiting_for?: string | undefined;
+}
 function workspace(start: string, ports: ActionPorts) {
   const found = discoverWorkspace(start, ports);
   if (!found)
@@ -108,13 +113,24 @@ export function setAction(
   identifier: string,
   input: SetActionInput,
   ports: ActionPorts,
+  expected?: ExpectedActionSnapshot,
 ): ActionResult {
   const id = actionId(identifier);
   validateStateRequest(input);
   const found = workspace(start, ports);
-  const saved = ports.actions.changeState(found.store, id, (current) =>
-    changeActionState(current, input, ports.now()),
-  );
+  const saved = ports.actions.changeState(found.store, id, (current) => {
+    if (
+      expected &&
+      (current.state !== expected.state ||
+        current.updated_at !== expected.updated_at ||
+        current.waiting_for !== expected.waiting_for)
+    )
+      throw new WorkspaceError(
+        'ACTION_CONFLICT',
+        'The Action changed since it was displayed. Refresh the board before moving it.',
+      );
+    return changeActionState(current, input, ports.now());
+  });
   return result(
     found.root,
     saved.action,

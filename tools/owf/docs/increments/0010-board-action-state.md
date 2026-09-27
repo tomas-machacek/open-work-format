@@ -1,0 +1,225 @@
+# 0010 — Change Action state on the board
+
+> Status: completed
+> Description: Change Action state by dragging a card into another board column.
+> Depends on: [0009 — Compact Action cards](0009-compact-action-cards.md) and [0005 — Action state changes](0005-action-state.md).
+
+## Goal and scope
+
+The user reviewed and approved this design for implementation on 2026-09-27,
+then revised the card interaction: dragging starts anywhere on a card and there
+is no separate state selector.
+
+Let a person change an existing Action's execution state directly on the
+Kanban board, without switching to the CLI. The board shows the persisted
+result in the right column without flashing or blocking other cards. Reuse
+the state operation and domain rules from 0005.
+
+References: [architecture](../architecture.md),
+[development guidelines](../development-guidelines.md),
+[MVP scope](../../../../docs/design/mvp-scope.md),
+[Core v0](../../../../spec/core-v0.md),
+[Operational Store design](../../../../docs/design/operational-store-notes.md),
+[0005 state semantics](0005-action-state.md),
+[0006 refresh behavior](0006-read-only-action-board.md) and
+[0008 browser write behavior](0008-board-action-create.md).
+
+Included: drag and drop between the five state columns (including reopening
+Completed/Cancelled), keyboard dragging, a local state-update HTTP endpoint,
+conflict feedback and quiet board reconciliation.
+
+Deferred: editing Action fields including `waiting_for`, ordering cards within
+a column, archive, filters and bulk changes. Dropping into Waiting does not
+prompt for a reason; editing it belongs to a later Action editing increment.
+No schema migration or new state is needed.
+
+## Proposed solution
+
+### Card interaction
+
+Use dnd-kit to make the entire card draggable, with five column drop targets.
+There is no handle or Move to selector. Add Action remains a separate control.
+While dragging, show the card and target clearly without obscuring other content;
+drops outside a column or back into the source column do nothing. Position
+inside a column never changes the fixed `created_at`/ID list order. Dropping
+in another column submits one state change. All five destinations work from
+any source, including reopening Completed/Cancelled.
+
+A drop into Waiting supplies only `state: waiting`: the stored `waiting_for`
+is absent for an Action coming from another state, as in 0005. Show no dialog,
+inline form or interruption. Leaving Waiting clears its reason under the
+existing rule. Changing or clearing `waiting_for` while staying Waiting is
+deferred to Action editing. The existing CLI can still edit the reason.
+
+Support keyboard and screen-reader users through dnd-kit's keyboard controls
+on the focusable card. Describe how keyboard dragging works in accessible
+instructions;
+use visible focus and a clear announcement of drag/drop outcomes. Keep the
+compact card readable at desktop and narrow widths; touch input should also
+permit a move without preventing ordinary scrolling.
+
+Disable only the affected card's movement while its request is pending;
+other cards, forms and Refresh remain usable. The source card stays visible
+while the write is pending, with subtle progress feedback. On confirmation,
+use the complete returned Action to move it once to its actual state and
+update column counts, preserving existing list order (`created_at` descending,
+ID ascending for ties). A same-column drop causes no request, timestamp or
+event. If the request fails, keep the card in the original column and explain
+the error nearby. A network failure after sending may have an unknown
+outcome: do not automatically retry; prompt the user to refresh/check the
+board first. Preserve the quiet refresh and stale warning.
+
+### HTTP, stale data and persistence
+
+Add a local state update route such as `PATCH /api/actions/{id}/state`. A strict
+JSON request carries the target `state` and the card's observed `state`,
+`updated_at` and `waiting_for` as an expected snapshot. The board sends no
+new Waiting reason. The response returns the actual persisted Action and
+`updated` or `unchanged` status. Parse request/response in `src/contracts`;
+keep the HTTP adapter thin,
+using `setAction` once. Reuse the same-origin JSON/Host gate established for
+POST, including Vite proxy behavior. Reject invalid input before any write;
+return machine-readable 400 for invalid input, 404 for an absent Action, 409
+for a stale card, and a distinct 5xx store error without SQL details.
+
+The card's expected values must be compared with the current Action **inside
+the existing update transaction**, before applying the change. Extend the
+application/port input as needed for this optional browser precondition;
+CLI `set action` keeps its current unconditional behavior. A mismatch reports
+`ACTION_CONFLICT` and writes no Action or event. Compare state, timestamp and
+Waiting reason so a differing state/reason is not silently overwritten, even
+when timestamps coincide. The comparison must not require the Markdown owner
+path to still exist. If a CLI change makes the card stale, show the conflict
+and refresh the board quietly to reveal the current value; never claim the
+requested move succeeded. The backend's existing atomic Action/update event
+behavior and idempotency still apply.
+
+The board's accepted-write reconciliation currently protects newly created
+cards from older GETs. Extend it for state updates: a GET started before the
+confirmed PATCH cannot move the card back, duplicate it or discard a changed
+reason. A subsequent fresh GET reconciles the authoritative list. If a later
+CLI change is read, that newer result becomes visible through the existing
+focus/manual refresh path. Neither reads nor no-op updates write an event.
+
+Keep CLI output, GET/list/POST contracts and stored schema unchanged. Update
+the tool README and board text that currently describes CLI changes as the
+only way cards change; the generated Workspace AGENTS.md remains CLI-focused.
+
+## Acceptance criteria
+
+AC1: Dragging from each column to any other column changes the Action to that
+column's state, including reopening Completed/Cancelled. The persisted Action
+and one `action.state_changed` event reflect a real change; owner, title, ID and
+creation time remain unchanged. A drop outside a target or within the same
+column writes nothing. No automatic owning Project/Outcome change occurs.
+
+AC2: Dropping into Waiting changes the state without showing a form or
+populating `waiting_for`. Leaving Waiting removes an existing reason. No
+browser control in this increment edits or clears the reason while remaining
+Waiting. CLI reason editing remains available and visible after refresh.
+
+AC3: Pointer/touch dragging indicates valid targets, and keyboard/screen-reader
+users can move a card without a pointer. Pending updates leave the board
+interactive and avoid speculative moves or flicker. A confirmed Action appears
+once in its correct column and order, with updated counts and reason. Older GET
+responses cannot undo it. Failure leaves the card in its source column; an
+uncertain result is not automatically retried.
+
+AC4: A browser card whose displayed state, timestamp or Waiting reason differs
+from the current Action cannot overwrite it, including after a CLI reason-only
+change. The update transaction rejects the conflict without changing Action or
+Event Log; the UI identifies the conflict and quietly shows the current
+version. A missing Action, validation error and storage failure have distinct
+machine-readable outcomes.
+
+AC5: The HTTP mutation accepts only same-origin JSON on loopback and rejects
+foreign Origin/Host or non-JSON requests without writes. Existing CLI and
+create/read browser flows continue to work. No schema migration, within-column
+ordering or browser editing of other Action fields is introduced.
+
+## Verification plan
+
+- Focused application/SQLite integration checks for expected-snapshot success,
+  timestamp/state/reason conflicts, no-op invariants, one correlated event
+  and rollback on failure (AC1–AC2, AC4). Reuse 0005's transition matrix.
+- HTTP integration checks for accepted result, missing/invalid/conflict/store
+  errors and same-origin JSON gate, with unchanged bytes on rejections (AC4–AC5).
+  Avoid repeating every state at HTTP level.
+- Component/client checks for target resolution, same-column/outside drops,
+  keyboard dragging, card-level pending/error feedback, stale read/update
+  races and quiet reconciliation (AC1–AC3). Do not mirror every HTTP case.
+- One focused Playwright journey dragging an Action into Waiting without a
+  reason, then to another state, verifying persisted results through the CLI.
+  Keep the browser suite small; no case per transition (AC1–AC3).
+- Manually inspect pointer, keyboard and touch behavior, drop cues and
+  pending/error states at desktop and narrow widths. Run `npm run verify`
+  before handoff and record the actual revision, platform and results.
+
+Manual trial: create an Open Action, run `owf serve`, drag it to Waiting (no
+prompt and no reason), then complete and reopen it. Check the result with
+`owf get action {id}` after each step. Change its state or reason in the CLI
+while the board is open, then try moving the stale card and confirm the
+conflict/refresh behavior.
+
+## Open questions for review
+
+No blocking question. The user revised the original fallback decision:
+drag-and-drop is the only state control, with keyboard dragging on the
+focusable card.
+
+## Implementation and review outcome
+
+Implementation is on this PR branch. The board has whole-card dragging and
+five drop targets, including keyboard dragging. PATCH uses
+the existing Action transaction with an expected state/timestamp/reason check;
+the board holds the source card during a pending request and reconciles the
+returned Action over older reads. The README describes the controls and errors.
+
+On Linux with Node 24.19.0, typecheck, lint, formatting, architecture, build,
+unit and integration suites and all 24 acceptance scenarios passed. All 20 CLI
+process tests passed with a 20-second per-test limit; four exceeded the normal
+five-second limit on that host during `npm run verify`. Chromium was unavailable
+there, so the browser journey was not run.
+
+Independent review on Windows with Node 24.21.0 checked the diff against AC1–AC5,
+transaction boundaries, HTTP errors and origin checks, read/write races and test
+value. No production-code finding remained. The browser journey initially used
+a stale build, then exposed two test timing issues: Playwright's single-step
+`dragTo` did not activate the mouse sensor, and immediate arrow input preceded
+the keyboard sensor's listener. The journey now uses an actual pointer path and
+waits for keyboard activation. It also exercises touch dragging at a 390 px
+viewport and checks for horizontal overflow. Desktop and narrow screenshots
+were inspected; the narrow touch path persisted the requested state.
+
+On the reviewed Windows revision, `npm run verify` passed: typecheck, lint,
+formatting, architecture, build, 79 unit tests, 118 integration tests, 24
+acceptance scenarios, 20 CLI process tests and all three Chromium journeys.
+The touch extension was also run as a focused Chromium journey after that full
+run; the final `verify` was repeated after the test and document updates.
+
+The user then removed the separate Move to control and the corner drag handle.
+The whole card is now the drag surface and remains keyboard focusable for
+Space/arrow-key dragging. The browser journey moves it from the title, owner
+text and card body, and checks touch dragging at narrow width. On Windows with
+Node 24.21.0, `npm run verify` passed again: 79 unit tests, 118 integration
+tests, 24 acceptance scenarios, 20 CLI tests and three Chromium journeys,
+along with all static checks and the build.
+
+A fresh independent review of commit `2f8719c` found two browser defects.
+The default rectangle-intersection collision could choose an adjacent column
+when the pointer was inside the edge of the intended column. Keyboard focus
+was lost after a confirmed move remounted the card in another column. The
+review fix uses pointer position for mouse/touch targets, centers keyboard
+targets on the selected column, and restores focus after React renders the
+confirmed card. The existing Playwright journey now covers a near-edge drop,
+focus after a keyboard move, arrow navigation across wrapped columns, Escape,
+and touch scrolling that begins on a card before a deliberate touch drag.
+
+On Windows with Node 24.21.0, the review fix passed typecheck, lint, format,
+architecture, build, 79 unit tests, 117 integration tests, 24 acceptance
+scenarios, 20 CLI process tests, and all three Chromium journeys. The focused
+Chromium movement journey also passed twice consecutively. The full
+`npm run verify` stopped at the Vite proxy integration test because an existing
+OWF server for another Workspace occupied its fixed port 4317. That one test
+was not repeated on this revision; it passed on the earlier verified commit,
+and the review fix did not change proxy or HTTP code.

@@ -27,6 +27,7 @@ link and a one-line description; keep its status in sync.
 | [0007 — Action creation in a selected state](0007-action-initial-state.md) | Create Actions directly in a chosen execution state through the CLI.   | completed |
 | [0008 — Create Actions on the board](0008-board-action-create.md)          | Create Actions directly in a chosen board column.                      | completed |
 | [0009 — Compact Action cards](0009-compact-action-cards.md)                | Show denser cards with inline metadata and no visible ID.              | completed |
+| [0010 — Change Action state on the board](0010-board-action-state.md)      | Drag Actions between state columns with conflict checks.               | completed |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;

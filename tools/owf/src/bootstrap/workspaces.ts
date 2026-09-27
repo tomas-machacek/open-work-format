@@ -9,6 +9,7 @@ import {
   listActions as listActionsUseCase,
   setAction as setActionUseCase,
   type SetActionInput,
+  type ExpectedActionSnapshot,
   type ListActionsInput,
   type ActionInput,
 } from '../application/actions/index.js';
@@ -62,4 +63,5 @@ export const setAction = (
   root: string,
   identifier: string,
   input: SetActionInput,
-) => setActionUseCase(root, identifier, input, actionPorts);
+  expected?: ExpectedActionSnapshot,
+) => setActionUseCase(root, identifier, input, actionPorts, expected);

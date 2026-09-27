@@ -127,6 +127,11 @@
   padding: 16px 10px;
   min-height: 340px;
 }
+.dropTarget {
+  outline: 3px solid var(--accent);
+  outline-offset: -3px;
+  background: color-mix(in srgb, var(--tint), white 35%);
+}
 .column[data-state='in_progress'] {
   --accent: #587d9c;
   --tint: #edf1f4;
@@ -174,6 +179,45 @@
   background: #fff;
   border-radius: 8px;
   padding: 12px;
+  cursor: grab;
+}
+.card:focus-visible {
+  outline: 2px solid #50785e;
+  outline-offset: 2px;
+}
+.pending {
+  cursor: wait;
+}
+.dragging {
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 8px 22px #25342f30;
+  border-color: #658b70;
+  pointer-events: none;
+  cursor: grabbing;
+}
+.cardStatus,
+.cardError {
+  margin: 7px 0 0;
+  font-size: 11px;
+}
+.cardStatus {
+  color: #52665b;
+}
+.cardError {
+  color: #794422;
+  overflow-wrap: anywhere;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .card h3 {
   margin: 0 0 8px;

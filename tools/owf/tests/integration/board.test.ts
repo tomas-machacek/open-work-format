@@ -16,6 +16,8 @@ import {
   boardResponse,
   boardError,
   createActionResponse,
+  updateActionStateResponse,
+  type UpdateActionStateRequest,
   type CreateActionRequest,
 } from '../../src/contracts/index.js';
 import { cleanup, snapshot, temporaryDirectory } from '../support/workspace.js';
@@ -364,4 +366,204 @@ test('default HTTP port uses canonical browser origin and Host without :80', asy
     address.mockRestore();
     await server.close();
   }
+});
+
+test('PATCH checks the observed snapshot in the transaction and emits only real changes', async () => {
+  const root = directory();
+  const { store } = initialize(root);
+  const initial = createAction(root, { title: 'Move me' }).result.action;
+  const write = vi.fn((id: string, request: UpdateActionStateRequest) =>
+    setAction(root, id, { state: request.state }, request.expected),
+  );
+  const server = createBoardServer(
+    () => listActions(root),
+    resolve('dist/web'),
+    (input) => createAction(root, input),
+    write,
+  );
+  const request = (id: string, payload: unknown, headers = trustedHeaders) =>
+    server.inject({
+      method: 'PATCH',
+      url: `/api/actions/${id}/state`,
+      headers,
+      payload: JSON.stringify(payload),
+    });
+  const expected = { state: initial.state, updated_at: initial.updated_at };
+  try {
+    const before = snapshot(root);
+    for (const payload of [
+      null,
+      { state: 'waiting' },
+      { state: 'bogus', expected },
+      { state: 'waiting', expected, waitingFor: 'not allowed' },
+      { state: 'waiting', expected: { ...expected, waiting_for: 'reason' } },
+    ]) {
+      const response = await request(initial.id, payload);
+      expect(response.statusCode).toBe(400);
+      expect(snapshot(root)).toEqual(before);
+    }
+    expect(write).not.toHaveBeenCalled();
+    for (const headers of [
+      { ...trustedHeaders, origin: 'http://foreign.example' },
+      { ...trustedHeaders, host: 'foreign.example' },
+      { ...trustedHeaders, 'content-type': 'text/plain' },
+    ]) {
+      const response = await request(
+        initial.id,
+        { state: 'waiting', expected },
+        headers,
+      );
+      expect([403, 415]).toContain(response.statusCode);
+      expect(snapshot(root)).toEqual(before);
+    }
+    const missing = await request('00000000-0000-4000-8000-000000000000', {
+      state: 'waiting',
+      expected,
+    });
+    expect(missing.statusCode).toBe(404);
+    expect(boardError.parse(missing.json()).error.code).toBe(
+      'ACTION_NOT_FOUND',
+    );
+    expect(snapshot(root)).toEqual(before);
+    const changed = await request(initial.id, { state: 'waiting', expected });
+    expect(changed.statusCode).toBe(200);
+    const waiting = updateActionStateResponse.parse(changed.json());
+    expect(waiting.status).toBe('updated');
+    expect(waiting.action).toMatchObject({ id: initial.id, state: 'waiting' });
+    expect(waiting.action.waiting_for).toBeUndefined();
+    expect(getAction(root, initial.id).result.action).toEqual(waiting.action);
+    const after = snapshot(root);
+    const conflict = await request(initial.id, {
+      state: 'completed',
+      expected,
+    });
+    expect(conflict.statusCode).toBe(409);
+    expect(boardError.parse(conflict.json()).error.code).toBe(
+      'ACTION_CONFLICT',
+    );
+    expect(snapshot(root)).toEqual(after);
+    const unchanged = await request(initial.id, {
+      state: 'waiting',
+      expected: {
+        state: 'waiting',
+        updated_at: waiting.action.updated_at,
+      },
+    });
+    expect(updateActionStateResponse.parse(unchanged.json()).status).toBe(
+      'unchanged',
+    );
+    expect(snapshot(root)).toEqual(after);
+    setAction(root, initial.id, { state: 'waiting', waitingFor: 'CLI reply' });
+    const reasonChanged = snapshot(root);
+    const staleReason = await request(initial.id, {
+      state: 'completed',
+      expected: {
+        state: 'waiting',
+        updated_at: waiting.action.updated_at,
+      },
+    });
+    expect(staleReason.statusCode).toBe(409);
+    expect(snapshot(root)).toEqual(reasonChanged);
+    const current = getAction(root, initial.id).result.action;
+    const leave = await request(initial.id, {
+      state: 'completed',
+      expected: {
+        state: current.state,
+        updated_at: current.updated_at,
+        waiting_for: current.waiting_for,
+      },
+    });
+    expect(
+      updateActionStateResponse.parse(leave.json()).action.waiting_for,
+    ).toBeUndefined();
+    const db = new DatabaseSync(store);
+    try {
+      expect(
+        db
+          .prepare(
+            "SELECT kind FROM action_events WHERE kind = 'action.state_changed'",
+          )
+          .all(),
+      ).toHaveLength(3);
+    } finally {
+      db.close();
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test('PATCH rolls back an event failure and hides storage details', async () => {
+  const root = directory();
+  const { store } = initialize(root);
+  const action = createAction(root, { title: 'Rollback' }).result.action;
+  const db = new DatabaseSync(store);
+  db.exec(
+    "CREATE TRIGGER fail_change BEFORE INSERT ON action_events WHEN NEW.kind = 'action.state_changed' BEGIN SELECT RAISE(ABORT, 'private SQL details'); END",
+  );
+  db.close();
+  const before = snapshot(root);
+  const server = createBoardServer(
+    () => listActions(root),
+    resolve('dist/web'),
+    (input) => createAction(root, input),
+    (id, input) => setAction(root, id, { state: input.state }, input.expected),
+  );
+  try {
+    const response = await server.inject({
+      method: 'PATCH',
+      url: `/api/actions/${action.id}/state`,
+      headers: trustedHeaders,
+      payload: {
+        state: 'completed',
+        expected: { state: 'open', updated_at: action.updated_at },
+      },
+    });
+    expect(response.statusCode).toBe(503);
+    expect(boardError.parse(response.json()).error.code).toBe(
+      'ACTION_UPDATE_FAILED',
+    );
+    expect(response.body).not.toContain('private SQL');
+    expect(snapshot(root)).toEqual(before);
+  } finally {
+    await server.close();
+  }
+});
+
+test('expected Waiting reason detects a conflict even when timestamps coincide', () => {
+  const root = directory();
+  const { store } = initialize(root);
+  const action = createAction(root, {
+    title: 'Await reply',
+    state: 'waiting',
+    waitingFor: 'First reply',
+  }).result.action;
+  const db = new DatabaseSync(store);
+  try {
+    // Simulate an external writer that commits a different reason with the
+    // same timestamp resolution as the card snapshot.
+    db.prepare('UPDATE actions SET waiting_for = ? WHERE id = ?').run(
+      'New reply',
+      action.id,
+    );
+  } finally {
+    db.close();
+  }
+  const before = snapshot(root);
+  expect(() =>
+    setAction(
+      root,
+      action.id,
+      { state: 'completed' },
+      {
+        state: action.state,
+        updated_at: action.updated_at,
+        waiting_for: action.waiting_for,
+      },
+    ),
+  ).toThrow(/changed since it was displayed/);
+  expect(snapshot(root)).toEqual(before);
+  expect(getAction(root, action.id).result.action.waiting_for).toBe(
+    'New reply',
+  );
 });

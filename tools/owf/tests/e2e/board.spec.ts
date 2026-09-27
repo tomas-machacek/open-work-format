@@ -1,11 +1,35 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { once } from 'node:events';
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { z } from 'zod';
 import { boardAction } from '../../src/contracts/index.js';
 import { cleanup, temporaryDirectory } from '../support/workspace.js';
 const cli = resolve('dist/bootstrap/cli.js');
+async function dragCard(
+  page: Page,
+  from: Locator,
+  to: Locator,
+  targetOffsetX?: number,
+) {
+  const start = await from.boundingBox();
+  const end = await to.boundingBox();
+  expect(start).not.toBeNull();
+  expect(end).not.toBeNull();
+  await page.mouse.move(
+    start!.x + start!.width / 2,
+    start!.y + start!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    end!.x + (targetOffsetX ?? end!.width / 2),
+    end!.y + end!.height / 2,
+    {
+      steps: 12,
+    },
+  );
+  await page.mouse.up();
+}
 test('built board quietly reflects a CLI change on return to the tab', async ({
   page,
   context,
@@ -104,7 +128,9 @@ test('built board quietly reflects a CLI change on return to the tab', async ({
       await route.continue();
     });
     await page.bringToFront();
-    await expect(page.getByRole('status')).toHaveText('Refreshing…');
+    await expect(
+      page.getByRole('status', { name: 'Board refresh' }),
+    ).toHaveText('Refreshing…');
     await expect(
       page
         .getByRole('region', { name: 'Open', exact: true })
@@ -203,6 +229,218 @@ test('create a Waiting Action with Outcome owner and verify persisted values thr
     await page.reload();
     await expect(waiting.getByRole('article')).toHaveCount(1);
     await expect(waiting.getByText('Approval from team')).toBeVisible();
+  } finally {
+    if (server.exitCode === null) {
+      const exited = once(server, 'exit');
+      server.kill();
+      await exited;
+    }
+    cleanup(root);
+  }
+});
+
+test('drag an Action into Waiting without a reason, then complete and reopen it', async ({
+  page,
+}) => {
+  const root = temporaryDirectory();
+  const run = (...args: string[]) => {
+    const result = spawnSync(process.execPath, [cli, ...args], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(result.status, result.stderr).toBe(0);
+    return result.stdout;
+  };
+  run('init', '--title', 'Board movement');
+  const created = z
+    .object({ result: z.object({ action: boardAction }) })
+    .parse(
+      JSON.parse(run('create', 'action', '--title', 'Move this', '--json')),
+    ).result.action;
+  const server = spawn(process.execPath, [cli, 'serve', '--port', '14319'], {
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  server.stdout.on('data', (chunk: Buffer) => {
+    output += chunk.toString();
+  });
+  server.stderr.on('data', (chunk: Buffer) => {
+    output += chunk.toString();
+  });
+  const persisted = () =>
+    z
+      .object({ result: z.object({ action: boardAction }) })
+      .parse(JSON.parse(run('get', 'action', created.id, '--json'))).result
+      .action;
+  try {
+    await expect.poll(() => output).toContain('http://127.0.0.1:14319');
+    await page.goto('http://127.0.0.1:14319');
+    const open = page.getByRole('region', { name: 'Open', exact: true });
+    const waiting = page.getByRole('region', { name: 'Waiting', exact: true });
+    await expect(open.getByText('Move this')).toBeVisible();
+    await dragCard(
+      page,
+      open.getByRole('heading', { name: 'Move this' }),
+      waiting,
+      8,
+    );
+    await expect(waiting.getByText('Move this')).toBeVisible();
+    expect(persisted()).toMatchObject({
+      id: created.id,
+      state: 'waiting',
+      owner: created.owner,
+    });
+    expect(persisted().waiting_for).toBeUndefined();
+    await dragCard(
+      page,
+      waiting.getByRole('article').getByText('/', { exact: true }),
+      page.getByRole('region', { name: 'Completed', exact: true }),
+    );
+    await expect(
+      page
+        .getByRole('region', { name: 'Completed', exact: true })
+        .getByText('Move this'),
+    ).toBeVisible();
+    expect(persisted().state).toBe('completed');
+    await dragCard(
+      page,
+      page
+        .getByRole('region', { name: 'Completed', exact: true })
+        .getByRole('article'),
+      open,
+    );
+    await expect(open.getByText('Move this')).toBeVisible();
+    expect(persisted()).toMatchObject({
+      state: 'open',
+      id: created.id,
+      created_at: created.created_at,
+    });
+    await open.getByRole('article').focus();
+    await page.keyboard.press('Space');
+    await expect(open.getByRole('article')).toHaveAttribute(
+      'class',
+      /dragging/,
+    );
+    // The keyboard sensor attaches its key listener on the next task.
+    await page.waitForTimeout(50);
+    await page.keyboard.press('ArrowRight');
+    await expect(
+      page.getByRole('region', { name: 'In Progress', exact: true }),
+    ).toHaveAttribute('class', /dropTarget/);
+    await page.keyboard.press('Space');
+    await expect(
+      page
+        .getByRole('region', { name: 'In Progress', exact: true })
+        .getByText('Move this'),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole('region', { name: 'In Progress', exact: true })
+        .getByRole('article'),
+    ).toBeFocused();
+    expect(persisted().state).toBe('in_progress');
+    await page.setViewportSize({ width: 900, height: 844 });
+    await page
+      .getByRole('region', { name: 'In Progress', exact: true })
+      .getByRole('article')
+      .focus();
+    await page.keyboard.press('Space');
+    await expect(
+      page
+        .getByRole('region', { name: 'In Progress', exact: true })
+        .getByRole('article'),
+    ).toHaveAttribute('class', /dragging/);
+    await page.waitForTimeout(50);
+    await page.keyboard.press('ArrowRight');
+    await expect(
+      page.getByRole('region', { name: 'Waiting', exact: true }),
+    ).toHaveAttribute('class', /dropTarget/);
+    await page.keyboard.press('ArrowRight');
+    await expect(
+      page.getByRole('region', { name: 'Completed', exact: true }),
+    ).toHaveAttribute('class', /dropTarget/);
+    await page.keyboard.press('Escape');
+    expect(persisted().state).toBe('in_progress');
+    const mobileContext = await page
+      .context()
+      .browser()!
+      .newContext({
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+      });
+    try {
+      const mobile = await mobileContext.newPage();
+      await mobile.goto('http://127.0.0.1:14319');
+      const mobileCard = mobile
+        .getByRole('region', { name: 'In Progress', exact: true })
+        .getByRole('article');
+      const mobileWaiting = mobile.getByRole('region', {
+        name: 'Waiting',
+        exact: true,
+      });
+      await expect(mobileCard).toBeVisible();
+      expect(await mobile.getByRole('combobox').count()).toBe(0);
+      expect(
+        await mobile.evaluate(
+          'document.documentElement.scrollWidth <= window.innerWidth',
+        ),
+      ).toBe(true);
+      const session = await mobileContext.newCDPSession(mobile);
+      const scrollStart = await mobileCard.getByRole('heading').boundingBox();
+      expect(scrollStart).not.toBeNull();
+      const scrollX = scrollStart!.x + scrollStart!.width / 2;
+      const scrollY = scrollStart!.y + scrollStart!.height / 2;
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: scrollX, y: scrollY }],
+      });
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: scrollX, y: scrollY - 120 }],
+      });
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+      });
+      await expect
+        .poll(() => mobile.evaluate('window.scrollY'))
+        .toBeGreaterThan(0);
+      expect(persisted().state).toBe('in_progress');
+      const touchFrom = await mobileCard.getByRole('heading').boundingBox();
+      const touchTo = await mobileWaiting.boundingBox();
+      expect(touchFrom).not.toBeNull();
+      expect(touchTo).not.toBeNull();
+      const x = touchFrom!.x + touchFrom!.width / 2;
+      const y = touchFrom!.y + touchFrom!.height / 2;
+      const targetX = touchTo!.x + touchTo!.width / 2;
+      const targetY = touchTo!.y + touchTo!.height / 2;
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x, y }],
+      });
+      await expect(mobileCard).toHaveAttribute('class', /dragging/);
+      for (let step = 1; step <= 12; step++) {
+        await session.send('Input.dispatchTouchEvent', {
+          type: 'touchMove',
+          touchPoints: [
+            {
+              x: x + ((targetX - x) * step) / 12,
+              y: y + ((targetY - y) * step) / 12,
+            },
+          ],
+        });
+      }
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+      });
+      await expect(mobileWaiting.getByText('Move this')).toBeVisible();
+      expect(persisted().state).toBe('waiting');
+    } finally {
+      await mobileContext.close();
+    }
   } finally {
     if (server.exitCode === null) {
       const exited = once(server, 'exit');

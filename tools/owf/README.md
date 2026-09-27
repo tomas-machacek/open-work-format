@@ -249,9 +249,15 @@ Cancel closes the form. One form can be open at a time; drafts survive refresh
 and failed saves. If a save cannot be confirmed, refresh/check before submitting
 again to avoid a duplicate.
 
-Change existing Actions through the CLI, then return to the window/tab or press Refresh. Refresh retains cards; errors
-mark existing data not current and offer Retry. There is no polling, filtering,
-Action detail, drag and drop or multi-Workspace registration.
+Drag a card from anywhere on its surface into another column to change its
+state. Keyboard dragging uses Space to pick up/drop, arrow keys
+to choose a column and Escape to cancel. Moving into Waiting does not request
+or add a reason; moving out clears any existing reason. The card stays put until
+the server confirms the change. A conflict refreshes the board; after an
+uncertain network failure, refresh and check before trying again.
+CLI changes appear when you return to the window/tab or press Refresh. Refresh
+retains cards; errors mark existing data not current and offer Retry. There is
+no polling, filtering, Action detail, within-column ordering or multi-Workspace registration.
 
 Install the Chromium test browser once with `npx playwright install chromium`.
 `npm run verify` includes two focused browser journeys against the built server and
@@ -261,12 +267,17 @@ screenshots and traces are diagnostics in `test-results/`, not snapshot assertio
 
 The write endpoint accepts only same-origin `application/json` requests at
 `http://127.0.0.1:<serve-port>`; cross-origin/form requests are rejected before
-creation. `POST /api/actions` requires `title`, `owner`, `state`, with optional
+writing. `POST /api/actions` requires `title`, `owner`, `state`, with optional
 `description` and `waitingFor`; unknown fields are rejected. A 201 response is
 `{ action: ... }` with the persisted record. Errors use
 `{ error: { code, message } }`: 400 for invalid input, 403 for origin/host
 rejection, 415 for non-JSON, and 503 for unavailable/failed storage. Creation
 uses the same atomic Action + creation-event operation as the CLI.
+`PATCH /api/actions/{id}/state` accepts `state` and `expected` containing the
+card's `state`, `updated_at` and optional `waiting_for`. It returns `status`
+(`updated` or `unchanged`) and the persisted `action`. A stale snapshot returns
+409 `ACTION_CONFLICT`, an absent Action returns 404, malformed input 400, and
+storage failures 503. The comparison and state/event update occur in one transaction.
 
 For frontend development, run `owf serve` on its default port 4317 and `npx vite`
 in `tools/owf`. Vite binds to 127.0.0.1 and proxies `/api` to that local server,

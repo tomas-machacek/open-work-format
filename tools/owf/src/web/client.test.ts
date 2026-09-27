@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { fetchBoard, saveAction } from './client.js';
+import { fetchBoard, saveAction, updateActionState } from './client.js';
 afterEach(() => vi.unstubAllGlobals());
 test('API client propagates HTTP read errors and rejects malformed successful payloads', async () => {
   const fetch = vi.fn<typeof globalThis.fetch>();
@@ -80,3 +80,52 @@ test.each(['network', 'body', 'contract'])(
     expect(fetch).toHaveBeenCalledTimes(1);
   },
 );
+
+test('state update sends the observed snapshot once and reports conflict or uncertain delivery', async () => {
+  const action = {
+    id: 'saved',
+    title: 'Work',
+    owner: { url: '/' },
+    state: 'waiting',
+    created_at: 'now',
+    updated_at: 'later',
+  };
+  const fetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValueOnce(
+      new Response(JSON.stringify({ status: 'updated', action })),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: 'ACTION_CONFLICT',
+            message: 'Changed elsewhere.',
+          },
+        }),
+        { status: 409 },
+      ),
+    )
+    .mockRejectedValueOnce(new TypeError('Connection lost'));
+  vi.stubGlobal('fetch', fetch);
+  const input = {
+    state: 'waiting' as const,
+    expected: {
+      state: 'open' as const,
+      updated_at: 'earlier',
+    },
+  };
+  expect(await updateActionState('saved', input)).toEqual(action);
+  expect(fetch).toHaveBeenCalledWith('/api/actions/saved/state', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  await expect(updateActionState('saved', input)).rejects.toMatchObject({
+    code: 'ACTION_CONFLICT',
+  });
+  await expect(updateActionState('saved', input)).rejects.toMatchObject({
+    code: 'UNCERTAIN',
+  });
+  expect(fetch).toHaveBeenCalledTimes(3);
+});
