@@ -1,10 +1,12 @@
 # 0010 — Change Action state on the board
 
-> Status: draft
+> Status: reviewed
 > Description: Change Action state by dragging a card into another board column.
 > Depends on: [0009 — Compact Action cards](0009-compact-action-cards.md) and [0005 — Action state changes](0005-action-state.md).
 
 ## Goal and scope
+
+The user reviewed and approved this design for implementation on 2026-09-27.
 
 Let a person change an existing Action's execution state directly on the
 Kanban board, without switching to the CLI. The board shows the persisted
