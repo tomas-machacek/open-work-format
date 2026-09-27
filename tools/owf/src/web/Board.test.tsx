@@ -14,7 +14,9 @@ import type {
   BoardResponse,
   BoardAction,
   CreateActionRequest,
+  UpdateActionStateRequest,
 } from '../contracts/index.js';
+import { StateUpdateError } from './client.js';
 const data: BoardResponse = {
   workspace: { root: 'C:/Work' },
   actions: [
@@ -136,7 +138,9 @@ test('refresh retains card nodes and order, marks failed data stale, retries and
   expect(screen.getByText('Supplier reply')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
   expect(screen.getByText('First').closest('article')).toBe(cards[0]);
-  expect(screen.getByRole('status').textContent).toBe('Refreshing…');
+  expect(
+    screen.getByRole('status', { name: 'Board refresh' }).textContent,
+  ).toBe('Refreshing…');
   await act(async () => {
     pending.reject(new Error('Store unavailable'));
     await pending.promise.catch(() => undefined);
@@ -205,7 +209,9 @@ test.each(['success', 'failure'] as const)(
     });
     expect(load).toHaveBeenCalledTimes(3);
     expect(screen.getByText('First').closest('article')).toBe(card);
-    expect(screen.getByRole('status').textContent).toBe('Refreshing…');
+    expect(
+      screen.getByRole('status', { name: 'Board refresh' }).textContent,
+    ).toBe('Refreshing…');
     expect(screen.queryByRole('alert')).toBeNull();
     await act(() => {
       current.resolve({
@@ -217,7 +223,9 @@ test.each(['success', 'failure'] as const)(
     expect(screen.getByText('Changed through CLI').closest('article')).toBe(
       card,
     );
-    expect(screen.getByRole('status').textContent).toContain('up to date');
+    expect(
+      screen.getByRole('status', { name: 'Board refresh' }).textContent,
+    ).toContain('up to date');
     await act(() => vi.advanceTimersByTimeAsync(200));
     expect(load).toHaveBeenCalledTimes(3);
   },
@@ -295,7 +303,9 @@ test('draft survives validation, refresh and failed save, and Cancel restores fo
   });
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
   await waitFor(() =>
-    expect(screen.getByRole('status').textContent).toContain('up to date'),
+    expect(
+      screen.getByRole('status', { name: 'Board refresh' }).textContent,
+    ).toContain('up to date'),
   );
   expect(screen.getByRole('form')).toBe(form);
   fireEvent.submit(form);
@@ -422,4 +432,131 @@ test('confirmed create keeps stale warning until GET succeeds; uncertain failure
     'Uncertain work',
   );
   expect(screen.queryByText('Uncertain work')).toBeNull();
+});
+
+test('Move to keeps the card visible while pending, then reconciles a confirmed move over an older GET', async () => {
+  const oldRead = deferred();
+  let confirm!: (action: BoardAction) => void;
+  const move = vi
+    .fn<(id: string, input: UpdateActionStateRequest) => Promise<BoardAction>>()
+    .mockReturnValue(
+      new Promise((resolve) => {
+        confirm = resolve;
+      }),
+    );
+  const load = vi
+    .fn<() => Promise<BoardResponse>>()
+    .mockResolvedValueOnce(data)
+    .mockReturnValueOnce(oldRead.promise)
+    .mockResolvedValue({
+      ...data,
+      actions: [{ ...data.actions[0]!, state: 'completed' }],
+    });
+  render(<Board load={load} move={move} />);
+  await screen.findByText('First');
+  const card = screen.getByText('First').closest('article')!;
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  fireEvent.change(
+    within(card).getByRole('combobox', { name: 'Move First to' }),
+    { target: { value: 'waiting' } },
+  );
+  expect(move).toHaveBeenCalledExactlyOnceWith('one', {
+    state: 'waiting',
+    expected: { state: 'open', updated_at: 'now' },
+  });
+  expect(
+    within(screen.getByRole('region', { name: 'Open' })).getByText('First'),
+  ).toBeTruthy();
+  expect(within(card).getByText('Moving…')).toBeTruthy();
+  expect(within(card).getByRole('combobox').hasAttribute('disabled')).toBe(
+    true,
+  );
+  await act(async () => {
+    confirm({ ...data.actions[0]!, state: 'waiting', updated_at: 'later' });
+    await Promise.resolve();
+  });
+  expect(
+    within(screen.getByRole('region', { name: 'Waiting' })).getByText('First'),
+  ).toBeTruthy();
+  await act(() => {
+    oldRead.resolve(data);
+    return oldRead.promise;
+  });
+  expect(screen.getAllByText('First')).toHaveLength(1);
+  expect(screen.getByRole('heading', { name: 'Waiting2' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole('region', { name: 'Completed' })).getByText(
+        'First',
+      ),
+    ).toBeTruthy(),
+  );
+});
+
+test('same-column selection writes nothing; conflict refreshes without speculative movement; uncertain result is not retried', async () => {
+  const move = vi
+    .fn<(id: string, input: UpdateActionStateRequest) => Promise<BoardAction>>()
+    .mockRejectedValueOnce(
+      new StateUpdateError('Action changed.', 'ACTION_CONFLICT'),
+    )
+    .mockRejectedValueOnce(
+      new StateUpdateError('Check before retrying.', 'UNCERTAIN'),
+    );
+  const load = vi.fn<() => Promise<BoardResponse>>().mockResolvedValue(data);
+  render(<Board load={load} move={move} />);
+  const card = (await screen.findByText('First')).closest('article')!;
+  const select = within(card).getByRole('combobox');
+  fireEvent.change(select, { target: { value: 'open' } });
+  expect(move).not.toHaveBeenCalled();
+  fireEvent.change(select, { target: { value: 'completed' } });
+  await within(card).findByText('Action changed.');
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  expect(screen.getByText('First').closest('article')).toBe(card);
+  fireEvent.change(select, { target: { value: 'waiting' } });
+  await within(card).findByText('Check before retrying.');
+  expect(move).toHaveBeenCalledTimes(2);
+  expect(
+    within(screen.getByRole('region', { name: 'Open' })).getByText('First'),
+  ).toBeTruthy();
+});
+
+test('a read that finishes during a pending write does not move the source card early', async () => {
+  const inFlight = deferred();
+  let confirm!: (action: BoardAction) => void;
+  const move = vi
+    .fn<(id: string, input: UpdateActionStateRequest) => Promise<BoardAction>>()
+    .mockReturnValue(
+      new Promise((resolve) => {
+        confirm = resolve;
+      }),
+    );
+  const load = vi
+    .fn<() => Promise<BoardResponse>>()
+    .mockResolvedValueOnce(data)
+    .mockReturnValueOnce(inFlight.promise);
+  render(<Board load={load} move={move} />);
+  const card = (await screen.findByText('First')).closest('article')!;
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  fireEvent.change(within(card).getByRole('combobox'), {
+    target: { value: 'waiting' },
+  });
+  await act(() => {
+    inFlight.resolve({
+      ...data,
+      actions: [{ ...data.actions[0]!, state: 'waiting' }],
+    });
+    return inFlight.promise;
+  });
+  expect(
+    within(screen.getByRole('region', { name: 'Open' })).getByText('First'),
+  ).toBeTruthy();
+  expect(within(card).getByText('Moving…')).toBeTruthy();
+  await act(async () => {
+    confirm({ ...data.actions[0]!, state: 'waiting', updated_at: 'confirmed' });
+    await Promise.resolve();
+  });
+  expect(
+    within(screen.getByRole('region', { name: 'Waiting' })).getByText('First'),
+  ).toBeTruthy();
 });

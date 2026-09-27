@@ -1,6 +1,6 @@
 # 0010 — Change Action state on the board
 
-> Status: reviewed
+> Status: in_progress
 > Description: Change Action state by dragging a card into another board column.
 > Depends on: [0009 — Compact Action cards](0009-compact-action-cards.md) and [0005 — Action state changes](0005-action-state.md).
 
@@ -168,4 +168,17 @@ without a Waiting prompt or editor.
 
 ## Implementation and review outcome
 
-Pending implementation and review.
+Implementation is on this PR branch. The board has dnd-kit drag handles and
+five drop targets, keyboard dragging and a per-card state selector. PATCH uses
+the existing Action transaction with an expected state/timestamp/reason check;
+the board holds the source card during a pending request and reconciles the
+returned Action over older reads. The README describes the controls and errors.
+
+On Linux with Node 24.19.0, typecheck, lint, formatting, architecture, build,
+unit and integration suites and all 24 acceptance scenarios passed. All 20 CLI
+process tests passed with a 20-second per-test limit; four exceeded the normal
+five-second limit on this host during `npm run verify`. The Playwright journey
+and manual desktop/narrow/touch inspection remain unverified because Chromium
+is absent and the browser download returned an invalid archive. Code review is
+pending. Keep this increment `in_progress` until those checks and review are
+complete.

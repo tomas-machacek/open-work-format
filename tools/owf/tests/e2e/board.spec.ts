@@ -104,7 +104,9 @@ test('built board quietly reflects a CLI change on return to the tab', async ({
       await route.continue();
     });
     await page.bringToFront();
-    await expect(page.getByRole('status')).toHaveText('Refreshing…');
+    await expect(
+      page.getByRole('status', { name: 'Board refresh' }),
+    ).toHaveText('Refreshing…');
     await expect(
       page
         .getByRole('region', { name: 'Open', exact: true })
@@ -203,6 +205,98 @@ test('create a Waiting Action with Outcome owner and verify persisted values thr
     await page.reload();
     await expect(waiting.getByRole('article')).toHaveCount(1);
     await expect(waiting.getByText('Approval from team')).toBeVisible();
+  } finally {
+    if (server.exitCode === null) {
+      const exited = once(server, 'exit');
+      server.kill();
+      await exited;
+    }
+    cleanup(root);
+  }
+});
+
+test('drag an Action into Waiting without a reason, then complete and reopen it', async ({
+  page,
+}) => {
+  const root = temporaryDirectory();
+  const run = (...args: string[]) => {
+    const result = spawnSync(process.execPath, [cli, ...args], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(result.status, result.stderr).toBe(0);
+    return result.stdout;
+  };
+  run('init', '--title', 'Board movement');
+  const created = z
+    .object({ result: z.object({ action: boardAction }) })
+    .parse(
+      JSON.parse(run('create', 'action', '--title', 'Move this', '--json')),
+    ).result.action;
+  const server = spawn(process.execPath, [cli, 'serve', '--port', '14319'], {
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  server.stdout.on('data', (chunk: Buffer) => {
+    output += chunk.toString();
+  });
+  server.stderr.on('data', (chunk: Buffer) => {
+    output += chunk.toString();
+  });
+  const persisted = () =>
+    z
+      .object({ result: z.object({ action: boardAction }) })
+      .parse(JSON.parse(run('get', 'action', created.id, '--json'))).result
+      .action;
+  try {
+    await expect.poll(() => output).toContain('http://127.0.0.1:14319');
+    await page.goto('http://127.0.0.1:14319');
+    const open = page.getByRole('region', { name: 'Open', exact: true });
+    const waiting = page.getByRole('region', { name: 'Waiting', exact: true });
+    await expect(open.getByText('Move this')).toBeVisible();
+    await open
+      .getByRole('button', { name: 'Drag Move this to change state' })
+      .dragTo(waiting);
+    await expect(waiting.getByText('Move this')).toBeVisible();
+    expect(persisted()).toMatchObject({
+      id: created.id,
+      state: 'waiting',
+      owner: created.owner,
+    });
+    expect(persisted().waiting_for).toBeUndefined();
+    const selector = waiting.getByRole('combobox', {
+      name: 'Move Move this to',
+    });
+    await selector.selectOption('completed');
+    await expect(
+      page
+        .getByRole('region', { name: 'Completed', exact: true })
+        .getByText('Move this'),
+    ).toBeVisible();
+    expect(persisted().state).toBe('completed');
+    await page
+      .getByRole('region', { name: 'Completed', exact: true })
+      .getByRole('combobox', { name: 'Move Move this to' })
+      .selectOption('open');
+    await expect(open.getByText('Move this')).toBeVisible();
+    expect(persisted()).toMatchObject({
+      state: 'open',
+      id: created.id,
+      created_at: created.created_at,
+    });
+    await open
+      .getByRole('button', { name: 'Drag Move this to change state' })
+      .focus();
+    await page.keyboard.press('Space');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Space');
+    await expect(
+      page
+        .getByRole('region', { name: 'In Progress', exact: true })
+        .getByText('Move this'),
+    ).toBeVisible();
+    expect(persisted().state).toBe('in_progress');
   } finally {
     if (server.exitCode === null) {
       const exited = once(server, 'exit');

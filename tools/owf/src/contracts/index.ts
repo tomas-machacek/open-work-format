@@ -61,3 +61,25 @@ export const createActionRequest = z
   .strict();
 export const createActionResponse = z.object({ action: boardAction });
 export type CreateActionRequest = z.infer<typeof createActionRequest>;
+export const updateActionStateRequest = z
+  .object({
+    state: boardAction.shape.state,
+    expected: z
+      .object({
+        state: boardAction.shape.state,
+        updated_at: z.iso.datetime(),
+        waiting_for: z.string().optional(),
+      })
+      .strict()
+      .refine(
+        (value) =>
+          value.waiting_for === undefined ||
+          (value.state === 'waiting' && value.waiting_for.trim().length > 0),
+      ),
+  })
+  .strict();
+export const updateActionStateResponse = z.object({
+  status: z.enum(['updated', 'unchanged']),
+  action: boardAction,
+});
+export type UpdateActionStateRequest = z.infer<typeof updateActionStateRequest>;

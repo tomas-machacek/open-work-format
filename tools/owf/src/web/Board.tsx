@@ -1,12 +1,25 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type KeyboardCoordinateGetter,
+  type DragEndEvent,
+} from '@dnd-kit/core';
 import { ActionForm } from './ActionForm.js';
-import { saveAction } from './client.js';
+import { saveAction, StateUpdateError, updateActionState } from './client.js';
 import type {
   CreateActionRequest,
   BoardAction,
   BoardResponse,
+  UpdateActionStateRequest,
 } from '../contracts/index.js';
 import { useBoard } from './useBoard.js';
+import { BoardColumn } from './BoardColumn.js';
+import { MovableCard } from './MovableCard.js';
 import styles from './Board.module.css';
 
 const columns: [BoardAction['state'], string][] = [
@@ -16,15 +29,137 @@ const columns: [BoardAction['state'], string][] = [
   ['completed', 'Completed'],
   ['cancelled', 'Cancelled'],
 ];
+const keyboardCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code))
+    return undefined;
+  event.preventDefault();
+  const activeState: unknown = context.active?.data.current?.['state'];
+  const current = context.over?.id ?? activeState;
+  const index = columns.findIndex(([state]) => state === current);
+  const next = Math.max(
+    0,
+    Math.min(
+      columns.length - 1,
+      index +
+        (event.code === 'ArrowRight' || event.code === 'ArrowDown' ? 1 : -1),
+    ),
+  );
+  const rect = context.droppableRects.get(columns[next]![0]);
+  return rect
+    ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+    : undefined;
+};
 export function Board({
   load,
   save = saveAction,
+  move = updateActionState,
 }: {
   load?: () => Promise<BoardResponse>;
   save?: (input: CreateActionRequest) => Promise<BoardAction>;
+  move?: (id: string, input: UpdateActionStateRequest) => Promise<BoardAction>;
 }) {
   const { data, error, loading, refresh, accept } = useBoard(load);
   const [editing, setEditing] = useState<BoardAction['state']>();
+  const [pending, setPending] = useState<Set<string>>(new Set());
+  const [pendingActions, setPendingActions] = useState<
+    Map<string, BoardAction>
+  >(new Map());
+  const moving = useRef(new Set<string>());
+  const [moveErrors, setMoveErrors] = useState<Record<string, string>>({});
+  const [moveNotice, setMoveNotice] = useState<string>();
+  const [announcement, setAnnouncement] = useState('');
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 180, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinates }),
+  );
+  async function changeState(action: BoardAction, state: BoardAction['state']) {
+    if (state === action.state || moving.current.has(action.id)) return;
+    const hadFocus =
+      document.activeElement
+        ?.closest('article')
+        ?.querySelector('[data-action-id]')
+        ?.getAttribute('data-action-id') === action.id;
+    moving.current.add(action.id);
+    setPending(new Set(moving.current));
+    setPendingActions((old) => new Map(old).set(action.id, action));
+    setMoveErrors((old) => {
+      const next = { ...old };
+      delete next[action.id];
+      return next;
+    });
+    setMoveNotice(undefined);
+    try {
+      const saved = await move(action.id, {
+        state,
+        expected: {
+          state: action.state,
+          updated_at: action.updated_at,
+          ...(action.waiting_for === undefined
+            ? {}
+            : { waiting_for: action.waiting_for }),
+        },
+      });
+      accept(saved);
+      if (hadFocus) {
+        window.setTimeout(() => {
+          if (document.activeElement === document.body)
+            document
+              .querySelector<HTMLButtonElement>(
+                `[data-action-id="${saved.id}"]`,
+              )
+              ?.focus();
+        }, 0);
+      }
+      setAnnouncement(
+        `${action.title} moved to ${columns.find(([s]) => s === saved.state)?.[1]}.`,
+      );
+    } catch (failure) {
+      const message =
+        failure instanceof Error ? failure.message : 'Unable to move Action.';
+      setMoveErrors((old) => ({ ...old, [action.id]: message }));
+      if (
+        failure instanceof StateUpdateError &&
+        failure.code === 'ACTION_CONFLICT'
+      )
+        setMoveNotice(
+          `${action.title}: ${message} The board is refreshing to show the current Action.`,
+        );
+      setAnnouncement(`${action.title}: ${message}`);
+      if (
+        failure instanceof StateUpdateError &&
+        failure.code === 'ACTION_CONFLICT'
+      )
+        void refresh();
+    } finally {
+      moving.current.delete(action.id);
+      setPending(new Set(moving.current));
+      setPendingActions((old) => {
+        const next = new Map(old);
+        next.delete(action.id);
+        return next;
+      });
+    }
+  }
+  function onDragEnd(event: DragEndEvent) {
+    const action = data?.actions.find((item) => item.id === event.active.id);
+    const target = columns.find(([state]) => state === event.over?.id)?.[0];
+    if (action && target && target === action.state)
+      setAnnouncement(`${action.title} stayed in the same column.`);
+    else if (action && target) void changeState(action, target);
+    else setAnnouncement('Move cancelled.');
+  }
+  // A concurrent GET may finish while PATCH is pending; keep that card's
+  // observed snapshot visible until the write confirms or fails.
+  const visibleActions =
+    data?.actions.map((action) => pendingActions.get(action.id) ?? action) ??
+    [];
+  for (const action of pendingActions.values()) {
+    if (!visibleActions.some((item) => item.id === action.id))
+      visibleActions.push(action);
+  }
   return (
     <main className={styles.page}>
       <header className={styles.header}>
@@ -52,7 +187,7 @@ export function Board({
           <span>Workspace</span>{' '}
           {data?.workspace.root ?? 'Connecting to local Workspace…'}
         </p>
-        <p role="status">
+        <p role="status" aria-label="Board refresh">
           {error
             ? data
               ? 'Not current · refresh failed'
@@ -74,83 +209,104 @@ export function Board({
           {error} Use Retry to read the Workspace again.
         </div>
       )}
+      {moveNotice && (
+        <div role="alert" className={styles.error}>
+          {moveNotice}
+        </div>
+      )}
       {data?.actions.length === 0 && (
         <p className={styles.emptyBoard}>
           No Actions yet. Choose Add Action in a column to get started.
         </p>
       )}
-      <div className={styles.board} aria-label="Action board">
-        {columns.map(([state, title]) => {
-          const actions =
-            data?.actions.filter((action) => action.state === state) ?? [];
-          return (
-            <section
-              key={state}
-              aria-label={title}
-              className={styles.column}
-              data-state={state}
-            >
-              <h2 id={`column-${state}`}>
-                <span className={styles.dot} />
-                {title}
-                <span className={styles.count}>
-                  {data ? actions.length : '—'}
-                </span>
-              </h2>
-              <button
-                id={`add-${state}`}
-                className={styles.add}
-                disabled={!data || (editing !== undefined && editing !== state)}
-                aria-expanded={editing === state}
-                onClick={() => {
-                  if (editing === state)
-                    document.getElementById('action-title')?.focus();
-                  else setEditing(state);
-                }}
-              >
-                + Add Action
-              </button>
-              {editing === state && (
-                <ActionForm
-                  state={state}
-                  label={title}
-                  save={save}
-                  onSaved={accept}
-                  onClose={() => {
-                    setEditing(undefined);
-                    document.getElementById(`add-${state}`)?.focus();
-                  }}
-                />
-              )}
-              <div className={styles.cards}>
-                {actions.map((action) => (
-                  <article key={action.id} className={styles.card}>
-                    <h3>{action.title}</h3>
-                    <dl>
-                      <div>
-                        <dt>Owner:</dt>
-                        <dd>{action.owner.url}</dd>
-                      </div>
-                      {action.state === 'waiting' &&
-                        action.waiting_for !== undefined && (
-                          <div className={styles.reason}>
-                            <dt>Waiting for:</dt>
-                            <dd>{action.waiting_for}</dd>
-                          </div>
-                        )}
-                    </dl>
-                  </article>
-                ))}
-                {data && actions.length === 0 && (
-                  <p className={styles.empty}>No Actions</p>
-                )}
-              </div>
-            </section>
-          );
-        })}
+      <p id="drag-instructions" className={styles.srOnly}>
+        Press Space to pick up a card, use arrow keys to choose a column, then
+        press Space to drop. Press Escape to cancel. You can also use the Move
+        to selector.
+      </p>
+      <div className={styles.srOnly} role="status" aria-live="polite">
+        {announcement}
       </div>
+      <DndContext
+        sensors={sensors}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setAnnouncement('Move cancelled.')}
+        onDragStart={(event) => {
+          const action = data?.actions.find(
+            (item) => item.id === event.active.id,
+          );
+          if (action)
+            setAnnouncement(
+              `Moving ${action.title}. Choose a destination column.`,
+            );
+        }}
+      >
+        <div className={styles.board} aria-label="Action board">
+          {columns.map(([state, title]) => {
+            const actions = visibleActions.filter(
+              (action) => action.state === state,
+            );
+            return (
+              <BoardColumn key={state} state={state} title={title}>
+                <h2 id={`column-${state}`}>
+                  <span className={styles.dot} />
+                  {title}
+                  <span className={styles.count}>
+                    {data ? actions.length : '—'}
+                  </span>
+                </h2>
+                <button
+                  id={`add-${state}`}
+                  className={styles.add}
+                  disabled={
+                    !data || (editing !== undefined && editing !== state)
+                  }
+                  aria-expanded={editing === state}
+                  onClick={() => {
+                    if (editing === state)
+                      document.getElementById('action-title')?.focus();
+                    else setEditing(state);
+                  }}
+                >
+                  + Add Action
+                </button>
+                {editing === state && (
+                  <ActionForm
+                    state={state}
+                    label={title}
+                    save={save}
+                    onSaved={accept}
+                    onClose={() => {
+                      setEditing(undefined);
+                      document.getElementById(`add-${state}`)?.focus();
+                    }}
+                  />
+                )}
+                <div className={styles.cards}>
+                  {actions.map((action) => (
+                    <MovableCard
+                      key={action.id}
+                      action={action}
+                      columns={columns}
+                      pending={pending.has(action.id)}
+                      error={moveErrors[action.id]}
+                      onMove={(item, next) => {
+                        void changeState(item, next);
+                      }}
+                    />
+                  ))}
+                  {data && actions.length === 0 && (
+                    <p className={styles.empty}>No Actions</p>
+                  )}
+                </div>
+              </BoardColumn>
+            );
+          })}
+        </div>
+      </DndContext>
       <footer className={styles.footer}>
-        Changes made in the CLI appear when you return to this tab or refresh.
+        Drag cards between columns or use Move to. CLI changes appear when you
+        return to this tab or refresh.
       </footer>
     </main>
   );

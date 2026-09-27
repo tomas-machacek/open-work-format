@@ -5,7 +5,45 @@ import {
   type BoardAction,
   boardError,
   type BoardResponse,
+  updateActionStateResponse,
+  type UpdateActionStateRequest,
 } from '../contracts/index.js';
+export class StateUpdateError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+  ) {
+    super(message);
+  }
+}
+export async function updateActionState(
+  id: string,
+  input: UpdateActionStateRequest,
+): Promise<BoardAction> {
+  let response: Response;
+  let body: unknown;
+  try {
+    response = await fetch(`/api/actions/${encodeURIComponent(id)}/state`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    body = await response.json();
+    if (response.ok) return updateActionStateResponse.parse(body).action;
+  } catch {
+    throw new StateUpdateError(
+      'Move could not be confirmed. Refresh and check the board before trying again.',
+      'UNCERTAIN',
+    );
+  }
+  const parsed = boardError.safeParse(body);
+  if (!parsed.success)
+    throw new StateUpdateError(
+      'Move could not be confirmed. Refresh and check the board before trying again.',
+      'UNCERTAIN',
+    );
+  throw new StateUpdateError(parsed.data.error.message, parsed.data.error.code);
+}
 export async function fetchBoard(): Promise<BoardResponse> {
   const response = await fetch('/api/actions', { cache: 'no-store' });
   const body: unknown = await response.json();
