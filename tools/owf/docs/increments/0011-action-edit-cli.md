@@ -1,6 +1,6 @@
 # 0011 — Edit Actions through the CLI
 
-> Status: in_progress
+> Status: completed
 > Description: Edit an Action's title, description, owner and waiting reason through one CLI operation.
 > Depends on: [0005 — Action state changes](0005-action-state.md) and [0010 — Change Action state on the board](0010-board-action-state.md).
 
@@ -189,5 +189,4 @@ On Windows with Node 24.21.0, `npm run verify` passed typecheck, lint,
 formatting, architecture, build, 79 unit tests, 123 integration tests, 24
 acceptance scenarios, 21 CLI end-to-end tests and all three Playwright browser
 scenarios. The affected browser scenario also passed twice in a focused repeat
-run. Review fixes are in the PR branch; this increment remains `in_progress`
-until the remaining handoff is complete.
+run. Review findings are fixed and the increment is completed after verification.
