@@ -22,6 +22,28 @@ import type {
   SetActionInput,
 } from '../../application/actions/index.js';
 
+function once(label: string) {
+  return (value: string, previous: string | undefined) => {
+    if (previous !== undefined)
+      throw new WorkspaceError(
+        'INVALID_ARGUMENT',
+        `Supply ${label} only once.`,
+      );
+    return value;
+  };
+}
+
+function onceFlag(label: string) {
+  return (_value: string, previous: boolean | undefined) => {
+    if (previous)
+      throw new WorkspaceError(
+        'INVALID_ARGUMENT',
+        `Supply ${label} only once.`,
+      );
+    return true;
+  };
+}
+
 export async function runCli(
   argv: string[],
   version: string,
@@ -179,16 +201,39 @@ export async function runCli(
     .description('Change operational objects')
     .command('action')
     .description(
-      'Change Action state; terminal Actions can be reopened; identical requests succeed unchanged',
+      'Edit Action content, owner, state or waiting reason atomically; identical requests succeed unchanged',
     )
     .argument('<identifier>', 'UUID or owf:action:<UUID>')
-    .requiredOption(
+    .option(
       '--state <state>',
       'open, in_progress, waiting, completed, cancelled',
+      once('--state'),
     )
     .option(
       '--waiting-for <text>',
-      'Nonblank literal waiting reason; only with waiting; omission preserves an existing reason',
+      'Nonblank literal waiting reason; resulting state must be waiting',
+      once('--waiting-for'),
+    )
+    .option(
+      '--clear-waiting-for',
+      'Remove the reason while staying waiting',
+      onceFlag('--clear-waiting-for'),
+    )
+    .option('--title <title>', 'Nonempty single-line title', once('--title'))
+    .option(
+      '--description <text>',
+      'Literal Markdown, including empty text',
+      once('--description'),
+    )
+    .option(
+      '--clear-description',
+      'Remove the optional description',
+      onceFlag('--clear-description'),
+    )
+    .option(
+      '--owner <url>',
+      'Workspace-rooted owner URL; / selects Workspace',
+      once('--owner'),
     )
     .option('--json', 'Emit the updated or unchanged Action')
     .action((identifier: string, options: unknown) => {

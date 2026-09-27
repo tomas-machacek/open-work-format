@@ -340,7 +340,11 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
         .getByRole('article'),
     ).toBeFocused();
     expect(persisted().state).toBe('in_progress');
+    const resized = page.evaluate(
+      'new Promise(resolve => window.addEventListener("resize", resolve, {once: true}))',
+    );
     await page.setViewportSize({ width: 900, height: 844 });
+    await resized;
     await page
       .getByRole('region', { name: 'In Progress', exact: true })
       .getByRole('article')

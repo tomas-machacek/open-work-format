@@ -6,8 +6,13 @@ export const listActionsOptions = z.object({
   json: z.boolean().optional(),
 });
 export const setActionOptions = z.object({
-  state: z.string(),
+  state: z.string().optional(),
   waitingFor: z.string().optional(),
+  clearWaitingFor: z.boolean().optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  clearDescription: z.boolean().optional(),
+  owner: z.string().optional(),
   json: z.boolean().optional(),
 });
 export const initOptions = z.object({

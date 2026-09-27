@@ -179,6 +179,7 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
       new_state: 'waiting',
       old_waiting_for: null,
       new_waiting_for: 'First',
+      changed_fields: JSON.stringify(['state', 'waiting_for']),
     }),
     expect.objectContaining({
       action_id: initial.id,
@@ -187,6 +188,7 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
       new_state: 'waiting',
       old_waiting_for: 'First',
       new_waiting_for: '  Second\nŽivot  ',
+      changed_fields: JSON.stringify(['waiting_for']),
     }),
     expect.objectContaining({
       action_id: initial.id,
@@ -195,6 +197,7 @@ test('state and reason edits correlate events; no-ops preserve every byte even a
       new_state: 'completed',
       old_waiting_for: '  Second\nŽivot  ',
       new_waiting_for: null,
+      changed_fields: JSON.stringify(['state', 'waiting_for']),
     }),
   ]);
 });
@@ -247,8 +250,8 @@ test('the write transaction excludes a competing writer after the Action is read
       ...actionPorts,
       actions: {
         ...actionPorts.actions,
-        changeState(path, id, change) {
-          return actionPorts.actions.changeState(path, id, (current) => {
+        update(path, id, change) {
+          return actionPorts.actions.update(path, id, (current) => {
             const writer = new DatabaseSync(path);
             try {
               writer.exec('PRAGMA busy_timeout = 0');
@@ -377,8 +380,7 @@ test.each([
     for (const read of [
       () => actionPorts.actions.get(store, action.id),
       () => actionPorts.actions.list(store, { states: ['completed'] }),
-      () =>
-        actionPorts.actions.changeState(store, action.id, (current) => current),
+      () => actionPorts.actions.update(store, action.id, (current) => current),
     ])
       expect(read).toThrow(
         expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
@@ -459,7 +461,7 @@ test.each(['action', 'event', 'commit'])(
   },
 );
 
-test.each(['1', '2', '99'])(
+test.each(['1', '2', '3', '99'])(
   'schema %s rejected without writes by init and all create/get operations',
   (version) => {
     const { root, store } = workspace();
@@ -506,6 +508,26 @@ test.each(['1', '2', '99'])(
     }
   },
 );
+
+test('schema 4 discovery rejects an event table that only mentions action.updated outside the kind constraint', () => {
+  const { root, store } = workspace();
+  sql(
+    store,
+    `DROP TABLE action_events;
+     CREATE TABLE action_events (
+       event_id INTEGER PRIMARY KEY,
+       kind TEXT NOT NULL CHECK(kind IN ('action.created','action.state_changed')),
+       action_id TEXT NOT NULL REFERENCES actions(id), created_at TEXT NOT NULL,
+       old_state TEXT, new_state TEXT, old_waiting_for TEXT, new_waiting_for TEXT,
+       changed_fields TEXT DEFAULT 'action.updated', old_owner_url TEXT, new_owner_url TEXT
+     ) STRICT;`,
+  );
+  const before = snapshot(root);
+  expect(() => initialize(root)).toThrow(
+    expect.objectContaining({ code: 'INVALID_STORE' }),
+  );
+  expect(snapshot(root)).toEqual(before);
+});
 
 test('nearest owner inference traverses ordinary docs; explicit Workspace wins; closed ancestors never fall back', () => {
   const { root } = workspace();
@@ -834,4 +856,114 @@ test('list rejects invalid arguments before discovery and distinguishes corrupt 
   expect(() => listActions(root)).toThrow(
     expect.objectContaining({ code: 'INVALID_WORKSPACE' }),
   );
+});
+
+test('combined edit moves ownership and changes content/state in one event, while identical and clear requests preserve distinctions', () => {
+  const { root, store } = workspace();
+  const project = create(root, { type: 'project', title: 'Kitchen' }).result;
+  const action = createAction(root, { title: 'Call', state: 'completed' })
+    .result.action;
+  const edited = setAction(root, action.id, {
+    title: '  Call supplier  ',
+    description: 'Line 1\nLine 2',
+    owner: project.url,
+    state: 'waiting',
+    waitingFor: 'Reply',
+  });
+  expect(edited.result).toMatchObject({
+    status: 'updated',
+    action: {
+      id: action.id,
+      created_at: action.created_at,
+      title: 'Call supplier',
+      owner: { url: project.url },
+      description: 'Line 1\nLine 2',
+      state: 'waiting',
+      waiting_for: 'Reply',
+    },
+  });
+  expect(rows(store, 'action_events')).toHaveLength(2);
+  expect(rows(store, 'action_events')[1]).toMatchObject({
+    kind: 'action.updated',
+    old_owner_url: '/',
+    new_owner_url: project.url,
+    old_state: 'completed',
+    new_state: 'waiting',
+    new_waiting_for: 'Reply',
+    changed_fields: JSON.stringify([
+      'title',
+      'description',
+      'owner',
+      'state',
+      'waiting_for',
+    ]),
+  });
+  renameSync(project.path, join(root, 'moved-kitchen'));
+  const before = snapshot(root);
+  expect(
+    setAction(root, action.id, { title: 'Call supplier' }).result.status,
+  ).toBe('unchanged');
+  expect(snapshot(root)).toEqual(before);
+  expect(() => setAction(root, action.id, { owner: project.url })).toThrow(
+    expect.objectContaining({ code: 'INVALID_OWNER' }),
+  );
+  expect(snapshot(root)).toEqual(before);
+  expect(
+    setAction(root, action.id, { clearWaitingFor: true }).result.action,
+  ).not.toHaveProperty('waiting_for');
+  expect(
+    setAction(root, action.id, { description: '' }).result.action.description,
+  ).toBe('');
+  expect(
+    setAction(root, action.id, { clearDescription: true }).result.action,
+  ).not.toHaveProperty('description');
+  expect(
+    setAction(root, action.id, { owner: '/' }).result.action.owner.url,
+  ).toBe('/');
+  expect(rows(store, 'action_events')).toHaveLength(6);
+});
+
+test('invalid edit options and failed event insertion leave the entire Action untouched', () => {
+  const { root, store } = workspace();
+  const action = createAction(root, { title: 'Work' }).result.action;
+  const before = snapshot(root);
+  for (const input of [
+    {},
+    { title: ' ' },
+    { state: 'open', waitingFor: 'Reply' },
+    { clearWaitingFor: true },
+    { state: 'completed', clearWaitingFor: true },
+    { description: 'x', clearDescription: true },
+    { waitingFor: 'Reply', clearWaitingFor: true },
+    { title: 'New', owner: '/_projects/missing/' },
+  ]) {
+    expect(() => setAction(root, action.id, input)).toThrow();
+    expect(snapshot(root)).toEqual(before);
+  }
+  sql(
+    store,
+    "CREATE TRIGGER fail_edit BEFORE INSERT ON action_events WHEN NEW.kind = 'action.updated' BEGIN SELECT RAISE(ABORT, 'fault'); END;",
+  );
+  expect(() =>
+    setAction(root, action.id, { title: 'New', state: 'waiting' }),
+  ).toThrow(expect.objectContaining({ code: 'ACTION_UPDATE_FAILED' }));
+  expect(getAction(root, action.id).result.action).toEqual(action);
+  expect(rows(store, 'action_events')).toHaveLength(1);
+});
+
+test('a content edit invalidates a stale board move even within one clock millisecond', () => {
+  const { root } = workspace();
+  const time = '2026-09-27T10:00:00.000Z';
+  const fixed = { ...actionPorts, now: () => time };
+  const initial = createWithPorts(root, { title: 'Work' }, fixed).result.action;
+  const edited = setWithPorts(root, initial.id, { title: 'Revised' }, fixed)
+    .result.action;
+  expect(edited.updated_at).not.toBe(initial.updated_at);
+  expect(() =>
+    setWithPorts(root, initial.id, { state: 'completed' }, fixed, {
+      state: initial.state,
+      updated_at: initial.updated_at,
+    }),
+  ).toThrow(expect.objectContaining({ code: 'ACTION_CONFLICT' }));
+  expect(getAction(root, initial.id).result.action).toEqual(edited);
 });

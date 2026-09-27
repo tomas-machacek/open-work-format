@@ -12,7 +12,8 @@ Run \`owf serve\` inside this Workspace and open http://127.0.0.1:4317.
 Use \`owf serve --port 4318\` if the default port is occupied. Keep the process
 running; Ctrl+C stops it. The tool must have been built, including web assets.
 The board refreshes on return to its tab or with Refresh. Failed reads retain
-cards marked not current; use Retry. All changes still use the CLI.
+cards marked not current; use Retry. Drag cards to change state; use the CLI
+to edit their content, owner or waiting reason.
 
 ## Basic operations
 
@@ -30,6 +31,9 @@ owf get action {id}
 owf get action owf:action:{id} --json
 owf set action {id} --state waiting --waiting-for "Supplier reply" --json
 owf set action {id} --state waiting --waiting-for "New reply date"
+owf set action {id} --title "Call supplier" --description "Confirm date" --owner /_projects/kitchen/
+owf set action {id} --owner / --clear-description
+owf set action {id} --clear-waiting-for
 owf list actions --state open --state waiting --owner /_projects/kitchen/ --recursive --json
 owf set action {id} --state completed
 owf set action {id} --state open
@@ -77,23 +81,27 @@ removing an owner directory does not repair or change an Action's stored owner.
 A valid filter with no matches succeeds with an empty list. \`--recursive\`
 requires \`--owner\`.
 
-State changes accept open, in_progress, waiting, completed and cancelled,
-including reopening terminal Actions. --waiting-for is optional, literal and
-nonblank, and only valid with --state waiting. While already waiting, supplying
-it replaces the reason; omission keeps it. Leaving waiting clears the reason.
-An identical request returns unchanged with no new timestamp or event; a real
-change returns updated and commits the Action and its event together. State
-changes fail without writing if the system clock precedes Action creation;
-correct the clock and retry. Identical requests still succeed unchanged. State
-changes preserve identity, ownership and creation time, even if the Markdown
-owner disappears. Clearing a reason while staying waiting is not supported.
+Set action accepts any combination of --title, --description, --owner, --state and
+--waiting-for. At least one change option is required. --title is trimmed and
+single-line; --description stores literal Markdown (even an empty string), while
+--clear-description removes it. --owner / selects the Workspace; any supplied
+Project/Outcome owner is checked against its full Markdown ancestry. Omitting
+--owner preserves the stored URL even if its Markdown directory is gone. An
+Action in any state may be edited. --state accepts open, in_progress, waiting,
+completed and cancelled, including reopening terminal Actions. --waiting-for
+requires the resulting waiting state; --clear-waiting-for removes the reason
+while staying waiting. Leaving waiting clears the reason automatically.
+Contradictory and repeated scalar options are rejected. An identical request
+returns unchanged without a timestamp or event; one real update commits one
+Action and event together. State/reason-only edits emit action.state_changed;
+content or owner edits emit action.updated. Clock rollback rejects real edits.
 
 Repeat --state on list actions to match any listed state without duplicates,
 combined with the owner scope. Comma-separated states are invalid. Without this
 filter, completed and cancelled Actions are included. Get and list are read-only.
 Archive, dependencies and derived blocking are not implemented.
 
-This tool requires schema 3. Older stores are refused without migration or
+This tool requires schema 4. Older stores are refused without migration or
 mutation. For this PoC, initialize a fresh disposable directory with owf init;
 never reset or replace an existing store. Existing user guidance stays untouched.
 

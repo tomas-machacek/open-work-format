@@ -98,6 +98,9 @@ node $cli get action $action.result.action.id
 node $cli get action $action.result.uri --json
 node $cli set action $action.result.action.id --state waiting --waiting-for "Supplier reply" --json
 node $cli set action $action.result.uri --state waiting --waiting-for "New reply date"
+node $cli set action $action.result.uri --title "Call supplier" --description "Confirm date" --owner /_projects/kitchen/ --json
+node $cli set action $action.result.uri --owner / --clear-description
+node $cli set action $action.result.uri --clear-waiting-for
 node $cli list actions --state open --state waiting --owner /_projects/kitchen/ --recursive --json
 node $cli set action $action.result.uri --state completed
 node $cli set action $action.result.uri --state open
@@ -148,26 +151,31 @@ references and complete path segments; a moved or missing Markdown owner does
 not repair or change those references. Valid filters with no matches succeed
 with an empty list. `--recursive` requires `--owner`.
 
-`set action ID --state STATE` accepts `open`, `in_progress`, `waiting`,
-`completed` and `cancelled`, including reopening terminal Actions. The optional
-`--waiting-for` is valid only with `waiting` and must contain nonblank text;
-it is preserved literally. Entering waiting without it starts without a reason.
-While already waiting, supplying it replaces the reason, and omitting it keeps
-the current reason. Leaving waiting clears the reason atomically. Clearing a
-reason while remaining waiting is deferred.
+`set action ID` accepts one or more of `--title`, `--description`,
+`--clear-description`, `--owner`, `--state`, `--waiting-for`, and
+`--clear-waiting-for` in one atomic update. The title must be nonempty and
+single-line. Descriptions preserve literal Markdown, including an empty string;
+clear removes the optional field. An explicit owner URL is validated with its
+Project/Outcome chain; `/` selects the Workspace. Other edits preserve the
+stored owner even when its Markdown directory has disappeared. All states,
+including terminal states, allow content and ownership edits.
 
-A real change preserves ID, owner, title, description and `created_at`, updates
-`updated_at`, and commits one `action.state_changed` event with old/new states
-and waiting reasons. JSON uses the Action envelope with status `updated`.
-An identical request succeeds as `unchanged`, with no new event or timestamp.
-A failed transaction saves neither change nor event. `ACTION_NOT_FOUND` means
-the ID is absent; invalid stored data and store errors remain distinct.
-`ACTION_CONFLICT` reports a rejected conditional write; `ACTION_UPDATE_FAILED`
-reports other transaction failures, including competing writer lock timeout.
-If the system clock precedes the Action's creation time, a real change returns
-`ACTION_UPDATE_FAILED` without changing the Action or its events. Correct the
-clock and retry. An identical request still succeeds unchanged.
-State changes work even after the Markdown owner directory disappears.
+State accepts `open`, `in_progress`, `waiting`, `completed`, `cancelled`.
+`--waiting-for` needs a resulting waiting state and nonblank text; omission
+preserves a reason while staying waiting. `--clear-waiting-for` removes it while
+waiting; leaving waiting clears it automatically. Repeated scalar or
+contradictory options fail. An identical request returns `unchanged` without a
+write. A real update preserves ID and `created_at`, updates `updated_at` once,
+and commits exactly one event: `action.state_changed` for state/reason-only
+edits, `action.updated` for title, description or owner edits. A failed
+transaction saves neither change nor event. `ACTION_NOT_FOUND` means the ID is
+absent; `ACTION_CONFLICT` reports a rejected conditional write;
+`ACTION_UPDATE_FAILED` reports a write failure or clock rollback. The browser
+board still changes state only.
+
+Fresh PoC Workspaces use schema 4. Schema 3 stores are refused without migration;
+create a new disposable Workspace with `owf init` to try this increment. Never
+reset or overwrite an existing store.
 
 Repeat `list actions --state STATE` to match any listed state; duplicates do not
 repeat Actions. Owner scope and state selection combine with AND. Comma-separated
