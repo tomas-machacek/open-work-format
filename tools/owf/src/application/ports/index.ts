@@ -8,7 +8,7 @@ export interface ActionRepository {
     path: string,
     filter?: { owner?: string; recursive?: boolean; states?: ActionState[] },
   ): Action[];
-  changeState(
+  update(
     path: string,
     id: string,
     // Runs once on a validated record inside the write transaction; do not mutate current.

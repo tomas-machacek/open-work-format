@@ -1,6 +1,6 @@
 # 0011 — Edit Actions through the CLI
 
-> Status: reviewed
+> Status: in_progress
 > Description: Edit an Action's title, description, owner and waiting reason through one CLI operation.
 > Depends on: [0005 — Action state changes](0005-action-state.md) and [0010 — Change Action state on the board](0010-board-action-state.md).
 
@@ -164,4 +164,16 @@ explicit migration increment rather than silently upgrading stores.
 
 ## Implementation and review outcome
 
-Pending implementation and review.
+Implementation complete on 2026-09-27 in the PR #16 branch; independent code
+review remains pending. `set action` now supports combined edits and clears,
+explicit owner validation, one conditional SQLite transaction and a single
+appropriate event. Fresh Workspaces use schema 4; schema 3 is rejected without
+mutation. CLI help, README and generated Workspace guidance are updated.
+
+On Linux with Node 24.19.0, `npm run verify` passed typecheck, lint, formatting,
+architecture, build, 79 unit tests, 122 integration tests, 24 acceptance
+scenarios and 21 CLI end-to-end tests. Its three browser Playwright scenarios
+could not launch because the Chromium executable is absent in this environment.
+The existing browser state integration tests, including stale snapshot checks,
+passed. A fresh disposable PoC Workspace is required to try the new schema;
+existing schema 3 stores are not migrated.

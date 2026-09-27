@@ -387,7 +387,7 @@ Then(
   },
 );
 Then(
-  'the declared local store has recognized schema version 3',
+  'the declared local store has recognized schema version 4',
   function (this: WorkspaceWorld) {
     assert.ok(this.result);
     workspacePorts.store.validate(this.result.store);

@@ -70,7 +70,7 @@ function mapRow(value: unknown): Action {
 }
 
 export const actionRepository: ActionRepository = {
-  changeState(path, id, change) {
+  update(path, id, change) {
     let db: DatabaseSync | undefined;
     try {
       if (!statSync(path).isFile()) throw new Error('Missing store');
@@ -99,19 +99,32 @@ export const actionRepository: ActionRepository = {
         );
       }
       const action = change(current);
-      const changed =
-        action.state !== current.state ||
-        action.waiting_for !== current.waiting_for;
+      const fields = (
+        ['title', 'description', 'owner', 'state', 'waiting_for'] as const
+      )
+        .filter((field) =>
+          field === 'owner'
+            ? action.owner.url !== current.owner.url
+            : action[field] !== current[field],
+        )
+        .map((field) => (field === 'waiting_for' ? 'waiting_for' : field));
+      const changed = fields.length > 0;
       if (changed) {
         const written = db
           .prepare(
-            'UPDATE actions SET state = ?, waiting_for = ?, updated_at = ? WHERE id = ? AND state = ? AND waiting_for IS ? AND updated_at = ?',
+            'UPDATE actions SET title = ?, description = ?, owner_url = ?, state = ?, waiting_for = ?, updated_at = ? WHERE id = ? AND title = ? AND description IS ? AND owner_url = ? AND state = ? AND waiting_for IS ? AND updated_at = ?',
           )
           .run(
+            action.title,
+            action.description ?? null,
+            action.owner.url,
             action.state,
             action.waiting_for ?? null,
             action.updated_at,
             id,
+            current.title,
+            current.description ?? null,
+            current.owner.url,
             current.state,
             current.waiting_for ?? null,
             current.updated_at,
@@ -122,15 +135,34 @@ export const actionRepository: ActionRepository = {
             'The Action changed concurrently. Read it again and retry.',
           );
         db.prepare(
-          'INSERT INTO action_events (kind,action_id,created_at,old_state,new_state,old_waiting_for,new_waiting_for) VALUES (?,?,?,?,?,?,?)',
+          'INSERT INTO action_events (kind,action_id,created_at,old_state,new_state,old_waiting_for,new_waiting_for,changed_fields,old_owner_url,new_owner_url) VALUES (?,?,?,?,?,?,?,?,?,?)',
         ).run(
-          'action.state_changed',
+          fields.some((field) =>
+            ['title', 'description', 'owner'].includes(field),
+          )
+            ? 'action.updated'
+            : 'action.state_changed',
           id,
           action.updated_at,
-          current.state,
-          action.state,
-          current.waiting_for ?? null,
-          action.waiting_for ?? null,
+          fields.includes('state') || fields.includes('waiting_for')
+            ? current.state
+            : null,
+          fields.includes('state') || fields.includes('waiting_for')
+            ? action.state
+            : null,
+          fields.includes('state') || fields.includes('waiting_for')
+            ? (current.waiting_for ?? null)
+            : null,
+          fields.includes('state') || fields.includes('waiting_for')
+            ? (action.waiting_for ?? null)
+            : null,
+          fields.some((field) =>
+            ['title', 'description', 'owner'].includes(field),
+          )
+            ? JSON.stringify(fields)
+            : null,
+          fields.includes('owner') ? current.owner.url : null,
+          fields.includes('owner') ? action.owner.url : null,
         );
       }
       db.exec('COMMIT');

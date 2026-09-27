@@ -642,3 +642,82 @@ test('listing CLI forwards recursive ownership and reports read/store failures w
     expect(snapshot(root)).toEqual(damaged);
   }
 });
+
+test('set action CLI supports combined edits and rejects duplicate or contradictory flags', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  expect(run(root, ['init']).status).toBe(0);
+  const created = z
+    .object({ result: z.object({ action: z.object({ id: z.string() }) }) })
+    .parse(
+      JSON.parse(
+        run(root, ['create', 'action', '--title', 'Original', '--json']).stdout,
+      ),
+    );
+  const id = created.result.action.id;
+  const changed = run(root, [
+    'set',
+    'action',
+    id,
+    '--title',
+    'Revised',
+    '--description',
+    '',
+    '--owner',
+    '/',
+    '--state',
+    'waiting',
+    '--waiting-for',
+    'Reply',
+    '--json',
+  ]);
+  expect(changed.status).toBe(0);
+  expect(JSON.parse(changed.stdout)).toMatchObject({
+    ok: true,
+    result: {
+      status: 'updated',
+      action: {
+        title: 'Revised',
+        description: '',
+        owner: { url: '/' },
+        state: 'waiting',
+        waiting_for: 'Reply',
+      },
+    },
+  });
+  const cleared = run(root, [
+    'set',
+    'action',
+    id,
+    '--clear-description',
+    '--clear-waiting-for',
+    '--json',
+  ]);
+  expect(cleared.status).toBe(0);
+  const clearedAction = z
+    .object({
+      result: z.object({ action: z.object({ id: z.string() }).passthrough() }),
+    })
+    .parse(JSON.parse(cleared.stdout)).result.action;
+  expect(clearedAction).not.toHaveProperty('description');
+  expect(clearedAction).not.toHaveProperty('waiting_for');
+  const before = snapshot(root);
+  for (const options of [
+    [],
+    ['--title', 'A', '--title', 'B'],
+    ['--description=', '--description', 'A'],
+    ['--owner', '/', '--owner', '/'],
+    ['--waiting-for', 'A', '--waiting-for', 'B'],
+    ['--description', 'A', '--clear-description'],
+    ['--state', 'completed', '--clear-waiting-for'],
+  ]) {
+    const result = run(root, ['set', 'action', id, '--json', ...options]);
+    expect(result.status).toBe(2);
+    expect(
+      z
+        .object({ error: z.object({ code: z.string() }) })
+        .parse(JSON.parse(result.stdout)).error.code,
+    ).toBe('INVALID_ARGUMENT');
+    expect(snapshot(root)).toEqual(before);
+  }
+});

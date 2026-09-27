@@ -1,7 +1,8 @@
 import {
   actionId,
   actionState,
-  changeActionState,
+  editAction,
+  validateEditRequest,
   validateStateRequest,
   type SetActionInput,
   newAction,
@@ -116,9 +117,25 @@ export function setAction(
   expected?: ExpectedActionSnapshot,
 ): ActionResult {
   const id = actionId(identifier);
-  validateStateRequest(input);
+  validateEditRequest(input);
+  const explicit =
+    input.owner === undefined
+      ? undefined
+      : ports.contexts.decodeOwner(input.owner);
   const found = workspace(start, ports);
-  const saved = ports.actions.changeState(found.store, id, (current) => {
+  let owner: string | undefined;
+  if (explicit !== undefined) {
+    const resolved = resolveContextOwner(
+      start,
+      found.root,
+      explicit,
+      ports,
+      false,
+    );
+    validateActionOwner(resolved.chain);
+    owner = ports.contexts.url(resolved.segments);
+  }
+  const saved = ports.actions.update(found.store, id, (current) => {
     if (
       expected &&
       (current.state !== expected.state ||
@@ -129,7 +146,7 @@ export function setAction(
         'ACTION_CONFLICT',
         'The Action changed since it was displayed. Refresh the board before moving it.',
       );
-    return changeActionState(current, input, ports.now());
+    return editAction(current, input, ports.now(), owner);
   });
   return result(
     found.root,

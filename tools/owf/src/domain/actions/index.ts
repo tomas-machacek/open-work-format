@@ -28,8 +28,13 @@ export const actionStates = [
 ] as const;
 export type ActionState = (typeof actionStates)[number];
 export interface SetActionInput {
-  state: string;
+  state?: string | undefined;
   waitingFor?: string | undefined;
+  clearWaitingFor?: boolean | undefined;
+  title?: string | undefined;
+  description?: string | undefined;
+  clearDescription?: boolean | undefined;
+  owner?: string | undefined;
 }
 export function actionState(value: string): ActionState {
   const state = actionStates.find((state) => state === value);
@@ -40,7 +45,10 @@ export function actionState(value: string): ActionState {
     );
   return state;
 }
-export function validateStateRequest(input: SetActionInput): ActionState {
+export function validateStateRequest(input: {
+  state: string;
+  waitingFor?: string | undefined;
+}): ActionState {
   const state = actionState(input.state);
   if (
     input.waitingFor !== undefined &&
@@ -54,7 +62,7 @@ export function validateStateRequest(input: SetActionInput): ActionState {
 }
 export function changeActionState(
   action: Action,
-  input: SetActionInput,
+  input: { state: string; waitingFor?: string | undefined },
   time: string,
 ): Action {
   const state = validateStateRequest(input);
@@ -71,6 +79,115 @@ export function changeActionState(
   delete changed.waiting_for;
   if (reason !== undefined) changed.waiting_for = reason;
   return changed;
+}
+
+export function validateEditRequest(input: SetActionInput): void {
+  if (
+    ![
+      input.state,
+      input.waitingFor,
+      input.title,
+      input.description,
+      input.owner,
+    ].some((value) => value !== undefined) &&
+    !input.clearDescription &&
+    !input.clearWaitingFor
+  )
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Supply at least one change option.',
+    );
+  if (input.description !== undefined && input.clearDescription)
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Choose --description or --clear-description.',
+    );
+  if (input.waitingFor !== undefined && input.clearWaitingFor)
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Choose --waiting-for or --clear-waiting-for.',
+    );
+  if (input.title !== undefined) validateTitle(input.title);
+  if (input.state !== undefined) actionState(input.state);
+  if (input.waitingFor !== undefined && !input.waitingFor.trim())
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      '--waiting-for requires nonblank text.',
+    );
+  if (
+    input.state !== undefined &&
+    input.state !== 'waiting' &&
+    input.clearWaitingFor
+  )
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Leaving waiting already clears its reason.',
+    );
+}
+
+export function editAction(
+  action: Action,
+  input: SetActionInput,
+  time: string,
+  owner?: string,
+): Action {
+  validateEditRequest(input);
+  const state =
+    input.state === undefined ? action.state : actionState(input.state);
+  if (input.waitingFor !== undefined && state !== 'waiting')
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      '--waiting-for requires waiting.',
+    );
+  if (input.clearWaitingFor && state !== 'waiting')
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      '--clear-waiting-for requires waiting.',
+    );
+  const reason =
+    state !== 'waiting' || input.clearWaitingFor
+      ? undefined
+      : (input.waitingFor ?? action.waiting_for);
+  const title =
+    input.title === undefined ? action.title : validateTitle(input.title);
+  const description = input.clearDescription
+    ? undefined
+    : (input.description ?? action.description);
+  const ownerUrl = owner ?? action.owner.url;
+  if (
+    state === action.state &&
+    reason === action.waiting_for &&
+    title === action.title &&
+    description === action.description &&
+    ownerUrl === action.owner.url
+  )
+    return action;
+  // eslint-disable-next-line no-restricted-globals -- Parse supplied timestamps only.
+  if (Date.parse(time) < Date.parse(action.created_at))
+    throw new WorkspaceError(
+      'ACTION_UPDATE_FAILED',
+      'Current time precedes Action creation. Check the system clock and retry.',
+    );
+  // A distinct revision timestamp also invalidates an old board snapshot when
+  // the CLI edit and board read happen within the same clock millisecond.
+  /* eslint-disable no-restricted-globals -- Parse supplied values and derive a revision timestamp; do not read the clock. */
+  const nextTime =
+    Date.parse(time) <= Date.parse(action.updated_at)
+      ? new Date(Date.parse(action.updated_at) + 1).toISOString()
+      : time;
+  /* eslint-enable no-restricted-globals */
+  const edited = {
+    ...action,
+    title,
+    state,
+    owner: { url: ownerUrl },
+    updated_at: nextTime,
+  };
+  delete edited.waiting_for;
+  delete edited.description;
+  if (reason !== undefined) edited.waiting_for = reason;
+  if (description !== undefined) edited.description = description;
+  return edited;
 }
 
 export function actionId(value: string): string {
