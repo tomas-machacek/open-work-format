@@ -163,5 +163,25 @@ interaction, per user decision.
 
 ## Implementation and review outcome
 
-Implementation is in progress in PR #17. Code review remains a separate step;
-this increment is not completed.
+Implemented in PR #17 at `b3f362c` on 2026-09-27. The board opens a focused
+Action dialog by click, tap or Enter while Space and dragging retain state
+changes. The dialog edits title, description, owner and Waiting reason together,
+shows state read-only, guards unsaved drafts and keeps them through refresh or
+conflict. The strict edit route checks the full displayed snapshot inside the
+existing `setAction` write transaction, uses its validation and event rules,
+and rejects a requested state. A confirmed Action is reconciled into the board
+without a loading flash. No storage schema or dependency changed. There were
+no deviations from the approved behavior.
+
+On Windows with Node 24.21.0, `npm run verify` passed for `b3f362c`:
+typecheck, lint, format, architecture check, build, 83 unit/component tests,
+125 integration tests, 24 acceptance scenarios, 21 CLI end-to-end tests and 4
+Chromium Playwright scenarios. The new Playwright journey edited a Waiting
+Action, checked persistence through CLI and moved the card by drag. Desktop and
+390 px Chromium screenshots were inspected for layout and scrolling. Dialog
+labels and focus were checked in component tests; a manual assistive-technology
+screen-reader session was not run. The version 4 Workspace requirement from
+0011 still applies.
+
+Code review is pending in a separate session. Keep this increment
+`in_progress` until that review and any resulting fixes are complete.
