@@ -7,10 +7,11 @@
 ## Goal and scope
 
 Click or tap an Action card to open a larger, readable detail card with its
-current values. Edit title, description, owner, state and waiting reason there,
-then save the changes together. Keep the compact board and its drag-to-move
-interaction. The editor uses the same Action rules and persistence operation as
-the CLI, so there is one source of truth for validation and events.
+current values. Edit title, description and owner there, plus the waiting reason
+when the Action is in Waiting, then save the changes together. Change the state
+only by dragging the compact card between columns. The editor uses the same
+Action rules and persistence operation as the CLI, so there is one source of
+truth for validation and events.
 
 References: [architecture](../architecture.md),
 [development guidelines](../development-guidelines.md),
@@ -25,7 +26,8 @@ References: [architecture](../architecture.md),
 Included: an expanded Action editor, save/cancel feedback, stale-edit
 protection, a local HTTP edit route and quiet board reconciliation. Deferred:
 owner picker/search (enter a Workspace-rooted URL), Markdown preview,
-attachments, archive, bulk editing and general URL routing for Action details.
+attachments, archive, bulk editing, state changes from the detail card and
+general URL routing for Action details.
 No storage schema change or migration is needed beyond 0011.
 
 ## Proposed solution
@@ -39,13 +41,13 @@ must not open the editor after the drop. Keep the whole card draggable as in
 arrows retain the existing drag behavior. The card's accessible instructions
 explain both operations. Opening/closing must not submit a change.
 
-Present title, multiline Markdown description, owner URL, state and optional
-waiting reason, plus the immutable ID and timestamps as quiet read-only
-details. Use a compact state select in the editor; choosing Waiting reveals the
-optional reason field. Clearing a previously stored reason while remaining in
-Waiting is possible. Moving out of Waiting clears the reason on save; if the
-user switches back to Waiting before saving, retain the draft reason. An empty
-description clears it. Do not expose a separate save for each field.
+Present editable title, multiline Markdown description and owner URL. Show the
+state, immutable ID and timestamps as quiet read-only details. Only an Action
+already in Waiting has an editable optional waiting reason; allow clearing it
+while remaining in Waiting. To change the state, close the detail card and
+drag the compact card into another column. The existing drag behavior clears
+the reason when leaving Waiting. An empty description clears it. Do not expose
+a separate save for each field.
 
 Use a responsive dialog styled as a larger version of the existing card, not a
 full page replacement. Give it a visible heading, clear Save and Cancel
@@ -69,7 +71,8 @@ prompt the user to refresh and inspect the current Action first.
 
 Add a local route such as `PATCH /api/actions/{id}` with a strict request in
 `src/contracts`: a full expected snapshot of mutable fields and
-`updated_at`, plus only the changed fields or explicit clear intents.
+`updated_at`, plus only changed title, description, owner and waiting-reason
+fields or explicit clear intents. The request has no target state field.
 The snapshot includes title, description, owner URL, state, waiting reason and
 timestamp, so equal timestamps cannot hide a conflicting edit. Preserve the
 difference between an omitted field, an empty description and a clear. The
@@ -88,10 +91,10 @@ draft, display the conflict, quietly refresh the board and offer an explicit
 reload of current values; saving the stale draft again cannot overwrite it.
 
 Accept the complete confirmed Action into the existing board reconciliation,
-including a change of state or owner. Older GET responses must not roll back
-the accepted change; a fresh later read remains authoritative. A no-op update
-writes no timestamp or event. Edits follow 0011's one-transaction, one-event
-rule, including combined state and content changes.
+including a change of owner or waiting reason. Older GET responses must not
+roll back the accepted change; a fresh later read remains authoritative. A
+no-op update writes no timestamp or event. Edits follow 0011's one-transaction,
+one-event rule. The dialog never submits a state change.
 
 ## Acceptance criteria
 
@@ -99,12 +102,14 @@ AC1: Click/tap or Enter on a card opens its expanded editor with current
 title, description, owner, state, waiting reason when relevant, and read-only
 identity/timestamps. Drag/drop and keyboard Space-to-drag still work without
 opening the editor. Escape/Cancel restores focus and never writes; an unsaved
-draft requires an explicit discard choice.
+draft requires an explicit discard choice. The state is displayed read-only.
 
-AC2: Save can change any combination of editable fields, including owner `/`,
-state and waiting reason, in one operation. It observes 0011's validation,
-clearing and no-op rules. A confirmed result appears once in its right column
-with the new card values and counts, without flicker or duplicate events.
+AC2: Save can change title, description, owner (including `/`) and, for an
+Action in Waiting, its waiting reason in one operation. It observes 0011's
+validation, clearing and no-op rules, but cannot change state; the edit route
+rejects a target state in its request. A confirmed result appears once in the
+same column with new card values, without flicker or duplicate events. State
+changes remain available by dragging cards.
 
 AC3: A refresh does not replace a draft. An Action modified after the editor
 opened cannot be overwritten by a stale save, even if the timestamps coincide
@@ -125,10 +130,12 @@ behind the dialog.
 ## Verification plan
 
 - Focused application/SQLite integration checks for full-snapshot conflict,
-  combined update and event atomicity, no-op, stale title/owner with equal
-  timestamp and rejected owner (AC2–AC3). Reuse 0011's field validation tests.
+  combined content/owner/reason update and event atomicity, no-op, stale
+  title/owner with equal timestamp and rejected owner (AC2–AC3). Reuse 0011's
+  field validation tests.
 - HTTP integration checks for valid edit, malformed and rejected requests,
-  missing/conflict/store errors and origin/JSON gate (AC3–AC4).
+  including a submitted target state, missing/conflict/store errors and the
+  origin/JSON gate (AC2–AC4).
 - Component/client checks for click versus drag, draft retention across
   refresh, save reconciliation, conflict/reload, clear reason/description,
   pending/error feedback and focus (AC1–AC5). Avoid repeating the full field
@@ -150,7 +157,8 @@ and Escape/Cancel independently.
 ## Open questions for review
 
 No blocking questions. The expanded card is a dialog with a single Save;
-state remains available both there and through the existing drag interaction.
+state is displayed read-only and changes only through the existing drag
+interaction, per user decision.
 
 ## Implementation and review outcome
 
