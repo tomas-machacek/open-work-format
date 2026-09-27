@@ -1,10 +1,12 @@
 # 0012 — Edit an Action on the board
 
-> Status: draft
+> Status: reviewed
 > Description: Open an Action's expanded card, edit its fields and save it from the board.
 > Depends on: [0011 — Edit Actions through the CLI](0011-action-edit-cli.md), [0010 — Change Action state on the board](0010-board-action-state.md).
 
 ## Goal and scope
+
+The user reviewed and approved this design for implementation on 2026-09-27.
 
 Click or tap an Action card to open a larger, readable detail card with its
 current values. Edit title, description and owner there, plus the waiting reason
