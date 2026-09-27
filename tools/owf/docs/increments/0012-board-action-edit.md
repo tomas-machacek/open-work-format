@@ -1,6 +1,6 @@
 # 0012 — Edit an Action on the board
 
-> Status: in_progress
+> Status: completed
 > Description: Open an Action's expanded card, edit its fields and save it from the board.
 > Depends on: [0011 — Edit Actions through the CLI](0011-action-edit-cli.md), [0010 — Change Action state on the board](0010-board-action-state.md).
 
@@ -196,4 +196,5 @@ After these review fixes, `npm run verify` passed on Windows with Node
 24.21.0: typecheck, lint, format, architecture check, build, 83 unit/component
 tests, 125 integration tests, 24 acceptance scenarios, 21 CLI end-to-end tests
 and 4 Chromium Playwright scenarios. A manual screen-reader session remains
-unperformed. The increment stays `in_progress`; PR #17 is not merged.
+unperformed. The reviewed and verified implementation is complete in PR #17. No review
+findings remain open. This status does not imply a release.
