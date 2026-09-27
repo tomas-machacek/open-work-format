@@ -1,11 +1,14 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
+  closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type KeyboardCoordinateGetter,
   type DragEndEvent,
 } from '@dnd-kit/core';
@@ -29,6 +32,8 @@ const columns: [BoardAction['state'], string][] = [
   ['completed', 'Completed'],
   ['cancelled', 'Cancelled'],
 ];
+const columnCollision: CollisionDetection = (args) =>
+  args.pointerCoordinates ? pointerWithin(args) : closestCenter(args);
 const keyboardCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
   if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code))
     return undefined;
@@ -45,8 +50,12 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
     ),
   );
   const rect = context.droppableRects.get(columns[next]![0]);
-  return rect
-    ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+  const activeRect = context.collisionRect;
+  return rect && activeRect
+    ? {
+        x: rect.left + (rect.width - activeRect.width) / 2,
+        y: rect.top + (rect.height - activeRect.height) / 2,
+      }
     : undefined;
 };
 export function Board({
@@ -68,6 +77,18 @@ export function Board({
   const [moveErrors, setMoveErrors] = useState<Record<string, string>>({});
   const [moveNotice, setMoveNotice] = useState<string>();
   const [announcement, setAnnouncement] = useState('');
+  const [focusAfterMove, setFocusAfterMove] = useState<string>();
+  useEffect(() => {
+    if (!focusAfterMove) return;
+    const frame = requestAnimationFrame(() => {
+      if (document.activeElement === document.body)
+        document
+          .querySelector<HTMLElement>(`[data-action-id="${focusAfterMove}"]`)
+          ?.focus();
+      setFocusAfterMove(undefined);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [data, focusAfterMove]);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, {
@@ -101,15 +122,8 @@ export function Board({
             : { waiting_for: action.waiting_for }),
         },
       });
+      if (hadFocus) setFocusAfterMove(saved.id);
       accept(saved);
-      if (hadFocus) {
-        window.setTimeout(() => {
-          if (document.activeElement === document.body)
-            document
-              .querySelector<HTMLElement>(`[data-action-id="${saved.id}"]`)
-              ?.focus();
-        }, 0);
-      }
       setAnnouncement(
         `${action.title} moved to ${columns.find(([s]) => s === saved.state)?.[1]}.`,
       );
@@ -225,6 +239,7 @@ export function Board({
       </div>
       <DndContext
         sensors={sensors}
+        collisionDetection={columnCollision}
         onDragEnd={onDragEnd}
         onDragCancel={() => setAnnouncement('Move cancelled.')}
         onDragStart={(event) => {

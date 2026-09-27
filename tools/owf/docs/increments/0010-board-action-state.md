@@ -204,3 +204,22 @@ text and card body, and checks touch dragging at narrow width. On Windows with
 Node 24.21.0, `npm run verify` passed again: 79 unit tests, 118 integration
 tests, 24 acceptance scenarios, 20 CLI tests and three Chromium journeys,
 along with all static checks and the build.
+
+A fresh independent review of commit `2f8719c` found two browser defects.
+The default rectangle-intersection collision could choose an adjacent column
+when the pointer was inside the edge of the intended column. Keyboard focus
+was lost after a confirmed move remounted the card in another column. The
+review fix uses pointer position for mouse/touch targets, centers keyboard
+targets on the selected column, and restores focus after React renders the
+confirmed card. The existing Playwright journey now covers a near-edge drop,
+focus after a keyboard move, arrow navigation across wrapped columns, Escape,
+and touch scrolling that begins on a card before a deliberate touch drag.
+
+On Windows with Node 24.21.0, the review fix passed typecheck, lint, format,
+architecture, build, 79 unit tests, 117 integration tests, 24 acceptance
+scenarios, 20 CLI process tests, and all three Chromium journeys. The focused
+Chromium movement journey also passed twice consecutively. The full
+`npm run verify` stopped at the Vite proxy integration test because an existing
+OWF server for another Workspace occupied its fixed port 4317. That one test
+was not repeated on this revision; it passed on the earlier verified commit,
+and the review fix did not change proxy or HTTP code.

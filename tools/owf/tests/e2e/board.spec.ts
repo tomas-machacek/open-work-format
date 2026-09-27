@@ -6,7 +6,12 @@ import { z } from 'zod';
 import { boardAction } from '../../src/contracts/index.js';
 import { cleanup, temporaryDirectory } from '../support/workspace.js';
 const cli = resolve('dist/bootstrap/cli.js');
-async function dragCard(page: Page, from: Locator, to: Locator) {
+async function dragCard(
+  page: Page,
+  from: Locator,
+  to: Locator,
+  targetOffsetX?: number,
+) {
   const start = await from.boundingBox();
   const end = await to.boundingBox();
   expect(start).not.toBeNull();
@@ -16,9 +21,13 @@ async function dragCard(page: Page, from: Locator, to: Locator) {
     start!.y + start!.height / 2,
   );
   await page.mouse.down();
-  await page.mouse.move(end!.x + end!.width / 2, end!.y + end!.height / 2, {
-    steps: 12,
-  });
+  await page.mouse.move(
+    end!.x + (targetOffsetX ?? end!.width / 2),
+    end!.y + end!.height / 2,
+    {
+      steps: 12,
+    },
+  );
   await page.mouse.up();
 }
 test('built board quietly reflects a CLI change on return to the tab', async ({
@@ -274,6 +283,7 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
       page,
       open.getByRole('heading', { name: 'Move this' }),
       waiting,
+      8,
     );
     await expect(waiting.getByText('Move this')).toBeVisible();
     expect(persisted()).toMatchObject({
@@ -324,6 +334,33 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
         .getByRole('region', { name: 'In Progress', exact: true })
         .getByText('Move this'),
     ).toBeVisible();
+    await expect(
+      page
+        .getByRole('region', { name: 'In Progress', exact: true })
+        .getByRole('article'),
+    ).toBeFocused();
+    expect(persisted().state).toBe('in_progress');
+    await page.setViewportSize({ width: 900, height: 844 });
+    await page
+      .getByRole('region', { name: 'In Progress', exact: true })
+      .getByRole('article')
+      .focus();
+    await page.keyboard.press('Space');
+    await expect(
+      page
+        .getByRole('region', { name: 'In Progress', exact: true })
+        .getByRole('article'),
+    ).toHaveAttribute('class', /dragging/);
+    await page.waitForTimeout(50);
+    await page.keyboard.press('ArrowRight');
+    await expect(
+      page.getByRole('region', { name: 'Waiting', exact: true }),
+    ).toHaveAttribute('class', /dropTarget/);
+    await page.keyboard.press('ArrowRight');
+    await expect(
+      page.getByRole('region', { name: 'Completed', exact: true }),
+    ).toHaveAttribute('class', /dropTarget/);
+    await page.keyboard.press('Escape');
     expect(persisted().state).toBe('in_progress');
     const mobileContext = await page
       .context()
@@ -350,7 +387,27 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
           'document.documentElement.scrollWidth <= window.innerWidth',
         ),
       ).toBe(true);
-      await mobile.evaluate('window.scrollBy(0, 250)');
+      const session = await mobileContext.newCDPSession(mobile);
+      const scrollStart = await mobileCard.getByRole('heading').boundingBox();
+      expect(scrollStart).not.toBeNull();
+      const scrollX = scrollStart!.x + scrollStart!.width / 2;
+      const scrollY = scrollStart!.y + scrollStart!.height / 2;
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x: scrollX, y: scrollY }],
+      });
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: scrollX, y: scrollY - 120 }],
+      });
+      await session.send('Input.dispatchTouchEvent', {
+        type: 'touchEnd',
+        touchPoints: [],
+      });
+      await expect
+        .poll(() => mobile.evaluate('window.scrollY'))
+        .toBeGreaterThan(0);
+      expect(persisted().state).toBe('in_progress');
       const touchFrom = await mobileCard.getByRole('heading').boundingBox();
       const touchTo = await mobileWaiting.boundingBox();
       expect(touchFrom).not.toBeNull();
@@ -359,12 +416,11 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
       const y = touchFrom!.y + touchFrom!.height / 2;
       const targetX = touchTo!.x + touchTo!.width / 2;
       const targetY = touchTo!.y + touchTo!.height / 2;
-      const session = await mobileContext.newCDPSession(mobile);
       await session.send('Input.dispatchTouchEvent', {
         type: 'touchStart',
         touchPoints: [{ x, y }],
       });
-      await mobile.waitForTimeout(200);
+      await expect(mobileCard).toHaveAttribute('class', /dragging/);
       for (let step = 1; step <= 12; step++) {
         await session.send('Input.dispatchTouchEvent', {
           type: 'touchMove',
