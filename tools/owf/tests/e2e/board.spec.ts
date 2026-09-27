@@ -454,3 +454,95 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
     cleanup(root);
   }
 });
+
+test('edit a Waiting Action in detail and still move its card by dragging', async ({
+  page,
+}) => {
+  const root = temporaryDirectory();
+  const run = (...args: string[]) => {
+    const result = spawnSync(process.execPath, [cli, ...args], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(result.status, result.stderr).toBe(0);
+    return result.stdout;
+  };
+  run('init', '--title', 'Board edit');
+  const created = z
+    .object({ result: z.object({ action: boardAction }) })
+    .parse(
+      JSON.parse(
+        run(
+          'create',
+          'action',
+          '--title',
+          'Original',
+          '--state',
+          'waiting',
+          '--waiting-for',
+          'Old reply',
+          '--json',
+        ),
+      ),
+    ).result.action;
+  const server = spawn(process.execPath, [cli, 'serve', '--port', '14320'], {
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  server.stdout.on('data', (chunk: Buffer) => {
+    output += chunk.toString();
+  });
+  server.stderr.on('data', (chunk: Buffer) => {
+    output += chunk.toString();
+  });
+  try {
+    await expect.poll(() => output).toContain('http://127.0.0.1:14320');
+    await page.goto('http://127.0.0.1:14320');
+    const waiting = page.getByRole('region', { name: 'Waiting', exact: true });
+    await waiting.getByRole('article').click();
+    const detail = page.getByRole('dialog', { name: 'Edit Action' });
+    await expect(detail.getByLabel('Title')).toBeFocused();
+    await detail.getByLabel('Title').fill('Edited title');
+    await detail.getByLabel(/Waiting for/).fill('New reply');
+    await detail.getByRole('button', { name: 'Save changes' }).click();
+    await expect(detail).toBeHidden();
+    await expect(waiting.getByRole('article').getByRole('heading')).toHaveText(
+      'Edited title',
+    );
+    await expect(waiting.getByText('New reply')).toBeVisible();
+    const saved = z
+      .object({ result: z.object({ action: boardAction }) })
+      .parse(JSON.parse(run('get', 'action', created.id, '--json')))
+      .result.action;
+    expect(saved).toMatchObject({
+      title: 'Edited title',
+      state: 'waiting',
+      waiting_for: 'New reply',
+    });
+    await dragCard(
+      page,
+      waiting.getByRole('article').getByRole('heading'),
+      page.getByRole('region', { name: 'Completed', exact: true }),
+    );
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(
+      page
+        .getByRole('region', { name: 'Completed', exact: true })
+        .getByText('Edited title'),
+    ).toBeVisible();
+    const moved = z
+      .object({ result: z.object({ action: boardAction }) })
+      .parse(JSON.parse(run('get', 'action', created.id, '--json')))
+      .result.action;
+    expect(moved.state).toBe('completed');
+    expect(moved.waiting_for).toBeUndefined();
+  } finally {
+    if (server.exitCode === null) {
+      const exited = once(server, 'exit');
+      server.kill();
+      await exited;
+    }
+    cleanup(root);
+  }
+});

@@ -83,6 +83,9 @@ export interface ExpectedActionSnapshot {
   state: string;
   updated_at: string;
   waiting_for?: string | undefined;
+  title?: string | undefined;
+  description?: string | undefined;
+  owner?: { url: string } | undefined;
 }
 function workspace(start: string, ports: ActionPorts) {
   const found = discoverWorkspace(start, ports);
@@ -140,11 +143,15 @@ export function setAction(
       expected &&
       (current.state !== expected.state ||
         current.updated_at !== expected.updated_at ||
-        current.waiting_for !== expected.waiting_for)
+        current.waiting_for !== expected.waiting_for ||
+        ('title' in expected &&
+          (current.title !== expected.title ||
+            current.description !== expected.description ||
+            current.owner.url !== expected.owner?.url)))
     )
       throw new WorkspaceError(
         'ACTION_CONFLICT',
-        'The Action changed since it was displayed. Refresh the board before moving it.',
+        'The Action changed since it was displayed. Refresh the board and inspect the current values.',
       );
     return editAction(current, input, ports.now(), owner);
   });

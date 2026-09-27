@@ -13,12 +13,19 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { ActionForm } from './ActionForm.js';
-import { saveAction, StateUpdateError, updateActionState } from './client.js';
+import {
+  saveAction,
+  StateUpdateError,
+  updateActionState,
+  editBoardAction,
+} from './client.js';
+import { ActionEditor } from './ActionEditor.js';
 import type {
   CreateActionRequest,
   BoardAction,
   BoardResponse,
   UpdateActionStateRequest,
+  EditActionRequest,
 } from '../contracts/index.js';
 import { useBoard } from './useBoard.js';
 import { BoardColumn } from './BoardColumn.js';
@@ -62,13 +69,17 @@ export function Board({
   load,
   save = saveAction,
   move = updateActionState,
+  editAction = editBoardAction,
 }: {
   load?: () => Promise<BoardResponse>;
   save?: (input: CreateActionRequest) => Promise<BoardAction>;
   move?: (id: string, input: UpdateActionStateRequest) => Promise<BoardAction>;
+  editAction?: (id: string, input: EditActionRequest) => Promise<BoardAction>;
 }) {
   const { data, error, loading, refresh, accept } = useBoard(load);
   const [editing, setEditing] = useState<BoardAction['state']>();
+  const [detail, setDetail] = useState<BoardAction>();
+  const suppressOpen = useRef(new Set<string>());
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [pendingActions, setPendingActions] = useState<
     Map<string, BoardAction>
@@ -94,7 +105,10 @@ export function Board({
     useSensor(TouchSensor, {
       activationConstraint: { delay: 180, tolerance: 8 },
     }),
-    useSensor(KeyboardSensor, { coordinateGetter: keyboardCoordinates }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: keyboardCoordinates,
+      keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space'] },
+    }),
   );
   async function changeState(action: BoardAction, state: BoardAction['state']) {
     if (state === action.state || moving.current.has(action.id)) return;
@@ -155,6 +169,7 @@ export function Board({
     }
   }
   function onDragEnd(event: DragEndEvent) {
+    setTimeout(() => suppressOpen.current.delete(String(event.active.id)), 300);
     const action = data?.actions.find((item) => item.id === event.active.id);
     const target = columns.find(([state]) => state === event.over?.id)?.[0];
     if (action && target && target === action.state)
@@ -231,8 +246,8 @@ export function Board({
         </p>
       )}
       <p id="drag-instructions" className={styles.srOnly}>
-        Press Space to pick up a card, use arrow keys to choose a column, then
-        press Space to drop. Press Escape to cancel.
+        Press Enter to edit a card. Press Space to pick it up, use arrow keys to
+        choose a column, then press Space to drop. Press Escape to cancel.
       </p>
       <div className={styles.srOnly} role="status" aria-live="polite">
         {announcement}
@@ -241,8 +256,15 @@ export function Board({
         sensors={sensors}
         collisionDetection={columnCollision}
         onDragEnd={onDragEnd}
-        onDragCancel={() => setAnnouncement('Move cancelled.')}
+        onDragCancel={(event) => {
+          setTimeout(
+            () => suppressOpen.current.delete(String(event.active.id)),
+            300,
+          );
+          setAnnouncement('Move cancelled.');
+        }}
         onDragStart={(event) => {
+          suppressOpen.current.add(String(event.active.id));
           const action = data?.actions.find(
             (item) => item.id === event.active.id,
           );
@@ -300,6 +322,10 @@ export function Board({
                       action={action}
                       pending={pending.has(action.id)}
                       error={moveErrors[action.id]}
+                      onOpen={(selected) => {
+                        if (!suppressOpen.current.has(selected.id) && !detail)
+                          setDetail(selected);
+                      }}
                     />
                   ))}
                   {data && actions.length === 0 && (
@@ -311,6 +337,30 @@ export function Board({
           })}
         </div>
       </DndContext>
+      {detail && (
+        <ActionEditor
+          action={detail}
+          current={data?.actions.find((action) => action.id === detail.id)}
+          save={editAction}
+          refresh={async () => {
+            return refresh();
+          }}
+          onSaved={accept}
+          onClose={() => {
+            const id = detail.id;
+            setDetail(undefined);
+            requestAnimationFrame(() => {
+              (
+                document.querySelector<HTMLElement>(
+                  `[data-action-id="${id}"]`,
+                ) ??
+                document.querySelector<HTMLElement>(`[data-action-id]`) ??
+                document.querySelector<HTMLElement>(`.${styles.intro} button`)
+              )?.focus();
+            });
+          }}
+        />
+      )}
       <footer className={styles.footer}>
         Drag cards between columns. CLI changes appear when you return to this
         tab or refresh.

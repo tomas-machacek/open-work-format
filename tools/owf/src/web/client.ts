@@ -7,6 +7,8 @@ import {
   type BoardResponse,
   updateActionStateResponse,
   type UpdateActionStateRequest,
+  editActionResponse,
+  type EditActionRequest,
 } from '../contracts/index.js';
 export class StateUpdateError extends Error {
   constructor(
@@ -15,6 +17,34 @@ export class StateUpdateError extends Error {
   ) {
     super(message);
   }
+}
+export async function editBoardAction(
+  id: string,
+  input: EditActionRequest,
+): Promise<BoardAction> {
+  let response: Response;
+  let body: unknown;
+  try {
+    response = await fetch(`/api/actions/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    body = await response.json();
+    if (response.ok) return editActionResponse.parse(body).action;
+  } catch {
+    throw new StateUpdateError(
+      'Save could not be confirmed. Refresh and inspect the current Action before trying again.',
+      'UNCERTAIN',
+    );
+  }
+  const parsed = boardError.safeParse(body);
+  if (!parsed.success)
+    throw new StateUpdateError(
+      'Save could not be confirmed. Refresh and inspect the current Action before trying again.',
+      'UNCERTAIN',
+    );
+  throw new StateUpdateError(parsed.data.error.message, parsed.data.error.code);
 }
 export async function updateActionState(
   id: string,

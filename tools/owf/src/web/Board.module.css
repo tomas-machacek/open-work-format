@@ -432,3 +432,126 @@
   outline: 2px solid #50785e;
   outline-offset: 3px;
 }
+
+.editor {
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(90dvh, 900px);
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #25342f;
+  box-shadow: 0 24px 70px #25342f40;
+  overflow: auto;
+}
+.editor::backdrop {
+  background: #1d302976;
+}
+.editorCard {
+  padding: clamp(20px, 4vw, 36px);
+  background: #fff;
+  border: 1px solid #dfe5df;
+  border-radius: 14px;
+}
+.editorCard h2 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.04em;
+}
+.editorIntro {
+  color: #65716a;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 8px 0 24px;
+}
+.editorCard label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.editorCard label span {
+  color: #65716a;
+  font-weight: 400;
+}
+.editorCard input,
+.editorCard textarea {
+  display: block;
+  width: 100%;
+  margin: 0 0 18px;
+  padding: 11px 12px;
+  border: 1px solid #cbd6cc;
+  border-radius: 7px;
+  background: #fcfdfb;
+  color: #25342f;
+  font: inherit;
+  font-size: 14px;
+}
+.editorCard textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+.editorCard :focus-visible {
+  outline: 2px solid #50785e;
+  outline-offset: 2px;
+}
+.editorMeta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 4px 0 22px;
+  padding: 14px;
+  background: #f6f8f5;
+  border-radius: 8px;
+  font-size: 11px;
+}
+.editorMeta div {
+  min-width: 0;
+}
+.editorMeta dt {
+  color: #65716a;
+}
+.editorMeta dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+}
+.editorNotice {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fff4e9;
+  color: #794422;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.editorNotice p {
+  margin: 4px 0 12px;
+}
+.editorNotice > button {
+  display: block;
+  margin-top: 10px;
+  border: 1px solid #b58e75;
+  background: #fff;
+  border-radius: 5px;
+  padding: 7px 10px;
+  color: #794422;
+  cursor: pointer;
+}
+.editorCard .formButtons {
+  margin-top: 12px;
+}
+@media (max-width: 700px) {
+  .editor {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+  .editorCard {
+    padding: 18px;
+  }
+  .editorMeta {
+    grid-template-columns: 1fr;
+  }
+  .editorCard .formButtons button {
+    min-height: 44px;
+  }
+}

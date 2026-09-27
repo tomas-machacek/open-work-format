@@ -88,3 +88,43 @@ export const updateActionStateResponse = z.object({
   action: boardAction,
 });
 export type UpdateActionStateRequest = z.infer<typeof updateActionStateRequest>;
+
+export const editActionRequest = z
+  .object({
+    expected: boardAction
+      .pick({
+        title: true,
+        description: true,
+        owner: true,
+        state: true,
+        waiting_for: true,
+        updated_at: true,
+      })
+      .extend({ updated_at: z.iso.datetime() })
+      .strict(),
+    title: z.string().optional(),
+    description: z.string().optional(),
+    clearDescription: z.literal(true).optional(),
+    owner: z.string().optional(),
+    waitingFor: z.string().optional(),
+    clearWaitingFor: z.literal(true).optional(),
+  })
+  .strict()
+  .refine((value) =>
+    [
+      value.title,
+      value.description,
+      value.owner,
+      value.waitingFor,
+      value.clearDescription,
+      value.clearWaitingFor,
+    ].some((field) => field !== undefined),
+  )
+  .refine(
+    (value) => !(value.description !== undefined && value.clearDescription),
+  )
+  .refine(
+    (value) => !(value.waitingFor !== undefined && value.clearWaitingFor),
+  );
+export const editActionResponse = updateActionStateResponse;
+export type EditActionRequest = z.infer<typeof editActionRequest>;

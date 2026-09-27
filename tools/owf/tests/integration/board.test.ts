@@ -17,6 +17,8 @@ import {
   boardError,
   createActionResponse,
   updateActionStateResponse,
+  editActionResponse,
+  type EditActionRequest,
   type UpdateActionStateRequest,
   type CreateActionRequest,
 } from '../../src/contracts/index.js';
@@ -566,4 +568,205 @@ test('expected Waiting reason detects a conflict even when timestamps coincide',
   expect(getAction(root, action.id).result.action.waiting_for).toBe(
     'New reply',
   );
+});
+
+test('edit route saves combined fields once, preserves no-ops, and rejects stale content with equal timestamps', async () => {
+  const root = directory();
+  const { store } = initialize(root);
+  const action = createAction(root, {
+    title: 'Await',
+    state: 'waiting',
+    waitingFor: 'Old',
+    description: 'Notes',
+  }).result.action;
+  const write = vi.fn((id: string, request: EditActionRequest) => {
+    const { expected, ...changes } = request;
+    return setAction(root, id, changes, expected);
+  });
+  const server = createBoardServer(
+    () => listActions(root),
+    resolve('dist/web'),
+    (input) => createAction(root, input),
+    undefined,
+    write,
+  );
+  const expected = {
+    title: action.title,
+    description: action.description,
+    owner: action.owner,
+    state: action.state,
+    waiting_for: action.waiting_for,
+    updated_at: action.updated_at,
+  };
+  const request = (id: string, payload: unknown, headers = trustedHeaders) =>
+    server.inject({
+      method: 'PATCH',
+      url: `/api/actions/${id}`,
+      headers,
+      payload: JSON.stringify(payload),
+    });
+  try {
+    const before = snapshot(root);
+    for (const payload of [
+      null,
+      { title: 'Missing snapshot' },
+      { expected, state: 'completed', title: 'Illegal' },
+      { expected, title: 'Changed', description: '', clearDescription: true },
+      { expected, waitingFor: 'x', clearWaitingFor: true },
+      { expected, title: 'X', extra: true },
+    ]) {
+      expect((await request(action.id, payload)).statusCode).toBe(400);
+      expect(snapshot(root)).toEqual(before);
+    }
+    expect(write).not.toHaveBeenCalled();
+    for (const headers of [
+      { ...trustedHeaders, origin: 'https://foreign.example' },
+      { ...trustedHeaders, 'content-type': 'text/plain' },
+    ]) {
+      expect([403, 415]).toContain(
+        (await request(action.id, { expected, title: 'X' }, headers))
+          .statusCode,
+      );
+      expect(snapshot(root)).toEqual(before);
+    }
+    expect(
+      (
+        await request('00000000-0000-4000-8000-000000000000', {
+          expected,
+          title: 'X',
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect(
+      (await request(action.id, { expected, owner: '/missing/' })).statusCode,
+    ).toBe(400);
+    expect(snapshot(root)).toEqual(before);
+    const changed = editActionResponse.parse(
+      (
+        await request(action.id, {
+          expected,
+          title: 'Await reply',
+          owner: '/',
+          clearDescription: true,
+          clearWaitingFor: true,
+        })
+      ).json(),
+    );
+    expect(changed.status).toBe('updated');
+    expect(changed.action).toMatchObject({
+      title: 'Await reply',
+      owner: { url: '/' },
+      state: 'waiting',
+    });
+    expect(changed.action.description).toBeUndefined();
+    expect(changed.action.waiting_for).toBeUndefined();
+    const db = new DatabaseSync(store);
+    try {
+      expect(
+        db
+          .prepare(
+            "SELECT kind FROM action_events WHERE kind = 'action.updated'",
+          )
+          .all(),
+      ).toHaveLength(1);
+      const after = snapshot(root);
+      const currentExpected = {
+        title: changed.action.title,
+        owner: changed.action.owner,
+        state: changed.action.state,
+        updated_at: changed.action.updated_at,
+      };
+      expect(
+        editActionResponse.parse(
+          (
+            await request(action.id, {
+              expected: currentExpected,
+              title: changed.action.title,
+            })
+          ).json(),
+        ).status,
+      ).toBe('unchanged');
+      expect(snapshot(root)).toEqual(after);
+      for (const field of ['title', 'owner_url', 'description'] as const) {
+        const value =
+          field === 'owner_url'
+            ? '/_projects/else/'
+            : field === 'title'
+              ? 'Other edit'
+              : 'Other notes';
+        db.prepare(`UPDATE actions SET ${field} = ? WHERE id = ?`).run(
+          value,
+          action.id,
+        );
+        const stale = snapshot(root);
+        const response = await request(action.id, {
+          expected: currentExpected,
+          title: 'Overwrite',
+        });
+        expect(response.statusCode).toBe(409);
+        expect(boardError.parse(response.json()).error.code).toBe(
+          'ACTION_CONFLICT',
+        );
+        expect(snapshot(root)).toEqual(stale);
+        db.prepare(`UPDATE actions SET ${field} = ? WHERE id = ?`).run(
+          field === 'owner_url'
+            ? '/'
+            : field === 'title'
+              ? changed.action.title
+              : null,
+          action.id,
+        );
+      }
+    } finally {
+      db.close();
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test('edit route rolls back a failed event insert and hides storage details', async () => {
+  const root = directory();
+  const { store } = initialize(root);
+  const action = createAction(root, { title: 'Before' }).result.action;
+  const db = new DatabaseSync(store);
+  db.exec(
+    "CREATE TRIGGER fail_edit BEFORE INSERT ON action_events WHEN NEW.kind = 'action.updated' BEGIN SELECT RAISE(ABORT, 'private SQL details'); END",
+  );
+  db.close();
+  const before = snapshot(root);
+  const server = createBoardServer(
+    () => listActions(root),
+    resolve('dist/web'),
+    (input) => createAction(root, input),
+    undefined,
+    (id, request) => {
+      const { expected, ...changes } = request;
+      return setAction(root, id, changes, expected);
+    },
+  );
+  try {
+    const response = await server.inject({
+      method: 'PATCH',
+      url: `/api/actions/${action.id}`,
+      headers: trustedHeaders,
+      payload: {
+        expected: {
+          title: action.title,
+          owner: action.owner,
+          state: action.state,
+          updated_at: action.updated_at,
+        },
+        title: 'After',
+      },
+    });
+    expect(response.statusCode).toBe(503);
+    expect(boardError.parse(response.json()).error.code).toBe(
+      'ACTION_UPDATE_FAILED',
+    );
+    expect(response.body).not.toContain('private SQL details');
+    expect(snapshot(root)).toEqual(before);
+  } finally {
+    await server.close();
+  }
 });

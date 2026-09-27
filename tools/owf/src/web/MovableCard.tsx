@@ -6,10 +6,12 @@ export function MovableCard({
   action,
   pending,
   error,
+  onOpen,
 }: {
   action: BoardAction;
   pending: boolean;
   error?: string | undefined;
+  onOpen: (action: BoardAction) => void;
 }) {
   const { listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: action.id,
@@ -22,11 +24,21 @@ export function MovableCard({
       className={`${styles.card} ${isDragging ? styles.dragging : ''} ${pending ? styles.pending : ''}`}
       {...listeners}
       tabIndex={0}
-      aria-label={`Drag ${action.title} to change state`}
+      aria-label={`${action.title}. Press Enter to edit or Space to move`}
       aria-describedby="drag-instructions"
       aria-roledescription="draggable card"
       aria-disabled={pending}
       data-action-id={action.id}
+      onClick={() => {
+        if (!pending && !isDragging) onOpen(action);
+      }}
+      onKeyDown={(event) => {
+        listeners?.onKeyDown?.(event);
+        if (event.key === 'Enter' && !pending && !isDragging) {
+          event.preventDefault();
+          onOpen(action);
+        }
+      }}
       style={
         transform
           ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }

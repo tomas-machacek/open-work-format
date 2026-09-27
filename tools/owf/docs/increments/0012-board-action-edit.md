@@ -1,6 +1,6 @@
 # 0012 — Edit an Action on the board
 
-> Status: reviewed
+> Status: in_progress
 > Description: Open an Action's expanded card, edit its fields and save it from the board.
 > Depends on: [0011 — Edit Actions through the CLI](0011-action-edit-cli.md), [0010 — Change Action state on the board](0010-board-action-state.md).
 
@@ -38,8 +38,7 @@ No storage schema change or migration is needed beyond 0011.
 
 A normal click/tap opens a focused, expanded card over the board with labeled
 fields. A pointer/touch drag continues to move the card between columns and
-must not open the editor after the drop. Keep the whole card draggable as in
-0010. For keyboard users, **Enter** opens the focused card; **Space** and
+must not open the editor after the drop. Keep the whole card draggable as in 0010. For keyboard users, **Enter** opens the focused card; **Space** and
 arrows retain the existing drag behavior. The card's accessible instructions
 explain both operations. Opening/closing must not submit a change.
 
@@ -164,4 +163,5 @@ interaction, per user decision.
 
 ## Implementation and review outcome
 
-Pending implementation and review.
+Implementation is in progress in PR #17. Code review remains a separate step;
+this increment is not completed.

@@ -17,6 +17,9 @@ import {
   updateActionStateRequest,
   updateActionStateResponse,
   type UpdateActionStateRequest,
+  editActionRequest,
+  editActionResponse,
+  type EditActionRequest,
 } from '../../contracts/index.js';
 
 export function createBoardServer(
@@ -24,6 +27,7 @@ export function createBoardServer(
   assets: string,
   create: (input: CreateActionRequest) => ActionResult,
   update?: (id: string, input: UpdateActionStateRequest) => ActionResult,
+  edit?: (id: string, input: EditActionRequest) => ActionResult,
 ) {
   const server = Fastify({ logger: false });
   server.addHook('onRequest', async (_request, reply) => {
@@ -149,6 +153,54 @@ export function createBoardServer(
             : code === 'ACTION_CONFLICT'
               ? 409
               : code === 'INVALID_ARGUMENT'
+                ? 400
+                : 503;
+        return reply.code(status).send({
+          error: {
+            code,
+            message:
+              status < 500 && error instanceof Error
+                ? error.message
+                : 'Unable to update Action. Check the Workspace store and try again.',
+          },
+        });
+      }
+    },
+  );
+  server.patch<{ Params: { id: string } }>(
+    '/api/actions/:id',
+    { onRequest: trustedWrite },
+    (request, reply) => {
+      const parsed = editActionRequest.safeParse(request.body);
+      if (!parsed.success)
+        return reply.code(400).send({
+          error: {
+            code: 'INVALID_REQUEST',
+            message:
+              'Supply an expected Action snapshot and editable fields only.',
+          },
+        });
+      try {
+        if (!edit) throw new Error('Action editing is unavailable.');
+        const { result } = edit(request.params.id, parsed.data);
+        return editActionResponse.parse({
+          status: result.status,
+          action: result.action,
+        });
+      } catch (error) {
+        const code =
+          error instanceof WorkspaceError ? error.code : 'ACTION_UPDATE_FAILED';
+        const status =
+          code === 'ACTION_NOT_FOUND'
+            ? 404
+            : code === 'ACTION_CONFLICT'
+              ? 409
+              : [
+                    'INVALID_ARGUMENT',
+                    'INVALID_TITLE',
+                    'INVALID_OWNER',
+                    'OWNER_REQUIRED',
+                  ].includes(code)
                 ? 400
                 : 503;
         return reply.code(status).send({
