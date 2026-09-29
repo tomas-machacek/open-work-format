@@ -96,6 +96,23 @@ test('discovery uses physical containment and metadata, canonical URLs and stabl
   expect(snapshot(root)).toEqual(before);
 });
 
+test('damaged clearly declared non-owner Markdown is ignored without losing eligible owners', () => {
+  const root = workspace();
+  const parent = project(root);
+  const child = outcome(root, parent.url);
+  const notes = join(parent.path, 'notes');
+  mkdirSync(notes);
+  writeFileSync(
+    join(notes, 'README.md'),
+    '---\ntype: OWF Knowledge\ntitle: [\n---',
+  );
+  expect(listOwners(root).owners.map((owner) => owner.url)).toEqual([
+    '/',
+    parent.url,
+    child.url,
+  ]);
+});
+
 test('active and parked owners are offered; terminal and archived contexts prune their descendants', () => {
   const root = workspace();
   const active = project(root);
@@ -137,6 +154,15 @@ test.each([
     '---\ntype: OWF Project\ntitle: Bad\nowf: {state: active, archived_from: completed}\n---',
   ],
   ['invalid YAML', '---\ntype: OWF Project\ntitle: [\n---'],
+  [
+    'ambiguous type declarations',
+    '---\ntype: OWF Project\ntype: OWF Knowledge\ntitle: [\n---',
+  ],
+  [
+    'tagged type declaration',
+    '---\ntype: !custom OWF Knowledge\ntitle: [\n---',
+  ],
+  ['missing type in damaged YAML', '---\ntitle: [\n---'],
   ['missing title', '---\ntype: OWF Project\nowf: {state: active}\n---'],
   [
     'wrong location',
