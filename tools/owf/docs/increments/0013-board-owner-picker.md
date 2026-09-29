@@ -1,10 +1,12 @@
 # 0013 — Search for Action owners on the board
 
-> Status: draft
+> Status: reviewed
 > Description: Choose a Workspace, Project or Outcome owner by searching in the board's Action forms.
 > Depends on: [0008 — Create Actions on the board](0008-board-action-create.md) and [0012 — Edit an Action on the board](0012-board-action-edit.md).
 
 ## Goal and scope
+
+The user reviewed and approved this design for implementation on 2026-09-29.
 
 Replace manual owner URL entry in both Add Action and the Action detail editor
 with a searchable list of valid owners. People should recognize Projects and
