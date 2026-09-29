@@ -145,8 +145,9 @@ eligible owners and keeps manual URL entry in the CLI.
 
 ## Implementation and review outcome
 
-Implemented on 2026-09-29; independent code review is pending. Status remains
-`in_progress`; this PR has not been merged or released.
+Implemented on 2026-09-29; independent code review identified one P2 finding,
+addressed below. Status remains `in_progress` pending review of the correction;
+this PR has not been merged or released.
 
 ### Delivered behavior
 
@@ -167,7 +168,7 @@ Implemented on 2026-09-29; independent code review is pending. Status remains
   Failed saves, discovery and retries retain the form draft and selection.
   CLI commands, store schema and Action identity semantics are unchanged.
 
-### Verification evidence
+### Original implementation verification evidence
 
 Verified implementation revision: `fb4e21ff7f9b8587e7a370ac90c886d0c687f4d7`.
 The following evidence/documentation commit changes no implementation or tests.
@@ -217,8 +218,36 @@ Local screenshots and the inspection script are in the ignored
   the actual Windows filesystem.
 - Markdown is not a transactional filesystem snapshot; save-time validation
   remains authoritative, as designed. No scope deviation or known unresolved
-  implementation failure was identified. Independent code review is still
-  required before marking the increment completed.
+  implementation failure was identified during implementation. The independent
+  review and subsequent correction are recorded below.
+
+### Independent review correction
+
+Independent review of `5548f02` against `main` found that damaged YAML in a
+clearly declared non-owner README (for example `OWF Knowledge` with `title: [`)
+failed the entire owner list. This contradicted the agreed requirement to ignore
+non-owner Markdown. No other substantive issue was identified in that review.
+
+Correction revision: `aa762741bb03befdd8e3b16f4ec65886b833c7ae`.
+The Markdown adapter now recognizes a single untagged scalar non-owner type
+before validating the rest of its metadata. Claimed Project/Outcome documents
+still undergo full validation; damaged YAML with duplicate, tagged or missing
+type declarations still fails discovery rather than returning a partial list.
+
+A new integration regression failed before the correction and passed afterward,
+retaining Workspace, Project and Outcome choices alongside damaged non-owner
+Markdown. Three additional rejection cases protect ambiguous/damaged type
+declarations. No Playwright tests were added or changed.
+
+`npm run verify` passed for the correction on Windows (`win32`), Node.js
+**24.21.0**, Chromium, on 2026-09-29: typecheck, lint, formatting, architecture,
+production build, 90 unit/component tests, 141 integration tests, 24 acceptance
+scenarios / 123 steps, 21 CLI E2E tests and 4 Playwright journeys. The subsequent
+documentation commit changes no implementation or tests. The focused regression
+run required execution outside the sandbox after Vite reported `spawn EPERM`.
+The full verification also ran outside the sandbox. The original platform and
+manual-inspection limitations still apply; no new manual visual inspection was
+performed for this adapter correction.
 
 To try: create two Projects with identically named Outcomes, open Add Action,
 search by title or hierarchy and choose a result. Edit the saved Action and
