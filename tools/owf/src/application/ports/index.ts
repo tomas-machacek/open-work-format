@@ -76,6 +76,13 @@ export interface ContextPorts extends WorkspacePorts {
   contextDocuments: ContextDocuments;
 }
 
+export interface OwnerDiscoveryFiles {
+  children(root: string, segments: string[]): string[];
+}
+export interface OwnerDiscoveryPorts extends ContextPorts {
+  ownerFiles: OwnerDiscoveryFiles;
+}
+
 export interface WorkspaceStore {
   initializeReserved(path: string): void;
   validate(path: string): void;

@@ -1,4 +1,4 @@
-import { parseDocument, stringify } from 'yaml';
+import { isMap, isScalar, parseDocument, stringify } from 'yaml';
 import { z } from 'zod';
 import type { ContextDocuments } from '../../application/ports/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
@@ -57,6 +57,28 @@ export const contextDocuments: ContextDocuments = {
     const document = parseDocument(lines.slice(1, end).join('\n'), {
       uniqueKeys: true,
     });
+    // A single plain scalar declaration can identify a non-owner document even
+    // when its other YAML is damaged. Claimed owners and ambiguous declarations
+    // still require full validation; never turn their errors into a partial list.
+    if (isMap(document.contents)) {
+      const declarations = document.contents.items.filter(
+        (pair) => isScalar(pair.key) && pair.key.value === 'type',
+      );
+      const declaration =
+        declarations.length === 1 ? declarations[0] : undefined;
+      const type = declaration?.value;
+      if (
+        isScalar(declaration?.key) &&
+        !declaration.key.tag &&
+        isScalar(type) &&
+        !type.tag &&
+        typeof type.value === 'string' &&
+        type.value.trim() &&
+        type.value !== 'OWF Project' &&
+        type.value !== 'OWF Outcome'
+      )
+        return undefined;
+    }
     if (document.errors.length || document.warnings.length) throw invalid();
     let value: unknown;
     try {

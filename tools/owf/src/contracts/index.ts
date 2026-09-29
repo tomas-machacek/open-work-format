@@ -1,4 +1,15 @@
 import { z } from 'zod';
+export const ownersResponse = z.object({
+  owners: z.array(
+    z.object({
+      url: z.string(),
+      type: z.enum(['workspace', 'project', 'outcome']),
+      title: z.string(),
+      hierarchy: z.string(),
+    }),
+  ),
+});
+export type AvailableOwner = z.infer<typeof ownersResponse>['owners'][number];
 export const listActionsOptions = z.object({
   state: z.array(z.string()).optional(),
   owner: z.string().optional(),

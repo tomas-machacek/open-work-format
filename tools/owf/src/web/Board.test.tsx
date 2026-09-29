@@ -19,6 +19,24 @@ import type {
   EditActionRequest,
 } from '../contracts/index.js';
 import { StateUpdateError } from './client.js';
+vi.mock('./client.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./client.js')>()),
+  fetchOwners: () =>
+    Promise.resolve([
+      {
+        url: '/',
+        type: 'workspace',
+        title: 'Workspace',
+        hierarchy: 'Workspace',
+      },
+      {
+        url: '/_projects/missing/',
+        type: 'project',
+        title: 'Stale owner',
+        hierarchy: 'Workspace',
+      },
+    ]),
+}));
 let finishDrag: ((event: DragEndEvent) => void) | undefined;
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () {
@@ -330,9 +348,8 @@ test('draft survives validation, refresh and failed save, and Cancel restores fo
   fireEvent.change(screen.getByLabelText(/Description/), {
     target: { value: '**Notes**' },
   });
-  fireEvent.change(screen.getByLabelText('Owner URL'), {
-    target: { value: '/missing/' },
-  });
+  fireEvent.focus(screen.getByRole('combobox', { name: 'Owner' }));
+  fireEvent.click(await screen.findByRole('option', { name: /Stale owner/ }));
   fireEvent.change(screen.getByLabelText(/Waiting for/), {
     target: { value: '  Reply  ' },
   });
@@ -347,7 +364,7 @@ test('draft survives validation, refresh and failed save, and Cancel restores fo
   await screen.findByText('Owner does not exist.');
   expect(save).toHaveBeenCalledWith({
     title: 'My draft',
-    owner: '/missing/',
+    owner: '/_projects/missing/',
     description: '**Notes**',
     state: 'waiting',
     waitingFor: '  Reply  ',

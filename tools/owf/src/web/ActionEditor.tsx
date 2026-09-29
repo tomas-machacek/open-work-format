@@ -7,6 +7,7 @@ import {
 } from 'react';
 import type { BoardAction, EditActionRequest } from '../contracts/index.js';
 import { StateUpdateError } from './client.js';
+import { OwnerPicker } from './OwnerPicker.js';
 import styles from './Board.module.css';
 
 const sameSnapshot = (a: BoardAction, b: BoardAction) =>
@@ -237,15 +238,7 @@ export function ActionEditor({
               onChange={(event) => setDescription(event.target.value)}
               disabled={saving}
             />
-            <label htmlFor="edit-owner">
-              Owner <span>(Workspace-rooted URL)</span>
-            </label>
-            <input
-              id="edit-owner"
-              value={owner}
-              onChange={(event) => setOwner(event.target.value)}
-              disabled={saving}
-            />
+            <OwnerPicker value={owner} onChange={setOwner} disabled={saving} />
             {baseline.state === 'waiting' && (
               <>
                 <label htmlFor="edit-reason">
