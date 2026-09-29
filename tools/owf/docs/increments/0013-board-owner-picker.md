@@ -1,6 +1,6 @@
 # 0013 — Search for Action owners on the board
 
-> Status: in_progress
+> Status: completed
 > Description: Choose a Workspace, Project or Outcome owner by searching in the board's Action forms.
 > Depends on: [0008 — Create Actions on the board](0008-board-action-create.md) and [0012 — Edit an Action on the board](0012-board-action-edit.md).
 
@@ -247,7 +247,8 @@ documentation commit changes no implementation or tests. The focused regression
 run required execution outside the sandbox after Vite reported `spawn EPERM`.
 The full verification also ran outside the sandbox. The original platform and
 manual-inspection limitations still apply; no new manual visual inspection was
-performed for this adapter correction.
+performed for this adapter correction. The reviewed and verified implementation
+is complete with no open review findings.
 
 To try: create two Projects with identically named Outcomes, open Add Action,
 search by title or hierarchy and choose a result. Edit the saved Action and
