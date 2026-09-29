@@ -540,6 +540,88 @@
 .editorCard .formButtons {
   margin-top: 12px;
 }
+.ownerPicker {
+  margin-bottom: 16px;
+  min-width: 0;
+}
+.ownerSelected {
+  margin: 0 0 10px;
+  color: #304c3e;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.ownerSelected span {
+  display: block;
+  color: #65716a;
+  font-size: 11px;
+}
+.ownerPicker .hint {
+  margin: 6px 0;
+}
+.ownerPicker input {
+  margin-bottom: 6px;
+}
+.ownerRefresh {
+  border: 0;
+  border-radius: 4px;
+  padding: 8px 0;
+  background: transparent;
+  color: #3e624d;
+  font: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 44px;
+}
+.ownerOptions {
+  list-style: none;
+  margin: 0;
+  padding: 3px;
+  max-height: min(220px, 28dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid #cbd6cc;
+  border-radius: 6px;
+  background: #fcfdfb;
+}
+.ownerOptions:empty {
+  display: none;
+}
+.ownerOptions button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 4px;
+  padding: 9px;
+  background: transparent;
+  color: #25342f;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.ownerOptions button span {
+  color: #65716a;
+  font-size: 10px;
+  text-transform: capitalize;
+}
+.ownerOptions small {
+  display: block;
+  margin-top: 3px;
+  color: #65716a;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.ownerOptions button[aria-selected='true'] {
+  box-shadow: inset 3px 0 #50785e;
+}
+.ownerOptions button:hover,
+.ownerOptions button.ownerActive {
+  background: #e7eee6;
+}
 @media (max-width: 700px) {
   .editor {
     width: calc(100vw - 16px);

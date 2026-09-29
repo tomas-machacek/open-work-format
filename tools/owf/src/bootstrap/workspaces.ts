@@ -18,7 +18,9 @@ import { initializeWorkspace } from '../application/workspaces/index.js';
 import {
   workspaceFiles,
   contextFiles,
+  ownerFiles,
 } from '../infrastructure/configuration/index.js';
+import { listOwners as listOwnersUseCase } from '../application/owners/index.js';
 import {
   workspaceDocuments,
   contextDocuments,
@@ -46,6 +48,8 @@ export const contextPorts: ContextPorts = {
 };
 export const create = (root: string, input: ContextInput) =>
   createContext(root, input, contextPorts);
+export const listOwners = (root: string) =>
+  listOwnersUseCase(root, { ...contextPorts, ownerFiles });
 
 export const actionPorts: ActionPorts = {
   ...contextPorts,

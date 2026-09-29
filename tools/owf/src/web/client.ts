@@ -1,5 +1,6 @@
 import {
   boardResponse,
+  ownersResponse,
   createActionResponse,
   type CreateActionRequest,
   type BoardAction,
@@ -10,6 +11,17 @@ import {
   editActionResponse,
   type EditActionRequest,
 } from '../contracts/index.js';
+export async function fetchOwners() {
+  const response = await fetch('/api/owners', { cache: 'no-store' });
+  const body: unknown = await response.json();
+  if (!response.ok) {
+    const parsed = boardError.safeParse(body);
+    throw new Error(
+      parsed.success ? parsed.data.error.message : 'Unable to read owners.',
+    );
+  }
+  return ownersResponse.parse(body).owners;
+}
 export class StateUpdateError extends Error {
   constructor(
     message: string,

@@ -10,7 +10,10 @@ import {
   unlinkSync,
 } from 'node:fs';
 import { join, relative, sep, isAbsolute } from 'node:path';
-import type { ContextFiles } from '../../application/ports/index.js';
+import type {
+  ContextFiles,
+  OwnerDiscoveryFiles,
+} from '../../application/ports/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
 
 function missing(error: unknown): boolean {
@@ -29,6 +32,8 @@ function directory(root: string, parts: string[]): string {
   let path = root;
   try {
     for (const part of parts) {
+      if (!part || part === '.' || part === '..' || /[/\\]/u.test(part))
+        throw new Error('Invalid directory segment.');
       path = join(path, part);
       const stat = lstatSync(path);
       if (stat.isSymbolicLink() || !stat.isDirectory())
@@ -45,6 +50,26 @@ function directory(root: string, parts: string[]): string {
     );
   }
 }
+
+export const ownerFiles: OwnerDiscoveryFiles = {
+  children(root, parts) {
+    // Only an absent top-level collection means there are no contexts.
+    if (parts.length === 1 && parts[0] === '_projects') {
+      try {
+        lstatSync(join(root, '_projects'));
+      } catch (error) {
+        if (missing(error)) return [];
+        throw error;
+      }
+    }
+    const path = directory(root, parts);
+    return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+      if (entry.isSymbolicLink())
+        throw new Error(`Linked entry is unsafe: ${join(path, entry.name)}`);
+      return entry.isDirectory() ? [entry.name] : [];
+    });
+  },
+};
 
 export const contextFiles: ContextFiles = {
   decodeOwner(url) {

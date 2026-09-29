@@ -30,7 +30,7 @@ link and a one-line description; keep its status in sync.
 | [0010 — Change Action state on the board](0010-board-action-state.md)      | Drag Actions between state columns with conflict checks.               | completed   |
 | [0011 — Edit Actions through the CLI](0011-action-edit-cli.md)             | Edit Action content and ownership with one CLI operation.              | completed   |
 | [0012 — Edit an Action on the board](0012-board-action-edit.md)            | Open an expanded card to edit and save an Action.                      | completed   |
-| [0013 — Search for Action owners on the board](0013-board-owner-picker.md) | Search and select owners in board Action forms.                         | reviewed       |
+| [0013 — Search for Action owners on the board](0013-board-owner-picker.md) | Search and select owners in board Action forms.                        | in_progress |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;

@@ -1,6 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { createBoardServer } from '../interfaces/http/index.js';
-import { listActions, createAction, setAction } from './workspaces.js';
+import {
+  listActions,
+  createAction,
+  setAction,
+  listOwners,
+} from './workspaces.js';
 
 export async function serve(start: string, port = 4317) {
   const { result } = listActions(start);
@@ -27,6 +32,12 @@ export async function serve(start: string, port = 4317) {
         throw new Error('The original Workspace is no longer available.');
       const { expected, ...changes } = input;
       return setAction(result.root, id, changes, expected);
+    },
+    () => {
+      const current = listOwners(result.root);
+      if (current.root !== result.root)
+        throw new Error('The original Workspace is no longer available.');
+      return current;
     },
   );
   try {

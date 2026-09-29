@@ -4,6 +4,7 @@ import Fastify, {
   type FastifyRequest,
 } from 'fastify';
 import staticFiles from '@fastify/static';
+import type { AvailableOwner } from '../../application/owners/index.js';
 import type {
   ListActionsResult,
   ActionResult,
@@ -11,6 +12,7 @@ import type {
 import { WorkspaceError } from '../../application/workspaces/index.js';
 import {
   boardResponse,
+  ownersResponse,
   createActionRequest,
   createActionResponse,
   type CreateActionRequest,
@@ -28,8 +30,23 @@ export function createBoardServer(
   create: (input: CreateActionRequest) => ActionResult,
   update?: (id: string, input: UpdateActionStateRequest) => ActionResult,
   edit?: (id: string, input: EditActionRequest) => ActionResult,
+  owners?: () => { owners: AvailableOwner[] },
 ) {
   const server = Fastify({ logger: false });
+  server.get('/api/owners', (_request, reply) => {
+    try {
+      if (!owners) throw new Error('Owner discovery is unavailable.');
+      return ownersResponse.parse(owners());
+    } catch (error) {
+      return reply.code(503).send({
+        error: {
+          code: 'OWNER_DISCOVERY_FAILED',
+          message:
+            error instanceof Error ? error.message : 'Unable to read owners.',
+        },
+      });
+    }
+  });
   server.addHook('onRequest', async (_request, reply) => {
     reply.header('Cache-Control', 'no-store');
     reply.header('X-Content-Type-Options', 'nosniff');

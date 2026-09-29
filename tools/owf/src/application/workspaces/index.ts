@@ -13,11 +13,11 @@ export interface WorkspaceResult {
   store: string;
 }
 
-export function discoverWorkspace(
+export function discoverWorkspaceMetadata(
   start: string,
-  ports: WorkspacePorts,
-): WorkspaceResult | undefined {
-  const { files, documents, store } = ports;
+  ports: Pick<WorkspacePorts, 'files' | 'documents'>,
+) {
+  const { files, documents } = ports;
   let root = files.physicalDirectory(start);
   for (;;) {
     const text = files.readReadme(root);
@@ -27,19 +27,29 @@ export function discoverWorkspace(
         : documents.parse(text, files.join(root, 'README.md'));
     if (metadata) {
       validateMetadata(metadata);
-      const path = files.resolveStore(root, metadata.storageUrl);
-      store.validate(path);
-      return {
-        status: 'already_initialized',
-        root,
-        title: metadata.title,
-        store: path,
-      };
+      return { root, metadata };
     }
     const parent = files.parent(root);
     if (root === parent) return undefined;
     root = parent;
   }
+}
+
+export function discoverWorkspace(
+  start: string,
+  ports: WorkspacePorts,
+): WorkspaceResult | undefined {
+  const workspace = discoverWorkspaceMetadata(start, ports);
+  if (!workspace) return undefined;
+  const { root, metadata } = workspace;
+  const path = ports.files.resolveStore(root, metadata.storageUrl);
+  ports.store.validate(path);
+  return {
+    status: 'already_initialized',
+    root,
+    title: metadata.title,
+    store: path,
+  };
 }
 
 export function initializeWorkspace(

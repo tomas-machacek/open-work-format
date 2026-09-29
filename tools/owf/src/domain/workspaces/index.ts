@@ -1,4 +1,5 @@
 export type ErrorCode =
+  | 'OWNER_DISCOVERY_FAILED'
   | 'ACTION_NOT_FOUND'
   | 'ACTION_CREATE_FAILED'
   | 'ACTION_READ_FAILED'

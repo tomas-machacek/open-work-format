@@ -1,5 +1,9 @@
 import { validateTitle, WorkspaceError } from '../workspaces/index.js';
-import type { ContextMetadata } from '../contexts/index.js';
+import {
+  validateOwner,
+  type ContextMetadata,
+  type ContextType,
+} from '../contexts/index.js';
 
 export interface ActionInput {
   title: string;
@@ -216,6 +220,36 @@ export function validateActionOwner(chain: ContextMetadata[]): void {
       'INVALID_OWNER',
       'Choose an active or parked owner with no terminal or archived ancestors.',
     );
+}
+
+// Discovery distinguishes a valid but ineligible context from damaged metadata.
+export function isSelectableActionOwner(
+  metadata: ContextMetadata,
+  type: ContextType,
+): boolean {
+  if (metadata.state === 'archived') {
+    const terminal = type === 'project' ? 'completed' : 'achieved';
+    if (
+      metadata.archivedFrom !== terminal &&
+      metadata.archivedFrom !== 'abandoned'
+    )
+      throw new WorkspaceError(
+        'INVALID_OWNER',
+        'Archived owner must preserve its terminal disposition.',
+      );
+    validateOwner(
+      {
+        ...metadata,
+        state: metadata.archivedFrom === 'abandoned' ? 'abandoned' : terminal,
+        archivedFrom: undefined,
+      },
+      type,
+    );
+    return false;
+  }
+  validateOwner(metadata, type);
+  // validateOwner already rejected unexpected archivedFrom metadata above.
+  return metadata.state === 'active' || metadata.state === 'parked';
 }
 
 export function newAction(

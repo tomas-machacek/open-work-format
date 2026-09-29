@@ -201,7 +201,14 @@ test('create a Waiting Action with Outcome owner and verify persisted values thr
     await page.keyboard.press('Tab');
     await page.keyboard.type('Review **release** notes');
     await page.keyboard.press('Tab');
-    await page.getByLabel('Owner URL').fill('/_projects/launch/ready/');
+    await page
+      .getByRole('combobox', { name: 'Owner' })
+      .fill('/_projects/launch/ready/');
+    await page.getByRole('option', { name: /ready/ }).click();
+    await page.keyboard.press('Tab');
+    await expect(
+      page.getByRole('button', { name: 'Refresh owners' }),
+    ).toBeFocused();
     await page.keyboard.press('Tab');
     await page.keyboard.type('Approval from team');
     await page.keyboard.press('Tab');
@@ -503,6 +510,20 @@ test('edit a Waiting Action in detail and still move its card by dragging', asyn
     await waiting.getByRole('article').click();
     const detail = page.getByRole('dialog', { name: 'Edit Action' });
     await expect(detail.getByLabel('Title')).toBeFocused();
+    const ownerPicker = detail.getByRole('combobox', { name: 'Owner' });
+    await ownerPicker.fill('Board edit');
+    await ownerPicker.press('ArrowDown');
+    await expect(detail.getByRole('option')).toHaveCount(1);
+    await ownerPicker.press('Escape');
+    await expect(ownerPicker).toHaveAttribute('aria-expanded', 'false');
+    await expect(detail).toBeVisible();
+    await expect(waiting.getByRole('article')).not.toHaveAttribute(
+      'class',
+      /dragging/,
+    );
+    await ownerPicker.press('ArrowDown');
+    await ownerPicker.press('Enter');
+    await expect(detail).toBeVisible();
     await detail.getByLabel('Title').fill('Edited title');
     await detail.getByLabel(/Waiting for/).fill('New reply');
     await detail.getByRole('button', { name: 'Save changes' }).click();

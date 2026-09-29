@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BoardAction, CreateActionRequest } from '../contracts/index.js';
+import { OwnerPicker } from './OwnerPicker.js';
 import styles from './Board.module.css';
 
 export function ActionForm({
@@ -32,7 +33,7 @@ export function ActionForm({
       (waitingFor !== '' && !waitingFor.trim())
     ) {
       setError(
-        'Enter a title and owner URL. Waiting for must contain text when supplied.',
+        'Enter a title and select an owner. Waiting for must contain text when supplied.',
       );
       return;
     }
@@ -88,17 +89,7 @@ export function ActionForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
-        <label htmlFor="action-owner">Owner URL</label>
-        <input
-          id="action-owner"
-          required
-          value={owner}
-          aria-describedby="owner-hint"
-          onChange={(e) => setOwner(e.target.value)}
-        />
-        <p id="owner-hint" className={styles.hint}>
-          / for Workspace, or a Project/Outcome URL such as /_projects/launch/
-        </p>
+        <OwnerPicker value={owner} onChange={setOwner} disabled={pending} />
         {state === 'waiting' && (
           <>
             <label htmlFor="action-waiting">

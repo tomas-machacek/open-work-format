@@ -1,6 +1,6 @@
 # 0013 — Search for Action owners on the board
 
-> Status: reviewed
+> Status: in_progress
 > Description: Choose a Workspace, Project or Outcome owner by searching in the board's Action forms.
 > Depends on: [0008 — Create Actions on the board](0008-board-action-create.md) and [0012 — Edit an Action on the board](0012-board-action-edit.md).
 
@@ -44,7 +44,7 @@ Apply the same owner type, lifecycle and ancestor rules as Action creation:
 only active or parked Projects/Outcomes with no terminal or archived ancestor
 are selectable. A terminal/archived context and its descendants are not
 offered. Ignore ordinary directories and non-OWF Markdown; reject unsafe
-symlinks and traversal and report unreadable or malformed *claimed* OWF owner
+symlinks and traversal and report unreadable or malformed _claimed_ OWF owner
 metadata as a discovery error rather than silently presenting an incomplete
 list. Keep traversal within the Workspace and avoid following links. Titles
 need not be unique, so show a path/hierarchy as a disambiguator and keep the

@@ -1,5 +1,10 @@
 import { afterEach, expect, test, vi } from 'vitest';
-import { fetchBoard, saveAction, updateActionState } from './client.js';
+import {
+  fetchBoard,
+  fetchOwners,
+  saveAction,
+  updateActionState,
+} from './client.js';
 afterEach(() => vi.unstubAllGlobals());
 test('API client propagates HTTP read errors and rejects malformed successful payloads', async () => {
   const fetch = vi.fn<typeof globalThis.fetch>();
@@ -128,4 +133,31 @@ test('state update sends the observed snapshot once and reports conflict or unce
     code: 'UNCERTAIN',
   });
   expect(fetch).toHaveBeenCalledTimes(3);
+});
+
+test('owner reads bypass cache, reject malformed success and retain discovery errors', async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>();
+  vi.stubGlobal('fetch', fetch);
+  const owners = [
+    { url: '/', type: 'workspace', title: 'Workspace', hierarchy: 'Workspace' },
+  ];
+  fetch.mockResolvedValueOnce(new Response(JSON.stringify({ owners })));
+  expect(await fetchOwners()).toEqual(owners);
+  expect(fetch).toHaveBeenCalledWith('/api/owners', { cache: 'no-store' });
+  fetch.mockResolvedValueOnce(
+    new Response(JSON.stringify({ owners: [{ url: '/' }] })),
+  );
+  await expect(fetchOwners()).rejects.toThrow();
+  fetch.mockResolvedValueOnce(
+    new Response(
+      JSON.stringify({
+        error: {
+          code: 'OWNER_DISCOVERY_FAILED',
+          message: 'Cannot read README',
+        },
+      }),
+      { status: 503 },
+    ),
+  );
+  await expect(fetchOwners()).rejects.toThrow('Cannot read README');
 });
