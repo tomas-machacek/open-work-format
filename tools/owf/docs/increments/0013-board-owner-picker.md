@@ -145,4 +145,83 @@ eligible owners and keeps manual URL entry in the CLI.
 
 ## Implementation and review outcome
 
-Pending implementation and review.
+Implemented on 2026-09-29; independent code review is pending. Status remains
+`in_progress`; this PR has not been merged or released.
+
+### Delivered behavior
+
+- Application discovery walks physical Markdown containment through a focused
+  filesystem port, validates owner metadata/lifecycle in the domain, and returns
+  stable title/URL ordering with Workspace first. Workspace metadata discovery
+  is shared with existing operations without reading the Operational Store.
+- `GET /api/owners` returns typed choices with `Cache-Control: no-store` or a
+  distinct `OWNER_DISCOVERY_FAILED` response. Ordinary/non-owner directories and
+  terminal/archived subtrees are omitted; unsafe links and damaged claimed
+  metadata fail discovery. No partial successful list is returned.
+- Both forms use `OwnerPicker`: separate search text and selected canonical URL,
+  visible name/type/hierarchy, bounded inline results, keyboard navigation,
+  selected-owner announcement, loading/error/no-match feedback, and Retry/Refresh.
+  Reopening reloads choices. Create defaults to Workspace; edit retains an
+  unavailable original owner and omits unchanged ownership from its PATCH.
+- Existing create/set operations still validate a selected owner at save.
+  Failed saves, discovery and retries retain the form draft and selection.
+  CLI commands, store schema and Action identity semantics are unchanged.
+
+### Verification evidence
+
+Verified implementation revision: `fb4e21ff7f9b8587e7a370ac90c886d0c687f4d7`.
+The following evidence/documentation commit changes no implementation or tests.
+
+`npm run verify` passed on Windows (`win32`), Node.js **24.21.0**, on 2026-09-29:
+
+| Check                                                                 | Result                          |
+| --------------------------------------------------------------------- | ------------------------------- |
+| TypeScript, ESLint, Prettier, dependency boundaries, production build | Passed                          |
+| Unit and component tests                                              | 90 passed                       |
+| Integration tests                                                     | 137 passed                      |
+| Acceptance                                                            | 24 scenarios / 123 steps passed |
+| CLI E2E                                                               | 21 passed                       |
+| Chromium Playwright                                                   | 4 passed                        |
+
+[Discovery/HTTP integration tests](../../tests/integration/owners.test.ts)
+cover nesting, duplicate titles, encoded canonical URLs, parked/terminal/archived
+contexts, ordinary directories, invalid metadata, injected read/enumeration
+failures, physical Windows junctions, linked README rejection, traversal,
+read-only snapshots without an available store, HTTP errors and atomic stale-owner
+rejection. Unchanged missing ownership remains editable through HTTP.
+[Shared-picker form tests](../../src/web/OwnerPicker.test.tsx) cover both forms,
+search without selection, keyboard selection/Escape, unavailable ownership,
+preserved fields/selection through loading/error/retry, failed saves and later
+openings. Existing board/client tests cover the changed integration points.
+
+The existing create browser journey now uses the picker. The existing edit/drag
+journey checks native dialog Escape and selection before editing and subsequent
+card drag: jsdom's mocked dialog and drag context cannot establish these native
+interactions. No new Playwright journey was added.
+
+A separate local Chromium inspection exercised both forms at **1440 x 1000**
+and **390 x 1000**, including emulated touch selection, keyboard selection,
+Escape, persisted owner change, refresh after creating a new context, and
+stale-owner rejection with the draft retained. All passed; inspected screenshots
+show wrapping labels, bounded inline results and no horizontal overflow.
+Local screenshots and the inspection script are in the ignored
+`tools/owf/.test-artifacts/0013-*` files.
+
+### Limitations and review
+
+- Tests requiring subprocesses ran outside the sandbox after Vite was denied
+  process creation (`EPERM`). The final full verification passed.
+- Validation was performed on Windows with Chromium. Linux, other browsers,
+  physical touch hardware and screen-reader testing were not performed.
+  Read-permission failures are injected through ports; junction rejection uses
+  the actual Windows filesystem.
+- Markdown is not a transactional filesystem snapshot; save-time validation
+  remains authoritative, as designed. No scope deviation or known unresolved
+  implementation failure was identified. Independent code review is still
+  required before marking the increment completed.
+
+To try: create two Projects with identically named Outcomes, open Add Action,
+search by title or hierarchy and choose a result. Edit the saved Action and
+select another owner. Refresh owners after creating another context through CLI;
+then make a selected context terminal before Save and confirm the error retains
+the draft. Check the canonical reference with `owf get action <id> --json`.

@@ -249,8 +249,12 @@ Use `serve --port 4318` for an occupied port. Only loopback access is supported.
 The five columns retain listing order. Cards show the full title, stored owner URL
 and optional waiting reason. Action IDs remain available through CLI and JSON
 output. Choose **Add Action** in any column to create directly in
-that state. Enter a title, optional Markdown description and an owner URL (`/`
-for the Workspace, or a Project/Outcome URL such as `/_projects/launch/`).
+that state. Enter a title and optional Markdown description. **Owner** defaults
+to Workspace (`/`); search by Project/Outcome name, hierarchy or URL and select
+a result to change it. Choices show type and hierarchy to distinguish duplicate
+names. Typing search text alone does not change ownership. Use arrows and Enter
+to select; Escape closes the results. **Refresh owners** loads new contexts;
+read failures offer Retry while retaining your draft and selected owner.
 Waiting also accepts an optional, nonblank **Waiting for** reason; its text is
 preserved literally. Save shows the server-confirmed card and updates counts.
 Cancel closes the form. One form can be open at a time; drafts survive refresh
@@ -265,15 +269,28 @@ the server confirms the change. A conflict refreshes the board; after an
 uncertain network failure, refresh and check before trying again.
 CLI changes appear when you return to the window/tab or press Refresh. Refresh
 retains cards; errors mark existing data not current and offer Retry. There is
-no polling, filtering, Action detail, within-column ordering or multi-Workspace registration.
+no polling, filtering, within-column ordering or multi-Workspace registration.
+
+Click a card (or press Enter while it is focused) to open its detail editor.
+The editor uses the same owner picker. An unavailable stored owner stays visible;
+editing other fields retains it without requiring its Markdown context. Selecting
+a different owner sends its canonical URL and the server validates it again at
+save. A stale/invalid selection leaves the draft intact. Escape first closes open
+picker results; outside the picker it follows the editor's discard confirmation.
 
 Install the Chromium test browser once with `npx playwright install chromium`.
-`npm run verify` includes two focused browser journeys against the built server and
+`npm run verify` includes focused browser journeys against the built server and
 real CLI. `npm run test:browser` runs them alone after building; technical errors
 and response races are covered in integration and component tests. Failure
 screenshots and traces are diagnostics in `test-results/`, not snapshot assertions.
 
-The write endpoint accepts only same-origin `application/json` requests at
+`GET /api/owners` reads the physical Markdown tree and returns
+`{ owners: [{ url, type, title, hierarchy }] }` with Workspace first. Terminal and
+archived subtrees are excluded. Unsafe links or unreadable/malformed owner
+metadata return 503 `OWNER_DISCOVERY_FAILED` rather than a partial list. Responses
+use `Cache-Control: no-store`; discovery does not read the Operational Store.
+
+The write endpoints accept only same-origin `application/json` requests at
 `http://127.0.0.1:<serve-port>`; cross-origin/form requests are rejected before
 writing. `POST /api/actions` requires `title`, `owner`, `state`, with optional
 `description` and `waitingFor`; unknown fields are rejected. A 201 response is
