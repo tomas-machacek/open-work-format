@@ -1,12 +1,12 @@
 # 0014 — Search Action text through the CLI
 
-> Status: agreed
+> Status: reviewed
 > Description: Find Actions by a literal case-insensitive substring in the title or description, combined with existing list filters.
 > Depends on: [0004 — Action listing](0004-action-list.md) and [0005 — Action state changes](0005-action-state.md).
 
 The user agreed on 2026-10-06 to separate CLI text search from the later
-Kanban filtering increment. This document records the implementation brief;
-implementation and independent review have not yet happened.
+Kanban filtering increment. The user reviewed and approved the expanded design for implementation on
+2026-10-06. Implementation and independent code review have not yet happened.
 
 ## Goal and scope
 
