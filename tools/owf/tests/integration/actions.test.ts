@@ -720,6 +720,8 @@ test.each([
       { owner: '/', recursive: true },
       { owner: '/missing/' },
       { owner: '/missing/', recursive: true },
+      { search: 'Valid companion' },
+      { search: 'no match', state: ['waiting'], owner: '/missing/' },
     ])
       expect(() => listActions(root, filter)).toThrow(
         expect.objectContaining({ code: 'ACTION_READ_FAILED' }),
@@ -770,6 +772,11 @@ test('list is empty or ordered by stored creation time then ID, preserving full 
       [],
     );
   }
+  expect(listActions(root, { search: 'same' }).result.actions).toEqual([
+    actions[2],
+    actions[1],
+    actions[0],
+  ]);
   expect(snapshot(root)).toEqual(before);
 });
 
@@ -780,7 +787,8 @@ test('canonical filters treat percent and underscore literally and keep stale st
   renameSync(project.path, join(root, '_projects', 'moved'));
   const beforeMoveRead = snapshot(root);
   expect(
-    listActions(root, { owner: project.url, recursive: true }).result.actions,
+    listActions(root, { owner: project.url, recursive: true, search: 'stale' })
+      .result.actions,
   ).toEqual([action]);
   expect(
     listActions(root, { owner: '/_projects/moved/', recursive: true }).result
@@ -834,6 +842,8 @@ test('list rejects invalid arguments before discovery and distinguishes corrupt 
     { recursive: true },
     { owner: '/..//' },
     { owner: '/bad%/' },
+    { search: '' },
+    { search: ' \n\t ' },
   ])
     expect(() => listActions(root, input)).toThrow(
       expect.objectContaining({ code: 'INVALID_ARGUMENT' }),
@@ -967,3 +977,76 @@ test('a content edit invalidates a stale board move even within one clock millis
   ).toThrow(expect.objectContaining({ code: 'ACTION_CONFLICT' }));
   expect(getAction(root, initial.id).result.action).toEqual(edited);
 });
+
+test('search matches literal title or description text once and excludes other fields', () => {
+  const { root } = workspace();
+  const title = createAction(root, { title: 'NÁVRH kuchyne' }).result.action;
+  const description = createAction(root, {
+    title: 'Invoice',
+    description: "**návrh**\nOveriť  navrh % _ ' \\ .* [x]",
+  }).result.action;
+  const both = createAction(root, { title: 'návrh', description: 'NÁVRH' })
+    .result.action;
+  createAction(root, {
+    title: 'Boundary',
+    description: 'Separate',
+    state: 'waiting',
+    waitingFor: 'Excluded reason',
+  });
+  createAction(root, { title: 'Empty', description: '' });
+  const before = snapshot(root);
+  const ids = (search: string) =>
+    listActions(root, { search })
+      .result.actions.map((a) => a.id)
+      .sort();
+  expect(ids('  NáVrH  ')).toEqual([title.id, description.id, both.id].sort());
+  for (const query of [
+    'navrh',
+    '**návrh**\nOveriť',
+    " % _ ' \\ .* [x]",
+    'Overiť  navrh',
+  ])
+    expect(ids(query)).toEqual([description.id]);
+  for (const query of [
+    'Overiť navrh',
+    'BoundarySeparate',
+    'Boundary Separate',
+    'Excluded reason',
+    'Actions',
+    title.id,
+    '/',
+  ])
+    expect(ids(query)).toEqual([]);
+  expect(snapshot(root)).toEqual(before);
+  const decomposed = createAction(root, { title: 'na\u0301vrh' }).result.action;
+  expect(ids('návrh')).not.toContain(decomposed.id);
+  // Ignore the intentional creation above when comparing read-only snapshots.
+  const afterCreation = snapshot(root);
+  expect(ids('NA\u0301VRH')).toEqual([decomposed.id]);
+  expect(snapshot(root)).toEqual(afterCreation);
+});
+
+test.each(['missing', 'unsupported', 'corrupt'])(
+  'search preserves %s store diagnostics without writes',
+  (kind) => {
+    const { root, store } = workspace();
+    const code =
+      kind === 'missing'
+        ? 'STORE_UNAVAILABLE'
+        : kind === 'unsupported'
+          ? 'UNSUPPORTED_STORE_VERSION'
+          : 'INVALID_STORE';
+    if (kind === 'missing') unlinkSync(store);
+    else if (kind === 'unsupported')
+      sql(
+        store,
+        "UPDATE owf_metadata SET value = '999' WHERE key = 'schema_version'",
+      );
+    else writeFileSync(store, 'corrupt');
+    const before = snapshot(root);
+    expect(() => listActions(root, { search: 'no match' })).toThrow(
+      expect.objectContaining({ code }),
+    );
+    expect(snapshot(root)).toEqual(before);
+  },
+);

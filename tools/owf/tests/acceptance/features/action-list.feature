@@ -13,3 +13,8 @@ Feature: Discover Actions by stored ownership
       | /_projects/kitchen/          | recursive | Kitchen,Parent,Child                        |
       | /_projects/kitchen/parent/   | recursive | Parent,Child                                |
       | /                           | recursive | Workspace,Kitchen,Parent,Child,Kitchenette   |
+
+  Scenario: Find text in open or waiting work inside a Project subtree
+    Given searchable Actions across Kitchen, a nested Outcome and the Workspace
+    When I search for "návrh" under Kitchen selecting states "open,waiting"
+    Then the listed titles are exactly "NÁVRH kuchyne,Invoice"

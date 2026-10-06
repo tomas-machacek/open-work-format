@@ -279,6 +279,11 @@ export async function runCli(
     )
     .option('--json', 'Emit one JSON result with complete Action records')
     .option(
+      '--search <text>',
+      'Literal case-insensitive substring in title or description; trim edges, keep diacritics; supply once; AND with owner/states',
+      once('--search'),
+    )
+    .option(
       '--state <state>',
       'open, in_progress, waiting, completed, cancelled; repeat for any state, combined with owner',
       (value: string, previous: string[] = []) => [...previous, value],
@@ -314,6 +319,7 @@ export async function runCli(
         '--description',
         '--state',
         '--waiting-for',
+        '--search',
       ].includes(arg ?? '')
     ) {
       index++;

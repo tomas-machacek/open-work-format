@@ -1,6 +1,6 @@
 # 0014 — Search Action text through the CLI
 
-> Status: reviewed
+> Status: in_progress
 > Description: Find Actions by a literal case-insensitive substring in the title or description, combined with existing list filters.
 > Depends on: [0004 — Action listing](0004-action-list.md) and [0005 — Action state changes](0005-action-state.md).
 
