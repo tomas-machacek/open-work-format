@@ -547,3 +547,47 @@ Then(
     assert.deepEqual(snapshot(this.root), this.before);
   },
 );
+
+Given(
+  'searchable Actions across Kitchen, a nested Outcome and the Workspace',
+  function (this: WorkspaceWorld) {
+    initialize(this.root, 'Search');
+    const kitchen = create(this.root, {
+      type: 'project',
+      title: 'Kitchen',
+    }).result;
+    const outcome = create(kitchen.path, {
+      type: 'outcome',
+      title: 'Design',
+    }).result;
+    createAction(kitchen.path, {
+      title: 'NÁVRH kuchyne',
+      description: 'návrh',
+      state: 'open',
+    });
+    createAction(outcome.path, {
+      title: 'Invoice',
+      description: 'Overiť návrh zmluvy',
+      state: 'waiting',
+    });
+    createAction(outcome.path, {
+      title: 'Návrh completed',
+      state: 'completed',
+    });
+    createAction(kitchen.path, { title: 'Unrelated', state: 'waiting' });
+    createAction(this.root, { title: 'Návrh outside', state: 'open' });
+    this.cwd = outcome.path;
+    this.before = snapshot(this.root);
+  },
+);
+When(
+  'I search for {string} under Kitchen selecting states {string}',
+  function (this: WorkspaceWorld, search: string, states: string) {
+    this.listed = listActions(this.cwd, {
+      search,
+      owner: '/_projects/kitchen/',
+      recursive: true,
+      state: states.split(','),
+    }).result.actions;
+  },
+);

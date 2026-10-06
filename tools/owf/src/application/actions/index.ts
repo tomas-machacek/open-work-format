@@ -24,6 +24,7 @@ export type {
   SetActionInput,
 } from '../../domain/actions/index.js';
 export interface ListActionsInput {
+  search?: string | undefined;
   owner?: string | undefined;
   recursive?: boolean | undefined;
   state?: string[] | undefined;
@@ -42,6 +43,12 @@ export function listActions(
   input: ListActionsInput,
   ports: ActionPorts,
 ): ListActionsResult {
+  const search = input.search?.trim().toLowerCase();
+  if (search === '')
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Search text must be nonblank.',
+    );
   if (input.recursive && input.owner === undefined)
     throw new WorkspaceError(
       'INVALID_ARGUMENT',
@@ -61,10 +68,17 @@ export function listActions(
       status: 'listed',
       type: 'actions',
       root: found.root,
-      actions: ports.actions.list(found.store, {
-        ...ownerFilter,
-        ...(states === undefined ? {} : { states }),
-      }),
+      actions: ports.actions
+        .list(found.store, {
+          ...ownerFilter,
+          ...(states === undefined ? {} : { states }),
+        })
+        .filter(
+          (action) =>
+            search === undefined ||
+            action.title.toLowerCase().includes(search) ||
+            (action.description?.toLowerCase().includes(search) ?? false),
+        ),
     },
     warnings: [],
   };

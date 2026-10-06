@@ -41,6 +41,7 @@ owf list actions --json
 owf list actions --owner / --json
 owf list actions --owner /_projects/kitchen/ --json
 owf list actions --owner /_projects/kitchen/ --recursive --json
+owf list actions --search "delivery" --owner /_projects/kitchen/ --recursive --state open --state waiting --json
 \`\`\`
 
 Inside a Project or Outcome, create an Outcome using the nearest owner:
@@ -80,6 +81,19 @@ Outcomes. This uses stored references and complete path segments; moving or
 removing an owner directory does not repair or change an Action's stored owner.
 A valid filter with no matches succeeds with an empty list. \`--recursive\`
 requires \`--owner\`.
+
+Supply --search once with nonblank text to find a literal contiguous substring in
+an Action title OR description, using locale-independent JavaScript toLowerCase().
+Leading/trailing whitespace is trimmed; internal whitespace, Markdown syntax,
+newlines and special characters stay literal. Slovak case pairs match, while
+diacritics remain significant (navrh does not match NÁVRH). No Unicode
+normalization or transliteration is applied. Matches cannot span the two fields;
+waiting reasons, owner names and IDs are excluded. Search uses AND with owner
+scope and selected states (which use OR). Results retain created_at DESC, id ASC
+order and complete records, without ranking. Missing, blank or repeated search
+values fail with INVALID_ARGUMENT (exit 2); no matches succeed (exit 0).
+Search is read-only and works without a web server. Invalid stored Actions still
+fail the read even outside the selected results.
 
 Set action accepts any combination of --title, --description, --owner, --state and
 --waiting-for. At least one change option is required. --title is trimmed and

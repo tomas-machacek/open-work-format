@@ -11,6 +11,7 @@ export const ownersResponse = z.object({
 });
 export type AvailableOwner = z.infer<typeof ownersResponse>['owners'][number];
 export const listActionsOptions = z.object({
+  search: z.string().optional(),
   state: z.array(z.string()).optional(),
   owner: z.string().optional(),
   recursive: z.boolean().optional(),

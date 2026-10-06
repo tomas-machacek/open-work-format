@@ -108,6 +108,7 @@ node $cli list actions --json
 node $cli list actions --owner / --json
 node $cli list actions --owner /_projects/kitchen/ --json
 node $cli list actions --owner /_projects/kitchen/ --recursive --json
+node $cli list actions --search "delivery" --owner /_projects/kitchen/ --recursive --state open --state waiting --json
 ```
 
 Projects always become top-level entries in `/_projects/`. Outcomes use the nearest
@@ -150,6 +151,19 @@ that Project, including nested Outcomes. Recursive matching uses stored URL
 references and complete path segments; a moved or missing Markdown owner does
 not repair or change those references. Valid filters with no matches succeed
 with an empty list. `--recursive` requires `--owner`.
+
+Supply --search once with nonblank text to find a literal contiguous substring in
+an Action title OR description, using locale-independent JavaScript toLowerCase().
+Leading/trailing whitespace is trimmed; internal whitespace, Markdown syntax,
+newlines and special characters stay literal. Slovak case pairs match, while
+diacritics remain significant (navrh does not match NÁVRH). No Unicode
+normalization or transliteration is applied. Matches cannot span the two fields;
+waiting reasons, owner names and IDs are excluded. Search uses AND with owner
+scope and selected states (which use OR). Results retain created_at DESC, id ASC
+order and complete records, without ranking. Missing, blank or repeated search
+values fail with INVALID_ARGUMENT (exit 2); no matches succeed (exit 0).
+Search is read-only and works without a web server. Invalid stored Actions still
+fail the read even outside the selected results.
 
 `set action ID` accepts one or more of `--title`, `--description`,
 `--clear-description`, `--owner`, `--state`, `--waiting-for`, and

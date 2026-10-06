@@ -723,3 +723,115 @@ test('set action CLI supports combined edits and rejects duplicate or contradict
     expect(snapshot(root)).toEqual(before);
   }
 });
+
+test('built search CLI validates arguments, combines filters and runs the documented guide example', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  for (const options of [
+    ['--search'],
+    ['--search', ''],
+    ['--search', '  '],
+    ['--search=x', '--search=y'],
+    ['--search', 'x', '--search', 'y'],
+  ]) {
+    const failed = run(root, ['list', 'actions', '--json', ...options]);
+    expect(failed.status).toBe(2);
+    expect(JSON.parse(failed.stdout)).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' },
+    });
+  }
+  const flagText = run(root, ['list', 'actions', '--search', '--json']);
+  expect(flagText.status).toBe(1);
+  expect(flagText.stdout).toBe('');
+  expect(flagText.stderr).toContain('WORKSPACE_NOT_FOUND');
+  expect(run(root, ['init']).status).toBe(0);
+  expect(
+    run(root, ['create', 'project', '--title', 'Kitchen', '--slug', 'kitchen'])
+      .status,
+  ).toBe(0);
+  expect(
+    run(root, [
+      'create',
+      'outcome',
+      '--title',
+      'Design',
+      '--owner',
+      '/_projects/kitchen/',
+    ]).status,
+  ).toBe(0);
+  const created = run(root, [
+    'create',
+    'action',
+    '--title',
+    'Confirm delivery',
+    '--description',
+    'Date',
+    '--owner',
+    '/_projects/kitchen/design/',
+    '--state',
+    'waiting',
+    '--json',
+  ]);
+  expect(created.status).toBe(0);
+  const action = z
+    .object({
+      result: z.object({ action: z.object({ id: z.string() }).passthrough() }),
+    })
+    .parse(JSON.parse(created.stdout)).result.action;
+  expect(
+    run(root, ['create', 'action', '--title', 'Delivery outside']).status,
+  ).toBe(0);
+  expect(
+    run(root, [
+      'create',
+      'action',
+      '--title',
+      'Delivery done',
+      '--owner',
+      '/_projects/kitchen/',
+      '--state',
+      'completed',
+    ]).status,
+  ).toBe(0);
+  const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  const example = guide
+    .split('\n')
+    .find((line) => line.startsWith('owf list actions --search "delivery"'));
+  expect(example).toBeDefined();
+  const args = example!.replace('"delivery"', 'delivery').split(' ').slice(1);
+  const before = snapshot(root);
+  const listed = run(root, args);
+  expect(listed.status).toBe(0);
+  expect(JSON.parse(listed.stdout)).toEqual({
+    ok: true,
+    result: { status: 'listed', type: 'actions', root, actions: [action] },
+    warnings: [],
+  });
+  const human = run(
+    root,
+    args.filter((arg) => arg !== '--json'),
+  );
+  expect(human.status).toBe(0);
+  expect(human.stdout).toContain('Title: Confirm delivery');
+  expect(human.stdout).not.toContain('Delivery outside');
+  expect(run(root, ['get', 'action', action.id, '--json']).status).toBe(0);
+  const empty = run(root, ['list', 'actions', '--search=unmatched', '--json']);
+  expect(empty.status).toBe(0);
+  expect(JSON.parse(empty.stdout)).toMatchObject({
+    ok: true,
+    result: { actions: [] },
+  });
+  const emptyHuman = run(root, ['list', 'actions', '--search=unmatched']);
+  expect(emptyHuman.status).toBe(0);
+  expect(emptyHuman.stdout.trim()).toBe('No Actions found.');
+  const help = run(root, ['list', 'actions', '--help']);
+  expect(help.status).toBe(0);
+  expect(help.stdout).toContain('--search <text>');
+  expect(snapshot(root)).toEqual(before);
+  writeFileSync(join(root, 'AGENTS.md'), 'User instructions');
+  expect(run(root, ['init']).status).toBe(0);
+  expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toBe(
+    'User instructions',
+  );
+}, 30000);
