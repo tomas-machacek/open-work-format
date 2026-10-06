@@ -31,7 +31,7 @@ link and a one-line description; keep its status in sync.
 | [0011 — Edit Actions through the CLI](0011-action-edit-cli.md)             | Edit Action content and ownership with one CLI operation.              | completed   |
 | [0012 — Edit an Action on the board](0012-board-action-edit.md)            | Open an expanded card to edit and save an Action.                      | completed   |
 | [0013 — Search for Action owners on the board](0013-board-owner-picker.md) | Search and select owners in board Action forms.                        | completed   |
-| [0014 — Search Action text through the CLI](0014-action-search-cli.md)     | Search titles or descriptions combined with owner and state filters.   | in_progress |
+| [0014 — Search Action text through the CLI](0014-action-search-cli.md)     | Search titles or descriptions combined with owner and state filters.   | completed   |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;
