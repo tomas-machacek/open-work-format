@@ -1,12 +1,14 @@
 # 0014 — Search Action text through the CLI
 
-> Status: in_progress
+> Status: completed
 > Description: Find Actions by a literal case-insensitive substring in the title or description, combined with existing list filters.
 > Depends on: [0004 — Action listing](0004-action-list.md) and [0005 — Action state changes](0005-action-state.md).
 
 The user agreed on 2026-10-06 to separate CLI text search from the later
 Kanban filtering increment. The user reviewed and approved the expanded design for implementation on
-2026-10-06. Implementation is delivered; independent code review is pending.
+2026-10-06. Implementation is delivered. On 2026-10-06 the user confirmed that independent
+code review had finished and changes were pushed, and authorized completion and
+merge to main.
 
 ## Goal and scope
 
@@ -140,8 +142,9 @@ give "Zaplatiť faktúru" the description "Overiť navrh zmluvy" and confirm tha
 ## Implementation and review outcome
 
 Implemented on branch `docs/increment-0014-cli-action-search` in revision
-`3955a97` on 2026-10-06. The increment and index remain `in_progress` pending
-independent code review; no merge or release was performed.
+`3955a97` on 2026-10-06. The implementation was independently reviewed; the user confirmed completion
+and authorized merge on 2026-10-06. The increment and index are `completed`.
+No release was performed.
 
 Delivered behavior:
 
@@ -177,8 +180,11 @@ Verification evidence (Windows, Node.js `v24.21.0`):
 
 No scope or schema/dependency changes. Search remains an unpaged in-memory scan
 following the existing validated read path. HTTP/Kanban search is deferred as
-agreed. Linux validation and independent code review were not performed; no
-independent review findings exist yet. `completed` requires that later review.
+agreed. Linux validation was not performed. The user confirmed the completed independent
+code review and pushed changes on 2026-10-06. The detailed review transcript was
+not posted on the PR; no additional review findings or test runs are claimed here.
+The pre-completion PR head was `2148cc4d5259093b74afd270c07711a93f746459`;
+completion commits update documentation only.
 
 ## Decision changes and follow-up
 
