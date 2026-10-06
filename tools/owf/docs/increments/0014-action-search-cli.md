@@ -1,10 +1,10 @@
-# 0014 — Search Action titles through the CLI
+# 0014 — Search Action text through the CLI
 
 > Status: agreed
-> Description: Find Actions by a literal case-insensitive title substring, combined with existing list filters.
+> Description: Find Actions by a literal case-insensitive substring in the title or description, combined with existing list filters.
 > Depends on: [0004 — Action listing](0004-action-list.md) and [0005 — Action state changes](0005-action-state.md).
 
-The user agreed on 2026-10-06 to separate CLI title search from the later
+The user agreed on 2026-10-06 to separate CLI text search from the later
 Kanban filtering increment. This document records the implementation brief;
 implementation and independent review have not yet happened.
 
@@ -23,7 +23,7 @@ semantics, combination with existing owner/recursive/state filters, and updated
 CLI help, tool README and generated Workspace AGENTS.md.
 
 Kanban filters and HTTP search exposure belong to a separate subsequent increment.
-Description, waiting reason, owner names and IDs are not searched. Fuzzy matching,
+Waiting reason, owner names and IDs are not searched. Fuzzy matching,
 regular expressions, ranking, pagination and custom sorting are deferred.
 
 ## Proposed solution
@@ -42,9 +42,13 @@ reject a missing value, empty or whitespace-only value, or repeated option as
 discovery so non-CLI callers receive the same empty-input rejection.
 
 Match the whole search value as a contiguous substring anywhere in the Action
-title, without distinguishing case. Use deterministic locale-independent
-JavaScript `toLowerCase()` semantics for both title and normalized query;
-SQLite's built-in ASCII-only case conversion is insufficient for Slovak titles.
+title or description, without distinguishing case. Return each matching Action
+once, including when both fields match. Missing or empty descriptions contribute
+no match. Match each field separately: a match cannot span their boundary.
+Search stored description text literally, including Markdown syntax and newlines.
+Use deterministic locale-independent JavaScript `toLowerCase()` semantics for
+both searchable fields and the normalized query; SQLite's built-in ASCII-only
+case conversion is insufficient for Slovak text.
 Case pairs such as `NÁVRH` and `návrh` match. Diacritics remain significant:
 `navrh` does not match `návrh`. Do not introduce Unicode normalization,
 transliteration, tokenization or locale-dependent collation.
@@ -53,7 +57,8 @@ Internal whitespace remains literal. Percent signs, underscores, quotes,
 backslashes and regular-expression characters are ordinary search text, not
 wildcards or query syntax. No user text is interpolated into SQL.
 
-Search AND owner scope AND state selection determine the result. Repeated state
+(Title match OR description match) AND owner scope AND state selection determine
+the result. Repeated state
 options retain their existing OR semantics. Owner filtering continues to use
 stored canonical URLs, including existing recursive-prefix rules; it must not
 require current Markdown owner discovery.
@@ -67,12 +72,12 @@ JSON envelopes and human rendering remain the existing list formats.
 
 Extend `ListActionsInput` and the shared application list path with search.
 Keep parsing/rendering in the CLI and database access in infrastructure.
-Use the existing validated read path and apply title matching to validated
+Use the existing validated read path and apply title/description matching to validated
 Actions in the shared application layer; this local unpaged PoC already
 validates every stored Action before selecting results.
 
 Preserve the existing corruption contract: a malformed stored Action causes
-`ACTION_READ_FAILED` even when its title, owner or state would not match.
+`ACTION_READ_FAILED` even when its title/description, owner or state would not match.
 Do not hide corruption behind an SQL search predicate or return partial results.
 Unavailable, corrupt and unsupported stores retain their existing diagnostics.
 
@@ -86,9 +91,12 @@ Existing user-edited guides remain untouched; repeat initialization stays a no-o
 
 ## Acceptance criteria
 
-AC1: Searching finds titles by contiguous case-insensitive substring, including
-Slovak uppercase/lowercase letters. It searches only titles, keeps diacritics
-significant, and treats wildcard/query characters literally.
+AC1: Searching finds an Action when its title OR description contains the
+contiguous case-insensitive substring, including Slovak uppercase/lowercase
+letters. Each Action appears once, even when both fields match. Absent/empty
+descriptions are safe. Matching uses literal stored Markdown text and cannot
+span the field boundary. Diacritics remain significant and wildcard/query
+characters are literal. Waiting reasons, owner names and IDs are excluded.
 
 AC2: Search combines with direct or recursive owner scope and one or more states
 using AND; selected states retain OR semantics. Stored owner references,
@@ -108,10 +116,12 @@ the existing JSON envelope and complete Action records.
 
 ## Verification plan
 
-- Add a concise application acceptance scenario for title search combined with
+- Add a concise application acceptance scenario for text search combined with
   recursive owner scope and multiple states (AC1–AC2).
 - Use focused tests for Slovak case pairs, significant diacritics, literal special
-  characters, internal whitespace, title-only matching and blank input (AC1, AC3).
+  characters, internal whitespace, matches in either/both fields, absent/empty
+  descriptions, raw Markdown/newlines, field-boundary and excluded-field rejection,
+  and blank input (AC1, AC3).
 - Extend real-store integration coverage for corruption outside the search result
   and unchanged data; reuse existing read/order/filter evidence where applicable
   (AC2, AC4).
@@ -124,7 +134,8 @@ the existing JSON envelope and complete Action records.
 Manual trial: create Actions named "Zavolať dodávateľovi", "NÁVRH kuchyne" and
 "Zaplatiť faktúru". Search for "DODÁVATEĽ" and "návrh", then combine the search
 with an owner and states. Confirm that "navrh" does not match "NÁVRH kuchyne";
-use a returned ID with `owf get action {id}`.
+give "Zaplatiť faktúru" the description "Overiť navrh zmluvy" and confirm that
+"navrh" finds it through its description. Use a returned ID with `owf get action {id}`.
 
 ## Implementation and review outcome
 
@@ -132,5 +143,8 @@ Pending implementation, independent code review and required verification.
 
 ## Decision changes and follow-up
 
-- CLI title search is increment 0014. Kanban filtering will be designed separately
+- CLI text search is increment 0014. Kanban filtering will be designed separately
   and should reuse this search behavior.
+
+- The initial proposal searched titles only. On 2026-10-06 the user expanded
+  the scope to title OR description using the same `--search` option.
