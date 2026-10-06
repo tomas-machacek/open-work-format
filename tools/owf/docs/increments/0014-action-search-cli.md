@@ -6,7 +6,7 @@
 
 The user agreed on 2026-10-06 to separate CLI text search from the later
 Kanban filtering increment. The user reviewed and approved the expanded design for implementation on
-2026-10-06. Implementation and independent code review have not yet happened.
+2026-10-06. Implementation is delivered; independent code review is pending.
 
 ## Goal and scope
 
@@ -139,7 +139,46 @@ give "Zaplatiť faktúru" the description "Overiť navrh zmluvy" and confirm tha
 
 ## Implementation and review outcome
 
-Pending implementation, independent code review and required verification.
+Implemented on branch `docs/increment-0014-cli-action-search` in revision
+`3955a97` on 2026-10-06. The increment and index remain `in_progress` pending
+independent code review; no merge or release was performed.
+
+Delivered behavior:
+
+- `ListActionsInput.search` validates blank input before Workspace discovery,
+  trims query edges and applies locale-independent `toLowerCase()` substring
+  matching separately to validated titles and descriptions in the application.
+- CLI `--search` accepts one required value, rejects repetition, preserves
+  literal option-like text and combines with existing owner/state selection.
+  JSON envelopes, human output, full records and ordering remain unchanged.
+- Updated built help, README and the single generated Workspace guide, including
+  an executable combined-filter example. Existing edited guides stay untouched.
+- Added the [application acceptance scenario](../../tests/acceptance/features/action-list.feature),
+  focused real-store matching/error/read-only tests and a built-CLI journey.
+  Existing ordering and stale-owner tests also exercise search.
+
+Verification evidence (Windows, Node.js `v24.21.0`):
+
+- `npm run verify` passed against the implementation now committed as `3955a97`:
+  typecheck, lint, formatting, architecture (46 modules, no violations), build,
+  90 unit tests, 145 integration tests, 25 acceptance scenarios / 127 steps,
+  22 CLI E2E tests and all 4 existing Chromium browser journeys.
+- After that run, normalized only line endings in the search acceptance feature;
+  `npm run test:acceptance` passed again (25 scenarios / 127 steps).
+  `git diff --check` passed before the implementation commit.
+- Executed the documented manual-trial sequence through the built CLI in a fresh
+  disposable Workspace, without a web server: `DODÁVATEĽ` found
+  "Zavolať dodávateľovi"; `návrh` with direct owner and open/waiting states found
+  "NÁVRH kuchyne"; `navrh` initially found nothing, then found "Zaplatiť faktúru"
+  after setting description "Overiť navrh zmluvy". Retrieval by returned ID passed.
+  Initial trial harness attempts were blocked by sandbox permissions and then
+  Windows stdout encoding; the completed rerun passed after access approval and
+  explicit UTF-8 output. These were harness issues, not application failures.
+
+No scope or schema/dependency changes. Search remains an unpaged in-memory scan
+following the existing validated read path. HTTP/Kanban search is deferred as
+agreed. Linux validation and independent code review were not performed; no
+independent review findings exist yet. `completed` requires that later review.
 
 ## Decision changes and follow-up
 
