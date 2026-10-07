@@ -199,8 +199,75 @@ A separate state filter and persistent/saved Views are deferred.
 
 ## Implementation and review outcome
 
-Design approved for implementation. Implementation, independent code review
-and required verification are pending.
+Implemented on `docs/increment-0016-board-search` in PR #21. Status remains
+`in_progress` in this document and the index pending independent code review.
+
+Delivered behavior:
+
+- Contracts-owned GET query validation and explicit browser URL serialization
+  forward search, owner and boolean recursion to the existing `listActions` path.
+  No-query clients retain the response shape. Invalid/repeated/unknown parameters
+  return 400; corrupt data outside the selection and unavailable stores remain
+  503 without store replacement or mutations.
+- Apply-based text and searchable owner drafts, distinct All owners and Workspace,
+  opt-in recursion, Clear, five columns, matching counts and separate successful
+  empty/error views. Discovery failures retain selected URLs and picker drafts.
+- Applied scope and control drafts survive refresh, Retry and return-to-tab.
+  Superseded responses are ignored and prior result scopes are labeled. Confirmed
+  writes are protected from older reads without inserting arbitrary saved Actions
+  into filtered selections. Pending moves retain their observed cards only within
+  the same result scope and are labeled as previous snapshots.
+- Create/edit refresh the applied query after confirmation. Successful exclusion
+  and failed membership reads have separate notices. Editor snapshots are tracked
+  independently of selection membership: when an open Action is absent from a
+  filtered read, an unfiltered read checks its authoritative snapshot. Failure
+  retains the prior editor snapshot and reports a read error. Disappearing focused
+  cards move focus to an available control; creation defaults and drag semantics
+  are preserved.
+- README documents board filters and HTTP parameters. CLI behavior, generated
+  Workspace guidance, dependencies and schema are unchanged.
+
+Verification on **2026-10-07**, **Windows**, **Node.js v24.21.0**, bundled
+Playwright Chromium, at implementation revision
+`d34018408f08a8b912943649e30a41a9fa65de29`:
+
+- `npm run verify`: **passed (exit 0)**. Typecheck, ESLint, Prettier, architecture
+  (46 modules / 123 dependencies, no violations) and production build passed.
+  Unit tests: **99 passed**; integration: **147 passed**; acceptance:
+  **25 scenarios / 127 steps passed**; CLI E2E: **22 passed**;
+  Chromium journeys: **5 passed**.
+- [HTTP integration tests](../../tests/integration/board.test.ts) cover literal
+  punctuation and a real stored owner URL with spaces, ampersand and percent
+  escapes, shared AND selection, no-query compatibility, invalid queries before
+  unavailable-store access, nonmatching corruption and unchanged files (AC1–AC2,
+  AC6). Existing 0014/owner application acceptance scenarios remain selection-rule
+  evidence; no matching implementation or matrix was duplicated in the browser.
+- [Board component tests](../../src/web/Board.test.tsx),
+  [picker tests](../../src/web/OwnerPicker.test.tsx) and
+  [client tests](../../src/web/client.test.ts) cover draft/apply/clear, counts,
+  discovery failure, response ordering, confirmed-write protection, save exclusion,
+  membership-read failure, editor retention, pending moves and focus (AC3–AC5).
+- The new [Chromium journey](../../tests/e2e/board.spec.ts) uses the built server
+  and real CLI: description-only search, direct and recursive Project ownership
+  with nested Outcomes and sibling exclusion, ordered ID comparison with CLI,
+  unapplied drafts across an actual return-to-tab after a CLI edit, editing out of
+  selection, excluded creation with Workspace defaults, keyboard movement and
+  Clear. Existing creation, editing and pointer/touch/keyboard drag journeys pass.
+  The drag helper now scrolls targets into view before measuring pointer geometry;
+  Refresh and form/picker selectors identify their intended controls explicitly.
+- Desktop (1280 px) and narrow (390 px) screenshots from the real Chromium journey
+  were manually visually inspected: labeled controls, owner hierarchy, scope,
+  counts and all columns remain readable; no horizontal overflow. Keyboard owner
+  selection, search Enter, card Enter and Space/arrow movement were checked in
+  Chromium. Screenshot artifacts are local diagnostics under `test-results/`.
+
+The following handoff commit changes documentation/evidence only; it does not
+change the verified implementation. Its formatting and `git diff --check` are
+checked separately. Linux verification was not performed. Filters intentionally
+live only in the mounted board and reset on full page reload; state filters,
+saved Views, URL deep links, ranking and pagination remain deferred as agreed.
+No implementation scope changes were needed. Independent code review is still
+pending; no merge, version/tag, release or publication was performed.
 
 ## Decision changes and follow-up
 

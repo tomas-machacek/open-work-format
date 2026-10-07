@@ -270,7 +270,8 @@ names. Typing search text alone does not change ownership. Use arrows and Enter
 to select; Escape closes the results. **Refresh owners** loads new contexts;
 read failures offer Retry while retaining your draft and selected owner.
 Waiting also accepts an optional, nonblank **Waiting for** reason; its text is
-preserved literally. Save shows the server-confirmed card and updates counts.
+preserved literally. Save confirms the accepted Action; the applied selection
+determines whether its card is displayed, and matching counts update after refresh.
 Cancel closes the form. One form can be open at a time; drafts survive refresh
 and failed saves. If a save cannot be confirmed, refresh/check before submitting
 again to avoid a duplicate.
