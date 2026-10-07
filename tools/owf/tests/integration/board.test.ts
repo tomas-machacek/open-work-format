@@ -21,9 +21,124 @@ import {
   type EditActionRequest,
   type UpdateActionStateRequest,
   type CreateActionRequest,
+  type BoardQuery,
 } from '../../src/contracts/index.js';
 import { cleanup, snapshot, temporaryDirectory } from '../support/workspace.js';
 const roots: string[] = [];
+test('HTTP selection round trips literal values, uses shared AND selection and never changes the store', async () => {
+  const root = directory();
+  const { store } = initialize(root);
+  const owner = '/_projects/a%20%26%25/';
+  create(root, { type: 'project', title: 'Encoded context', slug: 'encoded' });
+  renameSync(
+    resolve(root, '_projects/encoded'),
+    resolve(root, '_projects/a &%'),
+  );
+  const actualOwner = owner;
+  const selected = createAction(root, {
+    title: 'Plain title',
+    description: 'literal a & b + %_ **č**',
+    owner: actualOwner,
+  }).result.action;
+  const other = createAction(root, { title: 'Nonmatching' }).result.action;
+  const read = vi.fn((query: BoardQuery) => listActions(root, query));
+  const server = createBoardServer(read, resolve('dist/web'), (input) =>
+    createAction(root, input),
+  );
+  try {
+    const before = snapshot(root);
+    const query = new URLSearchParams({
+      search: 'a & b + %_ **č**',
+      owner: actualOwner,
+      recursive: 'true',
+    });
+    const response = await server.inject(`/api/actions?${query.toString()}`);
+    expect(response.statusCode).toBe(200);
+    expect(boardResponse.parse(response.json()).actions).toEqual([selected]);
+    expect(read).toHaveBeenLastCalledWith({
+      search: 'a & b + %_ **č**',
+      owner: actualOwner,
+      recursive: true,
+    });
+    const encoded = new URLSearchParams({ owner, search: 'none' });
+    expect(
+      (await server.inject(`/api/actions?${encoded.toString()}`)).statusCode,
+    ).toBe(200);
+    expect(read).toHaveBeenLastCalledWith({ owner, search: 'none' });
+    expect(
+      boardResponse.parse((await server.inject('/api/actions')).json()).actions,
+    ).toEqual(listActions(root).result.actions);
+    expect(
+      boardResponse.parse(
+        (await server.inject('/api/actions?search=absent')).json(),
+      ).actions,
+    ).toEqual([]);
+    expect(snapshot(root)).toEqual(before);
+    const db = new DatabaseSync(store);
+    try {
+      db.prepare('UPDATE actions SET title = ? WHERE id = ?').run(
+        'Invalid\ntitle',
+        other.id,
+      );
+    } finally {
+      db.close();
+    }
+    const corrupt = snapshot(root);
+    expect(
+      (await server.inject(`/api/actions?${query.toString()}`)).statusCode,
+    ).toBe(503);
+    expect(snapshot(root)).toEqual(corrupt);
+    renameSync(store, `${store}.away`);
+    expect((await server.inject('/api/actions?search=absent')).statusCode).toBe(
+      503,
+    );
+    expect(existsSync(store)).toBe(false);
+  } finally {
+    await server.close();
+  }
+});
+
+test('HTTP rejects blank, invalid, repeated, unknown and malformed queries before opening an unavailable store', async () => {
+  const root = directory();
+  const { store } = initialize(root);
+  renameSync(store, `${store}.away`);
+  const server = createBoardServer(
+    (query) => listActions(root, query),
+    resolve('dist/web'),
+    (input) => createAction(root, input),
+  );
+  try {
+    const before = snapshot(root);
+    for (const query of [
+      'search=',
+      'search=%20%20',
+      'owner=',
+      'owner=relative',
+      'owner=/%ZZ/',
+      'search=a&search=b',
+      'owner=/&owner=/',
+      'recursive=true&recursive=false',
+      'recursive=1',
+      'recursive=TRUE',
+      'recursive=',
+      'recursive=true',
+      'state=open',
+      'unexpected=x',
+      '__proto__=x',
+    ]) {
+      const response = await server.inject(`/api/actions?${query}`);
+      expect(response.statusCode, query).toBe(400);
+      expect(boardError.parse(response.json()).error.code).toBeTruthy();
+    }
+    expect(
+      (await server.inject('/api/actions?recursive=false')).statusCode,
+    ).toBe(503);
+    expect(snapshot(root)).toEqual(before);
+    expect(existsSync(store)).toBe(false);
+  } finally {
+    await server.close();
+  }
+});
 afterEach(() => roots.splice(0).forEach(cleanup));
 function directory() {
   const root = temporaryDirectory();

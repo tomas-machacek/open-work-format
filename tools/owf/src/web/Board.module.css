@@ -118,6 +118,44 @@
   gap: 16px;
   align-items: start;
 }
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid #d5dfd7;
+  border-radius: 10px;
+  background: #fff;
+}
+.filters > div {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.filters label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.filters input:not([type='checkbox']) {
+  width: 100%;
+  padding: 8px;
+  font: inherit;
+  border: 1px solid #cad5cd;
+  border-radius: 5px;
+}
+.filters p {
+  font-size: 12px;
+  margin: 6px 0;
+}
+.filters .recursive {
+  padding-top: 22px;
+}
+.scope {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
 .column {
   --accent: #71877b;
   --tint: #eef1ed;

@@ -17,6 +17,7 @@ import type {
   CreateActionRequest,
   UpdateActionStateRequest,
   EditActionRequest,
+  BoardQuery,
 } from '../contracts/index.js';
 import { StateUpdateError } from './client.js';
 vi.mock('./client.js', async (importOriginal) => ({
@@ -96,6 +97,234 @@ const data: BoardResponse = {
     },
   ],
 };
+test('filter drafts apply explicitly; picker Enter selects only, recursion and Clear use distinct owner scope', async () => {
+  const load = vi
+    .fn<(query: BoardQuery) => Promise<BoardResponse>>()
+    .mockResolvedValue(data);
+  const save = vi.fn();
+  const move = vi.fn();
+  render(<Board load={load} save={save} move={move} />);
+  await screen.findByText('First');
+  const filters = screen.getByRole('form', { name: 'Board filters' });
+  const search = within(filters).getByLabelText('Search title or description');
+  fireEvent.change(search, { target: { value: '  literal  text  ' } });
+  expect(screen.getByText('Unapplied filter changes')).toBeTruthy();
+  const picker = within(filters).getByRole('combobox');
+  fireEvent.focus(picker);
+  fireEvent.change(picker, { target: { value: 'Workspace' } });
+  await screen.findByRole('option', { name: /Workspace.*workspace/ });
+  fireEvent.keyDown(picker, { key: 'ArrowDown' });
+  fireEvent.keyDown(picker, { key: 'Enter' });
+  expect(load).toHaveBeenCalledTimes(1);
+  const checkbox = within(filters).getByRole<HTMLInputElement>('checkbox');
+  expect(checkbox.disabled).toBe(false);
+  expect(checkbox.checked).toBe(false);
+  fireEvent.click(checkbox);
+  fireEvent.submit(filters);
+  await waitFor(() =>
+    expect(load).toHaveBeenLastCalledWith({
+      search: 'literal  text',
+      owner: '/',
+      recursive: true,
+    }),
+  );
+  fireEvent.change(search, { target: { value: '   ' } });
+  fireEvent.submit(filters);
+  await waitFor(() =>
+    expect(load).toHaveBeenLastCalledWith({ owner: '/', recursive: true }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+  await waitFor(() => expect(load).toHaveBeenLastCalledWith({}));
+  expect(checkbox.disabled).toBe(true);
+  expect(checkbox.checked).toBe(false);
+  expect(save).not.toHaveBeenCalled();
+  expect(move).not.toHaveBeenCalled();
+});
+
+test('superseded scope responses and Clear cannot replace latest selection; refresh preserves drafts', async () => {
+  const first = deferred();
+  const second = deferred();
+  const load = vi
+    .fn<(query: BoardQuery) => Promise<BoardResponse>>()
+    .mockResolvedValueOnce(data)
+    .mockReturnValueOnce(first.promise)
+    .mockReturnValueOnce(second.promise)
+    .mockResolvedValue(data);
+  render(<Board load={load} />);
+  await screen.findByText('First');
+  const filters = screen.getByRole('form', { name: 'Board filters' });
+  const search = screen.getByLabelText('Search title or description');
+  fireEvent.change(search, { target: { value: 'first query' } });
+  fireEvent.submit(filters);
+  expect(screen.getByText(/Previous results:/).textContent).toContain(
+    'All text',
+  );
+  fireEvent.change(search, { target: { value: 'second query' } });
+  fireEvent.submit(filters);
+  await act(() => {
+    second.resolve({ ...data, actions: [] });
+    return second.promise;
+  });
+  await screen.findByText('No Actions match these filters');
+  expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(5);
+  expect(
+    screen
+      .getAllByRole('button', { name: /Add Action/ })
+      .every((button) => !(button as HTMLButtonElement).disabled),
+  ).toBe(true);
+  fireEvent.change(search, { target: { value: 'unsaved query' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await waitFor(() =>
+    expect(load).toHaveBeenLastCalledWith({ search: 'second query' }),
+  );
+  expect((search as HTMLInputElement).value).toBe('unsaved query');
+  fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+  await screen.findByText('First');
+  await act(() => {
+    first.resolve({ ...data, actions: [] });
+    return first.promise;
+  });
+  expect(screen.getByText('First')).toBeTruthy();
+  expect(screen.queryByText('No Actions match these filters')).toBeNull();
+});
+
+test.each([false, true])(
+  'filtered creation confirms save separately from membership read failure=%s',
+  async (fails) => {
+    const load = vi
+      .fn<(query: BoardQuery) => Promise<BoardResponse>>()
+      .mockResolvedValue(data);
+    const save = vi
+      .fn<(input: CreateActionRequest) => Promise<BoardAction>>()
+      .mockResolvedValue({ ...data.actions[0]!, id: 'new', title: 'Excluded' });
+    render(<Board load={load} save={save} />);
+    await screen.findByText('First');
+    fireEvent.change(screen.getByLabelText('Search title or description'), {
+      target: { value: 'First' },
+    });
+    fireEvent.submit(screen.getByRole('form', { name: 'Board filters' }));
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(
+        screen.getByRole('status', { name: 'Board refresh' }).textContent,
+      ).toContain('up to date'),
+    );
+    const form = openForm('Open');
+    fireEvent.change(within(form).getByLabelText('Title'), {
+      target: { value: 'Excluded' },
+    });
+    if (fails) load.mockRejectedValueOnce(new Error('Membership unavailable'));
+    fireEvent.submit(form);
+    await screen.findByText(
+      fails
+        ? /saved successfully.*refresh could not be confirmed/
+        : /saved successfully but the Action does not match/,
+    );
+    expect(save).toHaveBeenCalledExactlyOnceWith({
+      title: 'Excluded',
+      owner: '/',
+      state: 'open',
+    });
+    expect(document.querySelector('[data-action-id="new"]')).toBeNull();
+  },
+);
+
+test('an editor retains drafts and an authoritative snapshot when filtered refresh excludes its card', async () => {
+  let excluded = false;
+  const load = vi.fn<(query: BoardQuery) => Promise<BoardResponse>>((query) =>
+    Promise.resolve(query.search && excluded ? { ...data, actions: [] } : data),
+  );
+  const edit = vi
+    .fn<(id: string, input: EditActionRequest) => Promise<BoardAction>>()
+    .mockResolvedValue({ ...data.actions[0]!, title: 'Renamed' });
+  render(<Board load={load} editAction={edit} />);
+  await screen.findByText('First');
+  fireEvent.change(screen.getByLabelText('Search title or description'), {
+    target: { value: 'First' },
+  });
+  fireEvent.submit(screen.getByRole('form', { name: 'Board filters' }));
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  fireEvent.click(screen.getByText('First'));
+  const dialog = screen.getByRole('dialog');
+  fireEvent.change(within(dialog).getByLabelText('Title'), {
+    target: { value: 'Renamed' },
+  });
+  excluded = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await screen.findByText('No Actions match these filters');
+  expect(within(dialog).getByLabelText<HTMLInputElement>('Title').value).toBe(
+    'Renamed',
+  );
+  expect(within(dialog).queryByText(/changed on the board/)).toBeNull();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+  await screen.findByText(/saved successfully but the Action does not match/);
+  expect(edit).toHaveBeenCalledTimes(1);
+});
+
+test('a filtered read predating a confirmed move cannot resurrect the old snapshot; removed focus has a fallback', async () => {
+  const old = deferred();
+  const load = vi
+    .fn<(query: BoardQuery) => Promise<BoardResponse>>()
+    .mockResolvedValueOnce(data)
+    .mockReturnValueOnce(old.promise)
+    .mockResolvedValue({ ...data, actions: [] });
+  const move = vi
+    .fn<(id: string, input: UpdateActionStateRequest) => Promise<BoardAction>>()
+    .mockResolvedValue({ ...data.actions[0]!, state: 'completed' });
+  render(<Board load={load} move={move} />);
+  await screen.findByText('First');
+  const card = screen.getByText('First').closest('article')!;
+  card.focus();
+  fireEvent.change(screen.getByLabelText('Search title or description'), {
+    target: { value: 'First' },
+  });
+  fireEvent.submit(screen.getByRole('form', { name: 'Board filters' }));
+  dropCard('one', 'completed');
+  await screen.findByText('No Actions match these filters');
+  await act(() => {
+    old.resolve(data);
+    return old.promise;
+  });
+  expect(screen.queryByText('First')).toBeNull();
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'Apply filters' }),
+  );
+});
+test('pending filtered cards retain their observed snapshot only within the same result scope', async () => {
+  let confirm!: (action: BoardAction) => void;
+  const move = vi
+    .fn<(id: string, input: UpdateActionStateRequest) => Promise<BoardAction>>()
+    .mockReturnValue(
+      new Promise((resolve) => {
+        confirm = resolve;
+      }),
+    );
+  const load = vi
+    .fn<(query: BoardQuery) => Promise<BoardResponse>>()
+    .mockResolvedValue(data);
+  render(<Board load={load} move={move} />);
+  await screen.findByText('First');
+  const filters = screen.getByRole('form', { name: 'Board filters' });
+  const search = screen.getByLabelText('Search title or description');
+  fireEvent.change(search, { target: { value: 'First' } });
+  fireEvent.submit(filters);
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  dropCard('one', 'completed');
+  load.mockResolvedValue({ ...data, actions: [] });
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await screen.findByText(/previous card snapshots/);
+  expect(screen.getByText('First')).toBeTruthy();
+  expect(screen.queryByText('No Actions match these filters')).toBeNull();
+  fireEvent.change(search, { target: { value: 'other selection' } });
+  fireEvent.submit(filters);
+  await screen.findByText('No Actions match these filters');
+  expect(screen.queryByText('First')).toBeNull();
+  await act(async () => {
+    confirm({ ...data.actions[0]!, state: 'completed' });
+    await Promise.resolve();
+  });
+  expect(screen.queryByText('First')).toBeNull();
+});
 function deferred() {
   let resolve!: (data: BoardResponse) => void;
   let reject!: (error: Error) => void;
@@ -144,7 +373,7 @@ test('cards keep full text and semantic inline metadata without displaying IDs',
   const noReasonCard = screen.getByText('No reason').closest('article')!;
   expect(openCard.getAttribute('tabindex')).toBe('0');
   expect(openCard.getAttribute('aria-describedby')).toBe('drag-instructions');
-  expect(screen.queryByRole('combobox')).toBeNull();
+  expect(within(openCard).queryByRole('combobox')).toBeNull();
   expect(within(openCard).queryByRole('button')).toBeNull();
   expect(within(openCard).getByRole('heading').textContent).toBe(longTitle);
   expect(within(openCard).getByText(longOwner).textContent).toBe(longOwner);
@@ -290,7 +519,7 @@ function openForm(column = 'Waiting') {
       name: /Add Action/,
     }),
   );
-  return screen.getByRole('form');
+  return screen.getByRole('form', { name: /Add Action/ });
 }
 const created: BoardAction = {
   id: 'accepted',
@@ -319,7 +548,9 @@ test.each(['Open', 'In Progress', 'Waiting', 'Completed', 'Cancelled'])(
       target: { value: 'Work' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(screen.queryByRole('form')).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('form', { name: /Add Action/ })).toBeNull(),
+    );
     expect(save).toHaveBeenCalledWith({
       title: 'Work',
       owner: '/',
@@ -348,7 +579,7 @@ test('draft survives validation, refresh and failed save, and Cancel restores fo
   fireEvent.change(screen.getByLabelText(/Description/), {
     target: { value: '**Notes**' },
   });
-  fireEvent.focus(screen.getByRole('combobox', { name: 'Owner' }));
+  fireEvent.focus(within(form).getByRole('combobox', { name: 'Owner' }));
   fireEvent.click(await screen.findByRole('option', { name: /Stale owner/ }));
   fireEvent.change(screen.getByLabelText(/Waiting for/), {
     target: { value: '  Reply  ' },
@@ -359,7 +590,7 @@ test('draft survives validation, refresh and failed save, and Cancel restores fo
       screen.getByRole('status', { name: 'Board refresh' }).textContent,
     ).toContain('up to date'),
   );
-  expect(screen.getByRole('form')).toBe(form);
+  expect(screen.getByRole('form', { name: /Add Action/ })).toBe(form);
   fireEvent.submit(form);
   await screen.findByText('Owner does not exist.');
   expect(save).toHaveBeenCalledWith({
@@ -380,7 +611,7 @@ test('draft survives validation, refresh and failed save, and Cancel restores fo
   );
   expect(screen.queryByText('Saved work')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-  expect(screen.queryByRole('form')).toBeNull();
+  expect(screen.queryByRole('form', { name: /Add Action/ })).toBeNull();
   expect(document.activeElement?.textContent).toContain('Add Action');
 });
 
@@ -398,6 +629,7 @@ test('pending create cannot duplicate; old GET cannot erase confirmation; subseq
     .fn<() => Promise<BoardResponse>>()
     .mockResolvedValueOnce(data)
     .mockReturnValueOnce(oldRead.promise)
+    .mockResolvedValueOnce({ ...data, actions: [...data.actions, created] })
     .mockResolvedValue({
       ...data,
       actions: [...data.actions, { ...created, state: 'completed' }],
@@ -468,17 +700,17 @@ test('confirmed create keeps stale warning until GET succeeds; uncertain failure
   fireEvent.change(screen.getByLabelText('Title'), {
     target: { value: 'Saved work' },
   });
-  fireEvent.submit(screen.getByRole('form'));
+  fireEvent.submit(screen.getByRole('form', { name: /Add Action/ }));
   await screen.findByText('Saved work');
   expect(screen.getByRole('alert').textContent).toContain('out of date');
   openForm();
   fireEvent.change(screen.getByLabelText('Title'), {
     target: { value: 'Uncertain work' },
   });
-  fireEvent.submit(screen.getByRole('form'));
+  fireEvent.submit(screen.getByRole('form', { name: /Add Action/ }));
   await screen.findByText(/Save could not be confirmed/);
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
-  await waitFor(() => expect(load).toHaveBeenCalledTimes(3));
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(4));
   expect(save).toHaveBeenCalledTimes(2);
   expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
     'Uncertain work',
@@ -656,7 +888,21 @@ test('edit sends one combined snapshot, reconciles confirmed card over an old re
   const load = vi
     .fn<() => Promise<BoardResponse>>()
     .mockResolvedValueOnce(data)
-    .mockReturnValueOnce(oldRead.promise);
+    .mockReturnValueOnce(oldRead.promise)
+    .mockResolvedValue({
+      ...data,
+      actions: [
+        data.actions[0]!,
+        data.actions[1]!,
+        {
+          ...data.actions[2]!,
+          title: 'New title',
+          description: 'Notes',
+          waiting_for: undefined,
+          updated_at: 'later',
+        },
+      ],
+    });
   let confirm!: (action: BoardAction) => void;
   const edit = vi
     .fn<(id: string, input: EditActionRequest) => Promise<BoardAction>>()

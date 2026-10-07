@@ -6,12 +6,231 @@ import { z } from 'zod';
 import { boardAction } from '../../src/contracts/index.js';
 import { cleanup, temporaryDirectory } from '../support/workspace.js';
 const cli = resolve('dist/bootstrap/cli.js');
+test('search and recursive owner scope match CLI; excluded writes and keyboard movement stay usable', async ({
+  page,
+  context,
+}, testInfo) => {
+  const root = temporaryDirectory();
+  const run = (...args: string[]) => {
+    const result = spawnSync(process.execPath, [cli, ...args], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(result.status, result.stderr).toBe(0);
+    return result.stdout;
+  };
+  const action = (...args: string[]) =>
+    z
+      .object({ result: z.object({ action: boardAction }) })
+      .parse(JSON.parse(run('create', 'action', ...args, '--json'))).result
+      .action;
+  run('init', '--title', 'Filter journey');
+  run('create', 'project', '--title', 'Alpha');
+  run(
+    'create',
+    'project',
+    '--title',
+    'Alpha sibling',
+    '--slug',
+    'alpha-sibling',
+  );
+  run('create', 'outcome', '--title', 'Ready', '--owner', '/_projects/alpha/');
+  run(
+    'create',
+    'outcome',
+    '--title',
+    'Nested',
+    '--owner',
+    '/_projects/alpha/ready/',
+  );
+  run(
+    'create',
+    'outcome',
+    '--title',
+    'Ready',
+    '--owner',
+    '/_projects/alpha-sibling/',
+  );
+  const direct = action(
+    '--title',
+    'Direct',
+    '--description',
+    'Only description has needle',
+    '--owner',
+    '/_projects/alpha/',
+  );
+  const nested = action(
+    '--title',
+    'Nested task',
+    '--description',
+    '**needle**',
+    '--owner',
+    '/_projects/alpha/ready/nested/',
+  );
+  action(
+    '--title',
+    'Sibling task',
+    '--description',
+    'needle',
+    '--owner',
+    '/_projects/alpha-sibling/ready/',
+  );
+  const server = spawn(process.execPath, [cli, 'serve', '--port', '14321'], {
+    cwd: root,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  server.stdout.on('data', (chunk: Buffer) => {
+    output += chunk.toString();
+  });
+  server.stderr.on('data', (chunk: Buffer) => {
+    output += chunk.toString();
+  });
+  try {
+    await expect.poll(() => output).toContain('http://127.0.0.1:14321');
+    await page.goto('http://127.0.0.1:14321');
+    const filters = page.getByRole('form', { name: 'Board filters' });
+    const search = filters.getByLabel('Search title or description');
+    const picker = filters.getByRole('combobox');
+    await search.fill('  needle  ');
+    await search.press('Enter');
+    await expect(
+      page.getByRole('status', { name: 'Board refresh' }),
+    ).toHaveText('3 matching Actions · up to date');
+    await picker.fill('/_projects/alpha/');
+    await expect(filters.getByRole('option')).toHaveCount(3);
+    await picker.press('ArrowDown');
+    await picker.press('Enter');
+    await expect(filters.getByText('Unapplied filter changes')).toBeVisible();
+    await expect(page.getByRole('article')).toHaveCount(3);
+    await filters.getByRole('button', { name: 'Apply filters' }).click();
+    await expect(page.getByRole('article')).toHaveCount(1);
+    await expect(page.getByRole('article')).toHaveAttribute(
+      'data-action-id',
+      direct.id,
+    );
+    await filters.getByRole('checkbox').check();
+    await filters.getByRole('button', { name: 'Apply filters' }).click();
+    await expect(page.getByRole('article')).toHaveCount(2);
+    const cliIds = z
+      .object({ result: z.object({ actions: z.array(boardAction) }) })
+      .parse(
+        JSON.parse(
+          run(
+            'list',
+            'actions',
+            '--search',
+            'needle',
+            '--owner',
+            '/_projects/alpha/',
+            '--recursive',
+            '--json',
+          ),
+        ),
+      )
+      .result.actions.map((item) => item.id);
+    expect(
+      await Promise.all(
+        (await page.getByRole('article').all()).map((card) =>
+          card.getAttribute('data-action-id'),
+        ),
+      ),
+    ).toEqual(cliIds);
+    await page.screenshot({
+      path: testInfo.outputPath('filters-desktop.png'),
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.screenshot({
+      path: testInfo.outputPath('filters-narrow.png'),
+      fullPage: true,
+    });
+    expect(
+      await page.evaluate('document.documentElement.scrollWidth <= innerWidth'),
+    ).toBe(true);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    // Applied selection and unapplied drafts survive an actual return to the tab.
+    const session = await context.newCDPSession(page);
+    await session.send('Emulation.setFocusEmulationEnabled', {
+      enabled: false,
+    });
+    await search.fill('unapplied draft');
+    const away = await context.newPage();
+    const awaySession = await context.newCDPSession(away);
+    await awaySession.send('Emulation.setFocusEmulationEnabled', {
+      enabled: false,
+    });
+    await away.bringToFront();
+    run('set', 'action', nested.id, '--title', 'CLI changed nested');
+    await page.bringToFront();
+    await expect(
+      page.getByRole('article').getByText('CLI changed nested'),
+    ).toBeVisible();
+    await expect(search).toHaveValue('unapplied draft');
+    await away.close();
+    await page.locator(`[data-action-id="${direct.id}"]`).focus();
+    await page.keyboard.press('Enter');
+    const detail = page.getByRole('dialog', { name: 'Edit Action' });
+    await detail.getByLabel(/Description/).fill('No selected text');
+    await detail.getByRole('button', { name: 'Save changes' }).click();
+    await expect(
+      page.getByText(/saved successfully but the Action does not match/),
+    ).toBeVisible();
+    await expect(page.locator(`[data-action-id="${direct.id}"]`)).toHaveCount(
+      0,
+    );
+    const open = page.getByRole('region', { name: 'Open', exact: true });
+    await open.getByRole('button', { name: 'Add Action' }).click();
+    const form = open.getByRole('form');
+    await form.getByLabel('Title', { exact: true }).fill('Excluded creation');
+    await form.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(
+      page.getByText(
+        'Excluded creation: saved successfully but the Action does not match current filters.',
+      ),
+    ).toBeVisible();
+    await expect(page.getByRole('article')).toHaveCount(1);
+    await page.locator(`[data-action-id="${nested.id}"]`).focus();
+    await page.keyboard.press('Space');
+    await expect(
+      page.locator(`[data-action-id="${nested.id}"]`),
+    ).toHaveAttribute('class', /dragging/);
+    // dnd-kit attaches the keyboard listener on the next task.
+    await page.waitForTimeout(50);
+    await page.keyboard.press('ArrowRight');
+    await expect(
+      page.getByRole('region', { name: 'In Progress', exact: true }),
+    ).toHaveAttribute('class', /dropTarget/);
+    await page.keyboard.press('Space');
+    await expect(
+      page
+        .getByRole('region', { name: 'In Progress', exact: true })
+        .getByRole('article'),
+    ).toHaveAttribute('data-action-id', nested.id);
+    await filters.getByRole('button', { name: 'Clear filters' }).click();
+    await expect(page.getByRole('article')).toHaveCount(4);
+    await expect(
+      page.getByRole('article').getByText('Excluded creation'),
+    ).toBeVisible();
+    await expect(search).toHaveValue('');
+    await expect(filters.getByRole('checkbox')).toBeDisabled();
+  } finally {
+    const exited = once(server, 'exit');
+    server.kill();
+    await exited;
+    cleanup(root);
+  }
+});
 async function dragCard(
   page: Page,
   from: Locator,
   to: Locator,
   targetOffsetX?: number,
 ) {
+  // Filters push the board below the initial viewport. Use current visible
+  // geometry rather than releasing the pointer outside the browser viewport.
+  await to.scrollIntoViewIfNeeded();
+  await from.scrollIntoViewIfNeeded();
   const start = await from.boundingBox();
   const end = await to.boundingBox();
   expect(start).not.toBeNull();
@@ -91,7 +310,7 @@ test('built board quietly reflects a CLI change on return to the tab', async ({
           run('create', 'action', '--title', 'Confirm delivery', '--json'),
         ),
       );
-    await page.getByRole('button', { name: 'Refresh' }).click();
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
     await expect(
       page
         .getByRole('region', { name: 'Waiting', exact: true })
@@ -202,12 +421,13 @@ test('create a Waiting Action with Outcome owner and verify persisted values thr
     await page.keyboard.type('Review **release** notes');
     await page.keyboard.press('Tab');
     await page
+      .getByRole('form', { name: /Add Action/ })
       .getByRole('combobox', { name: 'Owner' })
       .fill('/_projects/launch/ready/');
     await page.getByRole('option', { name: /ready/ }).click();
     await page.keyboard.press('Tab');
     await expect(
-      page.getByRole('button', { name: 'Refresh owners' }),
+      waiting.getByRole('button', { name: 'Refresh owners' }),
     ).toBeFocused();
     await page.keyboard.press('Tab');
     await page.keyboard.type('Approval from team');
@@ -392,7 +612,7 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
         exact: true,
       });
       await expect(mobileCard).toBeVisible();
-      expect(await mobile.getByRole('combobox').count()).toBe(0);
+      expect(await mobileCard.getByRole('combobox').count()).toBe(0);
       expect(
         await mobile.evaluate(
           'document.documentElement.scrollWidth <= window.innerWidth',

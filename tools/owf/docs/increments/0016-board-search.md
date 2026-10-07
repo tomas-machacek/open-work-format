@@ -1,6 +1,6 @@
 # 0016 — Search and filter Actions on the board
 
-> Status: reviewed
+> Status: in_progress
 > Description: Narrow the Kanban board by Action text and direct or recursive owner scope.
 > Depends on: [0014 — CLI Action text search](0014-action-search-cli.md), [0013 — Owner picker](0013-board-owner-picker.md) and [0012 — Board editing](0012-board-action-edit.md).
 
@@ -62,8 +62,7 @@ Owner discovery errors must not silently clear or broaden an applied filter;
 show Retry and retain selection and filter drafts. Retain a selected URL even
 if later discovery no longer offers that owner.
 
-Searchable owner results retain name, type and hierarchy disambiguation from
-0013. Reuse discovery and picker behavior without coupling filter selection to
+Searchable owner results retain name, type and hierarchy disambiguation from 0013. Reuse discovery and picker behavior without coupling filter selection to
 the Add Action or detail editor's owner choices.
 
 ### HTTP and shared operation

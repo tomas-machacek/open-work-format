@@ -6,6 +6,7 @@ import {
   type BoardAction,
   boardError,
   type BoardResponse,
+  type BoardQuery,
   updateActionStateResponse,
   type UpdateActionStateRequest,
   editActionResponse,
@@ -86,8 +87,16 @@ export async function updateActionState(
     );
   throw new StateUpdateError(parsed.data.error.message, parsed.data.error.code);
 }
-export async function fetchBoard(): Promise<BoardResponse> {
-  const response = await fetch('/api/actions', { cache: 'no-store' });
+export async function fetchBoard(
+  query: BoardQuery = {},
+): Promise<BoardResponse> {
+  const parameters = new URLSearchParams();
+  if (query.search !== undefined) parameters.set('search', query.search);
+  if (query.owner !== undefined) parameters.set('owner', query.owner);
+  if (query.recursive !== undefined)
+    parameters.set('recursive', String(query.recursive));
+  const suffix = parameters.size ? `?${parameters.toString()}` : '';
+  const response = await fetch(`/api/actions${suffix}`, { cache: 'no-store' });
   const body: unknown = await response.json();
   if (!response.ok) {
     const parsed = boardError.safeParse(body);

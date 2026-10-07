@@ -10,6 +10,25 @@ export const ownersResponse = z.object({
   ),
 });
 export type AvailableOwner = z.infer<typeof ownersResponse>['owners'][number];
+export const boardQuery = z
+  .object({
+    search: z
+      .string()
+      .refine((value) => value.trim().length > 0)
+      .optional(),
+    owner: z.string().optional(),
+    recursive: z.enum(['true', 'false']).optional(),
+  })
+  .strict()
+  .refine((value) => value.recursive !== 'true' || value.owner !== undefined)
+  .transform((value) => ({
+    ...(value.search === undefined ? {} : { search: value.search }),
+    ...(value.owner === undefined ? {} : { owner: value.owner }),
+    ...(value.recursive === undefined
+      ? {}
+      : { recursive: value.recursive === 'true' }),
+  }));
+export type BoardQuery = z.infer<typeof boardQuery>;
 export const listActionsOptions = z.object({
   search: z.string().optional(),
   state: z.array(z.string()).optional(),

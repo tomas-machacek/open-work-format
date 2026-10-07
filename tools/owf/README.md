@@ -283,7 +283,24 @@ the server confirms the change. A conflict refreshes the board; after an
 uncertain network failure, refresh and check before trying again.
 CLI changes appear when you return to the window/tab or press Refresh. Refresh
 retains cards; errors mark existing data not current and offer Retry. There is
-no polling, filtering, within-column ordering or multi-Workspace registration.
+no polling, within-column ordering or multi-Workspace registration.
+
+Use **Search title or description** and the searchable **Owner** filter above
+the board, then **Apply filters** (or Enter in the text input). Controls are drafts
+until applied; unapplied changes are indicated. Search trims edges and uses the
+same literal case-insensitive substring rules as CLI search, including stored
+Markdown and significant diacritics. Text and owner constraints combine with AND.
+**All owners** removes the owner constraint; Workspace (`/`) selects standalone
+Actions. **Include descendant Outcomes** opts into recursive selection; with
+Workspace it includes the entire Workspace. Picker Enter only selects an owner.
+**Clear filters** restores defaults. All five columns stay visible and counts show
+matching results. Refresh, Retry and return-to-tab preserve applied filters and
+control drafts; a page reload restores defaults. Previous results are labeled
+while a different scope loads, and read errors retain the last successful scope.
+Creation still defaults to Workspace and the chosen column. After a filtered
+create/edit, the server determines membership again. A save outside the selection
+is announced as successful; a failed membership read is reported separately and
+must not prompt repeating the save. Editor drafts survive selection exclusion.
 
 Click a card (or press Enter while it is focused) to open its detail editor.
 The editor uses the same owner picker. An unavailable stored owner stays visible;
@@ -303,6 +320,16 @@ screenshots and traces are diagnostics in `test-results/`, not snapshot assertio
 archived subtrees are excluded. Unsafe links or unreadable/malformed owner
 metadata return 503 `OWNER_DISCOVERY_FAILED` rather than a partial list. Responses
 use `Cache-Control: no-store`; discovery does not read the Operational Store.
+
+`GET /api/actions` returns `{ workspace: { root }, actions: [...] }` with complete
+ordered records. Optional `search`, `owner` and `recursive=true|false` select through
+the shared CLI/application operation. Each parameter may occur only once;
+recursive true requires an owner. Explicit blank search, invalid owner URLs,
+unknown/repeated parameters and malformed recursion return 400 in the existing
+error envelope; unmatched valid queries return 200 with an empty array. Read/store
+failures return 503, including corrupt records outside the selection. Encode query
+values with `URLSearchParams` to preserve spaces, ampersands, literal punctuation
+and the percent escapes in canonical owner URLs. Reads never change the store.
 
 The write endpoints accept only same-origin `application/json` requests at
 `http://127.0.0.1:<serve-port>`; cross-origin/form requests are rejected before
