@@ -261,17 +261,14 @@ test('an editor retains drafts and an authoritative snapshot when filtered refre
   expect(edit).toHaveBeenCalledTimes(1);
 });
 
-test('a filtered read predating a confirmed move cannot resurrect the old snapshot; removed focus has a fallback', async () => {
+test('a CLI edit excluding a focused card supersedes an older filtered read and restores focus', async () => {
   const old = deferred();
   const load = vi
     .fn<(query: BoardQuery) => Promise<BoardResponse>>()
     .mockResolvedValueOnce(data)
     .mockReturnValueOnce(old.promise)
     .mockResolvedValue({ ...data, actions: [] });
-  const move = vi
-    .fn<(id: string, input: UpdateActionStateRequest) => Promise<BoardAction>>()
-    .mockResolvedValue({ ...data.actions[0]!, state: 'completed' });
-  render(<Board load={load} move={move} />);
+  render(<Board load={load} />);
   await screen.findByText('First');
   const card = screen.getByText('First').closest('article')!;
   card.focus();
@@ -279,7 +276,8 @@ test('a filtered read predating a confirmed move cannot resurrect the old snapsh
     target: { value: 'First' },
   });
   fireEvent.submit(screen.getByRole('form', { name: 'Board filters' }));
-  dropCard('one', 'completed');
+  // The newer read observes a CLI rename that no longer matches "First".
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
   await screen.findByText('No Actions match these filters');
   await act(() => {
     old.resolve(data);
@@ -289,6 +287,160 @@ test('a filtered read predating a confirmed move cannot resurrect the old snapsh
   expect(document.activeElement).toBe(
     screen.getByRole('button', { name: 'Apply filters' }),
   );
+});
+
+test('a confirmed filtered move survives failed membership reads and older responses, including in the editor', async () => {
+  const old = deferred();
+  const membership = deferred();
+  const moved: BoardAction = {
+    ...data.actions[0]!,
+    state: 'completed',
+    updated_at: 'later',
+  };
+  const load = vi
+    .fn<(query: BoardQuery) => Promise<BoardResponse>>()
+    .mockResolvedValue(data);
+  const move = vi
+    .fn<(id: string, input: UpdateActionStateRequest) => Promise<BoardAction>>()
+    .mockResolvedValue(moved);
+  render(<Board load={load} move={move} />);
+  await screen.findByText('First');
+  fireEvent.change(screen.getByLabelText('Search title or description'), {
+    target: { value: 'First' },
+  });
+  fireEvent.submit(screen.getByRole('form', { name: 'Board filters' }));
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  load.mockReturnValueOnce(old.promise).mockReturnValueOnce(membership.promise);
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  dropCard('one', 'completed');
+  const completed = screen.getByRole('region', {
+    name: 'Completed',
+  });
+  await waitFor(() =>
+    expect(within(completed).getByText('First')).toBeTruthy(),
+  );
+  expect(
+    screen.getByText(
+      /membership in the current filters has not been confirmed/,
+    ),
+  ).toBeTruthy();
+  await act(async () => {
+    membership.reject(new Error('Membership unavailable'));
+    await membership.promise.catch(() => undefined);
+  });
+  await screen.findByText(/Membership unavailable/);
+  await act(async () => {
+    old.resolve(data);
+    await old.promise;
+  });
+  expect(within(completed).getByText('First')).toBeTruthy();
+  // Keyboard opening is unaffected by the pointer suppression after a drag.
+  await waitFor(() => {
+    fireEvent.keyDown(within(completed).getByRole('article'), { key: 'Enter' });
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText('completed')).toBeTruthy();
+  expect(within(dialog).queryByText(/changed on the board/)).toBeNull();
+  expect(
+    within(dialog).getByRole<HTMLButtonElement>('button', {
+      name: 'Save changes',
+    }).disabled,
+  ).toBe(false);
+});
+
+test('save membership notices follow the latest refresh instead of superseded reads', async () => {
+  const old = deferred();
+  const load = vi
+    .fn<(query: BoardQuery) => Promise<BoardResponse>>()
+    .mockResolvedValue(data);
+  const save = vi
+    .fn<(input: CreateActionRequest) => Promise<BoardAction>>()
+    .mockResolvedValue({ ...data.actions[0]!, id: 'new', title: 'Excluded' });
+  render(<Board load={load} save={save} />);
+  await screen.findByText('First');
+  fireEvent.change(screen.getByLabelText('Search title or description'), {
+    target: { value: 'First' },
+  });
+  fireEvent.submit(screen.getByRole('form', { name: 'Board filters' }));
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  load.mockReturnValueOnce(old.promise);
+  const form = openForm('Open');
+  fireEvent.change(within(form).getByLabelText('Title'), {
+    target: { value: 'Excluded' },
+  });
+  fireEvent.submit(form);
+  await screen.findByText(/Excluded: saved successfully. Checking/);
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await screen.findByText(
+    /Excluded: saved successfully but the Action does not match/,
+  );
+  await act(async () => {
+    old.resolve(data);
+    await old.promise;
+  });
+  expect(screen.queryByText(/Board refresh could not be confirmed/)).toBeNull();
+  expect(
+    screen.getByText(
+      /Excluded: saved successfully but the Action does not match/,
+    ),
+  ).toBeTruthy();
+  // A later successful scope change reconciles the notice as well as the cards.
+  load.mockResolvedValue({
+    ...data,
+    actions: [
+      ...data.actions,
+      { ...data.actions[0]!, id: 'new', title: 'Excluded' },
+    ],
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+  await screen.findByText('Excluded: saved successfully.');
+  expect(screen.queryByText(/does not match current filters/)).toBeNull();
+});
+
+test('failed authoritative editor reads retain drafts and snapshots until retry succeeds', async () => {
+  const load = vi
+    .fn<(query: BoardQuery) => Promise<BoardResponse>>()
+    .mockResolvedValue(data);
+  render(<Board load={load} />);
+  await screen.findByText('First');
+  fireEvent.change(screen.getByLabelText('Search title or description'), {
+    target: { value: 'First' },
+  });
+  fireEvent.submit(screen.getByRole('form', { name: 'Board filters' }));
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  fireEvent.click(screen.getByText('First'));
+  const dialog = screen.getByRole('dialog');
+  fireEvent.change(within(dialog).getByLabelText('Title'), {
+    target: { value: 'My draft' },
+  });
+  load
+    .mockResolvedValueOnce({ ...data, actions: [] })
+    .mockRejectedValueOnce(new Error('Authoritative read unavailable'));
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+  await screen.findByText(/Authoritative read unavailable/);
+  expect(within(dialog).getByLabelText<HTMLInputElement>('Title').value).toBe(
+    'My draft',
+  );
+  expect(within(dialog).queryByText(/changed on the board/)).toBeNull();
+  expect(screen.queryByText('No Actions match these filters')).toBeNull();
+  load.mockResolvedValueOnce({ ...data, actions: [] }).mockResolvedValueOnce({
+    ...data,
+    actions: [
+      { ...data.actions[0]!, title: 'CLI renamed', updated_at: 'later' },
+    ],
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+  await screen.findByText('No Actions match these filters');
+  expect(within(dialog).getByLabelText<HTMLInputElement>('Title').value).toBe(
+    'My draft',
+  );
+  expect(within(dialog).getByText(/changed on the board/)).toBeTruthy();
+  expect(
+    within(dialog).getByRole<HTMLButtonElement>('button', {
+      name: 'Save changes',
+    }).disabled,
+  ).toBe(true);
 });
 test('pending filtered cards retain their observed snapshot only within the same result scope', async () => {
   let confirm!: (action: BoardAction) => void;

@@ -266,8 +266,38 @@ change the verified implementation. Its formatting and `git diff --check` are
 checked separately. Linux verification was not performed. Filters intentionally
 live only in the mounted board and reset on full page reload; state filters,
 saved Views, URL deep links, ranking and pagination remain deferred as agreed.
-No implementation scope changes were needed. Independent code review is still
-pending; no merge, version/tag, release or publication was performed.
+No implementation scope changes were needed. Independent review of PR head
+`85d6e85c2f60dfb9fa5ac8680a660e7ca247dde6` against `main`
+`777bfd2145c5c33f80f8c5e68dadc9d69d126f52` found two P2 reconciliation issues:
+confirmed filtered moves retained an old displayed snapshot after membership-read
+failure, and superseded post-save reads could overwrite a newer successful
+refresh notice. Both were reproduced with targeted tests on Windows.
+
+Review repairs retain confirmed values on already displayed cards without
+inserting excluded Actions, label their unconfirmed membership, and initialize
+the editor from a retained confirmed snapshot. Save notices now derive from the
+latest board read state instead of individual request callbacks. Regression
+tests cover failed membership reads after confirmed moves, stale responses,
+editor snapshots, superseded save reads and later scope changes. A separate test
+covers failure and retry of the editor's authoritative unfiltered read. The focus
+test now describes a CLI rename as the reason for selection exclusion.
+
+Repair verification on **2026-10-07**, **Windows**, **Node.js v24.21.0**, bundled
+Playwright Chromium, in the repair working tree based on
+`85d6e85c2f60dfb9fa5ac8680a660e7ca247dde6`:
+
+- Focused board suite: **30 tests passed**.
+- `npm run verify`: **passed (exit 0)** after correcting new test typings and
+  formatting. Typecheck, lint, formatting, architecture and production build
+  passed; **102 unit**, **147 integration**, **25 acceptance scenarios / 127
+  steps**, **22 CLI E2E tests** and **5 Chromium journeys** passed.
+- This verification covers the uncommitted implementation and test repairs.
+  The subsequent update to this evidence is documentation-only and is checked
+  separately for formatting and whitespace. Linux and additional manual visual
+  inspection were not performed.
+
+Status remains `in_progress`; review of the repairs is pending. No merge,
+version/tag, release or publication was performed.
 
 ## Decision changes and follow-up
 

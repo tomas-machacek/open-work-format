@@ -302,6 +302,9 @@ Creation still defaults to Workspace and the chosen column. After a filtered
 create/edit, the server determines membership again. A save outside the selection
 is announced as successful; a failed membership read is reported separately and
 must not prompt repeating the save. Editor drafts survive selection exclusion.
+Already displayed cards retain confirmed saved values if the subsequent read
+fails; their filter membership is marked unconfirmed until a successful refresh.
+Save notices follow the latest board selection and refresh outcome.
 
 Click a card (or press Enter while it is focused) to open its detail editor.
 The editor uses the same owner picker. An unavailable stored owner stays visible;

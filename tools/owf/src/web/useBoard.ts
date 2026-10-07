@@ -18,11 +18,14 @@ export function useBoard(
   const [current, setCurrent] = useState<BoardAction>();
   const track = (action: BoardAction | undefined) => {
     tracked.current = action?.id;
-    setCurrent(action);
+    setCurrent(
+      action ? (accepted.current.get(action.id)?.action ?? action) : undefined,
+    );
   };
   const [data, setData] = useState<BoardResponse>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const [membershipPending, setMembershipPending] = useState(false);
   const generation = useRef(0);
   const writes = useRef(0);
   const accepted = useRef(
@@ -31,13 +34,24 @@ export function useBoard(
   const accept = useCallback((action: BoardAction) => {
     accepted.current.set(action.id, { action, revision: ++writes.current });
     if (tracked.current === action.id) setCurrent(action);
-    if (scope.current.search !== undefined || scope.current.owner !== undefined)
-      return;
-    if (JSON.stringify(resultScope.current) !== JSON.stringify(scope.current))
-      return;
+    const filtered =
+      scope.current.search !== undefined || scope.current.owner !== undefined;
+    if (filtered) setMembershipPending(true);
+    const insert =
+      !filtered &&
+      JSON.stringify(resultScope.current) === JSON.stringify(scope.current);
+    // Replace known cards with the confirmed snapshot without inferring filter
+    // membership or inserting a saved Action into an unconfirmed selection.
     setData(
       (current) =>
-        current && { ...current, actions: merge(current.actions, [action]) },
+        current && {
+          ...current,
+          actions: insert
+            ? merge(current.actions, [action])
+            : current.actions.map((item) =>
+                item.id === action.id ? action : item,
+              ),
+        },
     );
   }, []);
   const inFlight = useRef(false);
@@ -115,6 +129,7 @@ export function useBoard(
         setData(resolved);
         setResultQuery(selection);
         resultScope.current = selection;
+        setMembershipPending(false);
         setError(undefined);
         return true;
       } catch (failure) {
@@ -168,6 +183,7 @@ export function useBoard(
     data,
     error,
     loading,
+    membershipPending,
     refresh,
     accept,
     query,

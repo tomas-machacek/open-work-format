@@ -82,6 +82,7 @@ export function Board({
     data,
     error,
     loading,
+    membershipPending,
     refresh,
     accept,
     query,
@@ -95,7 +96,18 @@ export function Board({
   const [search, setSearch] = useState('');
   const [owner, setOwner] = useState('');
   const [recursive, setRecursive] = useState(false);
-  const [saveNotice, setSaveNotice] = useState<string>();
+  const [savedAction, setSavedAction] = useState<BoardAction>();
+  const saveNotice = savedAction
+    ? loading
+      ? `${savedAction.title}: saved successfully. Checking current board selection…`
+      : error
+        ? `${savedAction.title}: saved successfully. Board refresh could not be confirmed; refresh the board. Do not repeat the save.`
+        : includes(savedAction.id)
+          ? `${savedAction.title}: saved successfully.`
+          : isFiltered()
+            ? `${savedAction.title}: saved successfully but the Action does not match current filters.`
+            : `${savedAction.title}: saved successfully. The Action is no longer in the board results.`
+    : undefined;
   const draft: BoardQuery = {
     ...(search.trim() ? { search: search.trim() } : {}),
     ...(owner ? { owner, recursive } : {}),
@@ -119,18 +131,8 @@ export function Board({
   }, []);
   function saved(action: BoardAction) {
     accept(action);
-    setSaveNotice(`${action.title}: saved successfully.`);
-    void refresh().then((success) => {
-      setSaveNotice(
-        success
-          ? includes(action.id)
-            ? `${action.title}: saved successfully.`
-            : isFiltered()
-              ? `${action.title}: saved successfully but the Action does not match current filters.`
-              : `${action.title}: saved successfully. The Action is no longer in the board results.`
-          : `${action.title}: saved successfully. Board refresh could not be confirmed; refresh the board. Do not repeat the save.`,
-      );
-    });
+    setSavedAction(action);
+    void refresh();
   }
   const [editing, setEditing] = useState<BoardAction['state']>();
   const [detail, setDetail] = useState<BoardAction>();
@@ -346,6 +348,12 @@ export function Board({
           ? ` Previous results: ${describeScope(resultQuery)} · ${data.actions.length} Actions.`
           : ''}
       </p>
+      {membershipPending && data && (
+        <p role="status" className={styles.scope}>
+          Saved card snapshots are displayed; membership in the current filters
+          has not been confirmed.
+        </p>
+      )}
       <div className={styles.context}>
         <p>
           <span>Workspace</span>{' '}
