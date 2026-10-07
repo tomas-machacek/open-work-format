@@ -322,7 +322,7 @@ export function Board({
           />{' '}
           Include descendant Outcomes
         </label>
-        <div className={styles.formButtons}>
+        <div className={`${styles.formButtons} ${styles.filterButtons}`}>
           <button ref={applyButton} type="submit">
             Apply filters
           </button>
@@ -338,7 +338,7 @@ export function Board({
             Clear filters
           </button>
         </div>
-        <p role="status">
+        <p role="status" className={styles.filterStatus}>
           {dirtyFilters ? 'Unapplied filter changes' : 'Filters applied'}
         </p>
       </form>

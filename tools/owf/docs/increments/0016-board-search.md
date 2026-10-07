@@ -299,6 +299,30 @@ Playwright Chromium, in the repair working tree based on
 Status remains `in_progress`; review of the repairs is pending. No merge,
 version/tag, release or publication was performed.
 
+Visual refinement requested after the repairs: the filter area now uses a
+compact responsive grid, aligned search/owner inputs and action buttons, inline
+selected-owner context and an owner-refresh link beside its label. Owner result
+counts remain available to assistive technology; the dropdown overlays the board
+instead of increasing the panel height. Picker behavior and form semantics are
+unchanged, and the scoped styles do not change creation or detail-editor pickers.
+
+Verification of the visual refinement on **2026-10-07**, **Windows**, in the
+working tree based on `807b208460dcccdb595716f8020cd57d8ce86bc1`:
+typecheck, lint, formatting, architecture, build and **102 unit tests** passed.
+`npm run verify` then stopped at the integration suite: **146 tests passed**, but
+the Vite proxy test could not start because an existing server occupied port 4317. That server was left running. Separate continuation checks passed **25
+acceptance scenarios / 127 steps**, **22 CLI E2E tests** and **5 Chromium
+journeys**. The generated 1280 px and 390 px screenshots were visually inspected;
+the compact panel is about 130 px high on desktop and the narrow layout has no
+horizontal overflow. Linux was not checked. The final evidence update is
+documentation-only and its formatting and whitespace are checked separately.
+
+A subsequent complete `npm run verify` on the same visual-refinement working
+tree passed on Windows (exit 0): **102 unit tests**, **147 integration tests**,
+**25 acceptance scenarios / 127 steps**, **22 CLI E2E tests** and **5 Chromium
+journeys**, together with all static checks and the build. Port 4317 was available
+for this run; no server was stopped and no implementation change was needed.
+
 ## Decision changes and follow-up
 
 CLI text search was deliberately delivered first as 0014. This increment adds
