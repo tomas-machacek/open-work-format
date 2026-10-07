@@ -1,6 +1,6 @@
 # 0016 — Search and filter Actions on the board
 
-> Status: in_progress
+> Status: completed
 > Description: Narrow the Kanban board by Action text and direct or recursive owner scope.
 > Depends on: [0014 — CLI Action text search](0014-action-search-cli.md), [0013 — Owner picker](0013-board-owner-picker.md) and [0012 — Board editing](0012-board-action-edit.md).
 
@@ -199,8 +199,10 @@ A separate state filter and persistent/saved Views are deferred.
 
 ## Implementation and review outcome
 
-Implemented on `docs/increment-0016-board-search` in PR #21. Status remains
-`in_progress` in this document and the index pending independent code review.
+Implemented on `docs/increment-0016-board-search` in PR #21. The user confirmed
+completed independent code review, repaired findings and the visual refinement
+on 2026-10-07, and authorized completion and merge to main. This document and
+the index are `completed`.
 
 Delivered behavior:
 
@@ -296,8 +298,9 @@ Playwright Chromium, in the repair working tree based on
   separately for formatting and whitespace. Linux and additional manual visual
   inspection were not performed.
 
-Status remains `in_progress`; review of the repairs is pending. No merge,
-version/tag, release or publication was performed.
+At the repair handoff, status was `in_progress` and review of repairs was pending.
+The user's subsequent completion confirmation is recorded below. No version/tag,
+release or publication was performed.
 
 Visual refinement requested after the repairs: the filter area now uses a
 compact responsive grid, aligned search/owner inputs and action buttons, inline
@@ -322,6 +325,13 @@ tree passed on Windows (exit 0): **102 unit tests**, **147 integration tests**,
 **25 acceptance scenarios / 127 steps**, **22 CLI E2E tests** and **5 Chromium
 journeys**, together with all static checks and the build. Port 4317 was available
 for this run; no server was stopped and no implementation change was needed.
+
+Completion on 2026-10-07: the user confirmed that code review was complete,
+findings were repaired and all changes, including the filter visual refinement,
+were pushed. The pre-completion PR head was
+`ef839692612b326cedb5921553b310d8d1a1e0b8`. The complete Windows verification
+record above includes the final visual refinement; completion commits change
+only documentation. No additional test execution or review is claimed here.
 
 ## Decision changes and follow-up
 
