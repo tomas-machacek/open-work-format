@@ -33,7 +33,7 @@ link and a one-line description; keep its status in sync.
 | [0013 — Search for Action owners on the board](0013-board-owner-picker.md) | Search and select owners in board Action forms.                        | completed   |
 | [0014 — Search Action text through the CLI](0014-action-search-cli.md)     | Search titles or descriptions combined with owner and state filters.   | completed   |
 | [0015 — Development dependency audit repair](0015-dependency-audit.md)     | Remove reported vulnerabilities in the development dependency graph.   | completed   |
-| [0016 — Search and filter Actions on the board](0016-board-search.md)      | Narrow the board by text and direct or recursive owner scope.          | in_progress |
+| [0016 — Search and filter Actions on the board](0016-board-search.md)      | Narrow the board by text and direct or recursive owner scope.          | completed   |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;
