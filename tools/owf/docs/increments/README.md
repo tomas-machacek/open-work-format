@@ -16,23 +16,24 @@ define the workflow and how to keep the record useful after implementation.
 Add each subsequent increment with a document
 link and a one-line description; keep its status in sync.
 
-| Increment                                                                  | Description                                                            | Status    |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------- |
-| [0001 — Workspace initialization](0001-workspace-init.md)                  | Establish CLI tooling and initialize/discover a named local Workspace. | completed |
-| [0002 — Project and Outcome creation](0002-project-outcome-creation.md)    | Create Markdown work contexts and generate Workspace CLI guidance.     | completed |
-| [0003 — Action creation and retrieval](0003-action-create-get.md)          | Create Actions in the Operational Store and retrieve them by ID.       | completed |
-| [0004 — Action listing](0004-action-list.md)                               | List Actions by direct owner or recursively by owner subtree.          | completed |
-| [0005 — Action state changes](0005-action-state.md)                        | Change Action state and filter Actions by state.                       | completed |
-| [0006 — Read-only Action board](0006-read-only-action-board.md)            | Display Actions by state in a local browser board.                     | completed |
-| [0007 — Action creation in a selected state](0007-action-initial-state.md) | Create Actions directly in a chosen execution state through the CLI.   | completed |
-| [0008 — Create Actions on the board](0008-board-action-create.md)          | Create Actions directly in a chosen board column.                      | completed |
-| [0009 — Compact Action cards](0009-compact-action-cards.md)                | Show denser cards with inline metadata and no visible ID.              | completed |
-| [0010 — Change Action state on the board](0010-board-action-state.md)      | Drag Actions between state columns with conflict checks.               | completed |
-| [0011 — Edit Actions through the CLI](0011-action-edit-cli.md)             | Edit Action content and ownership with one CLI operation.              | completed |
-| [0012 — Edit an Action on the board](0012-board-action-edit.md)            | Open an expanded card to edit and save an Action.                      | completed |
-| [0013 — Search for Action owners on the board](0013-board-owner-picker.md) | Search and select owners in board Action forms.                        | completed |
-| [0014 — Search Action text through the CLI](0014-action-search-cli.md)     | Search titles or descriptions combined with owner and state filters.   | completed |
-| [0015 — Development dependency audit repair](0015-dependency-audit.md)     | Remove reported vulnerabilities in the development dependency graph.   | completed |
+| Increment                                                                  | Description                                                            | Status      |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ----------- |
+| [0001 — Workspace initialization](0001-workspace-init.md)                  | Establish CLI tooling and initialize/discover a named local Workspace. | completed   |
+| [0002 — Project and Outcome creation](0002-project-outcome-creation.md)    | Create Markdown work contexts and generate Workspace CLI guidance.     | completed   |
+| [0003 — Action creation and retrieval](0003-action-create-get.md)          | Create Actions in the Operational Store and retrieve them by ID.       | completed   |
+| [0004 — Action listing](0004-action-list.md)                               | List Actions by direct owner or recursively by owner subtree.          | completed   |
+| [0005 — Action state changes](0005-action-state.md)                        | Change Action state and filter Actions by state.                       | completed   |
+| [0006 — Read-only Action board](0006-read-only-action-board.md)            | Display Actions by state in a local browser board.                     | completed   |
+| [0007 — Action creation in a selected state](0007-action-initial-state.md) | Create Actions directly in a chosen execution state through the CLI.   | completed   |
+| [0008 — Create Actions on the board](0008-board-action-create.md)          | Create Actions directly in a chosen board column.                      | completed   |
+| [0009 — Compact Action cards](0009-compact-action-cards.md)                | Show denser cards with inline metadata and no visible ID.              | completed   |
+| [0010 — Change Action state on the board](0010-board-action-state.md)      | Drag Actions between state columns with conflict checks.               | completed   |
+| [0011 — Edit Actions through the CLI](0011-action-edit-cli.md)             | Edit Action content and ownership with one CLI operation.              | completed   |
+| [0012 — Edit an Action on the board](0012-board-action-edit.md)            | Open an expanded card to edit and save an Action.                      | completed   |
+| [0013 — Search for Action owners on the board](0013-board-owner-picker.md) | Search and select owners in board Action forms.                        | completed   |
+| [0014 — Search Action text through the CLI](0014-action-search-cli.md)     | Search titles or descriptions combined with owner and state filters.   | completed   |
+| [0015 — Development dependency audit repair](0015-dependency-audit.md)     | Remove reported vulnerabilities in the development dependency graph.   | completed   |
+| [0016 — Search and filter Actions on the board](0016-board-search.md)      | Narrow the board by text and direct or recursive owner scope.          | completed   |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;

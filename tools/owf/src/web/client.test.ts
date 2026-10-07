@@ -6,6 +6,33 @@ import {
   updateActionState,
 } from './client.js';
 afterEach(() => vi.unstubAllGlobals());
+test('board query serialization preserves literal search and canonical URL escapes', async () => {
+  const fetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ workspace: { root: '/work' }, actions: [] }),
+        ),
+      ),
+    );
+  vi.stubGlobal('fetch', fetch);
+  const query = {
+    search: 'a & b + %_ **č**',
+    owner: '/_projects/a%20%26%25/child/',
+    recursive: true,
+  };
+  await fetchBoard(query);
+  const called = fetch.mock.calls[0]![0];
+  expect(typeof called).toBe('string');
+  const url = new URL(called as string, 'http://localhost');
+  expect(Object.fromEntries(url.searchParams)).toEqual({
+    ...query,
+    recursive: 'true',
+  });
+  await fetchBoard();
+  expect(fetch).toHaveBeenLastCalledWith('/api/actions', { cache: 'no-store' });
+});
 test('API client propagates HTTP read errors and rejects malformed successful payloads', async () => {
   const fetch = vi.fn<typeof globalThis.fetch>();
   vi.stubGlobal('fetch', fetch);

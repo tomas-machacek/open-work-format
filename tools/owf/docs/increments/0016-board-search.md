@@ -1,0 +1,339 @@
+# 0016 — Search and filter Actions on the board
+
+> Status: completed
+> Description: Narrow the Kanban board by Action text and direct or recursive owner scope.
+> Depends on: [0014 — CLI Action text search](0014-action-search-cli.md), [0013 — Owner picker](0013-board-owner-picker.md) and [0012 — Board editing](0012-board-action-edit.md).
+
+This proposal continues the discussion on 2026-10-06. CLI search was delivered
+separately in 0014; 0015 repaired development dependency audit findings.
+The user reviewed and approved this design for implementation on 2026-10-07.
+
+## Goal and scope
+
+Make a growing Workspace board useful for finding an Action or concentrating
+on one Project or Outcome. Reuse the shared application list operation so a
+human and an agent receive equivalent selections.
+
+References: [MVP scope](../../../../docs/design/mvp-scope.md),
+[architecture](../architecture.md) and
+[development guidelines](../development-guidelines.md).
+
+Included: title/description search, searchable owner selection, recursive owner
+scope, combined filters, clearing filters, filtered column counts and safe
+interaction with refresh and existing creation/editing/movement.
+
+All five intrinsic-state columns remain visible, including empty columns.
+A separate state filter is deferred for this increment: state is already
+represented by columns. Saved Views, persistent filters, URL deep links, fuzzy
+search, ranking, pagination and changes to card ordering are deferred.
+No schema changes, dependencies or release are required.
+
+## Proposed solution
+
+### Filter controls and semantics
+
+Place a compact, labeled filter area above the board:
+
+- Search input labeled "Search title or description".
+- Owner selection using the existing searchable picker, with a distinct
+  "All owners" choice as the default.
+- "Include descendant Outcomes" checkbox, disabled and false with All owners.
+  Selecting an owner defaults to direct ownership; recursive scope is opt-in.
+- "Apply filters" button; Enter in the search input also applies.
+- "Clear filters" button restores empty search, All owners and recursion off.
+
+Typed controls are drafts until Apply; the board and its counts reflect applied
+filters. Clearly indicate unapplied changes. Enter used to select an owner in
+the picker must not also submit the filter form.
+
+An empty or whitespace-only search means no text filter: the UI omits search
+rather than sending a blank value rejected by 0014. Trim query edges and preserve
+internal whitespace. A nonempty query uses 0014 semantics exactly: literal,
+case-insensitive substring in title OR description, significant diacritics,
+stored Markdown text, no cross-field match and no duplicate Action.
+Waiting reasons, owner labels and IDs are not searchable Action text.
+
+All owners means no owner constraint. Workspace (`/`) is a real selectable
+owner, not a synonym for All owners: directly it selects standalone Actions;
+with recursion it selects the entire Workspace. Project/Outcome direct and
+recursive filters use existing stored canonical URL semantics and combine with
+text using AND. Typing in the owner picker does not change the selected owner.
+Owner discovery errors must not silently clear or broaden an applied filter;
+show Retry and retain selection and filter drafts. Retain a selected URL even
+if later discovery no longer offers that owner.
+
+Searchable owner results retain name, type and hierarchy disambiguation from 0013. Reuse discovery and picker behavior without coupling filter selection to
+the Add Action or detail editor's owner choices.
+
+### HTTP and shared operation
+
+Extend GET `/api/actions` with optional `search`, `owner` and `recursive` query
+parameters and forward validated values to the shared `listActions` operation.
+The no-query endpoint retains its current response shape and behavior.
+
+Use a contracts-owned query schema and explicit query serialization at the
+browser boundary. Encode values with standard URL APIs so owner URL percent
+escapes, spaces, ampersands and literal search punctuation survive round trips.
+Do not double-decode stored owner URLs or use unescaped SQL patterns.
+
+Accept each query parameter once. `recursive` accepts only the strings
+`true` or `false`; true requires owner. Explicit blank search, invalid owner,
+repeated parameters, malformed recursion and unknown query parameters return
+400 with the existing error envelope, without reading/writing a replacement store.
+Do not coerce arbitrary nonempty strings to true. Valid unmatched queries return
+200 with an empty actions array. Storage/read failures remain 503.
+
+Application semantics, corruption detection, ordering and full Action records
+come from the existing operation. Do not duplicate matching in the browser,
+change CLI behavior or hide malformed nonmatching rows. Query selection is read-only.
+
+### Results, refresh and mutations
+
+Column counts reflect currently displayed matching Actions. Show the applied
+scope and total matching count, without presenting it as the unfiltered Workspace
+total. Distinguish a successful filtered zero-result view ("No Actions match
+these filters") from a failed read and from an unfiltered empty Workspace.
+Keep all columns and creation buttons available after a successful empty read.
+
+Manual Refresh, Retry and return-to-tab refresh preserve applied filters and
+unapplied control drafts. Retain the existing refresh strategy and stable cards.
+Filters live in the current mounted board; a full page reload restores defaults.
+
+Treat query changes as a change of result scope. Responses for superseded queries
+must not replace current results. While a new scope loads, retain old cards if
+desired but label them as previous results; do not label them/count them as
+confirmed matches for the new scope. On failure retain the last successful scope
+and cards with an explicit error. Clear must also supersede pending requests.
+
+Preserve confirmed-write reconciliation: a GET started before a confirmed write
+cannot resurrect an older card snapshot. Reconciliation must also respect query
+scope; do not blindly insert every confirmed Action into a filtered result.
+
+Creation keeps its existing defaults (Workspace owner and chosen column state);
+a filter is not a creation context. After successful create/edit, refresh the
+applied query to determine membership using shared server semantics. Preserve
+the confirmed snapshot against older reads. If the saved Action is excluded,
+announce that saving succeeded but the Action does not match current filters.
+If the membership read fails, distinguish successful save from refresh failure;
+do not claim exclusion or encourage repeating the write.
+
+A changed owner/title/description may make an edited card disappear after
+confirmation. Keep drafts and the editor usable through query changes, refresh,
+conflicts and save errors. Disappearance from a filtered list alone must not be
+interpreted as deletion or a stale-edit conflict; separate selection membership
+from the editor's authoritative snapshot.
+
+Dragging still changes only intrinsic state. It remains available across all
+five columns, including empty ones, under applied filters. Preserve existing
+pending-card, conflict, uncertain-write and keyboard behavior. Filter-only changes
+never issue a mutation. If a focused card disappears after a save or refreshed
+selection, move focus to a predictable available board/filter control and announce
+the result; never leave focus on a removed element.
+
+### Documentation and compatibility
+
+Update the tool README's board usage and HTTP query documentation.
+No new CLI command is added, so no generated Workspace guide change is required
+unless an existing example becomes inaccurate. Existing create/edit/state routes,
+unfiltered clients and user-edited Workspace guidance remain compatible.
+
+## Acceptance criteria
+
+AC1: Search selects Actions matching title OR description using the same rules
+as CLI 0014. Blank UI search removes the text constraint. Results retain order,
+complete records and unique IDs.
+
+AC2: All owners, direct Workspace/Project/Outcome selection and recursive scope
+work as defined. Combined search and owner scope use AND, including nested
+Outcomes and sibling-prefix exclusion. Duplicate owner names remain distinguishable.
+Owner discovery failure retains selection and provides Retry.
+
+AC3: Apply/Enter apply filter drafts; picker Enter selects only its owner.
+Clear restores the unfiltered board. Five columns remain visible with matching
+counts and an accurate empty-result message. No filter interaction writes data.
+
+AC4: Applied filters and control drafts survive refresh/return/error. Superseded
+query responses cannot overwrite the latest results; previous data is labeled
+accurately. Errors are not successful empty results. Existing confirmed-write
+protection remains effective across query changes.
+
+AC5: Create/edit still save normally. A confirmed saved Action is displayed only
+when the applied selection includes it. Exclusion is announced after successful
+membership determination; refresh failure cannot imply save failure. Editor drafts
+survive and selection exclusion is not confused with deletion/conflict.
+Dragging and keyboard focus remain usable under filtering.
+
+AC6: HTTP queries use the shared application path, preserve literal encoded
+values and reject malformed/repeated/unknown parameters with 400.
+No query preserves endpoint compatibility. Nonmatching corrupt data and unavailable
+stores remain errors with no mutations or partial results.
+
+## Verification plan
+
+- Reuse 0014 and owner-list application acceptance evidence for selection rules.
+  Add scenarios only for genuinely new behavior; do not repeat the matching matrix.
+- HTTP integration checks for serialization, validation, combined selection,
+  no-query compatibility, corruption outside selection and unchanged store (AC1–AC2, AC6).
+- Component/client tests for draft/apply/clear, counts, owner errors, response races,
+  successful-write exclusion, membership-read failure, editor retention and focus
+  (AC3–AC5). Use controlled response order for concrete stale-read regressions.
+- One focused Chromium journey with real server/CLI: search description text,
+  select a Project including descendant Outcomes, clear filters, edit a card out
+  of selection and create an excluded Action. Exercise keyboard controls and move
+  a remaining card. Extend existing journeys where that avoids redundant setup.
+- Run `npm run verify` before implementation handoff; record revision, actual
+  platform and results. Manually inspect the filter area on desktop and narrow
+  viewport and check keyboard navigation.
+
+Manual trial: create two Projects and nested Outcomes with distinct Actions.
+Give one Action matching text only in its description. Apply text and recursive
+Project filters, compare IDs with CLI list using the same flags, change an Action
+through CLI and return to the tab. Edit a displayed card so it no longer matches,
+verify the success notice, then Clear to find it again.
+
+## Open questions
+
+No blocking questions remain. Apply-based interaction and session-only filters
+were approved by the user as part of this design.
+A separate state filter and persistent/saved Views are deferred.
+
+## Implementation and review outcome
+
+Implemented on `docs/increment-0016-board-search` in PR #21. The user confirmed
+completed independent code review, repaired findings and the visual refinement
+on 2026-10-07, and authorized completion and merge to main. This document and
+the index are `completed`.
+
+Delivered behavior:
+
+- Contracts-owned GET query validation and explicit browser URL serialization
+  forward search, owner and boolean recursion to the existing `listActions` path.
+  No-query clients retain the response shape. Invalid/repeated/unknown parameters
+  return 400; corrupt data outside the selection and unavailable stores remain
+  503 without store replacement or mutations.
+- Apply-based text and searchable owner drafts, distinct All owners and Workspace,
+  opt-in recursion, Clear, five columns, matching counts and separate successful
+  empty/error views. Discovery failures retain selected URLs and picker drafts.
+- Applied scope and control drafts survive refresh, Retry and return-to-tab.
+  Superseded responses are ignored and prior result scopes are labeled. Confirmed
+  writes are protected from older reads without inserting arbitrary saved Actions
+  into filtered selections. Pending moves retain their observed cards only within
+  the same result scope and are labeled as previous snapshots.
+- Create/edit refresh the applied query after confirmation. Successful exclusion
+  and failed membership reads have separate notices. Editor snapshots are tracked
+  independently of selection membership: when an open Action is absent from a
+  filtered read, an unfiltered read checks its authoritative snapshot. Failure
+  retains the prior editor snapshot and reports a read error. Disappearing focused
+  cards move focus to an available control; creation defaults and drag semantics
+  are preserved.
+- README documents board filters and HTTP parameters. CLI behavior, generated
+  Workspace guidance, dependencies and schema are unchanged.
+
+Verification on **2026-10-07**, **Windows**, **Node.js v24.21.0**, bundled
+Playwright Chromium, at implementation revision
+`d34018408f08a8b912943649e30a41a9fa65de29`:
+
+- `npm run verify`: **passed (exit 0)**. Typecheck, ESLint, Prettier, architecture
+  (46 modules / 123 dependencies, no violations) and production build passed.
+  Unit tests: **99 passed**; integration: **147 passed**; acceptance:
+  **25 scenarios / 127 steps passed**; CLI E2E: **22 passed**;
+  Chromium journeys: **5 passed**.
+- [HTTP integration tests](../../tests/integration/board.test.ts) cover literal
+  punctuation and a real stored owner URL with spaces, ampersand and percent
+  escapes, shared AND selection, no-query compatibility, invalid queries before
+  unavailable-store access, nonmatching corruption and unchanged files (AC1–AC2,
+  AC6). Existing 0014/owner application acceptance scenarios remain selection-rule
+  evidence; no matching implementation or matrix was duplicated in the browser.
+- [Board component tests](../../src/web/Board.test.tsx),
+  [picker tests](../../src/web/OwnerPicker.test.tsx) and
+  [client tests](../../src/web/client.test.ts) cover draft/apply/clear, counts,
+  discovery failure, response ordering, confirmed-write protection, save exclusion,
+  membership-read failure, editor retention, pending moves and focus (AC3–AC5).
+- The new [Chromium journey](../../tests/e2e/board.spec.ts) uses the built server
+  and real CLI: description-only search, direct and recursive Project ownership
+  with nested Outcomes and sibling exclusion, ordered ID comparison with CLI,
+  unapplied drafts across an actual return-to-tab after a CLI edit, editing out of
+  selection, excluded creation with Workspace defaults, keyboard movement and
+  Clear. Existing creation, editing and pointer/touch/keyboard drag journeys pass.
+  The drag helper now scrolls targets into view before measuring pointer geometry;
+  Refresh and form/picker selectors identify their intended controls explicitly.
+- Desktop (1280 px) and narrow (390 px) screenshots from the real Chromium journey
+  were manually visually inspected: labeled controls, owner hierarchy, scope,
+  counts and all columns remain readable; no horizontal overflow. Keyboard owner
+  selection, search Enter, card Enter and Space/arrow movement were checked in
+  Chromium. Screenshot artifacts are local diagnostics under `test-results/`.
+
+The following handoff commit changes documentation/evidence only; it does not
+change the verified implementation. Its formatting and `git diff --check` are
+checked separately. Linux verification was not performed. Filters intentionally
+live only in the mounted board and reset on full page reload; state filters,
+saved Views, URL deep links, ranking and pagination remain deferred as agreed.
+No implementation scope changes were needed. Independent review of PR head
+`85d6e85c2f60dfb9fa5ac8680a660e7ca247dde6` against `main`
+`777bfd2145c5c33f80f8c5e68dadc9d69d126f52` found two P2 reconciliation issues:
+confirmed filtered moves retained an old displayed snapshot after membership-read
+failure, and superseded post-save reads could overwrite a newer successful
+refresh notice. Both were reproduced with targeted tests on Windows.
+
+Review repairs retain confirmed values on already displayed cards without
+inserting excluded Actions, label their unconfirmed membership, and initialize
+the editor from a retained confirmed snapshot. Save notices now derive from the
+latest board read state instead of individual request callbacks. Regression
+tests cover failed membership reads after confirmed moves, stale responses,
+editor snapshots, superseded save reads and later scope changes. A separate test
+covers failure and retry of the editor's authoritative unfiltered read. The focus
+test now describes a CLI rename as the reason for selection exclusion.
+
+Repair verification on **2026-10-07**, **Windows**, **Node.js v24.21.0**, bundled
+Playwright Chromium, in the repair working tree based on
+`85d6e85c2f60dfb9fa5ac8680a660e7ca247dde6`:
+
+- Focused board suite: **30 tests passed**.
+- `npm run verify`: **passed (exit 0)** after correcting new test typings and
+  formatting. Typecheck, lint, formatting, architecture and production build
+  passed; **102 unit**, **147 integration**, **25 acceptance scenarios / 127
+  steps**, **22 CLI E2E tests** and **5 Chromium journeys** passed.
+- This verification covers the uncommitted implementation and test repairs.
+  The subsequent update to this evidence is documentation-only and is checked
+  separately for formatting and whitespace. Linux and additional manual visual
+  inspection were not performed.
+
+At the repair handoff, status was `in_progress` and review of repairs was pending.
+The user's subsequent completion confirmation is recorded below. No version/tag,
+release or publication was performed.
+
+Visual refinement requested after the repairs: the filter area now uses a
+compact responsive grid, aligned search/owner inputs and action buttons, inline
+selected-owner context and an owner-refresh link beside its label. Owner result
+counts remain available to assistive technology; the dropdown overlays the board
+instead of increasing the panel height. Picker behavior and form semantics are
+unchanged, and the scoped styles do not change creation or detail-editor pickers.
+
+Verification of the visual refinement on **2026-10-07**, **Windows**, in the
+working tree based on `807b208460dcccdb595716f8020cd57d8ce86bc1`:
+typecheck, lint, formatting, architecture, build and **102 unit tests** passed.
+`npm run verify` then stopped at the integration suite: **146 tests passed**, but
+the Vite proxy test could not start because an existing server occupied port 4317. That server was left running. Separate continuation checks passed **25
+acceptance scenarios / 127 steps**, **22 CLI E2E tests** and **5 Chromium
+journeys**. The generated 1280 px and 390 px screenshots were visually inspected;
+the compact panel is about 130 px high on desktop and the narrow layout has no
+horizontal overflow. Linux was not checked. The final evidence update is
+documentation-only and its formatting and whitespace are checked separately.
+
+A subsequent complete `npm run verify` on the same visual-refinement working
+tree passed on Windows (exit 0): **102 unit tests**, **147 integration tests**,
+**25 acceptance scenarios / 127 steps**, **22 CLI E2E tests** and **5 Chromium
+journeys**, together with all static checks and the build. Port 4317 was available
+for this run; no server was stopped and no implementation change was needed.
+
+Completion on 2026-10-07: the user confirmed that code review was complete,
+findings were repaired and all changes, including the filter visual refinement,
+were pushed. The pre-completion PR head was
+`ef839692612b326cedb5921553b310d8d1a1e0b8`. The complete Windows verification
+record above includes the final visual refinement; completion commits change
+only documentation. No additional test execution or review is claimed here.
+
+## Decision changes and follow-up
+
+CLI text search was deliberately delivered first as 0014. This increment adds
+the board experience and HTTP access, reusing its agreed semantics.

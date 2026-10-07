@@ -7,10 +7,12 @@ export function OwnerPicker({
   value,
   onChange,
   disabled = false,
+  allowAll = false,
 }: {
   value: string;
   onChange: (url: string) => void;
   disabled?: boolean;
+  allowAll?: boolean;
 }) {
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
@@ -45,9 +47,23 @@ export function OwnerPicker({
       current = false;
     };
   }, [revision]);
-  const selected = owners.find((owner) => owner.url === value);
-  const matches = owners.filter((owner) =>
-    `${owner.title} ${owner.type} ${owner.hierarchy} ${owner.url}`
+  const choices = allowAll
+    ? [
+        {
+          url: '',
+          title: 'All owners',
+          type: 'workspace' as const,
+          hierarchy: 'No owner constraint',
+        },
+        ...owners,
+      ]
+    : owners;
+  const selected = choices.find((owner) => owner.url === value);
+  const matches = choices.filter((owner) =>
+    (owner.url === ''
+      ? owner.title
+      : `${owner.title} ${owner.type} ${owner.hierarchy} ${owner.url}`
+    )
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
@@ -80,7 +96,9 @@ export function OwnerPicker({
       <p className={styles.ownerSelected} aria-live="polite">
         Selected:{' '}
         {selected
-          ? `${selected.title} · ${selected.type}`
+          ? selected.url === ''
+            ? selected.title
+            : `${selected.title} · ${selected.type}`
           : value === '/'
             ? 'Workspace'
             : value}
@@ -132,7 +150,7 @@ export function OwnerPicker({
                 .getElementById(`${id}-option-${next}`)
                 ?.scrollIntoView?.({ block: 'nearest' });
             }
-          } else if (event.key === 'Enter' && open) {
+          } else if (event.key === 'Enter') {
             event.preventDefault();
             const owner = matches[active];
             if (available && owner) choose(owner);
@@ -179,7 +197,8 @@ export function OwnerPicker({
                   className={active === index ? styles.ownerActive : undefined}
                   onClick={() => choose(owner)}
                 >
-                  <strong>{owner.title}</strong> <span>{owner.type}</span>
+                  <strong>{owner.title}</strong>{' '}
+                  <span>{owner.url === '' ? '' : owner.type}</span>
                   <small>{owner.hierarchy}</small>
                   <small>{owner.url}</small>
                 </button>

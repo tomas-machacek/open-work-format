@@ -10,8 +10,8 @@ import {
 export async function serve(start: string, port = 4317) {
   const { result } = listActions(start);
   const server = createBoardServer(
-    () => {
-      const current = listActions(result.root);
+    (query) => {
+      const current = listActions(result.root, query);
       if (current.result.root !== result.root)
         throw new Error('The original Workspace is no longer available.');
       return current;

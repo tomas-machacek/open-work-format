@@ -119,6 +119,13 @@ ports. Do not assert internal call sequences unless order is part of correctness
 Avoid trivial getter tests, implementation-mirroring tests, and repeating the
 same combination at every layer.
 
+For asynchronous UI reconciliation, distinguish superseded reads from failed
+reads in both data and user notices. Test confirmed writes followed by read
+failure, not only stale successful responses. Keep confirmed object snapshots
+separate from query membership; retaining a snapshot does not establish that it
+matches a filter. Controlled query results should describe a plausible external
+change when membership changes without a corresponding local edit.
+
 Write Gherkin in English, matching project terminology. Scenarios describe
 domain behavior, not selectors, CLI flags or SQL. Bind them to the real
 application and domain with an isolated temporary Workspace and SQLite database

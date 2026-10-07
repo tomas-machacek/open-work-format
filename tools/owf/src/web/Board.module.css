@@ -118,6 +118,150 @@
   gap: 16px;
   align-items: start;
 }
+.filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(200px, 1fr) auto auto;
+  align-items: start;
+  gap: 8px 20px;
+  padding: 14px 18px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #d5dfd7;
+  border-radius: 10px;
+  background: #fff;
+}
+.filters > div {
+  min-width: 0;
+}
+.filters label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.filters input:not([type='checkbox']) {
+  width: 100%;
+  height: 38px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  background: #fcfdfb;
+  border: 1px solid #cad5cd;
+  border-radius: 7px;
+}
+.filters :focus-visible {
+  outline: 2px solid #50785e;
+  outline-offset: 2px;
+}
+.filters .recursive {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  margin: 22px 0 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: #52665b;
+}
+.recursive input {
+  margin: 0;
+  accent-color: #3e624d;
+}
+.filters .filterButtons {
+  margin-top: 22px;
+  flex-wrap: nowrap;
+}
+.filterButtons button {
+  min-height: 38px;
+  border-radius: 7px;
+}
+.filters .filterStatus {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: right;
+  font-size: 11px;
+  color: #65716a;
+}
+.filters .ownerPicker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+.filters .ownerPicker > label {
+  order: 0;
+}
+.filters .ownerPicker > input {
+  order: 1;
+  margin-bottom: 0;
+}
+.filters .ownerSelected {
+  order: 2;
+  margin: 5px 0 0;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filters .ownerSelected span {
+  display: inline;
+  margin-left: 6px;
+}
+.filters .ownerPicker > .hint {
+  order: 3;
+  margin: 5px 0 0;
+}
+.filters .ownerPicker > .hint[role='status'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.filters .ownerRefresh {
+  position: absolute;
+  top: -7px;
+  right: 0;
+  padding: 7px 0 7px 8px;
+  min-height: 30px;
+  background: #fff;
+}
+.filters .ownerOptions {
+  position: absolute;
+  top: 64px;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  box-shadow: 0 8px 24px #25342f20;
+}
+@media (max-width: 1250px) {
+  .filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .filters .recursive,
+  .filters .filterButtons {
+    margin-top: 0;
+  }
+  .filters .filterButtons {
+    justify-content: flex-end;
+  }
+}
+@media (max-width: 700px) {
+  .filters {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+  .filters .filterButtons {
+    justify-content: flex-start;
+  }
+  .filters .filterStatus {
+    text-align: left;
+  }
+}
+.scope {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
 .column {
   --accent: #71877b;
   --tint: #eef1ed;

@@ -12,6 +12,7 @@ import type { AvailableOwner, BoardAction } from '../contracts/index.js';
 import { ActionForm } from './ActionForm.js';
 import { ActionEditor } from './ActionEditor.js';
 import { fetchOwners } from './client.js';
+import { OwnerPicker } from './OwnerPicker.js';
 
 vi.mock('./client.js', async (original) => ({
   ...(await original<typeof import('./client.js')>()),
@@ -54,6 +55,31 @@ beforeEach(() => {
   vi.mocked(fetchOwners).mockReset().mockResolvedValue(owners);
 });
 afterEach(cleanup);
+test('filter owner discovery errors and missing rediscovered owners retain selected scope and typed draft', async () => {
+  const onChange = vi.fn();
+  render(
+    <OwnerPicker
+      allowAll
+      value="/_projects/alpha/ready/"
+      onChange={onChange}
+    />,
+  );
+  await screen.findByText('4 owners found.');
+  const input = screen.getByRole('combobox');
+  fireEvent.change(input, { target: { value: 'ready' } });
+  expect(screen.getAllByRole('option')).toHaveLength(2);
+  vi.mocked(fetchOwners).mockRejectedValueOnce(new Error('Discovery failed'));
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh owners' }));
+  await screen.findByText('Discovery failed');
+  expect(screen.getByText(/Selected: Ready/)).toBeTruthy();
+  expect((input as HTMLInputElement).value).toBe('ready');
+  vi.mocked(fetchOwners).mockResolvedValueOnce([]);
+  fireEvent.click(screen.getByRole('button', { name: 'Retry owners' }));
+  await screen.findByText(/Selected owner is unavailable/);
+  expect(screen.getByText(/Selected:.*alpha/)).toBeTruthy();
+  expect((input as HTMLInputElement).value).toBe('ready');
+  expect(onChange).not.toHaveBeenCalled();
+});
 function deferred() {
   let resolve!: (value: AvailableOwner[]) => void;
   let reject!: (error: Error) => void;

@@ -12,6 +12,8 @@ import type {
 import { WorkspaceError } from '../../application/workspaces/index.js';
 import {
   boardResponse,
+  boardQuery,
+  type BoardQuery,
   ownersResponse,
   createActionRequest,
   createActionResponse,
@@ -25,7 +27,7 @@ import {
 } from '../../contracts/index.js';
 
 export function createBoardServer(
-  read: () => ListActionsResult,
+  read: (query: BoardQuery) => ListActionsResult,
   assets: string,
   create: (input: CreateActionRequest) => ActionResult,
   update?: (id: string, input: UpdateActionStateRequest) => ActionResult,
@@ -232,15 +234,33 @@ export function createBoardServer(
       }
     },
   );
-  server.get('/api/actions', (_request, reply) => {
+  server.get('/api/actions', (request, reply) => {
+    const parameters = new URL(request.url, 'http://127.0.0.1').searchParams;
+    const repeated = [...parameters.keys()].some(
+      (key) => parameters.getAll(key).length > 1,
+    );
+    const parsed = boardQuery.safeParse(Object.fromEntries(parameters));
+    if (repeated || !parsed.success)
+      return reply.code(400).send({
+        error: {
+          code: 'INVALID_ARGUMENT',
+          message:
+            'Supply search, owner and recursive (true or false) once each only.',
+        },
+      });
     try {
-      const { result } = read();
+      const { result } = read(parsed.data);
       return boardResponse.parse({
         workspace: { root: result.root },
         actions: result.actions,
       });
     } catch (error) {
-      return reply.code(503).send({
+      const invalid =
+        error instanceof WorkspaceError &&
+        ['INVALID_ARGUMENT', 'INVALID_OWNER', 'OWNER_REQUIRED'].includes(
+          error.code,
+        );
+      return reply.code(invalid ? 400 : 503).send({
         error: {
           code:
             error instanceof WorkspaceError ? error.code : 'ACTION_READ_FAILED',

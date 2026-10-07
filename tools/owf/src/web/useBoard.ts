@@ -1,11 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { BoardResponse, BoardAction } from '../contracts/index.js';
+import type {
+  BoardResponse,
+  BoardAction,
+  BoardQuery,
+} from '../contracts/index.js';
 import { fetchBoard } from './client.js';
 
-export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
+export function useBoard(
+  load: (query: BoardQuery) => Promise<BoardResponse> = fetchBoard,
+) {
+  const [query, setQuery] = useState<BoardQuery>({});
+  const scope = useRef<BoardQuery>({});
+  const resultScope = useRef<BoardQuery>({});
+  const [resultQuery, setResultQuery] = useState<BoardQuery>({});
+  const tracked = useRef<string | undefined>(undefined);
+  const latest = useRef<BoardResponse | undefined>(undefined);
+  const [current, setCurrent] = useState<BoardAction>();
+  const track = (action: BoardAction | undefined) => {
+    tracked.current = action?.id;
+    setCurrent(
+      action ? (accepted.current.get(action.id)?.action ?? action) : undefined,
+    );
+  };
   const [data, setData] = useState<BoardResponse>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const [membershipPending, setMembershipPending] = useState(false);
   const generation = useRef(0);
   const writes = useRef(0);
   const accepted = useRef(
@@ -13,9 +33,25 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
   );
   const accept = useCallback((action: BoardAction) => {
     accepted.current.set(action.id, { action, revision: ++writes.current });
+    if (tracked.current === action.id) setCurrent(action);
+    const filtered =
+      scope.current.search !== undefined || scope.current.owner !== undefined;
+    if (filtered) setMembershipPending(true);
+    const insert =
+      !filtered &&
+      JSON.stringify(resultScope.current) === JSON.stringify(scope.current);
+    // Replace known cards with the confirmed snapshot without inferring filter
+    // membership or inserting a saved Action into an unconfirmed selection.
     setData(
       (current) =>
-        current && { ...current, actions: merge(current.actions, [action]) },
+        current && {
+          ...current,
+          actions: insert
+            ? merge(current.actions, [action])
+            : current.actions.map((item) =>
+                item.id === action.id ? action : item,
+              ),
+        },
     );
   }, []);
   const inFlight = useRef(false);
@@ -29,12 +65,52 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
       pendingReturn.current = false;
       const request = ++generation.current;
       const revision = writes.current;
+      const selection = scope.current;
       inFlight.current = true;
       setLoading(true);
       try {
-        const next = await load();
+        const next = await load(selection);
         if (request !== generation.current || pendingReturn.current)
           return false;
+        // Filter membership must be determined by a read after every confirmed
+        // write, never by browser matching or insertion into another scope.
+        if (
+          revision !== writes.current &&
+          (selection.search !== undefined || selection.owner !== undefined)
+        ) {
+          pendingReturn.current = true;
+          return false;
+        }
+        let snapshot = next.actions.find(
+          (action) => action.id === tracked.current,
+        );
+        if (
+          tracked.current &&
+          !snapshot &&
+          (selection.search !== undefined || selection.owner !== undefined)
+        ) {
+          const all = await load({});
+          if (request !== generation.current || pendingReturn.current)
+            return false;
+          snapshot = all.actions.find(
+            (action) => action.id === tracked.current,
+          );
+        }
+        if (
+          revision !== writes.current &&
+          (selection.search !== undefined || selection.owner !== undefined)
+        ) {
+          pendingReturn.current = true;
+          return false;
+        }
+        if (tracked.current) {
+          const confirmed = accepted.current.get(tracked.current);
+          setCurrent(
+            confirmed && confirmed.revision > revision
+              ? confirmed.action
+              : snapshot,
+          );
+        }
         // Only a read started after confirmation can reconcile that write.
         const newer = [...accepted.current.values()].filter(
           (entry) => entry.revision > revision,
@@ -42,13 +118,18 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
         for (const [id, entry] of accepted.current) {
           if (entry.revision <= revision) accepted.current.delete(id);
         }
-        setData({
+        const resolved = {
           ...next,
           actions: merge(
             next.actions,
             newer.map((entry) => entry.action),
           ),
-        });
+        };
+        latest.current = resolved;
+        setData(resolved);
+        setResultQuery(selection);
+        resultScope.current = selection;
+        setMembershipPending(false);
         setError(undefined);
         return true;
       } catch (failure) {
@@ -72,6 +153,11 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
     },
     [load],
   );
+  const apply = (next: BoardQuery) => {
+    scope.current = next;
+    setQuery(next);
+    void refresh();
+  };
   useEffect(() => {
     void refresh();
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -93,7 +179,23 @@ export function useBoard(load: () => Promise<BoardResponse> = fetchBoard) {
       document.removeEventListener('visibilitychange', onReturn);
     };
   }, [refresh]);
-  return { data, error, loading, refresh, accept };
+  return {
+    data,
+    error,
+    loading,
+    membershipPending,
+    refresh,
+    accept,
+    query,
+    resultQuery,
+    apply,
+    track,
+    current,
+    isFiltered: () =>
+      scope.current.search !== undefined || scope.current.owner !== undefined,
+    includes: (id: string) =>
+      latest.current?.actions.some((action) => action.id === id) ?? false,
+  };
 }
 
 function merge(actions: BoardAction[], confirmed: BoardAction[]) {

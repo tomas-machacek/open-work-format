@@ -20,10 +20,12 @@ import {
   editBoardAction,
 } from './client.js';
 import { ActionEditor } from './ActionEditor.js';
+import { OwnerPicker } from './OwnerPicker.js';
 import type {
   CreateActionRequest,
   BoardAction,
   BoardResponse,
+  BoardQuery,
   UpdateActionStateRequest,
   EditActionRequest,
 } from '../contracts/index.js';
@@ -71,23 +73,92 @@ export function Board({
   move = updateActionState,
   editAction = editBoardAction,
 }: {
-  load?: () => Promise<BoardResponse>;
+  load?: (query: BoardQuery) => Promise<BoardResponse>;
   save?: (input: CreateActionRequest) => Promise<BoardAction>;
   move?: (id: string, input: UpdateActionStateRequest) => Promise<BoardAction>;
   editAction?: (id: string, input: EditActionRequest) => Promise<BoardAction>;
 }) {
-  const { data, error, loading, refresh, accept } = useBoard(load);
+  const {
+    data,
+    error,
+    loading,
+    membershipPending,
+    refresh,
+    accept,
+    query,
+    resultQuery,
+    apply,
+    track,
+    current,
+    includes,
+    isFiltered,
+  } = useBoard(load);
+  const [search, setSearch] = useState('');
+  const [owner, setOwner] = useState('');
+  const [recursive, setRecursive] = useState(false);
+  const [savedAction, setSavedAction] = useState<BoardAction>();
+  const saveNotice = savedAction
+    ? loading
+      ? `${savedAction.title}: saved successfully. Checking current board selection…`
+      : error
+        ? `${savedAction.title}: saved successfully. Board refresh could not be confirmed; refresh the board. Do not repeat the save.`
+        : includes(savedAction.id)
+          ? `${savedAction.title}: saved successfully.`
+          : isFiltered()
+            ? `${savedAction.title}: saved successfully but the Action does not match current filters.`
+            : `${savedAction.title}: saved successfully. The Action is no longer in the board results.`
+    : undefined;
+  const draft: BoardQuery = {
+    ...(search.trim() ? { search: search.trim() } : {}),
+    ...(owner ? { owner, recursive } : {}),
+  };
+  const dirtyFilters = JSON.stringify(draft) !== JSON.stringify(query);
+  const filtered = query.search !== undefined || query.owner !== undefined;
+  const previousScope = JSON.stringify(query) !== JSON.stringify(resultQuery);
+  const applyButton = useRef<HTMLButtonElement>(null);
+  const focusedCard = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const remember = (event: FocusEvent) => {
+      focusedCard.current =
+        event.target instanceof Element
+          ? (event.target
+              .closest('[data-action-id]')
+              ?.getAttribute('data-action-id') ?? undefined)
+          : undefined;
+    };
+    document.addEventListener('focusin', remember);
+    return () => document.removeEventListener('focusin', remember);
+  }, []);
+  function saved(action: BoardAction) {
+    accept(action);
+    setSavedAction(action);
+    void refresh();
+  }
   const [editing, setEditing] = useState<BoardAction['state']>();
   const [detail, setDetail] = useState<BoardAction>();
   const suppressOpen = useRef(new Set<string>());
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [pendingActions, setPendingActions] = useState<
-    Map<string, BoardAction>
+    Map<string, { action: BoardAction; scope: string }>
   >(new Map());
   const moving = useRef(new Set<string>());
   const [moveErrors, setMoveErrors] = useState<Record<string, string>>({});
   const [moveNotice, setMoveNotice] = useState<string>();
   const [announcement, setAnnouncement] = useState('');
+  useEffect(() => {
+    if (
+      focusedCard.current &&
+      data &&
+      !data.actions.some((action) => action.id === focusedCard.current) &&
+      !document.querySelector(`[data-action-id="${focusedCard.current}"]`) &&
+      document.activeElement === document.body
+    ) {
+      applyButton.current?.focus();
+      setAnnouncement(
+        'The focused Action no longer matches the displayed selection. Focus moved to Apply filters.',
+      );
+    }
+  }, [data, pendingActions]);
   const [focusAfterMove, setFocusAfterMove] = useState<string>();
   useEffect(() => {
     if (!focusAfterMove) return;
@@ -118,7 +189,12 @@ export function Board({
         ?.getAttribute('data-action-id') === action.id;
     moving.current.add(action.id);
     setPending(new Set(moving.current));
-    setPendingActions((old) => new Map(old).set(action.id, action));
+    setPendingActions((old) =>
+      new Map(old).set(action.id, {
+        action,
+        scope: JSON.stringify(resultQuery),
+      }),
+    );
     setMoveErrors((old) => {
       const next = { ...old };
       delete next[action.id];
@@ -138,6 +214,7 @@ export function Board({
       });
       if (hadFocus) setFocusAfterMove(saved.id);
       accept(saved);
+      if (isFiltered()) void refresh();
       setAnnouncement(
         `${action.title} moved to ${columns.find(([s]) => s === saved.state)?.[1]}.`,
       );
@@ -180,10 +257,14 @@ export function Board({
   // A concurrent GET may finish while PATCH is pending; keep that card's
   // observed snapshot visible until the write confirms or fails.
   const visibleActions =
-    data?.actions.map((action) => pendingActions.get(action.id) ?? action) ??
-    [];
-  for (const action of pendingActions.values()) {
-    if (!visibleActions.some((item) => item.id === action.id))
+    data?.actions.map(
+      (action) => pendingActions.get(action.id)?.action ?? action,
+    ) ?? [];
+  for (const { action, scope } of pendingActions.values()) {
+    if (
+      scope === JSON.stringify(resultQuery) &&
+      !visibleActions.some((item) => item.id === action.id)
+    )
       visibleActions.push(action);
   }
   return (
@@ -198,7 +279,7 @@ export function Board({
         <div>
           <p className={styles.eyebrow}>Workspace overview</p>
           <h1 id="title">Actions</h1>
-          <p className={styles.subtitle}>All Actions, organized by state.</p>
+          <p className={styles.subtitle}>Actions, organized by state.</p>
         </div>
         <button
           onClick={() => {
@@ -208,6 +289,71 @@ export function Board({
           {error ? 'Retry' : 'Refresh'} <span aria-hidden="true">↻</span>
         </button>
       </section>
+      <form
+        className={styles.filters}
+        aria-label="Board filters"
+        onSubmit={(event) => {
+          event.preventDefault();
+          apply(draft);
+        }}
+      >
+        <div>
+          <label htmlFor="board-search">Search title or description</label>
+          <input
+            id="board-search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+        <OwnerPicker
+          allowAll
+          value={owner}
+          onChange={(value) => {
+            setOwner(value);
+            setRecursive(false);
+          }}
+        />
+        <label className={styles.recursive}>
+          <input
+            type="checkbox"
+            checked={recursive}
+            disabled={!owner}
+            onChange={(event) => setRecursive(event.target.checked)}
+          />{' '}
+          Include descendant Outcomes
+        </label>
+        <div className={`${styles.formButtons} ${styles.filterButtons}`}>
+          <button ref={applyButton} type="submit">
+            Apply filters
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setOwner('');
+              setRecursive(false);
+              apply({});
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
+        <p role="status" className={styles.filterStatus}>
+          {dirtyFilters ? 'Unapplied filter changes' : 'Filters applied'}
+        </p>
+      </form>
+      <p className={styles.scope}>
+        Applied scope: {describeScope(query)}.
+        {previousScope && data
+          ? ` Previous results: ${describeScope(resultQuery)} · ${data.actions.length} Actions.`
+          : ''}
+      </p>
+      {membershipPending && data && (
+        <p role="status" className={styles.scope}>
+          Saved card snapshots are displayed; membership in the current filters
+          has not been confirmed.
+        </p>
+      )}
       <div className={styles.context}>
         <p>
           <span>Workspace</span>{' '}
@@ -222,7 +368,9 @@ export function Board({
               ? data
                 ? 'Refreshing…'
                 : 'Loading Actions…'
-              : `${data?.actions.length ?? 0} Actions · up to date`}
+              : pendingActions.size
+                ? `${visibleActions.length} displayed Actions · move pending (previous card snapshots)`
+                : `${data?.actions.length ?? 0} ${filtered ? 'matching Actions' : 'Actions'} · up to date`}
         </p>
       </div>
       {error && (
@@ -240,9 +388,16 @@ export function Board({
           {moveNotice}
         </div>
       )}
-      {data?.actions.length === 0 && (
+      {saveNotice && (
+        <p role="status" className={styles.scope}>
+          {saveNotice}
+        </p>
+      )}
+      {data && visibleActions.length === 0 && !loading && !error && (
         <p className={styles.emptyBoard}>
-          No Actions yet. Choose Add Action in a column to get started.
+          {filtered
+            ? 'No Actions match these filters'
+            : 'No Actions yet. Choose Add Action in a column to get started.'}
         </p>
       )}
       <p id="drag-instructions" className={styles.srOnly}>
@@ -308,7 +463,7 @@ export function Board({
                     state={state}
                     label={title}
                     save={save}
-                    onSaved={accept}
+                    onSaved={saved}
                     onClose={() => {
                       setEditing(undefined);
                       document.getElementById(`add-${state}`)?.focus();
@@ -323,8 +478,10 @@ export function Board({
                       pending={pending.has(action.id)}
                       error={moveErrors[action.id]}
                       onOpen={(selected) => {
-                        if (!suppressOpen.current.has(selected.id) && !detail)
+                        if (!suppressOpen.current.has(selected.id) && !detail) {
+                          track(selected);
                           setDetail(selected);
+                        }
                       }}
                     />
                   ))}
@@ -340,14 +497,15 @@ export function Board({
       {detail && (
         <ActionEditor
           action={detail}
-          current={data?.actions.find((action) => action.id === detail.id)}
+          current={current}
           save={editAction}
           refresh={async () => {
             return refresh();
           }}
-          onSaved={accept}
+          onSaved={saved}
           onClose={() => {
             const id = detail.id;
+            track(undefined);
             setDetail(undefined);
             requestAnimationFrame(() => {
               (
@@ -367,4 +525,8 @@ export function Board({
       </footer>
     </main>
   );
+}
+
+function describeScope(query: BoardQuery) {
+  return `${query.search === undefined ? 'All text' : `Search “${query.search}”`} · ${query.owner ?? 'All owners'}${query.owner ? (query.recursive ? ' including descendant Outcomes' : ' directly owned') : ''}`;
 }
