@@ -1,11 +1,12 @@
 # 0016 — Search and filter Actions on the board
 
-> Status: draft
+> Status: reviewed
 > Description: Narrow the Kanban board by Action text and direct or recursive owner scope.
 > Depends on: [0014 — CLI Action text search](0014-action-search-cli.md), [0013 — Owner picker](0013-board-owner-picker.md) and [0012 — Board editing](0012-board-action-edit.md).
 
 This proposal continues the discussion on 2026-10-06. CLI search was delivered
 separately in 0014; 0015 repaired development dependency audit findings.
+The user reviewed and approved this design for implementation on 2026-10-07.
 
 ## Goal and scope
 
@@ -193,13 +194,14 @@ verify the success notice, then Clear to find it again.
 
 ## Open questions
 
-No blocking question is assumed in this draft. Apply-based interaction and
-session-only filters are proposed implementation choices for review.
+No blocking questions remain. Apply-based interaction and session-only filters
+were approved by the user as part of this design.
 A separate state filter and persistent/saved Views are deferred.
 
 ## Implementation and review outcome
 
-Pending design approval, implementation, independent review and verification.
+Design approved for implementation. Implementation, independent code review
+and required verification are pending.
 
 ## Decision changes and follow-up
 
