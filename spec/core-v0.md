@@ -245,7 +245,7 @@ actively pursued. Parking MUST record a human-readable reason and MAY define a
 Parking MUST NOT rewrite descendant states or dependencies. Descendant Actions
 may remain technically executable. Ordinary attention-oriented Views and Review
 scopes SHOULD exclude descendants through their parked ancestor, while an
-intentional Curated View MAY still include them.
+intentional explicit selection in a View MAY still include them.
 
 ## 7. Ownership and Relationships
 
@@ -419,11 +419,20 @@ A View is a first-class live projection over persistent Workspace objects. It
 MUST NOT own its members or alter their intrinsic lifecycle merely through
 membership.
 
-A View is one of:
+View membership MAY be explicitly maintained, derived from declarative rules,
+or a combination of both. Curated and computed describe membership mechanisms,
+not mutually exclusive kinds of whole View.
 
-- **Curated View:** explicitly maintains membership and MAY maintain ordering
-  or grouping.
-- **Computed View:** derives membership from a declarative rule.
+Ordering and grouping belong to the View and MAY be explicit or derived
+independently of the membership mechanism. In particular, derived membership MAY
+have an explicitly maintained order. The same object MAY occur in different
+Views with independent grouping and order.
+
+A representation MAY separate a reusable View definition from concrete View
+instances. Each instance is a live View with its own identity and local data;
+sharing a definition MUST NOT imply sharing membership, order, or planning
+selection. The representation profile defines definition references and
+instance identity.
 
 A View MAY expose an optional machine-readable `purpose` from an open
 vocabulary. Purpose MUST NOT create a closed View subtype or lifecycle. Common
@@ -432,6 +441,14 @@ non-normative values include `planning`, `review`, `focus`, `waiting`, and
 
 Core v0 does not define a query language. Lists, boards, tables, calendars,
 timelines, and trees are renderer concerns rather than distinct Core objects.
+Columns and registered capability names are representation and implementation
+concerns, not new Core work objects.
+
+A configured interaction MAY invoke an explicit OWF operation on a member.
+Merely displaying, selecting, ordering, or grouping an object MUST NOT mutate its
+intrinsic state or ownership. An explicit operation MUST preserve the same Core
+rules as an operation invoked outside the View. Selecting work for a plan and
+executing work remain distinct activities even when one interface supports both.
 
 ### 12.2 Optional Planning Window
 
@@ -451,10 +468,16 @@ specific time. It is not a work item, live View, or lifecycle state.
 
 A Snapshot MUST record:
 
-- its source View;
+- its source View, identifying the concrete instance where applicable;
 - capture time;
-- selected snapshot projection; and
-- the items contained in the View at capture time.
+- selected snapshot projection;
+- capture scope: the whole View or an explicitly identified subset; and
+- all items in that scope at capture time.
+
+A planning-selection Snapshot MUST identify that scope and MUST NOT silently
+include unselected candidates. A whole-View Snapshot includes candidates if
+they are members of the source View. Sharing a definition does not make two
+instances the same snapshot source.
 
 At minimum, captured membership MUST preserve each item's identity, type, and
 human-readable title. A Snapshot MAY additionally preserve selected properties
@@ -534,11 +557,21 @@ information may have changed.
 ## 15. Planning
 
 Planning selects existing work for intentional focus. It operates on already
-defined Projects, Outcomes, and Actions and produces a Curated View.
+defined Projects, Outcomes, and Actions and produces an explicit planning
+selection represented within a View.
 
-Planning MUST NOT introduce a `Planned` lifecycle state. View membership
+Planning MUST NOT introduce a `Planned` lifecycle state. Planning selection
 expresses intended focus, not intrinsic priority or guaranteed completion.
 Membership, ordering, and grouping belong to the View.
+
+A View MAY show candidates alongside selected work. In that case, its planning
+selection MUST be distinguishable from its wider displayed membership.
+Displaying a candidate MUST NOT itself select it for the plan. Completing an
+item MUST NOT by itself remove that item from the planning selection.
+
+Planning behavior is optional. A View without a planning selection remains a
+valid View; a purpose label alone MUST NOT imply that every displayed member is
+selected.
 
 A Planning View MAY:
 
@@ -553,13 +586,16 @@ Planning MUST remain separate from Review, Refinement, Inbox Processing,
 ownership changes, and lifecycle decisions. Discovering the need for one of
 those activities does not make it part of Planning.
 
-Computed Views MAY help discover candidates, but the result of intentional
-Planning MUST be a Curated View. Core v0 does not prescribe capacity, work in
-progress, completion, rollover, or methodology rules.
+Computed membership MAY help discover candidates in the same View or another
+View. The result of intentional Planning MUST remain explicit even when
+computed groups present selected work, such as completed items of that plan.
+Core v0 does not prescribe capacity, work in progress, completion, rollover, or
+methodology rules.
 
-Review MAY use a Planning View as its scope at the end of a planning period. A
-Snapshot MAY preserve a reliable historical projection before or after such a
-Review.
+Review MAY use the explicit planning selection as its scope at the end of a
+planning period. A broader whole-View Review is also permitted when consciously
+selected. The scope MUST distinguish selected work from candidates. A Snapshot
+MAY preserve a reliable historical projection before or after such a Review.
 
 ## 16. Event Logs
 

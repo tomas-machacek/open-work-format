@@ -6,7 +6,9 @@ independent tools can use without relying on hidden application state.
 
 OWF is currently at **Core v0**. The conceptual model is defined; a durable
 Markdown representation baseline and the boundary of a complementary
-Operational Store are under active design.
+Operational Store are under active design. The next direction is reusable
+Markdown View definitions with independent live instances in the store; this
+documentation baseline does not yet add View runtime functionality.
 
 ## Documents
 
@@ -26,10 +28,14 @@ Operational Store are under active design.
 - [Representation Profile Design Notes](docs/design/representation-profile-notes.md)
   — working, non-normative decisions for the durable Markdown profile.
 - [Operational Store Design Notes](docs/design/operational-store-notes.md)
-  — working decisions for Actions, Inbox Items, cross-representation references,
-  and operational history.
+  — working decisions for Actions, Inbox Items, View instance data,
+  cross-representation references, and operational history.
+- [Views Profile Design Notes](docs/design/views-profile-notes.md)
+  — reusable definitions, independent instances, optional planning selection,
+  namespaced capabilities, ordering, runtime validation, and atomic transitions.
 - [Tool MVP Scope](docs/design/mvp-scope.md) — agreed scope and acceptance
-  scenarios for the first local web and CLI implementation; screenshots deferred.
+  scenarios for the first local web and CLI implementation; Views are the next
+  stage, with Inbox and screenshots deferred.
 
 ### Examples
 

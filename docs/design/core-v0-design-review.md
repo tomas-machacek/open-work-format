@@ -1,6 +1,7 @@
 # Open Work Format -- Design Review
 
-> Status: Core v0 conceptually closed (2026-08-07); representation design next
+> Status: Core v0 conceptually closed (2026-08-07); targeted View amendment
+> accepted 2026-10-08 as Decision 025.
 
 ## Purpose
 
@@ -8,6 +9,12 @@ This is the primary working document during the OWF design phase. It records
 accepted decisions, decision candidates, unresolved questions, and consistency
 issues. Historical evolution and rationale may additionally be captured in the
 Design Journal; normative rules ultimately belong in the Specification.
+
+Decision 025 records the current View amendment. Original Decisions 017-019 and
+023 and the 2026-08 closure summaries remain historical evidence where their
+wording assumes a wholly Curated/Computed View or one Markdown document per
+live View. For current requirements, read amended Core Sections 12, 13, and 15
+and the linked View profile rather than those superseded assumptions.
 
 ## Decision States
 
@@ -346,7 +353,7 @@ semantics.
 
 ### Decision 017 -- Planning as Intentional Work Projection
 
-**Status:** Accepted (Core v0)
+**Status:** Accepted (Core v0); whole-View Curated requirement amended by Decision 025
 
 Planning is the activity of selecting existing work items for intentional
 focus, optionally within a defined planning window. Its result is a Curated
@@ -393,7 +400,7 @@ with standalone Actions that do not belong to that Outcome.
 
 ### Decision 018 -- View Snapshots
 
-**Status:** Accepted (Core v0)
+**Status:** Accepted (Core v0); instance identity and capture scope clarified by Decision 025
 
 A View may be materialized as an immutable View Snapshot. The snapshot records
 the View membership and a user-selected projection of item state at a specific
@@ -429,7 +436,7 @@ v0 defines neither these metrics nor automatic rollover behavior.
 
 ### Decision 019 -- View Purpose and Optional Planning Window
 
-**Status:** Accepted (Core v0)
+**Status:** Accepted (Core v0); instance/definition separation clarified by Decision 025
 
 A View may declare an optional, machine-readable `purpose`. The value is an
 open vocabulary rather than a closed enum. It communicates the intended use of
@@ -556,7 +563,7 @@ do not own work.
 
 ### Decision 023 -- Knowledge, Views, and Identity Foundations
 
-**Status:** Accepted (Core v0)
+**Status:** Accepted (Core v0); exclusive View kinds amended by Decision 025
 
 A Knowledge Document preserves context, rationale, evidence, or other durable
 knowledge. It is not a work commitment and does not participate in the work
@@ -591,6 +598,44 @@ related dates through extensions and Views.
 Knowledge categories, knowledge lifecycles, knowledge graphs, external artifact
 integrations, and methodology-specific taxonomies are extensions. Their absence
 does not prevent a Knowledge Document from preserving durable information.
+
+### Decision 025 -- Combined Views, Reusable Definitions, and Operational Instances
+
+**Status:** Accepted (2026-10-08); documentation review pending in increment 0017
+
+A live View can combine explicit and computed membership with independent
+grouping and ordering. Curated/Computed remain useful descriptions of membership,
+not exclusive whole-View kinds. Planning remains an intentional explicit
+selection; candidates and selected work may coexist in one View, and completing
+work does not erase its selection. Planning columns are optional and defined
+by the particular View.
+
+A representation may separate reusable definitions from concrete instances.
+In the agreed tool profile, Markdown defines behavior and the Operational Store
+holds independent instance IDs, references, parameters, windows, selections,
+placements, and order. The definition's namespace names capabilities, not an
+instance. Instances share the current definition without automatic copies or
+pinned versions. Incompatible evolution can use a new independent definition.
+
+The first Kanban profile allows one Action occurrence per instance. Runtime
+overlap fails the whole evaluation with actionable GUI/CLI diagnostics.
+Defined transition operations preserve Action rules and must produce valid,
+unique destination membership before all related store writes commit together.
+Selectors are read-only. Manual ordering is local and remembers no position
+after departure; this supersedes the briefly considered dormant-rank approach.
+
+A Snapshot identifies the concrete source instance and whole-View or
+planning-selection scope. Actual Snapshot support remains deferred.
+Inbox is deferred in the current development sequence without changing Core.
+
+This is a genuine gap in the original whole-View membership classification and
+a representation authority change, not a new methodology or work lifecycle.
+It amends the assumptions identified above while preserving non-ownership,
+lifecycle separation, explicit planning intent, and immutable snapshots.
+Concrete contracts belong in
+[Views Profile Design Notes](views-profile-notes.md), with authority in
+[Operational Store notes](operational-store-notes.md) and delivery scope in
+[increment 0017](../../tools/owf/docs/increments/0017-views-documentation.md).
 
 ## Review Design Closure
 
@@ -734,8 +779,10 @@ or contradiction. A preference of one tool or methodology is not sufficient.
 
 ### Views
 
-- Accepted as Core v0 by Decisions 018, 019, 020, and 023. Remaining questions
-  concern query, ordering, and file representation.
+- Accepted as Core v0 by Decisions 018, 019, 020, and 023, amended by Decision 025.
+  The current profile contract is documented in Views Profile Design Notes.
+  Remaining implementation details concern physical schema, capability interfaces,
+  commands, ordering reconciliation, and compatibility mechanics.
 
 ### Identity and Paths
 

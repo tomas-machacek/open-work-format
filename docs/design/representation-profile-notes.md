@@ -1,6 +1,8 @@
 # OWF Representation Profile Design Notes
 
-> Status: Working, non-normative design notes; durable Markdown baseline and Operational Store authority boundary established
+> Status: Working, non-normative design notes; durable Markdown baseline and
+> Operational Store authority boundary established; reusable View definitions
+> and operational instances agreed 2026-10-08.
 
 ## 1. Purpose
 
@@ -28,14 +30,15 @@ separate OKF Concept.
 ### 1.1 Markdown and operational work
 
 Markdown remains the primary medium for durable Project, Outcome, Knowledge,
-View, and navigation content. YAML frontmatter carries document-level metadata;
-Markdown bodies carry prose, headings, ordering, grouping, and links.
+View definition, and navigation content. YAML frontmatter carries document-level
+metadata and machine-readable View definitions. Markdown bodies carry prose,
+headings, and explanatory links; View membership, grouping, and ordering are
+not inferred from their body content.
 
-Actions and Inbox Items have different usability characteristics. They are
-short-lived, change frequently, and are handled mainly through capture, state
-changes, filtering, completion, and contextual navigation. A generic Markdown
-editor does not provide sufficiently low-friction interaction for those
-operations.
+Actions and Inbox Items are handled mainly through capture, state changes,
+filtering, completion, and contextual navigation. View instance data changes
+through selection, placement, and ordering. A generic Markdown editor does not
+provide sufficiently low-friction interaction for these operations.
 
 The profile therefore no longer assumes that Actions and Inbox Items are
 authoritative nested records in Markdown collections. A conforming operational
@@ -84,9 +87,9 @@ evidence rather than part of the compact Core specification.
 
 The durable contextual part of an OWF Workspace is represented by an
 OKF-compatible directory tree of Markdown documents. The Workspace directory is
-the bundle root. The authoritative operational representation for Actions and
-Inbox Items remains profile-defined but MUST belong to this same logical
-Workspace.
+the bundle root. The authoritative operational representation for Actions,
+Inbox Items, and View instances remains profile-defined but MUST belong to this
+same logical Workspace.
 
 For example:
 
@@ -125,7 +128,7 @@ my-workspace/
     │   ├── index.md
     │   └── sprints/
     │       ├── index.md
-    │       └── sprint-42.md
+    │       └── sprint.md
     └── review/
         ├── index.md
         └── weekly-review.md
@@ -169,11 +172,11 @@ them.
 | Workspace, Project, or Outcome `README.md` | canonical overview and metadata representation | Concept document |
 | `index.md` | navigation for its directory | reserved OKF index |
 | Root `log.md` | Markdown Event Log | reserved OKF update log |
-| Profile-defined Operational Store | Inbox Items, Actions, their outgoing relationships, and Operational Event Log | outside the OKF document model |
+| Profile-defined Operational Store | Inbox Items, Actions, their outgoing relationships, View instances and local data, and Operational Event Log | outside the OKF document model |
 | Owner-local `_notes.md` | conventional aggregated Knowledge Document | Concept document |
 | Ordinary `.md` directly under a Project or Outcome | owned Knowledge Document | Concept document |
 | Ordinary `.md` below root `_knowledge/` | Workspace Knowledge Document | Concept document |
-| Ordinary `.md` below `_views/` | View | Concept document |
+| Ordinary `.md` below `_views/` | reusable View definition | Concept document |
 
 Location is authoritative for the OWF role. A document's required `type`
 frontmatter provides OKF conformance and redundant validation; it MUST agree
@@ -232,7 +235,7 @@ The profile defines these canonical values:
 | Project `README.md` | `OWF Project` |
 | Outcome `README.md` | `OWF Outcome` |
 | Knowledge Document, including `_notes.md` | `OWF Knowledge Document` |
-| View | `OWF View` |
+| View definition | `OWF View Definition` |
 | View Snapshot | `OWF View Snapshot` |
 
 Canonical type values use the `OWF` prefix and Title Case. They do not encode
@@ -499,8 +502,8 @@ support. Stable Markdown ID support is an optional tool capability.
 For a Workspace, Project, or Outcome, `owf.id` is declared in the
 canonical `README.md` and identifies the containing directory object, not the
 `README.md` Concept. That Concept retains its path-based document identity. A
-Knowledge Document, View, or View Snapshot declares its own `owf.id` in its
-own frontmatter.
+Knowledge Document, View definition, or View Snapshot declares its own `owf.id`
+in its own frontmatter.
 
 A supporting implementation MAY build a derived ID-to-path index by scanning
 Markdown metadata. Such an index is rebuildable and MUST NOT become another
@@ -935,31 +938,35 @@ Views.
 
 ## 12. Views
 
-Views are represented as individual Markdown Concept documents under the
-reserved `_views/` directory. A small Workspace may store them flat; a larger
-Workspace MAY organize them in arbitrarily nested, user-named grouping
-directories.
+Reusable View definitions are individual Markdown Concept documents under the
+reserved `_views/` directory, with canonical `type: OWF View Definition`.
+A small Workspace may store them flat; a larger Workspace MAY organize them in
+arbitrarily nested, user-named grouping directories.
 
-Every View grouping directory:
+Every View definition grouping directory is a transparent representation
+container, contains `index.md`, and may contain definitions or further grouping
+directories. Its placement does not determine purpose.
 
-- is a transparent representation container, not a Core object;
-- contains `index.md`;
-- may contain View documents and further grouping directories; and
-- does not determine the View's machine-readable purpose.
+A definition describes columns, population and ordering policies, optional
+planning participation, and named transition capabilities under `owf`
+frontmatter. The body explains intent; body links, headings, and link order
+have no authoritative membership, placement, or ordering semantics.
 
-Markdown remains the natural representation because:
+Concrete View instances reside in the Operational Store. Each has an independent
+stable instance ID, definition reference, title, optional parameters and window,
+and its own explicit selection, placement, and order. One definition may have one
+or several instances. Optional `owf.id` identifies the definition document, not
+any of its instances; `owf.namespace` identifies its capability namespace and
+is not an instance ID.
 
-- a link expresses Curated View membership;
-- link order expresses ordering;
-- headings express grouping; and
-- prose explains intent and context.
+Instances use the current shared definition; no copies or pinned definition
+versions are created automatically. An incompatible change can be expressed by
+a new independent definition. Runtime state is not a historical Snapshot.
 
-The View frontmatter contains properties of the View itself under the
-appropriate OKF and `owf` fields. It does not duplicate the current state of
-referenced members.
-
-A Computed View also remains a Markdown document but requires a
-machine-readable query. Query syntax and placement remain open.
+[Views Profile Design Notes](views-profile-notes.md) define the detailed
+frontmatter, namespaces, runtime validation, transition semantics, and examples.
+These replace the earlier link-based Curated View representation; no implemented
+Views or migration are introduced by this documentation change.
 
 ## 13. Event Logs
 
@@ -983,9 +990,9 @@ does not require byte-level appending.
 ### 13.2 Operational Event Log
 
 The Operational Store contains a separate Operational Event Log for semantic
-changes to Inbox Items, Actions, and their outgoing relationships. Its physical
-schema and retention rules remain open. It is not an event-sourced authority;
-current operational objects remain the source of truth.
+changes to Inbox Items, Actions, their outgoing relationships, and View instance
+data. Its physical schema and retention rules remain open. It is not an
+event-sourced authority; current operational objects remain the source of truth.
 
 A cross-representation event MAY reference the other representation using
 `owf:action:<id>` or `MarkdownObjectReference`. Neither log requires a
@@ -1026,8 +1033,8 @@ be achieved merely by moving Markdown files or hiding an operational object.
 The durable Markdown part of an OWF Workspace is an OKF v0.2-conformant
 Knowledge Bundle. Every non-reserved Markdown document is an OKF Concept. The
 Operational Store accompanies the same OWF Workspace but its Actions, Inbox
-Items, relationships, and Operational Event Log are outside the OKF document
-model.
+Items, relationships, View instances and local data, and Operational Event Log
+are outside the OKF document model.
 
 Consequently:
 
@@ -1053,14 +1060,14 @@ The external structure baseline now defines:
 - `README.md` as their canonical landing page and metadata representation;
 - reserved OKF `index.md` for navigation;
 - a root Markdown Event Log and a separate Operational Event Log;
-- Operational Store authority for Inbox Items, Actions, and their outgoing
-  relationships;
+- Operational Store authority for Inbox Items, Actions, their outgoing
+  relationships, and View instance data;
 - source-owned dependency placement across both representations;
 - stable Action URIs and a common `MarkdownObjectReference` for
   Operational-to-Markdown links;
 - path identity with optional stable IDs for Markdown objects;
 - Markdown placement for scoped and Workspace-level Knowledge;
-- hierarchical Markdown Views;
+- hierarchical Markdown View definitions with independent operational instances;
 - directory, document, and operational identity rules; and
 - local Archive containers that preserve ownership but change baseline path
   identity.
@@ -1083,7 +1090,7 @@ The following representation decisions remain open:
 
 - the physical format, provider-specific connection, versioning, backup, and
   migration model of the Operational Store;
-- the exact Action and Inbox Item ID format;
+- the exact Action, Inbox Item, and View instance ID formats;
 - the detailed storage and interoperability contract;
 - concrete human GUI and agent CLI/API design for the agreed minimum capabilities;
 - compact Action projections and the command surface for frequent state
@@ -1095,7 +1102,7 @@ The following representation decisions remain open:
 - exact Markdown Event Log and Review-entry grammar;
 - representation of `review_after` beyond the agreed README fields;
 - exact index completeness lint severity;
-- serialization of Computed View queries and Curated View membership;
+- physical serialization and command/API design for the agreed View instance contract;
 - representation of View Snapshots;
 - extension compatibility rules; and
 - the normative lint catalogue.

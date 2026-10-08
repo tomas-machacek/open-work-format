@@ -667,3 +667,47 @@ The original exploration deferred representation of dynamic Views, ordered
 collections, minimum frontmatter, queries, external synchronization, and the
 exact role of Waiting. Some of these have since been resolved; remaining current
 questions are tracked in `docs/design/core-v0-design-review.md`.
+
+## 2026-10-08 -- Combined Views and Reusable Definitions
+
+After Action management and board search, the user selected Views as the next
+direction and deferred Inbox. A View should support independent manual card
+order, custom Kanban columns, and defined effects of moving between columns.
+
+The original Curated/Computed distinction classified entire Views. The new
+direction permits combined explicit and derived membership with independently
+chosen ordering. Planning remains explicit selection, but automatic candidates
+can be shown beside that selection. Planning columns are optional and chosen
+by the definition; automatic population does not itself select work.
+
+A proposed stable Markdown View ID prompted a further distinction. One reusable
+Markdown definition can have several independently identified live instances
+in the Operational Store, such as successive sprints. This is permitted, though
+one instance is expected to be common. Namespace belongs to the definition and
+identifies capabilities such as `general.actions-by-state` or
+`sprint.green-actions`; instance IDs identify independent operational data.
+
+All instances follow the current shared definition. The user rejected accumulating
+obsolete definition copies; incompatible evolution can use a new independent
+definition. Snapshots, not live instances or copies of definitions, preserve
+reliable historical projections.
+
+For the first Kanban profile, an Action occurs in at most one column of an
+instance. Actual overlaps are runtime validation errors for the whole View,
+with Action and column diagnostics in GUI and CLI. Selectors do not silently
+override each other. A move succeeds only when its operation produces valid,
+unique target membership; Action and instance changes plus events commit
+together or roll back.
+
+The discussion initially considered preserving positions after an Action
+temporarily left an automatic column, then cleaning up terminal Actions' dormant
+positions. The user chose the smaller model instead: no previous-position memory
+at all. A manual return has an explicit drop position; a return due to outside
+changes is treated as a new arrival. More elaborate memory is deferred until
+actual use demonstrates a need.
+
+These decisions amend Core 12/13/15 and the Markdown/store authority boundary.
+Decision 025 and documentation increment 0017 record the amendment. A dedicated
+Views profile owns the detailed contract; no runtime feature, command, migration,
+general definition editor, or custom code-loading system is delivered by this
+documentation work.

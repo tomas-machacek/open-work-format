@@ -41,8 +41,9 @@ over the same authoritative Workspace.
 
 Documents are the natural representation for durable context, explanation, and
 knowledge. OWF does not require every object to be a document: high-frequency
-operational objects such as Actions and Inbox Items may use another open,
-interoperable representation when that materially improves everyday usability.
+operational objects such as Actions, Inbox Items, and View instance data may use
+another open, interoperable representation when that materially improves
+everyday usability.
 
 ### P4. Explicit Semantics
 
@@ -190,10 +191,12 @@ not complicate the lightweight core.
 ### P22. Express Plans through Views, Not Work States
 
 Planning selects existing work for intentional focus, optionally within a
-defined window. That selection belongs to a Curated View and must not introduce
-a new intrinsic state such as `Planned`. The same work may participate in
-different plans and horizons without changing its identity, ownership, or
-lifecycle.
+defined window. That explicit selection belongs to a concrete View and must not
+introduce a new intrinsic state such as `Planned`. A View may combine candidate
+discovery with selected work, but displaying a candidate does not select it.
+Planning behavior is optional, and selection is independent of whether a group
+is populated explicitly or by a rule. The same work may participate in different
+plans and horizons without changing its identity, ownership, or lifecycle.
 
 ### P23. Snapshot Explicitly When Historical State Matters
 
@@ -272,9 +275,10 @@ context is already known, direct Action creation is normally the better path.
 
 ### O5. One Workspace, one operational source of truth
 
-Inbox Items and Actions belong to the same logical OWF Workspace as Projects,
-Outcomes, and Knowledge. Their technical representation and physical location
-may differ, but they must not form an isolated system with unrelated identity,
+Inbox Items, Actions, and View instance data belong to the same logical OWF
+Workspace as Projects, Outcomes, Knowledge, and reusable View definitions.
+Their technical representation and physical location may differ, but they must
+not form an isolated system with unrelated identity,
 navigation, access, or lifecycle. Local storage inside the Workspace is
 recommended for portability; external and cloud storage are permitted when
 identified by configuration in the Workspace. Unavailable operational storage
