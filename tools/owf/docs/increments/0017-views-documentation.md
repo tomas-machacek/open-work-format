@@ -13,7 +13,7 @@ the final diff.
 
 Prepare one coherent baseline for the next View implementation increments.
 Include the conceptual amendment, representation and store authority, optional
-planning selection, namespaces, runtime validation, transition consistency,
+Snapshot capture scope, namespaces, runtime validation, transition consistency,
 ordering without previous-position memory, and the current priority of Views
 before Inbox.
 
@@ -30,7 +30,10 @@ own the detailed profile. Other documents describe their own responsibility
 and link to it rather than independently defining divergent behavior.
 
 Core allows explicit, computed, and combined membership and independent order.
-Planning remains an explicit selected subset, distinguishable from candidates.
+Planning expresses intentional focus through membership, grouping, and order.
+No separate persistent planning-selection relation or planning-column flags
+are required. Snapshot capture chooses the whole instance or explicit columns
+without prescribing sprint semantics.
 View definitions are reusable Markdown documents; each concrete live instance
 has its own store identity and local data. All instances use the current shared
 definition; an incompatible change can use a separate independent definition.
@@ -42,23 +45,25 @@ and destination evaluation precedes atomic commit of all related store changes.
 Manual order has no dormant positions; returning Actions have a new position.
 
 The example uses canonical `OWF View Definition` and `in_progress` spelling.
-Column-level planning flags, selectors, and operations are definition data;
-instance parameters and window belong to the instance. Existing live-store
+Columns, selectors, and operations are definition data; instance parameters
+and an optional window belong to the instance. The generic work-board example
+includes Backlog and New Actions; a separate capture example selects only
+current-work and Done columns. Existing live-store
 schema/version and CLI/API mechanics are untouched.
 
 ## Acceptance criteria
 
 AC1: Core no longer requires mutually exclusive whole-View membership kinds.
 It preserves non-ownership, lifecycle separation, optional purpose/window, and
-explicit planning selection distinct from displayed candidates.
+intentional focus without a separate planning-selection relation or flags.
 
 AC2: Markdown definitions and concrete operational instances have unambiguous
 authority and identity. Several independent instances can use one current
 definition without automatic copies or pinned versions.
 
 AC3: The profile describes stable column IDs, namespaced capabilities, read-only
-evaluation, optional planning behavior, and actionable whole-instance failure
-on overlap or unresolved dependencies of the definition.
+evaluation, whole-View or selected-column Snapshot scope, and actionable
+whole-instance failure on overlap or unresolved dependencies of the definition.
 
 AC4: Every allowed cross-column move uses shared Action rules and verifies
 unique target membership before store changes and events commit together.
@@ -70,7 +75,7 @@ are explained; reads do not write or invent computed membership history.
 
 AC6: MVP sequencing, principles, authority/logging notes, architecture,
 decision history, and document links agree. The example's field spelling,
-selection behavior, and transition effects match the written contract.
+Snapshot scope, and transition effects match the written contract.
 
 AC7: No runtime capability is claimed to exist and no code, schema, dependency,
 release, or migration is introduced. Open technical details are explicitly
@@ -104,7 +109,7 @@ evidence is recorded below. This status remains `in_progress`
 pending review of the final text. No independent review, application tests,
 Windows verification, release, or merge is claimed.
 
-Verification on Linux, 2026-10-08:
+Verification of the previous revision on Linux, 2026-10-08 (historical):
 
 - Documentation checks passed for 12 changed Markdown files, 63 relative links,
   seven locally available linked anchors, balanced fences, and unique numbered
@@ -119,6 +124,20 @@ Verification on Linux, 2026-10-08:
 - Application tests and `npm run verify` were not run for this docs-only change.
   No independent review or Windows verification is claimed.
 
+Verification of the Snapshot-scope revision on Linux, 2026-10-10:
+
+- Documentation checks passed for 11 changed Markdown files, 45 relative links,
+  seven locally available linked anchors, balanced fences, and unique numbered
+  sections. File targets also matched the repository tree.
+- All three YAML examples parsed with duplicate-key rejection. Definition type,
+  namespace and column IDs, canonical states, transition references, absence of
+  planning flags, the instance reference, and selected capture columns matched
+  the contract.
+- `git diff --check` passed. The diff was inspected against AC1–AC7;
+  only Markdown files changed and the previous journal text was preserved.
+- Application tests and `npm run verify` were not run for this docs-only change.
+  No independent review or Windows verification is claimed.
+
 ## Decision changes and follow-up
 
 The definition/instance separation replaces the earlier proposal to require
@@ -127,6 +146,12 @@ IDs have separate roles.
 
 All instances use the current shared definition. The rejected alternatives
 were definition copies/version pinning and remembered old column positions.
+On 2026-10-10, the user rejected separate persisted planning membership and
+planning-column flags. Snapshot scope is chosen per capture, supports continuous
+Kanban as well as optional planning periods, and does not modify live membership.
+Decision 026 records this simplification; the earlier verification of planning
+flags above describes the superseded revision.
+
 Future implementation must follow the agreed contracts through separately
 reviewed increments, not interpret this document as authorization to build the
 whole View feature set at once.

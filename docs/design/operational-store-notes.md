@@ -2,7 +2,8 @@
 
 > Status: Working, non-normative design notes; authority boundary and
 > cross-representation references, minimum logical data model, and operation
-> capabilities established; View authority boundary updated 2026-10-08
+> capabilities established; View authority boundary updated 2026-10-08 and
+> Snapshot scope simplified 2026-10-10
 
 > Implementation scope: see [Tool MVP Scope](mvp-scope.md). Screenshot support
 > described below is deferred beyond the first tool MVP.
@@ -34,7 +35,7 @@ authority, logical store data, and operational consistency boundary.
 | Outcome | Markdown directory and `README.md` |
 | Knowledge Document | Markdown document |
 | Reusable View definition | Markdown document |
-| View instance identity, parameters, window, explicit selection, placement, and order | Operational Store |
+| View instance identity, parameters, window, explicit placement, and order | Operational Store |
 | Computed View membership | derived from the current definition and Workspace data |
 | View Snapshot | Markdown document |
 | Inbox Item | Operational Store |
@@ -72,7 +73,7 @@ structure.
 | Action depends on Outcome | Operational Store |
 | Outcome depends on Action | Markdown Outcome |
 | Outcome depends on Outcome | Markdown Outcome |
-| View instance explicitly selects, places, or orders an Action | Operational Store |
+| View instance explicitly places or orders an Action | Operational Store |
 | View instance uses a reusable definition | Operational Store reference to Markdown definition |
 
 A Project or Outcome MAY display its Actions as a derived projection, but its
@@ -189,7 +190,7 @@ workflow history such as Review summaries.
 
 The Operational Event Log belongs to the Operational Store. It records semantic
 changes to Inbox Items, Actions, their outgoing relationships, and View instance
-data, including explicit selection, placement, and ordering. Current operational
+data, including explicit placement and ordering. Current operational
 data, not this history, remains authoritative. Changes to a reusable Markdown
 definition belong to the Markdown Event Log. Evaluating selectors or reading
 a View is not a semantic write and creates no event.
@@ -288,11 +289,10 @@ or a new work lifecycle.
 | --- | --- | --- |
 | `id` | yes | Stable Workspace-unique instance ID. |
 | `definition` | yes | MarkdownObjectReference to the reusable View definition. |
-| `title` | yes | Human-readable instance name, such as Sprint 42. |
+| `title` | yes | Human-readable instance name, such as My work board. |
 | `parameters` | no | Instance-specific values supplied to capability evaluation. |
 | `window` | no | Optional `start` and `end` boundaries for this instance. |
 | Explicit placements | as used | Action reference and stable definition-local column ID. |
-| Explicit planning selection | as used | Selected Action references, independent of temporary computed visibility. |
 | Current manual ordering | as used | Instance, column, Action reference, and local position. |
 
 Column IDs are unique within their definition. Action references retain their
@@ -309,10 +309,11 @@ The detailed observation and reconciliation mechanism belongs to the
 implementation increment; reconstructing unobserved membership history is
 not required.
 
-Explicit planning selection may survive completion or temporary invisibility.
-It is not an old column position and MUST NOT be deleted merely to clean up
-ordering data. Deleting an instance deletes its own operational relations,
-not its Actions or its shared definition.
+No separate planning-selection relation is part of this View model. Meaning
+comes from the particular definition and its operations. Snapshot scope is
+chosen when capturing and is recorded in the immutable historical artifact;
+it is not an additional live membership set. Deleting an instance deletes its
+own operational relations, not its Actions or its shared definition.
 
 ## 10. Dependencies as Reference Values
 
@@ -436,13 +437,13 @@ concurrent writers. No parallel-editing safety guarantee is implied.
 ### 11.6 View instance operations
 
 Humans and agents require equivalent discovery, creation, reading, evaluation,
-selection, movement, ordering, and deletion capabilities for supported Views.
+placement, movement, ordering, and deletion capabilities for supported Views.
 CLI operations must not require the web server. Exact command and endpoint
 syntax will be agreed in implementation increments.
 
-A View move may combine changes to the Action, explicit placement, planning
-selection, ordering, and corresponding Operational Event Log entries. Those
-store changes MUST commit together or all roll back. The application evaluates
+A View move may combine changes to the Action, explicit placement, ordering,
+and corresponding Operational Event Log entries. Those store changes MUST
+commit together or all roll back. The application evaluates
 the resulting View before committing and rejects overlap or failure to place
 the moved Action in the requested destination. This is a scoped store
 transaction, not a distributed transaction or an all-or-nothing Inbox workflow.

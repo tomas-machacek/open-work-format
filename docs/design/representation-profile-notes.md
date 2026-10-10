@@ -37,7 +37,7 @@ not inferred from their body content.
 
 Actions and Inbox Items are handled mainly through capture, state changes,
 filtering, completion, and contextual navigation. View instance data changes
-through selection, placement, and ordering. A generic Markdown editor does not
+through placement and ordering. A generic Markdown editor does not
 provide sufficiently low-friction interaction for these operations.
 
 The profile therefore no longer assumes that Actions and Inbox Items are
@@ -947,14 +947,14 @@ Every View definition grouping directory is a transparent representation
 container, contains `index.md`, and may contain definitions or further grouping
 directories. Its placement does not determine purpose.
 
-A definition describes columns, population and ordering policies, optional
-planning participation, and named transition capabilities under `owf`
-frontmatter. The body explains intent; body links, headings, and link order
+A definition describes columns, population and ordering policies, and named
+transition capabilities under `owf` frontmatter. The body explains intent;
+body links, headings, and link order
 have no authoritative membership, placement, or ordering semantics.
 
 Concrete View instances reside in the Operational Store. Each has an independent
 stable instance ID, definition reference, title, optional parameters and window,
-and its own explicit selection, placement, and order. One definition may have one
+and its own explicit placements and order. One definition may have one
 or several instances. Optional `owf.id` identifies the definition document, not
 any of its instances; `owf.namespace` identifies its capability namespace and
 is not an instance ID.
@@ -962,6 +962,8 @@ is not an instance ID.
 Instances use the current shared definition; no copies or pinned definition
 versions are created automatically. An incompatible change can be expressed by
 a new independent definition. Runtime state is not a historical Snapshot.
+Snapshot capture can include the whole instance or chosen columns without
+planning flags or a separately stored planning membership set.
 
 [Views Profile Design Notes](views-profile-notes.md) define the detailed
 frontmatter, namespaces, runtime validation, transition semantics, and examples.

@@ -36,7 +36,7 @@ Planned layout; directories and abstractions are created only when needed:
 | src/domain/references/            | Shared domain identifiers and references                                        |
 | src/application/actions/          | Action use cases                                                                |
 | src/application/inbox/            | Inbox use cases                                                                 |
-| src/domain/views/                | View instance, selection, placement and ordering rules when implemented          |
+| src/domain/views/                | View instance, placement and ordering rules when implemented                    |
 | src/application/views/           | Definition evaluation and View commands when implemented                         |
 | src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces |
 | src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations             |
@@ -92,8 +92,8 @@ reference, outgoing dependencies and state-related values. Workspace is the
 operation context, not an aggregate containing every object.
 
 The next View stage introduces independent operational instances referencing
-reusable Markdown definitions. Instance identity, explicit selection, placement,
-and order are not fields on Action. A command can coordinate an Action and View
+reusable Markdown definitions. Instance identity, explicit placement, and order
+are not fields on Action. A command can coordinate an Action and View
 instance without turning Workspace into an aggregate or copying Action data.
 
 Domain operations express intent, such as complete or archive, rather than
@@ -134,7 +134,7 @@ Advanced stale-edit detection and conflict merging remain deferred.
 
 An application operation saves the affected operational data and its Operational
 Event Log entries in one transaction. For View moves this includes affected
-Action data and instance selection, placement, and order, followed by result
+Action data and instance placement and order, followed by result
 validation before commit. Failed operations do not leave partial changes.
 This transaction does not extend to externally edited Markdown documents;
 do not imply a consistent snapshot across the filesystem and SQLite.
@@ -167,8 +167,11 @@ stale, with View movement and reordering disabled; CLI returns structured failur
 
 A move invokes the configured operation using shared domain rules, then evaluates
 the complete resulting instance within the store transaction. Destination
-membership and uniqueness are required before commit. The first operation
-contract excludes Markdown writes, external effects, and any action that cannot
+membership and uniqueness are required before commit. No separate planning
+membership relation or planning-column flag is introduced; Snapshot scope is
+an explicit capture-time choice of the whole View or selected columns.
+Snapshot runtime remains deferred. The first operation contract excludes
+Markdown writes, external effects, and any action that cannot
 be rolled back with the store. Reading editable Markdown is not a distributed
 snapshot guarantee.
 

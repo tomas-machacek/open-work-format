@@ -1,7 +1,8 @@
 # OWF Views Profile Design Notes
 
 > Status: Agreed design direction, 2026-10-08; non-normative representation
-> contract prepared in increment 0017. No View runtime is implemented yet.
+> contract prepared in increment 0017; Snapshot scope simplified 2026-10-10.
+> No View runtime is implemented yet.
 
 ## 1. Purpose and authority
 
@@ -19,16 +20,17 @@ contracts, not an implemented function catalogue.
 ## 2. Definitions and instances
 
 A **View definition** is reusable Markdown configuration. It defines the
-renderer, columns, selectors, ordering policies, optional planning columns, and
+renderer, columns, selectors, ordering policies, and
 permitted transition operations. It does not contain authoritative Action lists,
 current computed results, or manually maintained card positions.
 
 A **View instance** is the concrete live View. It has a stable Workspace-unique
-store ID, a definition reference, a title, optional parameters and planning
-window, and independent explicit selection, placements, and ordering.
+store ID, a definition reference, a title, optional parameters and window,
+and independent explicit placements and ordering.
 
 The usual case is one instance of a definition. Multiple instances are allowed,
-for example Sprint 42 and Sprint 43 using the same sprint definition.
+for example two period-specific boards using one definition, or one continuously
+used Kanban board without a planning period.
 Instance creation does not copy Actions or copy the definition.
 
 A definition reference uses the existing `MarkdownObjectReference`. Path identity
@@ -73,9 +75,9 @@ Headings, prose links, and their order do not define membership or placement.
 | `transitions` | Permitted directed column pairs and their operation capabilities. |
 
 Each column has a definition-local stable `id`, a `title`, `population`,
-and `ordering`. IDs must be unique within the definition. The optional
-`planning: true` marks a column as part of the selected-plan presentation;
-omission means false. This is independent of population mode.
+and `ordering`. IDs must be unique within the definition. There is no planning
+flag or universal meaning attached to any column. The definition's selectors
+and operations determine behavior.
 
 `population.mode: manual` uses explicit instance placements.
 `population.mode: computed` requires `selector` and optionally `params`.
@@ -89,14 +91,14 @@ Column references must resolve, and a directed pair has at most one operation.
 Unlisted cross-column moves are forbidden. Same-column reordering is governed
 by ordering policy and never invokes a transition operation.
 
-Purpose is descriptive. It does not silently create a planning selection,
+Purpose is descriptive. It does not create additional membership relations,
 Action state, lifecycle, or special subtype.
 
 ## 4. Registered capabilities and namespaces
 
 Selectors, ordering capabilities, and operations are resolved from a registry
 by their fully qualified names, such as `general.actions-by-state`,
-`sprint.green-actions`, or `sprint.complete-action`.
+`my-view.green-actions`, or `work-board.complete-action`.
 
 - `general` is reserved for standard capabilities.
 - Each definition declares a stable namespace, unique among definitions in
@@ -110,8 +112,8 @@ by their fully qualified names, such as `general.actions-by-state`,
 
 All instances of one definition use the same registered capabilities. Invocation
 receives the current instance context, including its ID, parameters, optional
-window, explicit placements and planning selection, and the relevant Workspace
-facts. A sprint-specific function is not separately registered for every sprint.
+window, explicit placements, and the relevant Workspace facts. A definition's
+capabilities are not separately registered for every instance.
 
 Selectors and ordering capabilities are read-only. They return member identities
 or ordering information, not authoritative copies of Actions. They must not
@@ -169,36 +171,48 @@ store data likewise cannot be interpreted as successful empty results.
 Neither partial success nor silently dropping duplicate cards satisfies this
 contract. Runtime validation is read-only.
 
-## 6. Optional planning selection
+## 6. Snapshot capture scope
 
-Planning is an optional use of a View. Its definition may identify no planning
-columns, one, or several. A View can display candidate Actions without selecting
-them into a plan.
+A Snapshot can capture the whole View instance or a chosen set of columns.
+The scope is selected for that capture, independently of purpose, population
+mode, ordering mode, or any planning period. Columns need no planning flag and
+the instance maintains no separate planning-selection set.
 
-An instance with planning behavior keeps an explicit planning selection.
-A deliberate selection operation, such as a move from Candidates into a marked
-planning column, adds the Action. Moving between planning columns preserves
-selection. An explicit removal from the plan removes it. The defined operation
-must make that intent clear; a selector's result alone never enrolls candidates.
+For example, a continuously used Kanban may have Backlog, New to organize,
+Todo, In progress, Waiting for, and Done. A capture may include only the last
+four columns. The same choice can be used at the start and end of a planning
+period, but a sprint is not required and capture can happen at any chosen time.
+Column titles carry no universal framework meaning.
 
-Completion alone does not remove selection. Temporary invisibility likewise
-does not erase the intentional choice. Selection is not stored Action priority
-or a new execution state.
+Capture identifies the concrete source instance and either whole-View scope
+or the selected stable column IDs. Unknown column IDs are errors, not an
+implicit switch to whole-View capture. Evaluate the instance successfully under
+the normal runtime validation rules before selecting its capture scope;
+scope selection must not hide membership conflicts in excluded columns.
 
-Planning presentation is independent of population mode. A computed Done column
-may select completed Actions from this instance's explicit planning selection.
-It must not include every completed Workspace Action or overlap a manual column.
-A manually populated Done column is also valid.
+For the first Kanban profile, the immutable Snapshot records:
 
-Review of the plan uses the explicit selection. A whole-View Review can include
-candidates when that wider scope is explicitly chosen. Snapshots identify their
-instance and capture scope: whole View or planning selection. Snapshot runtime
-and serialization remain deferred.
+- the source instance identity and capture time;
+- the explicit capture scope;
+- captured column IDs and titles, including empty selected columns;
+- column order and the displayed Action order within each included column; and
+- every Action in scope, preserving at least its ID, type, and captured title,
+  plus the explicitly selected item-property projection.
 
-Definition edits do not silently enroll or discard planned work. Incompatible
-changes to planning interpretation must be handled explicitly, as other
-definition/state mismatches are. No universal meaning is assigned to column
-titles such as Today, This Week, or Done.
+A computed column contributes its successfully evaluated results at capture
+time. It does not become an authoritative current membership list.
+Selecting columns does not alter current placement or Action state. Later
+changes to Actions, selectors, definitions, or titles do not rewrite the Snapshot.
+Capture does not imply a stronger Markdown/store consistency guarantee than
+the existing representation boundary provides.
+
+Review can likewise use the whole View or an explicitly chosen scope. Neither
+Review scope nor Snapshot scope creates persistent planning membership.
+Definition changes do not silently replay past operations.
+
+Snapshot serialization, command/API shape, and runtime implementation remain
+deferred. These semantics describe what future capture must preserve; they do
+not add a new persistent planning relation to the current View model.
 
 ## 7. Cross-column moves
 
@@ -214,17 +228,17 @@ permitted transition, then executes the registered operation.
 | Computed to computed | No explicit membership override; the operation must make the Action match the target and leave the source. |
 
 An operation may also change Action state or other supported operational data,
-and maintain explicit planning selection as appropriate. All Action changes
+according to the explicit operation. All Action changes
 still obey the same domain rules as outside Views. Moving a card is not authority
 to bypass dependency, ownership, Waiting, or terminal-state rules.
 
 Before committing, evaluate the resulting instance. The Action must occur in
 the requested target and nowhere else, and the whole View must remain valid.
 If evaluation fails, all related store changes and event entries roll back.
-No position or selection change may remain after an Action change fails,
+No position change may remain after an Action change fails,
 and no Action change may remain after destination validation fails.
 
-The transaction includes placements, selection, ordering, Action changes, and
+The transaction includes placements, ordering, Action changes, and
 Operational Event Log entries. It does not include editable Markdown, networks,
 or external side effects. No cross-store snapshot guarantee is implied.
 Temporary display filters do not determine the validity of the destination.
@@ -260,120 +274,153 @@ Physical invalidation and reconciliation without read side effects must be
 specified with the first ordering implementation. The contract does not require
 reconstruction of membership changes that were never observed.
 
-Deleting an instance removes all its local ordering, selection, and placement
+Deleting an instance removes all its local ordering and placement
 data, while preserving Actions and the shared definition. Previous-position
 memory may be reconsidered only if actual use demonstrates a need.
 
 ## 9. Example definition
 
-This is a definition fragment intended for `_views/sprint.md` in a Workspace.
+This is a definition fragment intended for `_views/work-board.md` in a Workspace.
 It does not define an executable capability catalogue or create an instance.
+It can be used continuously, with any WIP policy expressed by the particular
+capabilities rather than a mandatory sprint or planning model.
 
 ```markdown
 ---
 type: OWF View Definition
-title: Sprint board
-description: Candidate discovery and explicitly selected sprint work.
+title: Work board
+description: Current work, backlog, and new Actions awaiting organization.
 owf:
-  namespace: sprint
-  purpose: planning
+  namespace: work-board
+  purpose: focus
   renderer: kanban
   columns:
-    - id: candidates
-      title: Candidates
+    - id: backlog
+      title: Backlog
       population:
         mode: computed
         selector: general.actions-by-state
         params:
-          states: [open, in_progress]
+          states: [open, in_progress, waiting]
           exclude_manual_members_of_view: true
       ordering:
         mode: manual
-    - id: this-sprint
-      title: This sprint
-      planning: true
+    - id: new-actions
+      title: New to organize
       population:
         mode: manual
       ordering:
         mode: manual
-    - id: today
-      title: Today
-      planning: true
+    - id: todo
+      title: Todo
+      population:
+        mode: manual
+      ordering:
+        mode: manual
+    - id: in-progress
+      title: In progress
+      population:
+        mode: manual
+      ordering:
+        mode: manual
+    - id: waiting
+      title: Waiting for
       population:
         mode: manual
       ordering:
         mode: manual
     - id: done
       title: Done
-      planning: true
       population:
         mode: manual
       ordering:
         mode: manual
   transitions:
-    - from: candidates
-      to: this-sprint
+    - from: backlog
+      to: todo
+      operation: work-board.queue-action
+    - from: new-actions
+      to: todo
+      operation: work-board.queue-action
+    - from: new-actions
+      to: backlog
       operation: general.move-in-view
-    - from: this-sprint
-      to: today
+    - from: todo
+      to: backlog
       operation: general.move-in-view
-    - from: today
-      to: this-sprint
-      operation: general.move-in-view
-    - from: this-sprint
-      to: candidates
-      operation: general.move-in-view
-    - from: this-sprint
+    - from: todo
+      to: in-progress
+      operation: work-board.start-action
+    - from: in-progress
+      to: waiting
+      operation: work-board.wait-for-action
+    - from: waiting
+      to: in-progress
+      operation: work-board.resume-action
+    - from: todo
       to: done
-      operation: sprint.complete-action
-    - from: today
+      operation: work-board.complete-action
+    - from: in-progress
       to: done
-      operation: sprint.complete-action
+      operation: work-board.complete-action
 ---
 
-# Sprint board
+# Work board
 
-Candidates are possibilities, not selected sprint work.
-Moving into This sprint selects an Action without starting it.
-Moving into Done explicitly completes the Action.
+Backlog contains eligible Actions not placed in another column of this instance.
+New to organize contains defined Actions awaiting a decision about placement.
+The other columns show current work and its results.
 ```
 
-In this example, `general.move-in-view` updates placement, planning selection
-when crossing the planning boundary, and target position without changing the
-Action. Returning from This sprint to Candidates removes placement and planning
-selection and succeeds only if the candidate rule accepts the Action.
+In this example, `general.move-in-view` updates placement and target position
+without changing the Action. Moving back to Backlog removes the manual placement
+and succeeds only if the backlog selector accepts the Action.
 
-`sprint.complete-action` completes the Action and places it in Done in the same
-transaction, retaining its planning selection. This manual Done column avoids
-any assumption that completion performed elsewhere automatically moves a card.
+The example `work-board.queue-action`, `start-action`, `wait-for-action`,
+`resume-action`, and `complete-action` capabilities apply the corresponding
+Open, In Progress, Waiting, In Progress, and Completed state changes together
+with destination placement and ordering. All effects use shared Action rules
+and commit in the same transaction. The framework does not infer these effects
+from the column titles.
+
+These manual state columns do not imply automatic relocation after an Action
+change made elsewhere. A definition wanting that behavior can use coordinated
+computed selectors instead. Any overlaps remain runtime errors.
 
 The generic selector's example `states` parameter uses the representation's
 canonical state spelling `in_progress`; adapters may map to the tool's existing
 CLI spelling. The exclusion parameter consults this instance's current manual
-placements, not every instance of the definition.
+placements, including New to organize, not every instance of the definition.
+Thus Backlog and New to organize cannot both contain the same Action.
 
-A custom computed column could instead use `selector: sprint.green-actions`.
-For computed Done, a `sprint.completed-selection` capability would inspect the
-instance's explicit selection and must coordinate with the other column rules
-to satisfy uniqueness.
+A custom computed column could instead use `selector: my-view.green-actions`
+from an explicitly reused capability namespace.
 
 Illustrative instance data uses the existing definition reference model:
 
 ```yaml
-id: example-instance-42
+id: example-instance-1
 definition:
-  url: /_views/sprint.md
-title: Sprint 42
-parameters:
-  sprint_number: 42
-window:
-  start: "2026-10-12"
-  end: "2026-10-23"
+  url: /_views/work-board.md
+title: My work board
 ```
 
-The ID is illustrative, not a prescribed encoding. Window boundaries and
-parameters belong to the instance, not repeated copies of the shared definition.
-Another instance has its own ID and independent operational data.
+The ID is illustrative, not a prescribed encoding. Optional parameters and
+window boundaries belong to the instance. A continuously used instance can omit
+the window; another instance can use the same definition with its own ID and
+independent operational data.
+
+An illustrative capture choice, not a CLI/API or Snapshot serialization contract:
+
+```yaml
+instance_id: example-instance-1
+scope:
+  columns: [todo, in-progress, waiting, done]
+```
+
+This capture includes the current contents and order of those four columns and
+excludes Backlog and New to organize. It requires no stored planning selection
+or column planning flags. A later capture is a new immutable Snapshot.
 
 ## 10. Deferred implementation details
 

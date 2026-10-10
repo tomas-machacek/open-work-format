@@ -430,9 +430,8 @@ Views with independent grouping and order.
 
 A representation MAY separate a reusable View definition from concrete View
 instances. Each instance is a live View with its own identity and local data;
-sharing a definition MUST NOT imply sharing membership, order, or planning
-selection. The representation profile defines definition references and
-instance identity.
+sharing a definition MUST NOT imply sharing membership, grouping, or order.
+The representation profile defines definition references and instance identity.
 
 A View MAY expose an optional machine-readable `purpose` from an open
 vocabulary. Purpose MUST NOT create a closed View subtype or lifecycle. Common
@@ -474,9 +473,11 @@ A Snapshot MUST record:
 - capture scope: the whole View or an explicitly identified subset; and
 - all items in that scope at capture time.
 
-A planning-selection Snapshot MUST identify that scope and MUST NOT silently
-include unselected candidates. A whole-View Snapshot includes candidates if
-they are members of the source View. Sharing a definition does not make two
+Capture scope is chosen for the particular Snapshot; it does not require a
+separately maintained planning membership relation in the live View.
+A representation MAY identify a subset through the View's groups. A whole-View
+Snapshot includes every current member; a scoped Snapshot includes every member
+of the explicitly selected scope. Sharing a definition does not make two
 instances the same snapshot source.
 
 At minimum, captured membership MUST preserve each item's identity, type, and
@@ -557,45 +558,43 @@ information may have changed.
 ## 15. Planning
 
 Planning selects existing work for intentional focus. It operates on already
-defined Projects, Outcomes, and Actions and produces an explicit planning
-selection represented within a View.
+defined Projects, Outcomes, and Actions and expresses that focus through View
+membership, grouping, and ordering.
 
-Planning MUST NOT introduce a `Planned` lifecycle state. Planning selection
-expresses intended focus, not intrinsic priority or guaranteed completion.
-Membership, ordering, and grouping belong to the View.
+Planning MUST NOT introduce a `Planned` lifecycle state. View-local organization
+MUST NOT be treated as intrinsic Action priority or guaranteed completion.
+Core does not require a separate persistent planning-selection relation,
+planning flags on groups, or a sprint model.
 
-A View MAY show candidates alongside selected work. In that case, its planning
-selection MUST be distinguishable from its wider displayed membership.
-Displaying a candidate MUST NOT itself select it for the plan. Completing an
-item MUST NOT by itself remove that item from the planning selection.
+A View MAY present candidates, future work, current work, and completed work
+together. The meaning of those groups belongs to the particular definition and
+its operations; Core assigns no universal meaning to their titles. Displaying
+an item does not itself make a commitment or mutate the item.
 
-Planning behavior is optional. A View without a planning selection remains a
-valid View; a purpose label alone MUST NOT imply that every displayed member is
-selected.
-
-A Planning View MAY:
+A View used for Planning MAY:
 
 - contain Projects, Outcomes, Actions, or a mixture;
 - contain blocked work;
 - omit prerequisites and transitive dependencies;
-- change while the plan is active;
-- overlap other Planning Views; and
-- use or omit a fixed planning window.
+- change while it is in use;
+- overlap other Views; and
+- use or omit a fixed window.
 
 Planning MUST remain separate from Review, Refinement, Inbox Processing,
 ownership changes, and lifecycle decisions. Discovering the need for one of
-those activities does not make it part of Planning.
+those activities does not make it part of Planning. An interface may offer
+separate explicit operations for them, subject to their Core rules.
 
-Computed membership MAY help discover candidates in the same View or another
-View. The result of intentional Planning MUST remain explicit even when
-computed groups present selected work, such as completed items of that plan.
-Core v0 does not prescribe capacity, work in progress, completion, rollover, or
-methodology rules.
+A View can support bounded planning periods or continuous flow. Core does not
+prescribe sprint, capacity, work-in-progress, completion, or rollover policies.
+Computed membership can expose candidates or current work according to the
+definition, independently of grouping and ordering.
 
-Review MAY use the explicit planning selection as its scope at the end of a
-planning period. A broader whole-View Review is also permitted when consciously
-selected. The scope MUST distinguish selected work from candidates. A Snapshot
-MAY preserve a reliable historical projection before or after such a Review.
+Review MAY use the whole View or an explicitly chosen subset as its scope.
+A Snapshot MAY capture the whole View or a chosen subset before or after such a
+Review, or at any other chosen time. Selecting a capture scope does not create
+or change current membership. Start- and end-of-period captures are examples,
+not requirements on every View.
 
 ## 16. Event Logs
 

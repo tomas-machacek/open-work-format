@@ -1,7 +1,8 @@
 # Open Work Format -- Design Review
 
 > Status: Core v0 conceptually closed (2026-08-07); targeted View amendment
-> accepted 2026-10-08 as Decision 025.
+> accepted 2026-10-08 as Decision 025; Snapshot scope simplified 2026-10-10
+> as Decision 026.
 
 ## Purpose
 
@@ -10,8 +11,9 @@ accepted decisions, decision candidates, unresolved questions, and consistency
 issues. Historical evolution and rationale may additionally be captured in the
 Design Journal; normative rules ultimately belong in the Specification.
 
-Decision 025 records the current View amendment. Original Decisions 017-019 and
-023 and the 2026-08 closure summaries remain historical evidence where their
+Decisions 025 and 026 record the current View amendment and its simplification.
+Original Decisions 017-019 and 023 and the 2026-08 closure summaries remain
+historical evidence where their
 wording assumes a wholly Curated/Computed View or one Markdown document per
 live View. For current requirements, read amended Core Sections 12, 13, and 15
 and the linked View profile rather than those superseded assumptions.
@@ -400,7 +402,7 @@ with standalone Actions that do not belong to that Outcome.
 
 ### Decision 018 -- View Snapshots
 
-**Status:** Accepted (Core v0); instance identity and capture scope clarified by Decision 025
+**Status:** Accepted (Core v0); instance identity clarified by Decision 025; capture scope amended by Decision 026
 
 A View may be materialized as an immutable View Snapshot. The snapshot records
 the View membership and a user-selected projection of item state at a specific
@@ -601,7 +603,8 @@ does not prevent a Knowledge Document from preserving durable information.
 
 ### Decision 025 -- Combined Views, Reusable Definitions, and Operational Instances
 
-**Status:** Accepted (2026-10-08); documentation review pending in increment 0017
+**Status:** Accepted (2026-10-08); planning-selection model superseded by Decision 026;
+documentation review pending in increment 0017
 
 A live View can combine explicit and computed membership with independent
 grouping and ordering. Curated/Computed remain useful descriptions of membership,
@@ -636,6 +639,39 @@ Concrete contracts belong in
 [Views Profile Design Notes](views-profile-notes.md), with authority in
 [Operational Store notes](operational-store-notes.md) and delivery scope in
 [increment 0017](../../tools/owf/docs/increments/0017-views-documentation.md).
+
+### Decision 026 -- Snapshot Scope Without Separate Planning Membership
+
+**Status:** Accepted (2026-10-10); documentation review pending in increment 0017
+
+A View definition should support both bounded planning periods and continuous
+Kanban. Backlog, newly created work awaiting organization, current work, and
+completed work are ordinary columns whose meaning belongs to that definition
+and its registered operations. Core does not require sprint semantics,
+a separate persistent planning-selection relation, or `planning: true` flags.
+
+Intentional focus can be expressed through View membership, grouping, and order.
+Snapshot capture independently chooses the whole concrete View instance or
+explicitly selected columns. For example, a capture can include Todo, In
+progress, Waiting, and Done while excluding Backlog and New Actions. The same
+scope can be captured at any time, including the beginning and end of an
+optional planning period. Capture scope does not change live membership.
+
+A scoped capture evaluates and validates the complete instance before applying
+the scope, so excluded columns cannot hide overlap errors. It preserves the
+chosen column IDs and titles, including empty columns, column/card order, and
+the captured Action IDs, types, titles, and optional property projection.
+Later changes to Actions, definitions, instances, or their parameters do not
+alter an existing Snapshot. Review can likewise operate on the whole View or
+an explicit subset without requiring a separate persisted planning set.
+
+This supersedes the planning-selection set, planning-column flags, and
+planning-selection Snapshot scope in Decision 025. Its other contracts,
+including definition/instance separation, unique membership, atomic moves,
+and ordering without dormant positions, remain accepted. Actual Snapshot
+implementation, serialization, and commands remain deferred. Current
+requirements are in Core Sections 12, 13, and 15 and
+[Snapshot capture scope](views-profile-notes.md#6-snapshot-capture-scope).
 
 ## Review Design Closure
 
@@ -779,7 +815,7 @@ or contradiction. A preference of one tool or methodology is not sufficient.
 
 ### Views
 
-- Accepted as Core v0 by Decisions 018, 019, 020, and 023, amended by Decision 025.
+- Accepted as Core v0 by Decisions 018, 019, 020, and 023, amended by Decisions 025 and 026.
   The current profile contract is documented in Views Profile Design Notes.
   Remaining implementation details concern physical schema, capability interfaces,
   commands, ordering reconciliation, and compatibility mechanics.

@@ -711,3 +711,33 @@ Decision 025 and documentation increment 0017 record the amendment. A dedicated
 Views profile owns the detailed contract; no runtime feature, command, migration,
 general definition editor, or custom code-loading system is delivered by this
 documentation work.
+
+## 2026-10-10 -- Generic Snapshot Scope Instead of Planning Membership
+
+The user questioned whether optional planning selection added unnecessary
+complexity and pushed sprint semantics into the View model. Their board can
+also support continuous Kanban, with current work kept under WIP limits and
+ordinary Backlog and New Actions awaiting organization columns. What they
+need for history is a capture of selected columns at a particular time,
+possibly at the beginning and end of a planning period.
+
+The separate persisted planning-selection set and `planning: true` column
+flags were therefore removed from the current proposal. Intentional focus is
+expressed through membership, grouping, and ordering in the particular View.
+Column meanings and move effects remain the responsibility of its definition
+and registered operations; neither sprint semantics nor WIP enforcement is
+introduced by this amendment.
+
+Each Snapshot capture chooses the whole concrete View instance or explicit
+column IDs. Excluding Backlog and New Actions from a capture does not remove
+them from the live View. A scoped capture still validates the whole instance
+before filtering, preserves selected empty columns and card order, and
+materializes computed results rather than depending on later re-evaluation.
+Review can similarly use a whole View or an explicit subset.
+
+Decision 026 supersedes the planning-selection part of Decision 025 while
+retaining reusable definitions, independent instances, namespaced
+capabilities, unique membership, atomic moves, and no past-column position
+memory. The profile now illustrates a generic work board and a separate
+capture scope. Snapshot runtime and serialization remain deferred; this
+revision changes documentation only.

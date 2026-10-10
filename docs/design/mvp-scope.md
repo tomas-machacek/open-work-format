@@ -181,7 +181,7 @@ Subsequent separately agreed code increments may deliver the
 [Views profile](views-profile-notes.md) progressively:
 
 - reusable Markdown definitions and independent Operational Store instances;
-- custom Kanban columns and optional explicit planning selection;
+- custom Kanban columns, with Snapshot scope chosen independently when capturing;
 - manual and computed population with independent per-instance ordering;
 - namespaced selectors and transitions using shared Action rules;
 - complete runtime validation and atomic, result-validated movement;

@@ -31,8 +31,8 @@ documentation baseline does not yet add View runtime functionality.
   — working decisions for Actions, Inbox Items, View instance data,
   cross-representation references, and operational history.
 - [Views Profile Design Notes](docs/design/views-profile-notes.md)
-  — reusable definitions, independent instances, optional planning selection,
-  namespaced capabilities, ordering, runtime validation, and atomic transitions.
+  — reusable definitions, independent instances, scoped Snapshots, namespaced
+  capabilities, ordering, runtime validation, and atomic transitions.
 - [Tool MVP Scope](docs/design/mvp-scope.md) — agreed scope and acceptance
   scenarios for the first local web and CLI implementation; Views are the next
   stage, with Inbox and screenshots deferred.

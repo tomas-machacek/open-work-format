@@ -191,19 +191,21 @@ not complicate the lightweight core.
 ### P22. Express Plans through Views, Not Work States
 
 Planning selects existing work for intentional focus, optionally within a
-defined window. That explicit selection belongs to a concrete View and must not
-introduce a new intrinsic state such as `Planned`. A View may combine candidate
-discovery with selected work, but displaying a candidate does not select it.
-Planning behavior is optional, and selection is independent of whether a group
-is populated explicitly or by a rule. The same work may participate in different
-plans and horizons without changing its identity, ownership, or lifecycle.
+defined window. Intent is expressed through the membership, grouping, and
+ordering of concrete Views rather than a new intrinsic state such as `Planned`.
+No separate planning-membership set or planning flag is required. Group meaning
+belongs to the particular View, which can support bounded periods or continuous
+flow. The same work may participate in different Views and horizons without
+changing its identity, ownership, or lifecycle.
 
 ### P23. Snapshot Explicitly When Historical State Matters
 
 Live Views and current objects must not be treated as reliable records of past
 state, and Event Logs are not guaranteed to be complete. When a trustworthy
 historical projection is required, an immutable View Snapshot explicitly
-captures membership and the selected item state at that time.
+captures membership and the selected item state at that time. The capture can
+cover the whole View or explicitly chosen groups; selecting that scope does not
+change the live View or require a separate planning subset.
 
 ### P24. Keep View Purpose Open and Window Names Conventional
 
