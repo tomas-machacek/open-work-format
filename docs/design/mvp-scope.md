@@ -1,7 +1,12 @@
 # OWF Tool MVP Scope
 
-> Status: Agreed scope for the first tool MVP; non-normative.
+> Status: Agreed original MVP scope; next-stage priority updated 2026-10-08; non-normative.
 > This document defines implementation scope, not additional OWF Core requirements.
+
+The original scope and acceptance scenarios below remain the baseline for
+capabilities not yet delivered, not a claim that every listed capability exists.
+The agreed current sequence is recorded in Section 6: Views precede Inbox.
+Documentation alignment does not itself deliver View commands or UI.
 
 ## 1. Goal
 
@@ -38,6 +43,9 @@ An unavailable store must be reported as unavailable, never interpreted as an
 empty Workspace or silently replaced with a new store.
 
 ### Capture and Inbox
+
+> Deferred in the current sequence. These original capability goals remain
+> valid, but Inbox is not a prerequisite for the Views stage.
 
 Provide a quick capture entry point with a choice between a new Inbox Item and
 a direct Action. A short text is sufficient for an Inbox Item; a title is
@@ -117,8 +125,10 @@ No unified log, correlation IDs, event-sourcing architecture, or dedicated
 history browser is required.
 
 Each operation on one object must either save a complete valid result or leave
-that object unchanged. Report failures clearly. Multi-object processing is a
-sequence of separate operations, not an all-or-nothing transaction.
+that object unchanged. Report failures clearly. Inbox multi-object processing is a
+sequence of separate operations, not an all-or-nothing transaction. A validated
+View move is a separate scoped operation: its Action and instance-data changes
+must commit together in the Operational Store.
 
 Provide a documented backup and restore procedure with writes paused, consistent
 with the existing storage design. Advanced concurrent-edit handling is deferred.
@@ -157,13 +167,42 @@ The MVP is usable when the following flows work end to end:
    partially changing the affected object.
 8. Restore a Workspace's operational data using the documented backup procedure.
 
-None of these scenarios requires screenshot support.
+None of these original scenarios requires screenshot support.
 
-## 6. Candidate Implementation Slice
+## 6. Current next stage: Views before Inbox
 
-The following remains a candidate, not the agreed first increment. The first
-increment and its acceptance criteria will be selected after architecture and
-development decisions have been recorded and checked.
+The user selected Views as the next development direction on 2026-10-08.
+Known Actions can already be created directly, so Inbox remains deferred without
+changing its Core semantics or cancelling its original scope.
+
+First align documentation in
+[increment 0017](../../tools/owf/docs/increments/0017-views-documentation.md).
+Subsequent separately agreed code increments may deliver the
+[Views profile](views-profile-notes.md) progressively:
+
+- reusable Markdown definitions and independent Operational Store instances;
+- custom Kanban columns, with Snapshot scope chosen independently when capturing;
+- manual and computed population with independent per-instance ordering;
+- namespaced selectors and transitions using shared Action rules;
+- complete runtime validation and atomic, result-validated movement;
+- equivalent supported operations through CLI and the web interface.
+
+The existing five-state board behavior remains delivered functionality, not a
+universal restriction on future View columns. Supporting definitions edited in
+Obsidian does not imply a general graphical definition editor. No Inbox feature,
+Snapshot runtime, automated Planning/Review, or custom code-loading system is
+authorized by this documentation increment.
+
+Concrete schema, migration policy, commands, endpoints, UI, and tests belong
+to later code increments. Keep shipped-feature documentation truthful until
+those features are delivered.
+
+## 7. Historical Candidate Implementation Slice
+
+The following records the original candidate slice, not the next increment.
+Actual delivered increments are tracked in the
+[increment index](../../tools/owf/docs/increments/README.md); Section 6 records
+the current next-stage priority.
 
 A possible complete path is: register a Workspace, create an Action through the
 CLI, display it in the web interface, change its state in the GUI, verify the
@@ -177,13 +216,14 @@ The agreed technology stack and structural decisions are recorded in the
 schema, exact CLI syntax and URI handler lifecycle details remain open
 implementation decisions.
 
-## 7. Related Design Documents
+## 8. Related Design Documents
 
 - [Tool Architecture](../../tools/owf/docs/architecture.md)
 - [Development Guidelines](../../tools/owf/docs/development-guidelines.md)
 - [Design Principles](principles.md)
 - [Operational Store Design Notes](operational-store-notes.md)
 - [Representation Profile Design Notes](representation-profile-notes.md)
+- [Views Profile Design Notes](views-profile-notes.md)
 
 The existing logical model and operation rules remain the design baseline.
 This document identifies the subset and application experience to deliver first;

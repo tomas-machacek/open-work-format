@@ -1,6 +1,7 @@
 # OWF Tool Architecture
 
-> Status: Agreed implementation baseline, 2026-09-15. The first increment is complete.
+> Status: Agreed implementation baseline, 2026-09-15.
+> View architecture direction added 2026-10-08; View runtime not yet implemented.
 
 ## Purpose and authority
 
@@ -12,6 +13,9 @@ Domain semantics come from [Core v0](../../../spec/core-v0.md) and the agreed
 [Operational Store design](../../../docs/design/operational-store-notes.md).
 The MVP scope selects capabilities; it does not redefine their semantics.
 [Development guidelines](development-guidelines.md) define engineering practice.
+The [Views profile](../../../docs/design/views-profile-notes.md) owns the
+agreed definition/instance and first Kanban contract. Its implementation requires
+separately agreed code increments after documentation increment 0017.
 Unresolved conflicts must be reported rather than silently resolved by changing
 the specification.
 
@@ -32,6 +36,8 @@ Planned layout; directories and abstractions are created only when needed:
 | src/domain/references/            | Shared domain identifiers and references                                        |
 | src/application/actions/          | Action use cases                                                                |
 | src/application/inbox/            | Inbox use cases                                                                 |
+| src/domain/views/                | View instance, placement and ordering rules when implemented                    |
+| src/application/views/           | Definition evaluation and View commands when implemented                         |
 | src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces |
 | src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations             |
 | src/infrastructure/markdown/      | Reading Markdown objects and metadata                                           |
@@ -85,6 +91,11 @@ Action and Inbox Item are separate aggregate roots. An Action includes its owner
 reference, outgoing dependencies and state-related values. Workspace is the
 operation context, not an aggregate containing every object.
 
+The next View stage introduces independent operational instances referencing
+reusable Markdown definitions. Instance identity, explicit placement, and order
+are not fields on Action. A command can coordinate an Action and View
+instance without turning Workspace into an aggregate or copying Action data.
+
 Domain operations express intent, such as complete or archive, rather than
 allowing arbitrary state replacement. For cross-object rules, the application
 loads the relevant Action/Outcome facts and the domain evaluates them. Domain
@@ -121,8 +132,10 @@ Database calls are synchronous. Keep queries and write transactions short and
 bound lock waiting. Normal access by CLI and server must not corrupt the store.
 Advanced stale-edit detection and conflict merging remain deferred.
 
-An application operation saves the affected object and its Operational Event
-Log entry in one transaction. Failed operations do not leave partial changes.
+An application operation saves the affected operational data and its Operational
+Event Log entries in one transaction. For View moves this includes affected
+Action data and instance placement and order, followed by result
+validation before commit. Failed operations do not leave partial changes.
 This transaction does not extend to externally edited Markdown documents;
 do not imply a consistent snapshot across the filesystem and SQLite.
 
@@ -130,10 +143,44 @@ Inbox processing remains a sequence of individual operations. Resolve only after
 the intended results succeed; a later failure does not roll back earlier results.
 No event sourcing, broker, correlated dual logs or distributed transactions.
 
-Markdown remains authoritative for Projects, Outcomes and Knowledge. Read it
-through a separate port to validate owners and obtain Outcome dependency facts.
+Markdown remains authoritative for Projects, Outcomes, Knowledge, and reusable
+View definitions. Read it through a separate port to validate owners, obtain
+Outcome dependency facts, and load current definitions. View instance data is
+authoritative in the same Workspace Operational Store.
 An unavailable store must be reported, never treated as empty or silently replaced.
 Retain the paused-write backup/restore requirement in the MVP scope.
+
+## Planned View evaluation and command boundary
+
+Definitions are configuration, not code execution embedded in Markdown.
+Resolve qualified capability names through a registry composed by application
+and bootstrap code. Capability implementations preserve dependency boundaries:
+domain evaluates supplied facts; application obtains Workspace and instance facts
+through ports. Selectors and ordering evaluation cannot write, append events,
+or trigger operations. Web/CLI adapters do not implement selection or transition
+semantics.
+
+View evaluation reads the current shared definition and instance context.
+Do not store computed members as authoritative rows or create pinned definition
+copies. Runtime overlap invalidates the whole evaluation. Retained GUI data is
+stale, with View movement and reordering disabled; CLI returns structured failure.
+
+A move invokes the configured operation using shared domain rules, then evaluates
+the complete resulting instance within the store transaction. Destination
+membership and uniqueness are required before commit. No separate planning
+membership relation or planning-column flag is introduced; Snapshot scope is
+an explicit capture-time choice of the whole View or selected columns.
+Snapshot runtime remains deferred. The first operation contract excludes
+Markdown writes, external effects, and any action that cannot
+be rolled back with the store. Reading editable Markdown is not a distributed
+snapshot guarantee.
+
+Order is instance/column-local. Same-column reordering does not mutate Action.
+The profile retains no previous positions after departure; implementation must
+specify write-side invalidation and reconciliation without writes on reads.
+Details such as capability interfaces, physical tables, concurrency preconditions,
+and schema changes are agreed in later implementation increments rather than
+inferred from this architecture addition.
 
 ## Application technologies
 
