@@ -2,7 +2,7 @@
 
 > Status: Working, non-normative design notes; durable Markdown baseline and
 > Operational Store authority boundary established; reusable View definitions
-> and operational instances agreed 2026-10-08.
+> and operational instances agreed 2026-10-08; View profile simplified 2026-10-11.
 
 ## 1. Purpose
 
@@ -947,17 +947,19 @@ Every View definition grouping directory is a transparent representation
 container, contains `index.md`, and may contain definitions or further grouping
 directories. Its placement does not determine purpose.
 
-A definition describes columns, population and ordering policies, and named
-transition capabilities under `owf` frontmatter. The body explains intent;
-body links, headings, and link order
-have no authoritative membership, placement, or ordering semantics.
+A definition describes state-mapped columns, a special Blocked column, and
+routing defaults under `owf` frontmatter. Ordinary columns can permit blocked
+Actions with `include_blocked: true`. All card order is manual. The body
+explains intent; body links and heading order do not define membership or order.
+The `owf` metadata container is not a capability namespace. This profile has
+no `owf.namespace`, selectors, filters, sorting policies, or transition hooks.
 
 Concrete View instances reside in the Operational Store. Each has an independent
-stable instance ID, definition reference, title, optional parameters and window,
-and its own explicit placements and order. One definition may have one
-or several instances. Optional `owf.id` identifies the definition document, not
-any of its instances; `owf.namespace` identifies its capability namespace and
-is not an instance ID.
+stable instance ID, definition reference, title, optional window, and its own
+current placements and manual order. One definition may have one or several
+instances. Optional `owf.id` identifies the definition document, not an instance.
+Current placement distinguishes columns sharing a state; there is no memory of
+earlier columns or positions after departure.
 
 Instances use the current shared definition; no copies or pinned definition
 versions are created automatically. An incompatible change can be expressed by
@@ -966,7 +968,9 @@ Snapshot capture can include the whole instance or chosen columns without
 planning flags or a separately stored planning membership set.
 
 [Views Profile Design Notes](views-profile-notes.md) define the detailed
-frontmatter, namespaces, runtime validation, transition semantics, and examples.
+frontmatter, default routing, fixed move/create semantics, validation, and examples.
+The earlier generic capability model is deferred for complexity, with rationale
+in that profile and Decision 027.
 These replace the earlier link-based Curated View representation; no implemented
 Views or migration are introduced by this documentation change.
 

@@ -440,8 +440,10 @@ non-normative values include `planning`, `review`, `focus`, `waiting`, and
 
 Core v0 does not define a query language. Lists, boards, tables, calendars,
 timelines, and trees are renderer concerns rather than distinct Core objects.
-Columns and registered capability names are representation and implementation
-concerns, not new Core work objects.
+Column configuration and interaction rules are representation and implementation
+concerns, not new Core work objects. A profile MAY support only state-based
+columns, derived blocking, and manual ordering. Core does not require a
+capability registry, user-defined selectors, or automatic sorting.
 
 A configured interaction MAY invoke an explicit OWF operation on a member.
 Merely displaying, selecting, ordering, or grouping an object MUST NOT mutate its

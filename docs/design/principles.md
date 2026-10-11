@@ -198,6 +198,13 @@ belongs to the particular View, which can support bounded periods or continuous
 flow. The same work may participate in different Views and horizons without
 changing its identity, ownership, or lifecycle.
 
+The first Kanban profile expresses this through state-based columns, current
+instance-local placement, a special Blocked column, and manual order. A generic
+capability system for selection, filtering, and automatic sorting is deferred
+because its complexity is not justified by the current use case. Revisit it
+when concrete needs warrant it; Core's broader possibilities are not mandatory
+tool features.
+
 ### P23. Snapshot Explicitly When Historical State Matters
 
 Live Views and current objects must not be treated as reliable records of past

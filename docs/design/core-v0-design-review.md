@@ -2,7 +2,7 @@
 
 > Status: Core v0 conceptually closed (2026-08-07); targeted View amendment
 > accepted 2026-10-08 as Decision 025; Snapshot scope simplified 2026-10-10
-> as Decision 026.
+> as Decision 026; first Kanban profile simplified 2026-10-11 as Decision 027.
 
 ## Purpose
 
@@ -11,11 +11,13 @@ accepted decisions, decision candidates, unresolved questions, and consistency
 issues. Historical evolution and rationale may additionally be captured in the
 Design Journal; normative rules ultimately belong in the Specification.
 
-Decisions 025 and 026 record the current View amendment and its simplification.
+Decisions 025–027 record the View amendments. Decision 027 supersedes the
+generic capability profile while retaining definition/instance separation and
+Snapshot scope.
 Original Decisions 017-019 and 023 and the 2026-08 closure summaries remain
-historical evidence where their
-wording assumes a wholly Curated/Computed View or one Markdown document per
-live View. For current requirements, read amended Core Sections 12, 13, and 15
+historical evidence where their wording assumes a wholly Curated/Computed View
+or one Markdown document per live View. For current requirements, read amended
+Core Sections 12, 13, and 15
 and the linked View profile rather than those superseded assumptions.
 
 ## Decision States
@@ -604,7 +606,8 @@ does not prevent a Knowledge Document from preserving durable information.
 ### Decision 025 -- Combined Views, Reusable Definitions, and Operational Instances
 
 **Status:** Accepted (2026-10-08); planning-selection model superseded by Decision 026;
-documentation review pending in increment 0017
+generic capability profile superseded by Decision 027. Historical wording below;
+documentation review pending in increment 0017.
 
 A live View can combine explicit and computed membership with independent
 grouping and ordering. Curated/Computed remain useful descriptions of membership,
@@ -642,7 +645,9 @@ Concrete contracts belong in
 
 ### Decision 026 -- Snapshot Scope Without Separate Planning Membership
 
-**Status:** Accepted (2026-10-10); documentation review pending in increment 0017
+**Status:** Accepted (2026-10-10); Snapshot scope retained. References below to
+registered operations describe the earlier profile, superseded by Decision 027.
+Documentation review pending in increment 0017.
 
 A View definition should support both bounded planning periods and continuous
 Kanban. Backlog, newly created work awaiting organization, current work, and
@@ -672,6 +677,56 @@ and ordering without dormant positions, remain accepted. Actual Snapshot
 implementation, serialization, and commands remain deferred. Current
 requirements are in Core Sections 12, 13, and 15 and
 [Snapshot capture scope](views-profile-notes.md#6-snapshot-capture-scope).
+
+### Decision 027 -- State-Mapped Kanban, Blocked Column, and Manual Order
+
+**Status:** Accepted (2026-10-11); documentation review pending in increment 0017
+
+The user's actual board has New to organize, Todo, Blocked, In progress, Done,
+Sprint backlog, and Backlog. Four columns support Open; their difference is
+intentional placement within an instance. This use case does not require
+arbitrary executable selectors, filters, automatic sorting, or custom transitions.
+
+The first profile therefore uses ordinary columns mapping to one or several
+execution states, with current placement distinguishing same-state columns.
+Each state has a default column, explicit or first supporting column in definition
+order. Each ordinary column has a target default state, explicit or first in its
+state list, used for moves and creation. Card order is always manual.
+
+A special Blocked column explicitly selects blocked non-terminal Actions.
+Entering it sets a manual block with a human-readable reason and preserves
+execution state. Leaving clears manual blocking and applies the target state
+and placement, but is rejected while any dependency block remains.
+Blocked is still derived, never a new execution state. Ordinary columns exclude
+blocked Actions unless configured with `include_blocked: true`; that option
+permits both blocked and unblocked cards and does not set a block.
+
+Retain current placement while eligible. Otherwise route blocked Actions to
+the special column when available, then use an eligible state default or first
+eligible ordinary column. Multiple accepting columns are not an overlap error;
+the result still contains at most one occurrence per instance. No eligible
+column means the Action is outside that View.
+
+The user chose manual reassignment when leaving Blocked. Do not restore the
+earlier organizational column or its position. Automatic unblocking outside
+the View uses current routing defaults. All routing reads are side-effect free;
+supported writes reconcile invalid current placement and ordering residue.
+
+The generic design explored namespaced capabilities for member selection,
+filtering, ordering, and transitions. It was deferred because its configuration
+and implementation complexity exceeded the present need. Revisit it if actual
+use justifies that cost. The simplified profile requires no registry, capability
+namespace, generic parameters, population modes, or entry/exit hooks.
+
+Reusable Markdown definitions, independently identified instances, current shared
+definitions, optional windows, scoped Snapshots, and atomic validated writes are
+retained. Core remains broader than this first implementation profile.
+Creation in a column is explicitly covered, including required domain data.
+Manual blocking and dependency support remain prerequisites for delivering the
+full Blocked workflow; this decision changes documentation, not runtime.
+
+The detailed contract and example are in
+[Views Profile Design Notes](views-profile-notes.md).
 
 ## Review Design Closure
 
@@ -815,10 +870,10 @@ or contradiction. A preference of one tool or methodology is not sufficient.
 
 ### Views
 
-- Accepted as Core v0 by Decisions 018, 019, 020, and 023, amended by Decisions 025 and 026.
+- Accepted as Core v0 by Decisions 018, 019, 020, and 023, amended by Decisions 025–027.
   The current profile contract is documented in Views Profile Design Notes.
-  Remaining implementation details concern physical schema, capability interfaces,
-  commands, ordering reconciliation, and compatibility mechanics.
+  Remaining implementation details concern physical schema, fixed move/create commands,
+  blocking input, ordering reconciliation, and compatibility mechanics.
 
 ### Identity and Paths
 
@@ -832,7 +887,7 @@ or contradiction. A preference of one tool or methodology is not sufficient.
 - Minimum required frontmatter for each document type.
 - Required, recommended, or optional directory layout.
 - Exact representation of ownership, links, and explicit manual blocking.
-- Query envelope for Computed Views without standardizing a query language.
+- Generic Computed View query envelope, deferred by Decision 027; not a first-profile requirement.
 - Representation of ordered collections and global ordering.
 - Extension mechanism.
 

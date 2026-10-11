@@ -1,6 +1,6 @@
 # OWF Tool MVP Scope
 
-> Status: Agreed original MVP scope; next-stage priority updated 2026-10-08; non-normative.
+> Status: Agreed original MVP scope; View profile simplified 2026-10-11; non-normative.
 > This document defines implementation scope, not additional OWF Core requirements.
 
 The original scope and acceptance scenarios below remain the baseline for
@@ -182,16 +182,22 @@ Subsequent separately agreed code increments may deliver the
 
 - reusable Markdown definitions and independent Operational Store instances;
 - custom Kanban columns, with Snapshot scope chosen independently when capturing;
-- manual and computed population with independent per-instance ordering;
-- namespaced selectors and transitions using shared Action rules;
-- complete runtime validation and atomic, result-validated movement;
+- state-mapped columns, including multiple columns per state and per-state defaults;
+- a special Blocked column and ordinary columns optionally including blocked Actions;
+- current instance placement and exclusively manual ordering;
+- fixed, atomic move/create behavior using shared Action and blocking rules;
+- complete runtime validation and deterministic unique placement;
 - equivalent supported operations through CLI and the web interface.
 
 The existing five-state board behavior remains delivered functionality, not a
 universal restriction on future View columns. Supporting definitions edited in
 Obsidian does not imply a general graphical definition editor. No Inbox feature,
-Snapshot runtime, automated Planning/Review, or custom code-loading system is
-authorized by this documentation increment.
+Snapshot runtime or automated Planning/Review is authorized by this documentation
+increment. Registered selection/filtering/ordering capabilities and custom
+transitions are deferred because of their complexity; revisit them only when
+a concrete need justifies generalization. Manual blocking and dependencies are
+not delivered in the current Action MVP and require implementation before the
+full Blocked workflow can be claimed.
 
 Concrete schema, migration policy, commands, endpoints, UI, and tests belong
 to later code increments. Keep shipped-feature documentation truthful until

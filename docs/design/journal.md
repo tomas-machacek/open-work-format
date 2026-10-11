@@ -741,3 +741,41 @@ capabilities, unique membership, atomic moves, and no past-column position
 memory. The profile now illustrates a generic work board and a separate
 capture scope. Snapshot runtime and serialization remain deferred; this
 revision changes documentation only.
+
+## 2026-10-11 -- Simplify Views Around the Actual Kanban
+
+The user reconsidered the generic View design against the board they already
+use: New to organize, Todo, Blocked, In progress, Done, Sprint backlog, and
+Backlog. Several columns share Open state and differ only in the user's intended
+placement. An age-filtered column was useful speculation, but not part of this
+daily board; a separate future board or card coloring could address that need.
+
+The accepted first profile maps ordinary columns to one or several execution
+states. Explicit instance placement distinguishes columns sharing a state.
+Default columns handle unplaced Actions; target default states define ordinary
+moves and creation. Ordering is exclusively manual, with new arrivals appended.
+
+Blocked is a dedicated column type using the existing derived blocking concept.
+A move into it sets a manual block with a human-readable reason without changing
+execution state. A move out clears the manual reason and uses the destination,
+but cannot proceed while dependency blocking remains. Ordinary columns exclude
+blocked Actions by default and can opt in through `include_blocked: true`.
+An eligible current placement wins; otherwise Blocked and state defaults route
+the Action uniquely.
+
+The user explicitly preferred manually choosing a destination when unblocking.
+There is no restored pre-block organizational placement or past card position.
+Creation in a chosen column follows the same fixed state/blocking rules.
+Existing Core requirements, including a manual-block reason, still apply.
+
+Earlier proposals used registered namespaced capabilities for column population,
+filters, automatic sorting, and transition operations. Their configuration and
+implementation complexity was too high for the current need. They are deferred,
+not a framework to implement now, and can be reconsidered when a concrete use
+case justifies them. Entry/exit hooks were also rejected in favor of fixed
+application semantics implied by the column type.
+
+Decision 027 records this simplification. Definition/instance separation,
+current shared definitions, optional windows, scoped Snapshots, and atomic
+validated writes remain. Manual blocking and dependency support are not yet
+delivered by the Action MVP; this revision updates documentation only.

@@ -3,7 +3,7 @@
 > Status: Working, non-normative design notes; authority boundary and
 > cross-representation references, minimum logical data model, and operation
 > capabilities established; View authority boundary updated 2026-10-08 and
-> Snapshot scope simplified 2026-10-10
+> Snapshot scope simplified 2026-10-10; state-based View profile agreed 2026-10-11
 
 > Implementation scope: see [Tool MVP Scope](mvp-scope.md). Screenshot support
 > described below is deferred beyond the first tool MVP.
@@ -35,8 +35,8 @@ authority, logical store data, and operational consistency boundary.
 | Outcome | Markdown directory and `README.md` |
 | Knowledge Document | Markdown document |
 | Reusable View definition | Markdown document |
-| View instance identity, parameters, window, explicit placement, and order | Operational Store |
-| Computed View membership | derived from the current definition and Workspace data |
+| View instance identity, window, current placement, and order | Operational Store |
+| Evaluated View placement | derived from states, blocking, valid current placements, and definition defaults |
 | View Snapshot | Markdown document |
 | Inbox Item | Operational Store |
 | Action | Operational Store |
@@ -106,7 +106,8 @@ Inbox Items also have stable Workspace-unique store IDs. They are temporary and
 MUST NOT become durable dependency targets.
 
 View instances have stable Workspace-unique store IDs, separate from the
-identity and capability namespace of their reusable Markdown definitions.
+identity of their reusable Markdown definitions. The current profile requires
+no capability namespace.
 References to a View instance use its instance ID in the Workspace context;
 no new public URI scheme is selected by this design. A new independent instance
 receives a new ID.
@@ -192,7 +193,7 @@ The Operational Event Log belongs to the Operational Store. It records semantic
 changes to Inbox Items, Actions, their outgoing relationships, and View instance
 data, including explicit placement and ordering. Current operational
 data, not this history, remains authoritative. Changes to a reusable Markdown
-definition belong to the Markdown Event Log. Evaluating selectors or reading
+definition belong to the Markdown Event Log. Evaluating View routing or reading
 a View is not a semantic write and creates no event.
 
 Cross-representation events MAY reference objects in the other representation
@@ -290,9 +291,8 @@ or a new work lifecycle.
 | `id` | yes | Stable Workspace-unique instance ID. |
 | `definition` | yes | MarkdownObjectReference to the reusable View definition. |
 | `title` | yes | Human-readable instance name, such as My work board. |
-| `parameters` | no | Instance-specific values supplied to capability evaluation. |
 | `window` | no | Optional `start` and `end` boundaries for this instance. |
-| Explicit placements | as used | Action reference and stable definition-local column ID. |
+| Current placements | as used | Action reference and stable definition-local column ID; preserves the choice among columns accepting the same state. |
 | Current manual ordering | as used | Instance, column, Action reference, and local position. |
 
 Column IDs are unique within their definition. Action references retain their
@@ -300,17 +300,20 @@ existing stable identity. Instance data MUST NOT duplicate Action content,
 state, or ownership. Instances sharing a definition do not share these
 relations.
 
-Computed membership is evaluated rather than stored as authoritative rows.
-A remembered position in a departed column is not part of this model. Stale
-order rows resulting from externally changed membership are reconciliation
-residue, not reusable previous positions; they are discarded through write-side
-reconciliation. Reads neither save computed membership nor perform cleanup.
-The detailed observation and reconciliation mechanism belongs to the
-implementation increment; reconstructing unobserved membership history is
-not required.
+Routing is evaluated from the current definition, Action state and blocking,
+and valid instance placements. Repeated support for one state does not create
+duplicate cards: retain an eligible placement, otherwise use the Blocked
+column or eligible state default as specified in the profile.
+No separate membership copies, capability parameters, or earlier organizational
+placements are retained. Departure discards the former column position too.
+External changes can leave physical residue that write-side reconciliation
+must invalidate; after departure is detected it cannot restore an old placement
+or position. Reads do not save routing results or perform cleanup.
+Implementation must specify this reconciliation without reconstructing
+unobserved history. All ordering is manual; automatic arrivals go to the end.
 
 No separate planning-selection relation is part of this View model. Meaning
-comes from the particular definition and its operations. Snapshot scope is
+comes from the column configuration and fixed movement rules. Snapshot scope is
 chosen when capturing and is recorded in the immutable historical artifact;
 it is not an additional live membership set. Deleting an instance deletes its
 own operational relations, not its Actions or its shared definition.
@@ -443,13 +446,20 @@ syntax will be agreed in implementation increments.
 
 A View move may combine changes to the Action, explicit placement, ordering,
 and corresponding Operational Event Log entries. Those store changes MUST
-commit together or all roll back. The application evaluates
-the resulting View before committing and rejects overlap or failure to place
-the moved Action in the requested destination. This is a scoped store
-transaction, not a distributed transaction or an all-or-nothing Inbox workflow.
+commit together or all roll back. The application checks shared Action rules
+and validates the complete resulting View and destination before committing.
+Creation in a column similarly saves the new Action, placement, order, and events
+atomically. This is a scoped store transaction, not a distributed transaction
+or an all-or-nothing Inbox workflow.
 
-Transition implementations must use the shared Action rules. Effects that
-cannot be rolled back with the Operational Store, such as external messages or
+Ordinary destinations set their default state. Entering Blocked preserves state
+and sets a non-empty manual-block reason; leaving clears that reason only when
+no dependency block remains. Dependency-blocked exits fail even when the target
+allows blocked cards. Same-column reordering changes no Action data.
+These are fixed application rules, not registered transition functions.
+Manual/dependency blocking must be implemented before claiming this workflow.
+
+Effects that cannot be rolled back with the Operational Store, such as external messages or
 Markdown writes, are outside this first transition contract. Reads of externally
 editable Markdown do not imply a cross-representation snapshot guarantee.
 
@@ -548,7 +558,7 @@ Blocked, executable, reverse dependencies, and complete Project subtrees are not
 required store-side queries for the MVP. An OWF-aware tool or agent may derive
 them from loaded Actions and Markdown objects. In particular, the Operational
 Store need not independently maintain Outcome state or the Markdown ownership
-hierarchy. These minimum filters do not define the Computed View query language.
+hierarchy. These minimum filters do not introduce a generic View query language.
 
 ## 14. Screenshots and Markdown Images
 

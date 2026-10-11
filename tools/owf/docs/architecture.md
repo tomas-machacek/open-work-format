@@ -1,7 +1,7 @@
 # OWF Tool Architecture
 
 > Status: Agreed implementation baseline, 2026-09-15.
-> View architecture direction added 2026-10-08; View runtime not yet implemented.
+> View architecture direction simplified 2026-10-11; configurable Views not yet implemented.
 
 ## Purpose and authority
 
@@ -152,35 +152,45 @@ Retain the paused-write backup/restore requirement in the MVP scope.
 
 ## Planned View evaluation and command boundary
 
-Definitions are configuration, not code execution embedded in Markdown.
-Resolve qualified capability names through a registry composed by application
-and bootstrap code. Capability implementations preserve dependency boundaries:
-domain evaluates supplied facts; application obtains Workspace and instance facts
-through ports. Selectors and ordering evaluation cannot write, append events,
-or trigger operations. Web/CLI adapters do not implement selection or transition
-semantics.
+Definitions are data: state mappings, per-state default columns, target default
+states, and blocking inclusion. Domain rules determine eligibility and unique
+placement; application code obtains current Workspace/instance facts through
+ports. There is no capability registry, executable filter, sorting function,
+transition hook, or generic instance-parameter machinery in this stage.
+Web/CLI adapters do not implement their own routing or movement semantics.
 
-View evaluation reads the current shared definition and instance context.
-Do not store computed members as authoritative rows or create pinned definition
-copies. Runtime overlap invalidates the whole evaluation. Retained GUI data is
-stale, with View movement and reordering disabled; CLI returns structured failure.
+Evaluation reads the current shared definition. Retain a valid current placement;
+otherwise route a blocked Action to the special Blocked column when present,
+then use eligible state defaults. Multiple columns accepting a state are normal.
+Missing or invalid definitions and contradictory instance data fail evaluation.
+Retained GUI data is marked stale with writes disabled; CLI reports structured
+failure. Read evaluation never mutates Actions, placements, order, or logs.
 
-A move invokes the configured operation using shared domain rules, then evaluates
-the complete resulting instance within the store transaction. Destination
-membership and uniqueness are required before commit. No separate planning
-membership relation or planning-column flag is introduced; Snapshot scope is
-an explicit capture-time choice of the whole View or selected columns.
-Snapshot runtime remains deferred. The first operation contract excludes
-Markdown writes, external effects, and any action that cannot
-be rolled back with the store. Reading editable Markdown is not a distributed
-snapshot guarantee.
+Fixed commands coordinate state changes, manual blocking, placement, ordering,
+and events. Entering Blocked requires a non-empty manual reason and preserves
+execution state. Leaving clears the manual reason only if no dependency block
+remains, even for a target that accepts blocked cards. Ordinary destinations
+set their default state. Creation uses the target default, or Open plus a reason
+in Blocked. Shared domain rules and required state data always apply.
 
-Order is instance/column-local. Same-column reordering does not mutate Action.
-The profile retains no previous positions after departure; implementation must
-specify write-side invalidation and reconciliation without writes on reads.
-Details such as capability interfaces, physical tables, concurrency preconditions,
-and schema changes are agreed in later implementation increments rather than
-inferred from this architecture addition.
+Evaluate the complete candidate and destination within the store transaction
+before committing. Any failure rolls back all related writes and events.
+The contract excludes Markdown writes and external effects. Reading editable
+Markdown is not a distributed snapshot guarantee. Manual/dependency blocking
+support must be implemented before the full workflow is advertised.
+
+Order is exclusively manual and instance/column-local. Reordering does not
+mutate Action. New arrivals append; neither past positions nor former
+organizational columns are restored. Implementation must define write-side
+invalidation/reconciliation without writes on reads or reconstruction of
+unobserved history. Current placement preserves choices among same-state columns.
+
+No separate planning set or flag is introduced. Snapshot scope chooses the
+whole instance or explicit columns; runtime capture remains deferred.
+Physical schema, newcomer tie-breaking, required-input UI, concurrency, and
+command shapes belong to later implementation increments. The earlier generic
+capability design is deferred for complexity and may be revisited for a concrete
+need; it is not an extension framework to implement preemptively.
 
 ## Application technologies
 
