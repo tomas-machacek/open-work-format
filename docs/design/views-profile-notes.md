@@ -328,6 +328,14 @@ implements a smaller subset; no generic feature is required merely because Core
 permits derived membership or ordering. Decision 027 in the
 [design review](core-v0-design-review.md) records this change.
 
+A possible future move interaction could let the user choose a state supported
+by a multi-state destination column. For example, a column titled Closed with
+`status: [completed, cancelled]` could offer Done (`completed`) and Cancelled
+(`cancelled`) when an Action is dropped into it. Any chosen state would still
+have to satisfy the shared Action and blocking rules. This is a deferred option,
+not part of the current move contract: moves currently use the target column's
+`default_status` (or its first listed state), without a state-choice prompt.
+
 Physical schema/version changes, exact commands, endpoints, concurrency,
 write-side reconciliation, newcomer tie-breaking, and required-input UI remain
 for separately agreed implementation increments. Manual blocking and dependency
