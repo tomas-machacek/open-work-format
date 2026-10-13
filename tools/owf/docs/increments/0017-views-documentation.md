@@ -23,9 +23,10 @@ tests, dependencies, physical schema, or generated Workspace instructions.
 
 ## Proposed solution
 
-Decision 028 keeps Core independent of concrete identity forms, field names,
-and first-tool choices. Profile documents own those conventions and preserve
-the agreed runtime direction; this cleanup changes no reference syntax.
+Corrected Decision 028 retains document path identity in Core for every OWF
+profile. Concrete file mapping, reference serialization, operational-object IDs,
+window field names, and first-tool choices belong to the profile. Supplementary
+stable IDs never replace document path identity.
 
 [Views Profile Design Notes](../../../../docs/design/views-profile-notes.md)
 own the detailed contract; related documents link to it.
@@ -57,10 +58,11 @@ it for a concrete need; do not implement a registry or hooks in anticipation.
 
 ## Acceptance criteria
 
-AC1: Core retains general View semantics, unambiguous identity, consistent
-references, and optional temporal boundaries. Concrete identity forms,
-definition/instance structure, window field names, and first-tool feature
-choices belong to the profile. Core does not prescribe the smaller Kanban model.
+AC1: Core retains general View semantics, document path identity across all
+profiles, consistent references, and optional temporal boundaries. Profiles define
+concrete file mapping, reference serialization, operational-object identity,
+definition/instance structure, window field names, and first-tool feature choices.
+Optional stable IDs cannot replace document path identity.
 
 AC2: Markdown definitions and Operational Store instances have clear authority
 and identity, current shared definitions, no automatic copies or pinned versions,
@@ -160,7 +162,8 @@ Verification of the simplified-profile revision on Linux, 2026-10-11:
   Application tests and `npm run verify` were not run. No independent review or
   Windows verification is claimed.
 
-Verification of the Core/profile cleanup on Linux, 2026-10-13:
+Verification of the initial Core/profile cleanup on Linux, 2026-10-13
+(historical; identity allocation corrected below):
 
 - Checks passed for five changed Markdown files, 12 relative links, five local
   anchors, balanced fences, and unique numbered sections. The four existing
@@ -173,6 +176,13 @@ Verification of the Core/profile cleanup on Linux, 2026-10-13:
 
 ## Decision changes and follow-up
 
+Verification of the document-identity correction on Linux, 2026-10-13:
+five changed Markdown files, 12 relative links, five local anchors, and four
+existing YAML examples passed the documentation checks; `git diff --check`
+passed. The Core/profile wording was inspected for mandatory document paths,
+supplementary stable IDs, and separate non-document operational identities.
+Journal history was preserved. No application tests or independent review ran.
+
 Decision 025 introduced reusable definitions and independent instances without
 definition copies/version pinning or remembered former positions. Decision 026
 removed separate planning membership and made Snapshot scope a per-capture
@@ -184,6 +194,7 @@ capabilities is not justified by the actual seven-column board. Preserve this
 rationale and revisit generalization if practical needs arise. Future runtime
 work must follow separately agreed increments.
 
-Decision 028 removes representation-specific identity/window conventions and
-first-Kanban implementation details from Core while retaining them in the
-profile. Historical decisions remain annotated rather than rewritten.
+Decision 028 removes concrete window names and first-Kanban details from Core.
+Its initial delegation of document identity was corrected at the user's request:
+all profiles must preserve document path identity for OKF compatibility.
+Concrete mapping and operational identities remain profile concerns.

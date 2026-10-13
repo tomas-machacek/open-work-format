@@ -14,8 +14,9 @@ Design Journal; normative rules ultimately belong in the Specification.
 
 Decisions 025–028 record the View amendments and Core/profile boundary.
 Decision 027 supersedes the generic capability profile while retaining definition/instance separation and
-Snapshot scope. Decision 028 assigns concrete identity, definition/instance,
-and field-name conventions to representation profiles.
+Snapshot scope. Decision 028 retains document path identity in Core while
+assigning concrete file mapping, definition/instance structure, and field-name
+conventions to representation profiles.
 Original Decisions 017-019 and 023 and the 2026-08 closure summaries remain
 historical evidence where their wording assumes a wholly Curated/Computed View
 or one Markdown document per live View. For current requirements, read amended
@@ -571,7 +572,7 @@ do not own work.
 ### Decision 023 -- Knowledge, Views, and Identity Foundations
 
 **Status:** Accepted (Core v0); exclusive View kinds amended by Decision 025;
-path-based identity assigned to the profile by Decision 028
+path-based document identity retained in Core by corrected Decision 028
 
 A Knowledge Document preserves context, rationale, evidence, or other durable
 knowledge. It is not a work commitment and does not participate in the work
@@ -734,13 +735,20 @@ The detailed contract and example are in
 
 ### Decision 028 -- Keep Core Independent of Representation Choices
 
-**Status:** Accepted (2026-10-13); documentation review pending in increment 0017
+**Status:** Accepted (2026-10-13), corrected the same day to retain Core document
+path identity; documentation review pending in increment 0017.
 
-Core specifies the meaning of objects and workflows. It requires unambiguous
-machine-readable identities and consistent references, but does not prescribe
-path identities, serialization suffixes, or identity changes on rename.
-The existing Markdown path, optional stable-ID, and operational-ID conventions
-remain in the representation profile. Core's optional planning window keeps
+Core specifies the meaning of objects and workflows. Every profile must preserve
+document identity as an absolute Workspace-relative logical path without a
+serialization extension. Moving or renaming a document changes this identity
+and requires affected references to be updated. Optional stable IDs supplement
+rather than replace path identity. This is a framework-wide compatibility
+constraint motivated by Open Knowledge Format, not a profile-specific choice.
+
+The initial cleanup incorrectly delegated this rule to profiles. The user
+clarified the original intent and requested its restoration. Concrete file
+mapping and reference serialization remain profile concerns, as do identities
+for non-document operational objects. Core's optional planning window keeps
 its temporal meaning; `window.start` and `window.end` are profile field names.
 
 Reusable definitions and operational instances are also profile choices.
@@ -754,7 +762,8 @@ state/Blocked model, manual ordering, and generic-model deferral remain in
 the profile and Decisions 026–027. Core continues to permit explicit or derived
 membership and ordering independently of what this tool implements first.
 
-This amends the identity and field-name placement in Decisions 019 and 023,
+This clarifies document identity in Decision 023 and moves the concrete window
+field names of Decision 019 to the profile,
 and the Core/profile allocation in Decisions 025–027. Historical wording and
 closure summaries are retained as history. No runtime, reference syntax,
 storage migration, or chosen Kanban behavior changes.
@@ -908,9 +917,9 @@ or contradiction. A preference of one tool or methodology is not sufficient.
 
 ### Identity and Paths
 
-- Core identity requirements are defined by Decision 023 as amended by Decision
-  028. Concrete path, stable-ID, reference, and field conventions belong to the
-  representation profile.
+- Core document path identity is retained by Decision 023 and corrected Decision
+  028. Concrete file mapping, supplementary stable IDs, operational-object IDs,
+  reference serialization, and field conventions belong to the profile.
 
 ## Post-Closure Representation Questions
 

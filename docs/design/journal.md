@@ -799,3 +799,20 @@ state/Blocked model and manual ordering do not limit what Core permits.
 The rationale for deferring generic capabilities remains in the profile and
 design history. Decision 028 records the boundary correction; no selected
 runtime behavior or reference format changes.
+
+## 2026-10-13 -- Retain Document Path Identity Across All Profiles
+
+The user clarified that path-based document identity had deliberately been
+defined in Core so that every OWF profile preserves the identity convention
+shared with Open Knowledge Format. Delegating that requirement to individual
+profiles in the preceding cleanup weakened the original intent.
+
+At the user's request, Core again requires every document object's absolute
+Workspace-relative logical path without a serialization extension as its
+identity. A move or rename changes that identity and affected references must
+be updated. Supplementary stable IDs cannot replace path identity. Non-document
+operational objects retain profile-defined identities.
+
+Decision 028 was corrected accordingly. Concrete file mapping, reference
+serialization, window field names, and the chosen Kanban implementation remain
+profile concerns. The other Core cleanup remains in effect.

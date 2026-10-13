@@ -123,11 +123,24 @@ Every persistent object MUST have a machine-readable identity that is
 unambiguous within its Workspace. Ownership and other machine-readable
 references MUST identify their intended objects unambiguously.
 
-References MUST remain consistent when objects are moved or renamed. The
-applicable representation profile defines identity and reference forms,
-whether a move or rename changes identity, and how references remain valid.
-Physical placement MUST NOT imply structural ownership unless the applicable
-representation profile explicitly assigns it that meaning.
+Every persistent document object MUST use its absolute Workspace-relative
+logical path, beginning with `/` and without a serialization extension, as
+its identity. Every OWF representation profile MUST preserve this path identity.
+This shared convention preserves the path-based document identity used by
+Open Knowledge Format.
+
+Moving or renaming a document object changes its path identity. All affected
+references MUST be updated. A profile MAY support an additional stable identifier,
+but it MUST NOT replace the document's path identity.
+
+Non-document operational objects, such as store-backed Actions and live View
+instances, use identities defined by the applicable representation profile.
+They are not required to have document paths.
+
+The representation profile defines how logical paths map to concrete files and
+how references are serialized. References MUST remain consistent when objects
+are moved or renamed. Physical placement MUST NOT imply structural ownership
+unless the applicable representation profile explicitly assigns it that meaning.
 
 ## 6. Work Model
 

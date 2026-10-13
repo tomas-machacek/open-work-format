@@ -468,8 +468,10 @@ An index does not need to repeat mandatory profile infrastructure such as
 
 ### 8.1 Markdown path identities
 
-Core requires unambiguous identity and consistent references. The concrete
-path and optional stable-ID conventions below are choices of this profile.
+Core requires path identity for document objects in every OWF profile, preserving
+the document identity convention shared with Open Knowledge Format. This profile
+defines the concrete path mapping and reference serialization. Optional stable
+IDs supplement, and MUST NOT replace, document path identity.
 
 Every Markdown object has a baseline identity derived from an absolute
 Workspace-relative logical path without a serialization extension. Workspace,
@@ -505,8 +507,8 @@ URL/path references consistent.
 
 A Markdown object MAY additionally declare an immutable Workspace-unique
 `owf.id`. Path identity remains mandatory and is sufficient for baseline OWF
-support under this profile. Stable Markdown ID support is an optional tool
-capability.
+support. Stable Markdown ID support is an optional tool capability; it does not
+relax the Core path-identity requirement.
 
 For a Workspace, Project, or Outcome, `owf.id` is declared in the
 canonical `README.md` and identifies the containing directory object, not the
