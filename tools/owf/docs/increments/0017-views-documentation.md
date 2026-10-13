@@ -23,6 +23,10 @@ tests, dependencies, physical schema, or generated Workspace instructions.
 
 ## Proposed solution
 
+Decision 028 keeps Core independent of concrete identity forms, field names,
+and first-tool choices. Profile documents own those conventions and preserve
+the agreed runtime direction; this cleanup changes no reference syntax.
+
 [Views Profile Design Notes](../../../../docs/design/views-profile-notes.md)
 own the detailed contract; related documents link to it.
 
@@ -53,8 +57,10 @@ it for a concrete need; do not implement a registry or hooks in anticipation.
 
 ## Acceptance criteria
 
-AC1: Core retains general View semantics while explicitly allowing this smaller
-profile. No registry or automatic sorting is required by Core's broader scope.
+AC1: Core retains general View semantics, unambiguous identity, consistent
+references, and optional temporal boundaries. Concrete identity forms,
+definition/instance structure, window field names, and first-tool feature
+choices belong to the profile. Core does not prescribe the smaller Kanban model.
 
 AC2: Markdown definitions and Operational Store instances have clear authority
 and identity, current shared definitions, no automatic copies or pinned versions,
@@ -154,6 +160,17 @@ Verification of the simplified-profile revision on Linux, 2026-10-11:
   Application tests and `npm run verify` were not run. No independent review or
   Windows verification is claimed.
 
+Verification of the Core/profile cleanup on Linux, 2026-10-13:
+
+- Checks passed for five changed Markdown files, 12 relative links, five local
+  anchors, balanced fences, and unique numbered sections. The four existing
+  profile YAML examples still passed their configuration checks.
+- Inspected the Core diff for representation leakage and confirmed concrete
+  identity, window names, and View-instance rules remain in profile documents.
+  `git diff --check` passed; journal history was preserved.
+- No application code changed. Application tests and `npm run verify` were not
+  run; no independent review or Windows verification is claimed.
+
 ## Decision changes and follow-up
 
 Decision 025 introduced reusable definitions and independent instances without
@@ -166,3 +183,7 @@ The complexity of generic selection, filtering, ordering, and transition
 capabilities is not justified by the actual seven-column board. Preserve this
 rationale and revisit generalization if practical needs arise. Future runtime
 work must follow separately agreed increments.
+
+Decision 028 removes representation-specific identity/window conventions and
+first-Kanban implementation details from Core while retaining them in the
+profile. Historical decisions remain annotated rather than rewritten.

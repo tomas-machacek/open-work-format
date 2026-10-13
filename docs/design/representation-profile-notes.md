@@ -468,6 +468,9 @@ An index does not need to repeat mandatory profile infrastructure such as
 
 ### 8.1 Markdown path identities
 
+Core requires unambiguous identity and consistent references. The concrete
+path and optional stable-ID conventions below are choices of this profile.
+
 Every Markdown object has a baseline identity derived from an absolute
 Workspace-relative logical path without a serialization extension. Workspace,
 Project, and Outcome identities are directory paths and MUST end in `/`. The
@@ -493,11 +496,17 @@ ID:   /_projects/open-work-format/design-background
 The `README.md` Concept and its containing Project or Outcome remain different
 objects with a profile-defined representation relationship.
 
+Moving or renaming a Markdown object changes its path identity. Affected path
+references MUST be updated according to the reference rules below. An optional
+stable `owf.id` remains unchanged; it does not remove the requirement to keep
+URL/path references consistent.
+
 ### 8.2 Optional stable Markdown IDs
 
 A Markdown object MAY additionally declare an immutable Workspace-unique
 `owf.id`. Path identity remains mandatory and is sufficient for baseline OWF
-support. Stable Markdown ID support is an optional tool capability.
+support under this profile. Stable Markdown ID support is an optional tool
+capability.
 
 For a Workspace, Project, or Outcome, `owf.id` is declared in the
 canonical `README.md` and identifies the containing directory object, not the
@@ -960,6 +969,11 @@ current placements and manual order. One definition may have one or several
 instances. Optional `owf.id` identifies the definition document, not an instance.
 Current placement distinguishes columns sharing a state; there is no memory of
 earlier columns or positions after departure.
+
+The optional instance window uses `window.start` and `window.end`.
+Either boundary may be absent. These field names are profile conventions;
+Core defines only the optional temporal boundaries and their semantics.
+Date-time encoding and timezone representation remain deferred.
 
 Instances use the current shared definition; no copies or pinned definition
 versions are created automatically. An incompatible change can be expressed by

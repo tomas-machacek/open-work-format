@@ -3,6 +3,7 @@
 > Status: Core v0 conceptually closed (2026-08-07); targeted View amendment
 > accepted 2026-10-08 as Decision 025; Snapshot scope simplified 2026-10-10
 > as Decision 026; first Kanban profile simplified 2026-10-11 as Decision 027.
+> Core/profile boundary clarified 2026-10-13 as Decision 028.
 
 ## Purpose
 
@@ -11,9 +12,10 @@ accepted decisions, decision candidates, unresolved questions, and consistency
 issues. Historical evolution and rationale may additionally be captured in the
 Design Journal; normative rules ultimately belong in the Specification.
 
-Decisions 025–027 record the View amendments. Decision 027 supersedes the
-generic capability profile while retaining definition/instance separation and
-Snapshot scope.
+Decisions 025–028 record the View amendments and Core/profile boundary.
+Decision 027 supersedes the generic capability profile while retaining definition/instance separation and
+Snapshot scope. Decision 028 assigns concrete identity, definition/instance,
+and field-name conventions to representation profiles.
 Original Decisions 017-019 and 023 and the 2026-08 closure summaries remain
 historical evidence where their wording assumes a wholly Curated/Computed View
 or one Markdown document per live View. For current requirements, read amended
@@ -440,7 +442,8 @@ v0 defines neither these metrics nor automatic rollover behavior.
 
 ### Decision 019 -- View Purpose and Optional Planning Window
 
-**Status:** Accepted (Core v0); instance/definition separation clarified by Decision 025
+**Status:** Accepted (Core v0); instance/definition separation clarified by Decision 025;
+concrete window field names assigned to the profile by Decision 028
 
 A View may declare an optional, machine-readable `purpose`. The value is an
 open vocabulary rather than a closed enum. It communicates the intended use of
@@ -567,7 +570,8 @@ do not own work.
 
 ### Decision 023 -- Knowledge, Views, and Identity Foundations
 
-**Status:** Accepted (Core v0); exclusive View kinds amended by Decision 025
+**Status:** Accepted (Core v0); exclusive View kinds amended by Decision 025;
+path-based identity assigned to the profile by Decision 028
 
 A Knowledge Document preserves context, rationale, evidence, or other durable
 knowledge. It is not a work commitment and does not participate in the work
@@ -728,6 +732,33 @@ full Blocked workflow; this decision changes documentation, not runtime.
 The detailed contract and example are in
 [Views Profile Design Notes](views-profile-notes.md).
 
+### Decision 028 -- Keep Core Independent of Representation Choices
+
+**Status:** Accepted (2026-10-13); documentation review pending in increment 0017
+
+Core specifies the meaning of objects and workflows. It requires unambiguous
+machine-readable identities and consistent references, but does not prescribe
+path identities, serialization suffixes, or identity changes on rename.
+The existing Markdown path, optional stable-ID, and operational-ID conventions
+remain in the representation profile. Core's optional planning window keeps
+its temporal meaning; `window.start` and `window.end` are profile field names.
+
+Reusable definitions and operational instances are also profile choices.
+Core describes each live View's identity, membership, grouping, and ordering;
+a Snapshot identifies its source View and captures the selected scope.
+Sharing a configuration does not collapse distinct Views into one identity.
+
+Remove first-Kanban feature lists, capability-registry disclaimers, and
+explanations about rejected persisted planning sets from Core. The simple
+state/Blocked model, manual ordering, and generic-model deferral remain in
+the profile and Decisions 026–027. Core continues to permit explicit or derived
+membership and ordering independently of what this tool implements first.
+
+This amends the identity and field-name placement in Decisions 019 and 023,
+and the Core/profile allocation in Decisions 025–027. Historical wording and
+closure summaries are retained as history. No runtime, reference syntax,
+storage migration, or chosen Kanban behavior changes.
+
 ## Review Design Closure
 
 > Status: Conceptually complete for Core v0 (2026-08-06)
@@ -870,15 +901,16 @@ or contradiction. A preference of one tool or methodology is not sufficient.
 
 ### Views
 
-- Accepted as Core v0 by Decisions 018, 019, 020, and 023, amended by Decisions 025–027.
+- Accepted as Core v0 by Decisions 018, 019, 020, and 023, amended by Decisions 025–028.
   The current profile contract is documented in Views Profile Design Notes.
   Remaining implementation details concern physical schema, fixed move/create commands,
   blocking input, ordering reconciliation, and compatibility mechanics.
 
 ### Identity and Paths
 
-- Accepted as Core v0 by Decision 023. Remaining questions concern concrete
-  frontmatter and directory conventions.
+- Core identity requirements are defined by Decision 023 as amended by Decision
+  028. Concrete path, stable-ID, reference, and field conventions belong to the
+  representation profile.
 
 ## Post-Closure Representation Questions
 

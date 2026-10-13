@@ -779,3 +779,23 @@ Decision 027 records this simplification. Definition/instance separation,
 current shared definitions, optional windows, scoped Snapshots, and atomic
 validated writes remain. Manual blocking and dependency support are not yet
 delivered by the Action MVP; this revision updates documentation only.
+
+## 2026-10-13 -- Restore the Core and Profile Boundary
+
+Before reviewing the View documentation, the user requested a check for details
+that did not belong in Core. That check found recent references to the first
+state/Blocked Kanban, capability registries, definition/instance structure, and
+rejected planning-membership storage. It also found older prescriptions for
+path identity and concrete planning-window field names.
+
+The user authorized cleanup. Core now requires unambiguous identities and
+consistent references, independent of their representation. Concrete path
+identities, rename behavior, optional stable IDs, and operational instance IDs
+remain profile conventions. Optional temporal boundaries remain in Core;
+the field names `window.start` and `window.end` belong to the profile.
+
+Views and Snapshots retain their general semantics. The first tool's restricted
+state/Blocked model and manual ordering do not limit what Core permits.
+The rationale for deferring generic capabilities remains in the profile and
+design history. Decision 028 records the boundary correction; no selected
+runtime behavior or reference format changes.
