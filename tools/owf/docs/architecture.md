@@ -15,7 +15,7 @@ The MVP scope selects capabilities; it does not redefine their semantics.
 [Development guidelines](development-guidelines.md) define engineering practice.
 The [Views profile](../../../docs/design/views-profile-notes.md) owns the
 agreed definition/instance and first Kanban contract. Its implementation requires
-separately agreed code increments after documentation increment 0017.
+separately agreed code increments after the specification and design are reviewed.
 Unresolved conflicts must be reported rather than silently resolved by changing
 the specification.
 

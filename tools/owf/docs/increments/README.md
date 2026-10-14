@@ -2,6 +2,8 @@
 
 Each increment has its own design document, agreed before development and
 retained after implementation. This applies to the MVP and later features.
+Specification and design-only changes are tracked through their PR, design
+decisions, and journal; they do not allocate a tool implementation increment.
 
 Use stable sequential names such as `0001-short-title.md`. Numbers identify
 increments, not releases; one release may contain several increments.
@@ -34,7 +36,6 @@ link and a one-line description; keep its status in sync.
 | [0014 — Search Action text through the CLI](0014-action-search-cli.md)     | Search titles or descriptions combined with owner and state filters.   | completed   |
 | [0015 — Development dependency audit repair](0015-dependency-audit.md)     | Remove reported vulnerabilities in the development dependency graph.   | completed   |
 | [0016 — Search and filter Actions on the board](0016-board-search.md)      | Narrow the board by text and direct or recursive owner scope.          | completed   |
-| [0017 — Align documentation for reusable Views](0017-views-documentation.md) | Define reusable state/Blocked Views, independent instances, and manual order. | in_progress |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;

@@ -1,7 +1,7 @@
 # OWF Views Profile Design Notes
 
 > Status: Agreed simplified design direction, 2026-10-11; non-normative
-> representation contract prepared in increment 0017.
+> representation contract reviewed through the specification/design PR #22.
 > Configurable Views and the blocking interactions below are not delivered yet.
 
 ## 1. Purpose and authority
@@ -341,4 +341,4 @@ write-side reconciliation, newcomer tie-breaking, and required-input UI remain
 for separately agreed implementation increments. Manual blocking and dependency
 support must be delivered and validated before claiming the full Blocked workflow.
 A graphical definition editor, Snapshot runtime, and automated Review or Planning
-remain deferred. This documentation increment delivers no runtime features.
+remain deferred. This specification and design change delivers no runtime features.

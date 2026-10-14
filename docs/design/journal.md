@@ -816,3 +816,18 @@ operational objects retain profile-defined identities.
 Decision 028 was corrected accordingly. Concrete file mapping, reference
 serialization, window field names, and the chosen Kanban implementation remain
 profile concerns. The other Core cleanup remains in effect.
+
+## 2026-10-14 -- Keep Specification Changes Outside Tool Increments
+
+The user clarified that numbered tool increments define implementation work for
+the CLI and Kanban. The Views work in PR #22 changes the specification and design
+documents, so assigning it a documentation-only implementation increment was
+inappropriate and duplicated the actual design sources.
+
+The unmerged `0017-views-documentation.md` and its increment-index row were
+removed, and active references now point to the design documents or PR review.
+The earlier journal mention of 0017 records that historical proposal, not an
+active implementation brief. Verification evidence is retained in PR #22.
+The user authorized leaving number 0017 available for the first actual Views
+implementation increment, to be specified after design review. Existing
+completed increments and the agreed Views behavior are unchanged.

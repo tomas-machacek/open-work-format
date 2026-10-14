@@ -612,7 +612,7 @@ does not prevent a Knowledge Document from preserving durable information.
 
 **Status:** Accepted (2026-10-08); planning-selection model superseded by Decision 026;
 generic capability profile superseded by Decision 027. Historical wording below;
-documentation review pending in increment 0017.
+documentation review tracked in PR #22.
 
 A live View can combine explicit and computed membership with independent
 grouping and ordering. Curated/Computed remain useful descriptions of membership,
@@ -645,14 +645,15 @@ It amends the assumptions identified above while preserving non-ownership,
 lifecycle separation, explicit planning intent, and immutable snapshots.
 Concrete contracts belong in
 [Views Profile Design Notes](views-profile-notes.md), with authority in
-[Operational Store notes](operational-store-notes.md) and delivery scope in
-[increment 0017](../../tools/owf/docs/increments/0017-views-documentation.md).
+[Operational Store notes](operational-store-notes.md). Specification and design
+review is tracked in PR #22; implementation requires separately agreed tool
+increments.
 
 ### Decision 026 -- Snapshot Scope Without Separate Planning Membership
 
 **Status:** Accepted (2026-10-10); Snapshot scope retained. References below to
 registered operations describe the earlier profile, superseded by Decision 027.
-Documentation review pending in increment 0017.
+Documentation review tracked in PR #22.
 
 A View definition should support both bounded planning periods and continuous
 Kanban. Backlog, newly created work awaiting organization, current work, and
@@ -685,7 +686,7 @@ requirements are in Core Sections 12, 13, and 15 and
 
 ### Decision 027 -- State-Mapped Kanban, Blocked Column, and Manual Order
 
-**Status:** Accepted (2026-10-11); documentation review pending in increment 0017
+**Status:** Accepted (2026-10-11); documentation review tracked in PR #22
 
 The user's actual board has New to organize, Todo, Blocked, In progress, Done,
 Sprint backlog, and Backlog. Four columns support Open; their difference is
@@ -736,7 +737,7 @@ The detailed contract and example are in
 ### Decision 028 -- Keep Core Independent of Representation Choices
 
 **Status:** Accepted (2026-10-13), corrected the same day to retain Core document
-path identity; documentation review pending in increment 0017.
+path identity; documentation review tracked in PR #22.
 
 Core specifies the meaning of objects and workflows. Every profile must preserve
 document identity as an absolute Workspace-relative logical path without a

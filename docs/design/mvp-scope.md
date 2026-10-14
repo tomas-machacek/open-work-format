@@ -175,9 +175,8 @@ The user selected Views as the next development direction on 2026-10-08.
 Known Actions can already be created directly, so Inbox remains deferred without
 changing its Core semantics or cancelling its original scope.
 
-First align documentation in
-[increment 0017](../../tools/owf/docs/increments/0017-views-documentation.md).
-Subsequent separately agreed code increments may deliver the
+The specification and design alignment is reviewed in PR #22, independently
+of tool implementation increments. Subsequent agreed code increments may deliver the
 [Views profile](views-profile-notes.md) progressively:
 
 - reusable Markdown definitions and independent Operational Store instances;
@@ -192,8 +191,8 @@ Subsequent separately agreed code increments may deliver the
 The existing five-state board behavior remains delivered functionality, not a
 universal restriction on future View columns. Supporting definitions edited in
 Obsidian does not imply a general graphical definition editor. No Inbox feature,
-Snapshot runtime or automated Planning/Review is authorized by this documentation
-increment. Registered selection/filtering/ordering capabilities and custom
+Snapshot runtime or automated Planning/Review is authorized by this specification and design
+change. Registered selection/filtering/ordering capabilities and custom
 transitions are deferred because of their complexity; revisit them only when
 a concrete need justifies generalization. Manual blocking and dependencies are
 not delivered in the current Action MVP and require implementation before the
