@@ -2,6 +2,8 @@
 
 Each increment has its own design document, agreed before development and
 retained after implementation. This applies to the MVP and later features.
+Specification and design-only changes are tracked through their PR, design
+decisions, and journal; they do not allocate a tool implementation increment.
 
 Use stable sequential names such as `0001-short-title.md`. Numbers identify
 increments, not releases; one release may contain several increments.

@@ -1,6 +1,7 @@
 # OWF Tool Architecture
 
-> Status: Agreed implementation baseline, 2026-09-15. The first increment is complete.
+> Status: Agreed implementation baseline, 2026-09-15.
+> View architecture direction simplified 2026-10-11; configurable Views not yet implemented.
 
 ## Purpose and authority
 
@@ -12,6 +13,9 @@ Domain semantics come from [Core v0](../../../spec/core-v0.md) and the agreed
 [Operational Store design](../../../docs/design/operational-store-notes.md).
 The MVP scope selects capabilities; it does not redefine their semantics.
 [Development guidelines](development-guidelines.md) define engineering practice.
+The [Views profile](../../../docs/design/views-profile-notes.md) owns the
+agreed definition/instance and first Kanban contract. Its implementation requires
+separately agreed code increments after the specification and design are reviewed.
 Unresolved conflicts must be reported rather than silently resolved by changing
 the specification.
 
@@ -32,6 +36,8 @@ Planned layout; directories and abstractions are created only when needed:
 | src/domain/references/            | Shared domain identifiers and references                                        |
 | src/application/actions/          | Action use cases                                                                |
 | src/application/inbox/            | Inbox use cases                                                                 |
+| src/domain/views/                | View instance, placement and ordering rules when implemented                    |
+| src/application/views/           | Definition evaluation and View commands when implemented                         |
 | src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces |
 | src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations             |
 | src/infrastructure/markdown/      | Reading Markdown objects and metadata                                           |
@@ -85,6 +91,11 @@ Action and Inbox Item are separate aggregate roots. An Action includes its owner
 reference, outgoing dependencies and state-related values. Workspace is the
 operation context, not an aggregate containing every object.
 
+The next View stage introduces independent operational instances referencing
+reusable Markdown definitions. Instance identity, explicit placement, and order
+are not fields on Action. A command can coordinate an Action and View
+instance without turning Workspace into an aggregate or copying Action data.
+
 Domain operations express intent, such as complete or archive, rather than
 allowing arbitrary state replacement. For cross-object rules, the application
 loads the relevant Action/Outcome facts and the domain evaluates them. Domain
@@ -121,8 +132,10 @@ Database calls are synchronous. Keep queries and write transactions short and
 bound lock waiting. Normal access by CLI and server must not corrupt the store.
 Advanced stale-edit detection and conflict merging remain deferred.
 
-An application operation saves the affected object and its Operational Event
-Log entry in one transaction. Failed operations do not leave partial changes.
+An application operation saves the affected operational data and its Operational
+Event Log entries in one transaction. For View moves this includes affected
+Action data and instance placement and order, followed by result
+validation before commit. Failed operations do not leave partial changes.
 This transaction does not extend to externally edited Markdown documents;
 do not imply a consistent snapshot across the filesystem and SQLite.
 
@@ -130,10 +143,54 @@ Inbox processing remains a sequence of individual operations. Resolve only after
 the intended results succeed; a later failure does not roll back earlier results.
 No event sourcing, broker, correlated dual logs or distributed transactions.
 
-Markdown remains authoritative for Projects, Outcomes and Knowledge. Read it
-through a separate port to validate owners and obtain Outcome dependency facts.
+Markdown remains authoritative for Projects, Outcomes, Knowledge, and reusable
+View definitions. Read it through a separate port to validate owners, obtain
+Outcome dependency facts, and load current definitions. View instance data is
+authoritative in the same Workspace Operational Store.
 An unavailable store must be reported, never treated as empty or silently replaced.
 Retain the paused-write backup/restore requirement in the MVP scope.
+
+## Planned View evaluation and command boundary
+
+Definitions are data: state mappings, per-state default columns, target default
+states, and blocking inclusion. Domain rules determine eligibility and unique
+placement; application code obtains current Workspace/instance facts through
+ports. There is no capability registry, executable filter, sorting function,
+transition hook, or generic instance-parameter machinery in this stage.
+Web/CLI adapters do not implement their own routing or movement semantics.
+
+Evaluation reads the current shared definition. Retain a valid current placement;
+otherwise route a blocked Action to the special Blocked column when present,
+then use eligible state defaults. Multiple columns accepting a state are normal.
+Missing or invalid definitions and contradictory instance data fail evaluation.
+Retained GUI data is marked stale with writes disabled; CLI reports structured
+failure. Read evaluation never mutates Actions, placements, order, or logs.
+
+Fixed commands coordinate state changes, manual blocking, placement, ordering,
+and events. Entering Blocked requires a non-empty manual reason and preserves
+execution state. Leaving clears the manual reason only if no dependency block
+remains, even for a target that accepts blocked cards. Ordinary destinations
+set their default state. Creation uses the target default, or Open plus a reason
+in Blocked. Shared domain rules and required state data always apply.
+
+Evaluate the complete candidate and destination within the store transaction
+before committing. Any failure rolls back all related writes and events.
+The contract excludes Markdown writes and external effects. Reading editable
+Markdown is not a distributed snapshot guarantee. Manual/dependency blocking
+support must be implemented before the full workflow is advertised.
+
+Order is exclusively manual and instance/column-local. Reordering does not
+mutate Action. New arrivals append; neither past positions nor former
+organizational columns are restored. Implementation must define write-side
+invalidation/reconciliation without writes on reads or reconstruction of
+unobserved history. Current placement preserves choices among same-state columns.
+
+No separate planning set or flag is introduced. Snapshot scope chooses the
+whole instance or explicit columns; runtime capture remains deferred.
+Physical schema, newcomer tie-breaking, required-input UI, concurrency, and
+command shapes belong to later implementation increments. The earlier generic
+capability design is deferred for complexity and may be revisited for a concrete
+need; it is not an extension framework to implement preemptively.
 
 ## Application technologies
 

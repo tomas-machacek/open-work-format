@@ -1,6 +1,9 @@
 # Open Work Format -- Design Review
 
-> Status: Core v0 conceptually closed (2026-08-07); representation design next
+> Status: Core v0 conceptually closed (2026-08-07); targeted View amendment
+> accepted 2026-10-08 as Decision 025; Snapshot scope simplified 2026-10-10
+> as Decision 026; first Kanban profile simplified 2026-10-11 as Decision 027.
+> Core/profile boundary clarified 2026-10-13 as Decision 028.
 
 ## Purpose
 
@@ -8,6 +11,17 @@ This is the primary working document during the OWF design phase. It records
 accepted decisions, decision candidates, unresolved questions, and consistency
 issues. Historical evolution and rationale may additionally be captured in the
 Design Journal; normative rules ultimately belong in the Specification.
+
+Decisions 025–028 record the View amendments and Core/profile boundary.
+Decision 027 supersedes the generic capability profile while retaining definition/instance separation and
+Snapshot scope. Decision 028 retains document path identity in Core while
+assigning concrete file mapping, definition/instance structure, and field-name
+conventions to representation profiles.
+Original Decisions 017-019 and 023 and the 2026-08 closure summaries remain
+historical evidence where their wording assumes a wholly Curated/Computed View
+or one Markdown document per live View. For current requirements, read amended
+Core Sections 12, 13, and 15
+and the linked View profile rather than those superseded assumptions.
 
 ## Decision States
 
@@ -346,7 +360,7 @@ semantics.
 
 ### Decision 017 -- Planning as Intentional Work Projection
 
-**Status:** Accepted (Core v0)
+**Status:** Accepted (Core v0); whole-View Curated requirement amended by Decision 025
 
 Planning is the activity of selecting existing work items for intentional
 focus, optionally within a defined planning window. Its result is a Curated
@@ -393,7 +407,7 @@ with standalone Actions that do not belong to that Outcome.
 
 ### Decision 018 -- View Snapshots
 
-**Status:** Accepted (Core v0)
+**Status:** Accepted (Core v0); instance identity clarified by Decision 025; capture scope amended by Decision 026
 
 A View may be materialized as an immutable View Snapshot. The snapshot records
 the View membership and a user-selected projection of item state at a specific
@@ -429,7 +443,8 @@ v0 defines neither these metrics nor automatic rollover behavior.
 
 ### Decision 019 -- View Purpose and Optional Planning Window
 
-**Status:** Accepted (Core v0)
+**Status:** Accepted (Core v0); instance/definition separation clarified by Decision 025;
+concrete window field names assigned to the profile by Decision 028
 
 A View may declare an optional, machine-readable `purpose`. The value is an
 open vocabulary rather than a closed enum. It communicates the intended use of
@@ -556,7 +571,8 @@ do not own work.
 
 ### Decision 023 -- Knowledge, Views, and Identity Foundations
 
-**Status:** Accepted (Core v0)
+**Status:** Accepted (Core v0); exclusive View kinds amended by Decision 025;
+path-based document identity retained in Core by corrected Decision 028
 
 A Knowledge Document preserves context, rationale, evidence, or other durable
 knowledge. It is not a work commitment and does not participate in the work
@@ -591,6 +607,167 @@ related dates through extensions and Views.
 Knowledge categories, knowledge lifecycles, knowledge graphs, external artifact
 integrations, and methodology-specific taxonomies are extensions. Their absence
 does not prevent a Knowledge Document from preserving durable information.
+
+### Decision 025 -- Combined Views, Reusable Definitions, and Operational Instances
+
+**Status:** Accepted (2026-10-08); planning-selection model superseded by Decision 026;
+generic capability profile superseded by Decision 027. Historical wording below;
+documentation review tracked in PR #22.
+
+A live View can combine explicit and computed membership with independent
+grouping and ordering. Curated/Computed remain useful descriptions of membership,
+not exclusive whole-View kinds. Planning remains an intentional explicit
+selection; candidates and selected work may coexist in one View, and completing
+work does not erase its selection. Planning columns are optional and defined
+by the particular View.
+
+A representation may separate reusable definitions from concrete instances.
+In the agreed tool profile, Markdown defines behavior and the Operational Store
+holds independent instance IDs, references, parameters, windows, selections,
+placements, and order. The definition's namespace names capabilities, not an
+instance. Instances share the current definition without automatic copies or
+pinned versions. Incompatible evolution can use a new independent definition.
+
+The first Kanban profile allows one Action occurrence per instance. Runtime
+overlap fails the whole evaluation with actionable GUI/CLI diagnostics.
+Defined transition operations preserve Action rules and must produce valid,
+unique destination membership before all related store writes commit together.
+Selectors are read-only. Manual ordering is local and remembers no position
+after departure; this supersedes the briefly considered dormant-rank approach.
+
+A Snapshot identifies the concrete source instance and whole-View or
+planning-selection scope. Actual Snapshot support remains deferred.
+Inbox is deferred in the current development sequence without changing Core.
+
+This is a genuine gap in the original whole-View membership classification and
+a representation authority change, not a new methodology or work lifecycle.
+It amends the assumptions identified above while preserving non-ownership,
+lifecycle separation, explicit planning intent, and immutable snapshots.
+Concrete contracts belong in
+[Views Profile Design Notes](views-profile-notes.md), with authority in
+[Operational Store notes](operational-store-notes.md). Specification and design
+review is tracked in PR #22; implementation requires separately agreed tool
+increments.
+
+### Decision 026 -- Snapshot Scope Without Separate Planning Membership
+
+**Status:** Accepted (2026-10-10); Snapshot scope retained. References below to
+registered operations describe the earlier profile, superseded by Decision 027.
+Documentation review tracked in PR #22.
+
+A View definition should support both bounded planning periods and continuous
+Kanban. Backlog, newly created work awaiting organization, current work, and
+completed work are ordinary columns whose meaning belongs to that definition
+and its registered operations. Core does not require sprint semantics,
+a separate persistent planning-selection relation, or `planning: true` flags.
+
+Intentional focus can be expressed through View membership, grouping, and order.
+Snapshot capture independently chooses the whole concrete View instance or
+explicitly selected columns. For example, a capture can include Todo, In
+progress, Waiting, and Done while excluding Backlog and New Actions. The same
+scope can be captured at any time, including the beginning and end of an
+optional planning period. Capture scope does not change live membership.
+
+A scoped capture evaluates and validates the complete instance before applying
+the scope, so excluded columns cannot hide overlap errors. It preserves the
+chosen column IDs and titles, including empty columns, column/card order, and
+the captured Action IDs, types, titles, and optional property projection.
+Later changes to Actions, definitions, instances, or their parameters do not
+alter an existing Snapshot. Review can likewise operate on the whole View or
+an explicit subset without requiring a separate persisted planning set.
+
+This supersedes the planning-selection set, planning-column flags, and
+planning-selection Snapshot scope in Decision 025. Its other contracts,
+including definition/instance separation, unique membership, atomic moves,
+and ordering without dormant positions, remain accepted. Actual Snapshot
+implementation, serialization, and commands remain deferred. Current
+requirements are in Core Sections 12, 13, and 15 and
+[Snapshot capture scope](views-profile-notes.md#6-snapshot-capture-scope).
+
+### Decision 027 -- State-Mapped Kanban, Blocked Column, and Manual Order
+
+**Status:** Accepted (2026-10-11); documentation review tracked in PR #22
+
+The user's actual board has New to organize, Todo, Blocked, In progress, Done,
+Sprint backlog, and Backlog. Four columns support Open; their difference is
+intentional placement within an instance. This use case does not require
+arbitrary executable selectors, filters, automatic sorting, or custom transitions.
+
+The first profile therefore uses ordinary columns mapping to one or several
+execution states, with current placement distinguishing same-state columns.
+Each state has a default column, explicit or first supporting column in definition
+order. Each ordinary column has a target default state, explicit or first in its
+state list, used for moves and creation. Card order is always manual.
+
+A special Blocked column explicitly selects blocked non-terminal Actions.
+Entering it sets a manual block with a human-readable reason and preserves
+execution state. Leaving clears manual blocking and applies the target state
+and placement, but is rejected while any dependency block remains.
+Blocked is still derived, never a new execution state. Ordinary columns exclude
+blocked Actions unless configured with `include_blocked: true`; that option
+permits both blocked and unblocked cards and does not set a block.
+
+Retain current placement while eligible. Otherwise route blocked Actions to
+the special column when available, then use an eligible state default or first
+eligible ordinary column. Multiple accepting columns are not an overlap error;
+the result still contains at most one occurrence per instance. No eligible
+column means the Action is outside that View.
+
+The user chose manual reassignment when leaving Blocked. Do not restore the
+earlier organizational column or its position. Automatic unblocking outside
+the View uses current routing defaults. All routing reads are side-effect free;
+supported writes reconcile invalid current placement and ordering residue.
+
+The generic design explored namespaced capabilities for member selection,
+filtering, ordering, and transitions. It was deferred because its configuration
+and implementation complexity exceeded the present need. Revisit it if actual
+use justifies that cost. The simplified profile requires no registry, capability
+namespace, generic parameters, population modes, or entry/exit hooks.
+
+Reusable Markdown definitions, independently identified instances, current shared
+definitions, optional windows, scoped Snapshots, and atomic validated writes are
+retained. Core remains broader than this first implementation profile.
+Creation in a column is explicitly covered, including required domain data.
+Manual blocking and dependency support remain prerequisites for delivering the
+full Blocked workflow; this decision changes documentation, not runtime.
+
+The detailed contract and example are in
+[Views Profile Design Notes](views-profile-notes.md).
+
+### Decision 028 -- Keep Core Independent of Representation Choices
+
+**Status:** Accepted (2026-10-13), corrected the same day to retain Core document
+path identity; documentation review tracked in PR #22.
+
+Core specifies the meaning of objects and workflows. Every profile must preserve
+document identity as an absolute Workspace-relative logical path without a
+serialization extension. Moving or renaming a document changes this identity
+and requires affected references to be updated. Optional stable IDs supplement
+rather than replace path identity. This is a framework-wide compatibility
+constraint motivated by Open Knowledge Format, not a profile-specific choice.
+
+The initial cleanup incorrectly delegated this rule to profiles. The user
+clarified the original intent and requested its restoration. Concrete file
+mapping and reference serialization remain profile concerns, as do identities
+for non-document operational objects. Core's optional planning window keeps
+its temporal meaning; `window.start` and `window.end` are profile field names.
+
+Reusable definitions and operational instances are also profile choices.
+Core describes each live View's identity, membership, grouping, and ordering;
+a Snapshot identifies its source View and captures the selected scope.
+Sharing a configuration does not collapse distinct Views into one identity.
+
+Remove first-Kanban feature lists, capability-registry disclaimers, and
+explanations about rejected persisted planning sets from Core. The simple
+state/Blocked model, manual ordering, and generic-model deferral remain in
+the profile and Decisions 026–027. Core continues to permit explicit or derived
+membership and ordering independently of what this tool implements first.
+
+This clarifies document identity in Decision 023 and moves the concrete window
+field names of Decision 019 to the profile,
+and the Core/profile allocation in Decisions 025–027. Historical wording and
+closure summaries are retained as history. No runtime, reference syntax,
+storage migration, or chosen Kanban behavior changes.
 
 ## Review Design Closure
 
@@ -734,13 +911,16 @@ or contradiction. A preference of one tool or methodology is not sufficient.
 
 ### Views
 
-- Accepted as Core v0 by Decisions 018, 019, 020, and 023. Remaining questions
-  concern query, ordering, and file representation.
+- Accepted as Core v0 by Decisions 018, 019, 020, and 023, amended by Decisions 025–028.
+  The current profile contract is documented in Views Profile Design Notes.
+  Remaining implementation details concern physical schema, fixed move/create commands,
+  blocking input, ordering reconciliation, and compatibility mechanics.
 
 ### Identity and Paths
 
-- Accepted as Core v0 by Decision 023. Remaining questions concern concrete
-  frontmatter and directory conventions.
+- Core document path identity is retained by Decision 023 and corrected Decision
+  028. Concrete file mapping, supplementary stable IDs, operational-object IDs,
+  reference serialization, and field conventions belong to the profile.
 
 ## Post-Closure Representation Questions
 
@@ -749,7 +929,7 @@ or contradiction. A preference of one tool or methodology is not sufficient.
 - Minimum required frontmatter for each document type.
 - Required, recommended, or optional directory layout.
 - Exact representation of ownership, links, and explicit manual blocking.
-- Query envelope for Computed Views without standardizing a query language.
+- Generic Computed View query envelope, deferred by Decision 027; not a first-profile requirement.
 - Representation of ordered collections and global ordering.
 - Extension mechanism.
 

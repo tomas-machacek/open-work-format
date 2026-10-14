@@ -119,16 +119,28 @@ completed run are defined in Sections 14.3 and 16.
 The Workspace is the root context and boundary of an OWF bundle. It is not a
 work item and MUST NOT have a work lifecycle.
 
-Every persistent document object MUST have a machine-readable identity. In Core
-v0, identity is a logical absolute bundle-relative path that begins with `/` and
-does not include a serialization extension. Ownership and other
-machine-readable references MUST use the same identity form.
+Every persistent object MUST have a machine-readable identity that is
+unambiguous within its Workspace. Ownership and other machine-readable
+references MUST identify their intended objects unambiguously.
 
-Moving or renaming an object changes its identity. All affected references MUST
-be updated. Whether physical directory containment also expresses logical
-ownership is defined by the applicable representation profile. The mapping
-between logical identity and concrete files is defined by a future
-representation profile.
+Every persistent document object MUST use its absolute Workspace-relative
+logical path, beginning with `/` and without a serialization extension, as
+its identity. Every OWF representation profile MUST preserve this path identity.
+This shared convention preserves the path-based document identity used by
+Open Knowledge Format.
+
+Moving or renaming a document object changes its path identity. All affected
+references MUST be updated. A profile MAY support an additional stable identifier,
+but it MUST NOT replace the document's path identity.
+
+Non-document operational objects, such as store-backed Actions and live View
+instances, use identities defined by the applicable representation profile.
+They are not required to have document paths.
+
+The representation profile defines how logical paths map to concrete files and
+how references are serialized. References MUST remain consistent when objects
+are moved or renamed. Physical placement MUST NOT imply structural ownership
+unless the applicable representation profile explicitly assigns it that meaning.
 
 ## 6. Work Model
 
@@ -245,7 +257,7 @@ actively pursued. Parking MUST record a human-readable reason and MAY define a
 Parking MUST NOT rewrite descendant states or dependencies. Descendant Actions
 may remain technically executable. Ordinary attention-oriented Views and Review
 scopes SHOULD exclude descendants through their parked ancestor, while an
-intentional Curated View MAY still include them.
+intentional explicit selection in a View MAY still include them.
 
 ## 7. Ownership and Relationships
 
@@ -419,11 +431,17 @@ A View is a first-class live projection over persistent Workspace objects. It
 MUST NOT own its members or alter their intrinsic lifecycle merely through
 membership.
 
-A View is one of:
+View membership MAY be explicitly maintained, derived from declarative rules,
+or a combination of both. Curated and computed describe membership mechanisms,
+not mutually exclusive kinds of whole View.
 
-- **Curated View:** explicitly maintains membership and MAY maintain ordering
-  or grouping.
-- **Computed View:** derives membership from a declarative rule.
+Ordering and grouping belong to the View and MAY be explicit or derived
+independently of the membership mechanism. In particular, derived membership MAY
+have an explicitly maintained order. The same object MAY occur in different
+Views with independent grouping and order.
+
+Each View has its own identity. Distinct Views MUST NOT be treated as the same
+View merely because their selection rules or presentation are alike.
 
 A View MAY expose an optional machine-readable `purpose` from an open
 vocabulary. Purpose MUST NOT create a closed View subtype or lifecycle. Common
@@ -433,12 +451,16 @@ non-normative values include `planning`, `review`, `focus`, `waiting`, and
 Core v0 does not define a query language. Lists, boards, tables, calendars,
 timelines, and trees are renderer concerns rather than distinct Core objects.
 
+An explicit OWF operation MAY be invoked on a View member.
+Merely displaying, selecting, ordering, or grouping an object MUST NOT mutate its
+intrinsic state or ownership. An explicit operation MUST preserve the same Core
+rules as an operation invoked outside the View. Selecting work for a plan and
+executing work remain distinct activities even when one interface supports both.
+
 ### 12.2 Optional Planning Window
 
-A View used for Planning MAY declare a structured temporal window. Where such
-metadata is represented, implementations SHOULD use the canonical semantic
-names `window.start` and `window.end`. Either boundary MAY be absent. Omitting
-both permits rolling or unbounded planning.
+A View used for Planning MAY have a temporal window with an optional start
+and an optional end. Either or both boundaries MAY be absent.
 
 Reaching a window boundary MUST NOT mutate the View or its members. It MAY
 produce a signal, suggest Review, offer a Snapshot, or assist with creating a
@@ -453,8 +475,14 @@ A Snapshot MUST record:
 
 - its source View;
 - capture time;
-- selected snapshot projection; and
-- the items contained in the View at capture time.
+- selected snapshot projection;
+- capture scope: the whole View or an explicitly identified subset; and
+- all items in that scope at capture time.
+
+Capture scope is chosen for the particular Snapshot. A whole-View Snapshot
+includes every current member; a scoped Snapshot includes every member of the
+explicitly selected scope. Selecting the scope MUST NOT change the source
+View's membership or its members.
 
 At minimum, captured membership MUST preserve each item's identity, type, and
 human-readable title. A Snapshot MAY additionally preserve selected properties
@@ -534,32 +562,39 @@ information may have changed.
 ## 15. Planning
 
 Planning selects existing work for intentional focus. It operates on already
-defined Projects, Outcomes, and Actions and produces a Curated View.
+defined Projects, Outcomes, and Actions and expresses that focus through View
+membership, grouping, and ordering.
 
-Planning MUST NOT introduce a `Planned` lifecycle state. View membership
-expresses intended focus, not intrinsic priority or guaranteed completion.
-Membership, ordering, and grouping belong to the View.
+Planning MUST NOT introduce a `Planned` lifecycle state. View-local organization
+MUST NOT be treated as intrinsic Action priority or guaranteed completion.
 
-A Planning View MAY:
+A View MAY present candidates, future work, current work, and completed work
+together. The meaning of those groups belongs to the particular View; Core
+assigns no universal meaning to their titles. Displaying an item does not itself
+make a commitment or mutate the item.
+
+A View used for Planning MAY:
 
 - contain Projects, Outcomes, Actions, or a mixture;
 - contain blocked work;
 - omit prerequisites and transitive dependencies;
-- change while the plan is active;
-- overlap other Planning Views; and
-- use or omit a fixed planning window.
+- change while it is in use;
+- overlap other Views; and
+- use or omit a fixed window.
 
 Planning MUST remain separate from Review, Refinement, Inbox Processing,
 ownership changes, and lifecycle decisions. Discovering the need for one of
 those activities does not make it part of Planning.
 
-Computed Views MAY help discover candidates, but the result of intentional
-Planning MUST be a Curated View. Core v0 does not prescribe capacity, work in
-progress, completion, rollover, or methodology rules.
+A View can support bounded planning periods or continuous flow. Core does not
+prescribe sprint, capacity, work-in-progress, completion, or rollover policies.
+Computed membership can expose candidates or current work independently of
+grouping and ordering.
 
-Review MAY use a Planning View as its scope at the end of a planning period. A
-Snapshot MAY preserve a reliable historical projection before or after such a
-Review.
+Review MAY use the whole View or an explicitly chosen subset as its scope.
+A Snapshot MAY capture the whole View or a chosen subset before or after such a
+Review, or at any other chosen time. Selecting a capture scope does not create
+or change current membership.
 
 ## 16. Event Logs
 

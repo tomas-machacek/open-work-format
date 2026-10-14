@@ -2,7 +2,8 @@
 
 > Status: Working, non-normative design notes; authority boundary and
 > cross-representation references, minimum logical data model, and operation
-> capabilities established
+> capabilities established; View authority boundary updated 2026-10-08 and
+> Snapshot scope simplified 2026-10-10; state-based View profile agreed 2026-10-11
 
 > Implementation scope: see [Tool MVP Scope](mvp-scope.md). Screenshot support
 > described below is deferred beyond the first tool MVP.
@@ -16,8 +17,14 @@ language.
 
 The separation exists because Inbox Items and Actions require low-friction
 capture, direct state manipulation, compact projections, and equal human and
-agent capabilities. Generic Markdown editing did not meet those operational UX
+agent capabilities. View instances likewise need frequent membership, placement,
+and ordering changes. Reusable definitions remain Markdown context; instance
+data is operational. Generic Markdown editing did not meet those operational UX
 requirements.
+
+[Views profile notes](views-profile-notes.md) own the detailed View definition,
+evaluation, placement, and transition contract. This document owns their
+authority, logical store data, and operational consistency boundary.
 
 ## 2. Authority Boundary
 
@@ -27,7 +34,9 @@ requirements.
 | Project | Markdown directory and `README.md` |
 | Outcome | Markdown directory and `README.md` |
 | Knowledge Document | Markdown document |
-| View definition and Curated membership | Markdown document |
+| Reusable View definition | Markdown document |
+| View instance identity, window, current placement, and order | Operational Store |
+| Evaluated View placement | derived from states, blocking, valid current placements, and definition defaults |
 | View Snapshot | Markdown document |
 | Inbox Item | Operational Store |
 | Action | Operational Store |
@@ -50,8 +59,10 @@ MUST NOT become competing sources of truth.
 
 A relationship is authoritative in the representation of the object that
 declares it. A dependency is declared by the constrained `depends-on` source
-object. An Action declares its owner in the Operational Store, while Project and
-Outcome ownership is expressed by containment in the Markdown structure.
+object. A reusable View definition and its instances have explicitly separated
+authority under Section 2. An Action declares its owner in the Operational Store,
+while Project and Outcome ownership is expressed by containment in the Markdown
+structure.
 
 | Relationship | Authoritative representation |
 | --- | --- |
@@ -62,7 +73,8 @@ Outcome ownership is expressed by containment in the Markdown structure.
 | Action depends on Outcome | Operational Store |
 | Outcome depends on Action | Markdown Outcome |
 | Outcome depends on Outcome | Markdown Outcome |
-| Curated View contains or orders an Action | Markdown View |
+| View instance explicitly places or orders an Action | Operational Store |
+| View instance uses a reusable definition | Operational Store reference to Markdown definition |
 
 A Project or Outcome MAY display its Actions as a derived projection, but its
 Markdown files do not contain an authoritative owned-Action list. Blocked
@@ -93,6 +105,13 @@ may display the link without being able to resolve it.
 Inbox Items also have stable Workspace-unique store IDs. They are temporary and
 MUST NOT become durable dependency targets.
 
+View instances have stable Workspace-unique store IDs, separate from the
+identity of their reusable Markdown definitions. The current profile requires
+no capability namespace.
+References to a View instance use its instance ID in the Workspace context;
+no new public URI scheme is selected by this design. A new independent instance
+receives a new ID.
+
 ## 5. Markdown Object Identity
 
 Markdown objects use Workspace-relative path identity by default. A Markdown
@@ -101,8 +120,8 @@ object MAY additionally declare an immutable Workspace-unique `owf.id`.
 For a Workspace, Project, or Outcome, `owf.id` is declared in the
 canonical `README.md` and identifies the containing directory object, not the
 `README.md` Concept. That Concept retains its path-based document identity. A
-Knowledge Document, View, or View Snapshot declares its own `owf.id` in its
-own frontmatter.
+Knowledge Document, View definition, or View Snapshot declares its own `owf.id`
+in its own frontmatter.
 
 Supporting stable Markdown IDs is an optional tool capability. Baseline tools
 continue to support path identity. A supporting tool MAY scan metadata and
@@ -171,8 +190,11 @@ changes to Markdown-authoritative objects, Workspace decisions, and durable
 workflow history such as Review summaries.
 
 The Operational Event Log belongs to the Operational Store. It records semantic
-changes to Inbox Items, Actions, and their outgoing relationships. Current
-operational objects, not this history, remain authoritative.
+changes to Inbox Items, Actions, their outgoing relationships, and View instance
+data, including explicit placement and ordering. Current operational
+data, not this history, remains authoritative. Changes to a reusable Markdown
+definition belong to the Markdown Event Log. Evaluating View routing or reading
+a View is not a semantic write and creates no event.
 
 Cross-representation events MAY reference objects in the other representation
 using normal OWF references. OWF does not require:
@@ -257,6 +279,44 @@ Allowed states are `open`, `in_progress`, `waiting`, `completed`,
 - Rename, ownership change, state change, dependency change, and Archive
   preserve Action identity.
 - Successful terminal transitions must satisfy Core dependency rules.
+
+### 9.3 ViewInstance
+
+These logical fields complement the detailed
+[Views profile contract](views-profile-notes.md); they do not prescribe SQL tables
+or a new work lifecycle.
+
+| Field or relation | Required | Meaning |
+| --- | --- | --- |
+| `id` | yes | Stable Workspace-unique instance ID. |
+| `definition` | yes | MarkdownObjectReference to the reusable View definition. |
+| `title` | yes | Human-readable instance name, such as My work board. |
+| `window` | no | Optional `start` and `end` boundaries for this instance. |
+| Current placements | as used | Action reference and stable definition-local column ID; preserves the choice among columns accepting the same state. |
+| Current manual ordering | as used | Instance, column, Action reference, and local position. |
+
+Column IDs are unique within their definition. Action references retain their
+existing stable identity. Instance data MUST NOT duplicate Action content,
+state, or ownership. Instances sharing a definition do not share these
+relations.
+
+Routing is evaluated from the current definition, Action state and blocking,
+and valid instance placements. Repeated support for one state does not create
+duplicate cards: retain an eligible placement, otherwise use the Blocked
+column or eligible state default as specified in the profile.
+No separate membership copies, capability parameters, or earlier organizational
+placements are retained. Departure discards the former column position too.
+External changes can leave physical residue that write-side reconciliation
+must invalidate; after departure is detected it cannot restore an old placement
+or position. Reads do not save routing results or perform cleanup.
+Implementation must specify this reconciliation without reconstructing
+unobserved history. All ordering is manual; automatic arrivals go to the end.
+
+No separate planning-selection relation is part of this View model. Meaning
+comes from the column configuration and fixed movement rules. Snapshot scope is
+chosen when capturing and is recorded in the immutable historical artifact;
+it is not an additional live membership set. Deleting an instance deletes its
+own operational relations, not its Actions or its shared definition.
 
 ## 10. Dependencies as Reference Values
 
@@ -377,6 +437,32 @@ merging are deferred beyond the first tool version. Single-object atomicity
 remains required, but does not by itself protect against lost updates from
 concurrent writers. No parallel-editing safety guarantee is implied.
 
+### 11.6 View instance operations
+
+Humans and agents require equivalent discovery, creation, reading, evaluation,
+placement, movement, ordering, and deletion capabilities for supported Views.
+CLI operations must not require the web server. Exact command and endpoint
+syntax will be agreed in implementation increments.
+
+A View move may combine changes to the Action, explicit placement, ordering,
+and corresponding Operational Event Log entries. Those store changes MUST
+commit together or all roll back. The application checks shared Action rules
+and validates the complete resulting View and destination before committing.
+Creation in a column similarly saves the new Action, placement, order, and events
+atomically. This is a scoped store transaction, not a distributed transaction
+or an all-or-nothing Inbox workflow.
+
+Ordinary destinations set their default state. Entering Blocked preserves state
+and sets a non-empty manual-block reason; leaving clears that reason only when
+no dependency block remains. Dependency-blocked exits fail even when the target
+allows blocked cards. Same-column reordering changes no Action data.
+These are fixed application rules, not registered transition functions.
+Manual/dependency blocking must be implemented before claiming this workflow.
+
+Effects that cannot be rolled back with the Operational Store, such as external messages or
+Markdown writes, are outside this first transition contract. Reads of externally
+editable Markdown do not imply a cross-representation snapshot guarantee.
+
 ## 12. Storage Configuration and Discovery
 
 Logical membership in a Workspace does not require physical containment in its
@@ -435,9 +521,9 @@ feature are not required. The storage-specific procedure remains to be defined.
 ### 12.3 Unavailable storage
 
 A tool MUST distinguish an unavailable declared Operational Store from an empty
-Inbox or Action collection. It MUST report unavailability and MUST NOT silently
-initialize a replacement store. An inability to access work is not evidence
-that no work exists.
+Inbox, Action collection, or View instance. It MUST report unavailability and
+MUST NOT silently initialize a replacement store. An inability to access work
+is not evidence that no work exists.
 
 Local-first and offline-capable operation remain recommended, not a prerequisite
 for compatibility. External storage changes availability and backup obligations,
@@ -445,7 +531,9 @@ not the logical authority boundary.
 
 ## 13. Minimum Query Capabilities
 
-The MVP requires these capabilities, not a general query language:
+The original Action/Inbox baseline requires these capabilities, not a general
+query language. View evaluation capabilities are an additional stage described
+in the Views profile notes:
 
 | Capability | Purpose |
 | --- | --- |
@@ -463,13 +551,14 @@ requested when needed.
 
 The Inbox can be presented oldest first using captured_at. Action result order
 does not express priority; intentional ordering remains the responsibility of
-Views.
+Views. This includes manual ordering over computed members; Action list order
+is not a stored View position.
 
 Blocked, executable, reverse dependencies, and complete Project subtrees are not
 required store-side queries for the MVP. An OWF-aware tool or agent may derive
 them from loaded Actions and Markdown objects. In particular, the Operational
 Store need not independently maintain Outcome state or the Markdown ownership
-hierarchy. These minimum filters do not define the Computed View query language.
+hierarchy. These minimum filters do not introduce a generic View query language.
 
 ## 14. Screenshots and Markdown Images
 

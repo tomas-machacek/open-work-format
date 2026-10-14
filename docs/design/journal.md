@@ -667,3 +667,167 @@ The original exploration deferred representation of dynamic Views, ordered
 collections, minimum frontmatter, queries, external synchronization, and the
 exact role of Waiting. Some of these have since been resolved; remaining current
 questions are tracked in `docs/design/core-v0-design-review.md`.
+
+## 2026-10-08 -- Combined Views and Reusable Definitions
+
+After Action management and board search, the user selected Views as the next
+direction and deferred Inbox. A View should support independent manual card
+order, custom Kanban columns, and defined effects of moving between columns.
+
+The original Curated/Computed distinction classified entire Views. The new
+direction permits combined explicit and derived membership with independently
+chosen ordering. Planning remains explicit selection, but automatic candidates
+can be shown beside that selection. Planning columns are optional and chosen
+by the definition; automatic population does not itself select work.
+
+A proposed stable Markdown View ID prompted a further distinction. One reusable
+Markdown definition can have several independently identified live instances
+in the Operational Store, such as successive sprints. This is permitted, though
+one instance is expected to be common. Namespace belongs to the definition and
+identifies capabilities such as `general.actions-by-state` or
+`sprint.green-actions`; instance IDs identify independent operational data.
+
+All instances follow the current shared definition. The user rejected accumulating
+obsolete definition copies; incompatible evolution can use a new independent
+definition. Snapshots, not live instances or copies of definitions, preserve
+reliable historical projections.
+
+For the first Kanban profile, an Action occurs in at most one column of an
+instance. Actual overlaps are runtime validation errors for the whole View,
+with Action and column diagnostics in GUI and CLI. Selectors do not silently
+override each other. A move succeeds only when its operation produces valid,
+unique target membership; Action and instance changes plus events commit
+together or roll back.
+
+The discussion initially considered preserving positions after an Action
+temporarily left an automatic column, then cleaning up terminal Actions' dormant
+positions. The user chose the smaller model instead: no previous-position memory
+at all. A manual return has an explicit drop position; a return due to outside
+changes is treated as a new arrival. More elaborate memory is deferred until
+actual use demonstrates a need.
+
+These decisions amend Core 12/13/15 and the Markdown/store authority boundary.
+Decision 025 and documentation increment 0017 record the amendment. A dedicated
+Views profile owns the detailed contract; no runtime feature, command, migration,
+general definition editor, or custom code-loading system is delivered by this
+documentation work.
+
+## 2026-10-10 -- Generic Snapshot Scope Instead of Planning Membership
+
+The user questioned whether optional planning selection added unnecessary
+complexity and pushed sprint semantics into the View model. Their board can
+also support continuous Kanban, with current work kept under WIP limits and
+ordinary Backlog and New Actions awaiting organization columns. What they
+need for history is a capture of selected columns at a particular time,
+possibly at the beginning and end of a planning period.
+
+The separate persisted planning-selection set and `planning: true` column
+flags were therefore removed from the current proposal. Intentional focus is
+expressed through membership, grouping, and ordering in the particular View.
+Column meanings and move effects remain the responsibility of its definition
+and registered operations; neither sprint semantics nor WIP enforcement is
+introduced by this amendment.
+
+Each Snapshot capture chooses the whole concrete View instance or explicit
+column IDs. Excluding Backlog and New Actions from a capture does not remove
+them from the live View. A scoped capture still validates the whole instance
+before filtering, preserves selected empty columns and card order, and
+materializes computed results rather than depending on later re-evaluation.
+Review can similarly use a whole View or an explicit subset.
+
+Decision 026 supersedes the planning-selection part of Decision 025 while
+retaining reusable definitions, independent instances, namespaced
+capabilities, unique membership, atomic moves, and no past-column position
+memory. The profile now illustrates a generic work board and a separate
+capture scope. Snapshot runtime and serialization remain deferred; this
+revision changes documentation only.
+
+## 2026-10-11 -- Simplify Views Around the Actual Kanban
+
+The user reconsidered the generic View design against the board they already
+use: New to organize, Todo, Blocked, In progress, Done, Sprint backlog, and
+Backlog. Several columns share Open state and differ only in the user's intended
+placement. An age-filtered column was useful speculation, but not part of this
+daily board; a separate future board or card coloring could address that need.
+
+The accepted first profile maps ordinary columns to one or several execution
+states. Explicit instance placement distinguishes columns sharing a state.
+Default columns handle unplaced Actions; target default states define ordinary
+moves and creation. Ordering is exclusively manual, with new arrivals appended.
+
+Blocked is a dedicated column type using the existing derived blocking concept.
+A move into it sets a manual block with a human-readable reason without changing
+execution state. A move out clears the manual reason and uses the destination,
+but cannot proceed while dependency blocking remains. Ordinary columns exclude
+blocked Actions by default and can opt in through `include_blocked: true`.
+An eligible current placement wins; otherwise Blocked and state defaults route
+the Action uniquely.
+
+The user explicitly preferred manually choosing a destination when unblocking.
+There is no restored pre-block organizational placement or past card position.
+Creation in a chosen column follows the same fixed state/blocking rules.
+Existing Core requirements, including a manual-block reason, still apply.
+
+Earlier proposals used registered namespaced capabilities for column population,
+filters, automatic sorting, and transition operations. Their configuration and
+implementation complexity was too high for the current need. They are deferred,
+not a framework to implement now, and can be reconsidered when a concrete use
+case justifies them. Entry/exit hooks were also rejected in favor of fixed
+application semantics implied by the column type.
+
+Decision 027 records this simplification. Definition/instance separation,
+current shared definitions, optional windows, scoped Snapshots, and atomic
+validated writes remain. Manual blocking and dependency support are not yet
+delivered by the Action MVP; this revision updates documentation only.
+
+## 2026-10-13 -- Restore the Core and Profile Boundary
+
+Before reviewing the View documentation, the user requested a check for details
+that did not belong in Core. That check found recent references to the first
+state/Blocked Kanban, capability registries, definition/instance structure, and
+rejected planning-membership storage. It also found older prescriptions for
+path identity and concrete planning-window field names.
+
+The user authorized cleanup. Core now requires unambiguous identities and
+consistent references, independent of their representation. Concrete path
+identities, rename behavior, optional stable IDs, and operational instance IDs
+remain profile conventions. Optional temporal boundaries remain in Core;
+the field names `window.start` and `window.end` belong to the profile.
+
+Views and Snapshots retain their general semantics. The first tool's restricted
+state/Blocked model and manual ordering do not limit what Core permits.
+The rationale for deferring generic capabilities remains in the profile and
+design history. Decision 028 records the boundary correction; no selected
+runtime behavior or reference format changes.
+
+## 2026-10-13 -- Retain Document Path Identity Across All Profiles
+
+The user clarified that path-based document identity had deliberately been
+defined in Core so that every OWF profile preserves the identity convention
+shared with Open Knowledge Format. Delegating that requirement to individual
+profiles in the preceding cleanup weakened the original intent.
+
+At the user's request, Core again requires every document object's absolute
+Workspace-relative logical path without a serialization extension as its
+identity. A move or rename changes that identity and affected references must
+be updated. Supplementary stable IDs cannot replace path identity. Non-document
+operational objects retain profile-defined identities.
+
+Decision 028 was corrected accordingly. Concrete file mapping, reference
+serialization, window field names, and the chosen Kanban implementation remain
+profile concerns. The other Core cleanup remains in effect.
+
+## 2026-10-14 -- Keep Specification Changes Outside Tool Increments
+
+The user clarified that numbered tool increments define implementation work for
+the CLI and Kanban. The Views work in PR #22 changes the specification and design
+documents, so assigning it a documentation-only implementation increment was
+inappropriate and duplicated the actual design sources.
+
+The unmerged `0017-views-documentation.md` and its increment-index row were
+removed, and active references now point to the design documents or PR review.
+The earlier journal mention of 0017 records that historical proposal, not an
+active implementation brief. Verification evidence is retained in PR #22.
+The user authorized leaving number 0017 available for the first actual Views
+implementation increment, to be specified after design review. Existing
+completed increments and the agreed Views behavior are unchanged.
