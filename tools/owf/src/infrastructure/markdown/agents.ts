@@ -108,14 +108,66 @@ while staying waiting. Leaving waiting clears the reason automatically.
 Contradictory and repeated scalar options are rejected. An identical request
 returns unchanged without a timestamp or event; one real update commits one
 Action and event together. State/reason-only edits emit action.state_changed;
-content or owner edits emit action.updated. Clock rollback rejects real edits.
+content, owner, manual block or dependency edits emit action.updated. Clock rollback rejects real edits.
 
 Repeat --state on list actions to match any listed state without duplicates,
 combined with the owner scope. Comma-separated states are invalid. Without this
 filter, completed and cancelled Actions are included. Get and list are read-only.
-Archive, dependencies and derived blocking are not implemented.
+Archive and Outcome dependency targets are not implemented.
 
-This tool requires schema 4. Older stores are refused without migration or
+## Manual blocking and prerequisites
+
+Use the dependent Action as the command ID and its prerequisite as the target:
+
+\`\`\`sh
+owf set action {id} --manual-block "Missing production access"
+owf set action {id} --add-dependency {prerequisite-id}
+owf set action {id} --add-dependency {first-id} --add-dependency {second-id}
+owf set action {id} --remove-dependency {old-id} --add-dependency {new-id}
+owf set action {id} --clear-manual-block --state completed
+\`\`\`
+
+Replace placeholders with real UUID v4 values or owf:action:UUID URIs. Targets
+must be Actions in this Workspace; cross-Project edges are supported. A source
+**depends on** each target. Repeat add/remove flags to edit the set atomically
+with other fields; duplicate adds and absent removals are no-ops, but all supplied
+targets must exist. Adding and removing the same normalized target fails.
+Cycles and self-dependencies can be stored; no cycle linter is provided yet.
+
+The optional nonblank manual reason is literal text, independent of waiting_for
+and execution state. Omission preserves it. Clear it explicitly before or together
+with entering completed or cancelled; setting a reason on a terminal result fails.
+Clearing an absent reason succeeds unchanged. Only completed prerequisites satisfy
+dependencies; cancelled, waiting, open and in_progress targets remain unresolved.
+Completion requires all remaining prerequisites satisfied (ACTION_BLOCKED, exit 1,
+with unresolved IDs); cancellation does not. Removing an obsolete edge and
+completing can be one update. Reopening a target changes derived blocking on the
+next read without updating dependent states, timestamps or events. Unrelated edits
+and unchanged completed requests remain allowed on an already completed source.
+
+Get/list and mutation text always show State and a separate Blocked summary:
+Blocked: no; yes (manual); yes (dependencies: N unresolved of M); or
+ yes (manual; dependencies: N unresolved of M). Manual block shows the reason.
+Get/mutations also show every prerequisite's canonical URI, current title, state,
+and satisfied/unresolved, sorted by URI; an empty set shows Dependencies: none.
+List keeps details concise. JSON retains existing envelopes and extends every
+Action with optional manual_block, depends_on (always an array), and blocking:
+blocked, manual, unresolved_dependencies, and dependencies entries containing
+uri, title, state, satisfied. Blocking is derived from one SQLite read snapshot;
+only the manual reason and outgoing references are stored. Missing/corrupt
+prerequisites fail the read, including outside owner/state/search filters.
+Search still matches only source title/description, excluding manual reasons and
+prerequisite titles. Blocked is separate from the five execution states.
+
+Real manual/dependency edits emit one action.updated event with changed fields
+and old/new reasons or reference sets, committing with all other edits. No-ops
+produce no event or timestamp change. The existing board state operation enforces
+the same completion guard, and browser content edits preserve CLI-added fields.
+Blocking controls and indicators remain CLI-only; refresh the board after CLI edits.
+
+
+
+This tool requires schema 5. Older stores are refused without migration or
 mutation. For this PoC, initialize a fresh disposable directory with owf init;
 never reset or replace an existing store. Existing user guidance stays untouched.
 

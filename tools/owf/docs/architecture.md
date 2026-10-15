@@ -36,8 +36,8 @@ Planned layout; directories and abstractions are created only when needed:
 | src/domain/references/            | Shared domain identifiers and references                                        |
 | src/application/actions/          | Action use cases                                                                |
 | src/application/inbox/            | Inbox use cases                                                                 |
-| src/domain/views/                | View instance, placement and ordering rules when implemented                    |
-| src/application/views/           | Definition evaluation and View commands when implemented                         |
+| src/domain/views/                 | View instance, placement and ordering rules when implemented                    |
+| src/application/views/            | Definition evaluation and View commands when implemented                        |
 | src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces |
 | src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations             |
 | src/infrastructure/markdown/      | Reading Markdown objects and metadata                                           |

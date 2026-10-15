@@ -37,6 +37,10 @@ export const listActionsOptions = z.object({
   json: z.boolean().optional(),
 });
 export const setActionOptions = z.object({
+  manualBlock: z.string().optional(),
+  clearManualBlock: z.boolean().optional(),
+  addDependency: z.array(z.string()).optional(),
+  removeDependency: z.array(z.string()).optional(),
   state: z.string().optional(),
   waitingFor: z.string().optional(),
   clearWaitingFor: z.boolean().optional(),
@@ -73,6 +77,29 @@ export const boardAction = z.object({
   owner: z.object({ url: z.string() }),
   description: z.string().optional(),
   waiting_for: z.string().optional(),
+  manual_block: z.string().optional(),
+  depends_on: z.array(z.string()).optional(),
+  blocking: z
+    .object({
+      blocked: z.boolean(),
+      manual: z.boolean(),
+      unresolved_dependencies: z.array(z.string()),
+      dependencies: z.array(
+        z.object({
+          uri: z.string(),
+          title: z.string(),
+          state: z.enum([
+            'open',
+            'in_progress',
+            'waiting',
+            'completed',
+            'cancelled',
+          ]),
+          satisfied: z.boolean(),
+        }),
+      ),
+    })
+    .optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });

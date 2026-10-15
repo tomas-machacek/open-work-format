@@ -169,7 +169,7 @@ export function createBoardServer(
         const status =
           code === 'ACTION_NOT_FOUND'
             ? 404
-            : code === 'ACTION_CONFLICT'
+            : ['ACTION_CONFLICT', 'ACTION_BLOCKED'].includes(code)
               ? 409
               : code === 'INVALID_ARGUMENT'
                 ? 400
@@ -212,7 +212,7 @@ export function createBoardServer(
         const status =
           code === 'ACTION_NOT_FOUND'
             ? 404
-            : code === 'ACTION_CONFLICT'
+            : ['ACTION_CONFLICT', 'ACTION_BLOCKED'].includes(code)
               ? 409
               : [
                     'INVALID_ARGUMENT',

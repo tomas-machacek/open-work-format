@@ -17,6 +17,8 @@ export interface Action {
   title: string;
   state: ActionState;
   waiting_for?: string;
+  manual_block?: string;
+  depends_on?: string[];
   owner: { url: string };
   description?: string;
   created_at: string;
@@ -32,6 +34,10 @@ export const actionStates = [
 ] as const;
 export type ActionState = (typeof actionStates)[number];
 export interface SetActionInput {
+  manualBlock?: string | undefined;
+  clearManualBlock?: boolean | undefined;
+  addDependency?: string[] | undefined;
+  removeDependency?: string[] | undefined;
   state?: string | undefined;
   waitingFor?: string | undefined;
   clearWaitingFor?: boolean | undefined;
@@ -70,6 +76,14 @@ export function changeActionState(
   time: string,
 ): Action {
   const state = validateStateRequest(input);
+  if (
+    action.manual_block !== undefined &&
+    ['completed', 'cancelled'].includes(state)
+  )
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Terminal Actions cannot retain a manual block. Clear it explicitly with --clear-manual-block.',
+    );
   const reason =
     state === 'waiting' ? (input.waitingFor ?? action.waiting_for) : undefined;
   if (state === action.state && reason === action.waiting_for) return action;
@@ -88,6 +102,9 @@ export function changeActionState(
 export function validateEditRequest(input: SetActionInput): void {
   if (
     ![
+      input.manualBlock,
+      ...(input.addDependency ?? []),
+      ...(input.removeDependency ?? []),
       input.state,
       input.waitingFor,
       input.title,
@@ -95,7 +112,8 @@ export function validateEditRequest(input: SetActionInput): void {
       input.owner,
     ].some((value) => value !== undefined) &&
     !input.clearDescription &&
-    !input.clearWaitingFor
+    !input.clearWaitingFor &&
+    !input.clearManualBlock
   )
     throw new WorkspaceError(
       'INVALID_ARGUMENT',
@@ -111,6 +129,21 @@ export function validateEditRequest(input: SetActionInput): void {
       'INVALID_ARGUMENT',
       'Choose --waiting-for or --clear-waiting-for.',
     );
+  if (
+    input.manualBlock !== undefined &&
+    (input.clearManualBlock || !input.manualBlock.trim())
+  )
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Choose a nonblank --manual-block or --clear-manual-block.',
+    );
+  const added = new Set((input.addDependency ?? []).map(actionId));
+  for (const target of input.removeDependency ?? [])
+    if (added.has(actionId(target)))
+      throw new WorkspaceError(
+        'INVALID_ARGUMENT',
+        'A dependency cannot be both added and removed.',
+      );
   if (input.title !== undefined) validateTitle(input.title);
   if (input.state !== undefined) actionState(input.state);
   if (input.waitingFor !== undefined && !input.waitingFor.trim())
@@ -158,12 +191,29 @@ export function editAction(
     ? undefined
     : (input.description ?? action.description);
   const ownerUrl = owner ?? action.owner.url;
+  const manual = input.clearManualBlock
+    ? undefined
+    : (input.manualBlock ?? action.manual_block);
+  if (manual !== undefined && (state === 'completed' || state === 'cancelled'))
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Terminal Actions cannot retain a manual block. Clear it explicitly with --clear-manual-block.',
+    );
+  const dependencies = new Set(action.depends_on ?? []);
+  for (const target of input.addDependency ?? [])
+    dependencies.add(`owf:action:${actionId(target)}`);
+  for (const target of input.removeDependency ?? [])
+    dependencies.delete(`owf:action:${actionId(target)}`);
+  const dependsOn = [...dependencies].sort();
   if (
     state === action.state &&
     reason === action.waiting_for &&
     title === action.title &&
     description === action.description &&
-    ownerUrl === action.owner.url
+    ownerUrl === action.owner.url &&
+    manual === action.manual_block &&
+    JSON.stringify(dependsOn) ===
+      JSON.stringify([...(action.depends_on ?? [])].sort())
   )
     return action;
   // eslint-disable-next-line no-restricted-globals -- Parse supplied timestamps only.
@@ -186,9 +236,12 @@ export function editAction(
     state,
     owner: { url: ownerUrl },
     updated_at: nextTime,
+    depends_on: dependsOn,
   };
   delete edited.waiting_for;
   delete edited.description;
+  delete edited.manual_block;
+  if (manual !== undefined) edited.manual_block = manual;
   if (reason !== undefined) edited.waiting_for = reason;
   if (description !== undefined) edited.description = description;
   return edited;
@@ -275,4 +328,71 @@ export function newAction(
     created_at: time,
     updated_at: time,
   };
+}
+
+export interface Blocking {
+  blocked: boolean;
+  manual: boolean;
+  unresolved_dependencies: string[];
+  dependencies: {
+    uri: string;
+    title: string;
+    state: ActionState;
+    satisfied: boolean;
+  }[];
+}
+export interface ActionProjection extends Action {
+  depends_on: string[];
+  blocking: Blocking;
+}
+
+// Only direct target disposition matters, including in cycles. No recursive evaluation.
+export function projectAction(
+  action: Action,
+  target: (id: string) => Action | undefined,
+): ActionProjection {
+  const depends_on = [...(action.depends_on ?? [])].sort();
+  const dependencies = depends_on.map((uri) => {
+    const prerequisite = target(actionId(uri));
+    if (!prerequisite)
+      throw new WorkspaceError(
+        'ACTION_READ_FAILED',
+        `Missing prerequisite: ${uri}. Check store integrity.`,
+      );
+    return {
+      uri,
+      title: prerequisite.title,
+      state: prerequisite.state,
+      satisfied: prerequisite.state === 'completed',
+    };
+  });
+  const unresolved_dependencies = dependencies
+    .filter((dependency) => !dependency.satisfied)
+    .map((dependency) => dependency.uri);
+  const manual = action.manual_block !== undefined;
+  return {
+    ...action,
+    depends_on,
+    blocking: {
+      blocked: manual || unresolved_dependencies.length > 0,
+      manual,
+      unresolved_dependencies,
+      dependencies,
+    },
+  };
+}
+
+export function validateCompletion(
+  current: Action,
+  candidate: ActionProjection,
+): void {
+  if (
+    current.state !== 'completed' &&
+    candidate.state === 'completed' &&
+    candidate.blocking.unresolved_dependencies.length > 0
+  )
+    throw new WorkspaceError(
+      'ACTION_BLOCKED',
+      `Cannot complete Action; unresolved prerequisites: ${candidate.blocking.unresolved_dependencies.join(', ')}.`,
+    );
 }

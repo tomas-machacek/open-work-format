@@ -181,13 +181,13 @@ waiting; leaving waiting clears it automatically. Repeated scalar or
 contradictory options fail. An identical request returns `unchanged` without a
 write. A real update preserves ID and `created_at`, updates `updated_at` once,
 and commits exactly one event: `action.state_changed` for state/reason-only
-edits, `action.updated` for title, description or owner edits. A failed
+edits, `action.updated` for content, owner, manual block or dependency edits. A failed
 transaction saves neither change nor event. `ACTION_NOT_FOUND` means the ID is
 absent; `ACTION_CONFLICT` reports a rejected conditional write;
-`ACTION_UPDATE_FAILED` reports a write failure or clock rollback. The browser
-board still changes state only.
+`ACTION_UPDATE_FAILED` reports a write failure or clock rollback. The browser preserves blocking data and enforces shared completion rules.
 
-Fresh PoC Workspaces use schema 4. Schema 3 stores are refused without migration;
+Fresh PoC Workspaces use schema 5. Older stores (including schema 4) are refused with
+`UNSUPPORTED_STORE_VERSION` without migration or mutation;
 create a new disposable Workspace with `owf init` to try this increment. Never
 reset or overwrite an existing store.
 
@@ -195,7 +195,57 @@ Repeat `list actions --state STATE` to match any listed state; duplicates do not
 repeat Actions. Owner scope and state selection combine with AND. Comma-separated
 states are invalid. Without state selection, terminal Actions are included.
 Get and list stay read-only and include `waiting_for` only when present.
-Archive, dependencies and derived blocking are not implemented.
+Archive and Outcome dependency targets are not implemented.
+
+## Manual blocking and prerequisites
+
+Use the dependent Action as the command ID and its prerequisite as the target:
+
+```sh
+owf set action {id} --manual-block "Missing production access"
+owf set action {id} --add-dependency {prerequisite-id}
+owf set action {id} --add-dependency {first-id} --add-dependency {second-id}
+owf set action {id} --remove-dependency {old-id} --add-dependency {new-id}
+owf set action {id} --clear-manual-block --state completed
+```
+
+Replace placeholders with real UUID v4 values or owf:action:UUID URIs. Targets
+must be Actions in this Workspace; cross-Project edges are supported. A source
+**depends on** each target. Repeat add/remove flags to edit the set atomically
+with other fields; duplicate adds and absent removals are no-ops, but all supplied
+targets must exist. Adding and removing the same normalized target fails.
+Cycles and self-dependencies can be stored; no cycle linter is provided yet.
+
+The optional nonblank manual reason is literal text, independent of waiting_for
+and execution state. Omission preserves it. Clear it explicitly before or together
+with entering completed or cancelled; setting a reason on a terminal result fails.
+Clearing an absent reason succeeds unchanged. Only completed prerequisites satisfy
+dependencies; cancelled, waiting, open and in_progress targets remain unresolved.
+Completion requires all remaining prerequisites satisfied (ACTION_BLOCKED, exit 1,
+with unresolved IDs); cancellation does not. Removing an obsolete edge and
+completing can be one update. Reopening a target changes derived blocking on the
+next read without updating dependent states, timestamps or events. Unrelated edits
+and unchanged completed requests remain allowed on an already completed source.
+
+Get/list and mutation text always show State and a separate Blocked summary:
+Blocked: no; yes (manual); yes (dependencies: N unresolved of M); or
+yes (manual; dependencies: N unresolved of M). Manual block shows the reason.
+Get/mutations also show every prerequisite's canonical URI, current title, state,
+and satisfied/unresolved, sorted by URI; an empty set shows Dependencies: none.
+List keeps details concise. JSON retains existing envelopes and extends every
+Action with optional manual_block, depends_on (always an array), and blocking:
+blocked, manual, unresolved_dependencies, and dependencies entries containing
+uri, title, state, satisfied. Blocking is derived from one SQLite read snapshot;
+only the manual reason and outgoing references are stored. Missing/corrupt
+prerequisites fail the read, including outside owner/state/search filters.
+Search still matches only source title/description, excluding manual reasons and
+prerequisite titles. Blocked is separate from the five execution states.
+
+Real manual/dependency edits emit one action.updated event with changed fields
+and old/new reasons or reference sets, committing with all other edits. No-ops
+produce no event or timestamp change. The existing board state operation enforces
+the same completion guard, and browser content edits preserve CLI-added fields.
+Blocking controls and indicators remain CLI-only; refresh the board after CLI edits.
 
 Successful Project/Outcome JSON creation returns `ok`, `result` (status, type, title, root, url,
 path, owner) and `warnings`. Log failures keep the usable object and return exit 0
@@ -210,7 +260,7 @@ retain their store diagnostics. Both commands use exit 2 for invalid arguments
 or titles and exit 1 for operational errors.
 
 Fresh initialization provides command examples in `AGENTS.md`. Repeat init never
-overwrites or backfills that guide. Schema 1 and 2 Workspaces require a fresh
+overwrites or backfills that guide. Older-schema Workspaces require a fresh
 disposable directory for this version; existing instructions can be updated
 manually using the commands documented here. An
 existing `AGENTS.md` in a fresh directory prevents initialization.
@@ -218,8 +268,8 @@ existing `AGENTS.md` in a fresh directory prevents initialization.
 The tool refuses target collisions and unavailable/unsupported stores. It does
 not rename, repair, overwrite, or create nested Workspaces. Fresh initialization
 creates `owf_metadata`, Actions, and the Operational Event Log with format
-`owf-tool-operational` and schema version `3`; profile version `0.1` and package
-version `0.0.0` are independent. Schema 1, 2 and unknown versions are rejected
+`owf-tool-operational` and schema version `5`; profile version `0.1` and package
+version `0.0.0` are independent. Older and unknown schema versions are rejected
 without upgrade. Use a fresh disposable directory to try this version; do not
 overwrite an existing Workspace. This is
 limited profile support, not a claim of complete conformance.

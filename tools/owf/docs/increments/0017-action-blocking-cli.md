@@ -1,6 +1,6 @@
 # 0017 — Manual blocking and Action dependencies through the CLI
 
-> Status: reviewed
+> Status: in_progress
 > Description: Set and clear manual blocks, manage Action prerequisites, and explain derived blocking in CLI reads.
 > Depends on: [0011 — CLI Action editing](0011-action-edit-cli.md) and [0014 — CLI Action search](0014-action-search-cli.md).
 
@@ -151,8 +151,18 @@ canonical URIs (empty when none), and an always-present derived `blocking` objec
   "manual": true,
   "unresolved_dependencies": ["owf:action:{a}"],
   "dependencies": [
-    { "uri": "owf:action:{a}", "title": "Schváliť nasadenie", "state": "waiting", "satisfied": false },
-    { "uri": "owf:action:{b}", "title": "Dokončiť testy", "state": "completed", "satisfied": true }
+    {
+      "uri": "owf:action:{a}",
+      "title": "Schváliť nasadenie",
+      "state": "waiting",
+      "satisfied": false
+    },
+    {
+      "uri": "owf:action:{b}",
+      "title": "Dokončiť testy",
+      "state": "completed",
+      "satisfied": true
+    }
   ]
 }
 ```
@@ -210,13 +220,8 @@ blocking mutation endpoint is introduced.
 
 AC1 — Independent reasons and atomic terminal edits:
 
-```gherkin
-Given a waiting Action with a waiting reason and a manual block
-When I replace its manual reason
-Then its state and waiting reason remain unchanged
-When I clear its manual block
-Then only its manual reason is removed
-```
+Canonical executable criteria: [independent manual/waiting reasons and terminal edits](../../tests/acceptance/features/action-blocking.feature).
+Replacing or clearing a manual reason preserves waiting context and dependencies.
 
 Blank/contradictory input fails. Terminal transitions with a retained manual
 reason fail; explicit clear plus an otherwise valid terminal transition succeeds
@@ -230,15 +235,9 @@ accepted and reads terminate.
 
 AC3 — Derived dependency blocking:
 
-```gherkin
-Given an Action depending on another Action
-When its prerequisite is cancelled
-Then the source remains dependency-blocked
-When its prerequisite is completed
-Then that dependency is satisfied without deleting the relationship
-When the prerequisite is reopened
-Then the dependency is unresolved again without changing the source state
-```
+Canonical executable criteria: [prerequisite cancellation, completion and reopening](../../tests/acceptance/features/action-blocking.feature).
+Cancelling a target leaves its edge unresolved; completing satisfies it without
+removing it; reopening makes it unresolved again without rewriting the source.
 
 A separate manual reason continues blocking after all dependencies are satisfied.
 Only direct target disposition determines satisfaction, including a completed
@@ -277,7 +276,7 @@ works; schema 4 is rejected unchanged. Help, README and generated guidance agree
   Reuse board error-handling tests and existing browser journeys; no new blocking
   UI journey is required (AC4, AC6).
 - Run `npm run verify` before implementation handoff and record actual revision,
-  platform and results. No runtime tests are claimed for this draft-only change.
+  platform and results.
 
 Manual trial: initialize a fresh Workspace, create prerequisite and dependent
 Actions in different owners, add their edge and a manual reason, compare get
@@ -293,5 +292,68 @@ specification change is proposed.
 
 ## Implementation and review outcome
 
-Design reviewed and approved for implementation on 2026-10-15. Implementation
-and code review have not started.
+Implemented on 2026-10-15 in the existing
+`docs/increment-0017-action-blocking-cli` branch. Status remains `in_progress`
+in this document and the index pending independent code review. The approved
+behavior and Core semantics were retained; no unresolved requirement conflict
+was identified.
+
+Delivered manual reason set/clear and repeatable dependency add/remove edits,
+canonical Action URI storage, idempotent set operations, independent waiting
+context, explicit manual clear for terminal results, and the shared completion
+guard (`ACTION_BLOCKED` with unresolved prerequisite URIs). Terminal sources
+retain their state when target disposition changes. Cycles/self-edges use direct
+target disposition without recursive evaluation.
+
+Schema 5 stores `manual_block` and the outgoing URI set in `actions`; event rows
+record changed fields and old/new reasons and sets. Reads validate all Action
+facts and references from one SQLite statement snapshot before selection.
+Writes load the facts under `BEGIN IMMEDIATE`, validate the complete candidate
+and current targets, and commit one source edit/event or roll back both.
+No-op requests preserve timestamps/events. CLI get/list/mutation projections
+include complete derived blocking; list text omits prerequisite details.
+Existing browser writes preserve the new fields and check current targets,
+including when only a target changed after the source snapshot was displayed.
+
+Updated CLI help, README and the generated Workspace guide. Existing user-edited
+guides remain untouched. Corrected stale schema documentation and the MVP
+capability description. The architecture document's two View directory table
+rows received formatting only, as required by the existing Prettier gate.
+
+Executable evidence:
+
+- [Application acceptance scenarios](../../tests/acceptance/features/action-blocking.feature)
+  cover independent reasons, cancellation/completion/reopening, atomic clear/remove
+  plus completion, and direct evaluation of a completed but blocked prerequisite
+  (AC1, AC3, AC4).
+- [Domain tests](../../src/domain/actions/blocking.test.ts) cover literal/invalid
+  reasons, terminal results, no-ops, self-edges and cycles (AC1, AC2, AC4).
+- [SQLite integration](../../tests/integration/blocking.test.ts) covers set
+  normalization, invalid/no-op targets, event details, write/event/commit rollback,
+  read integrity outside filters, read purity and competing target writes;
+  [existing Action integration](../../tests/integration/actions.test.ts) now also
+  rejects schema 4 unchanged (AC2, AC5, AC6).
+- [HTTP integration](../../tests/integration/board.test.ts) checks forbidden
+  completion, field preservation, source revision conflicts and current-target
+  validation after target-only changes (AC4, AC6).
+- [CLI process tests](../../tests/e2e/cli.test.ts) exercise the complete unblock
+  journey, all four blocking summaries, full JSON, out-of-filter targets,
+  canonical URIs, invalid/error exits, cycles and generated guide examples
+  (AC1, AC2, AC5). Existing board tests/journeys are reused as planned.
+
+Verification result will be recorded after the final complete run. Earlier
+checks found and corrected lint issues in new tests, pre-existing architecture
+table formatting, generated-guide placeholder setup and the strict JSON
+projection expectation. An existing fourteen-process CLI test exceeded Vitest's
+default five-second timeout on Windows (5.448 s); it now uses the same focused
+15-second allowance as the generated-guide process journey, retaining all
+assertions. The new journey has the same allowance. Flag-looking values retain
+the existing CLI argument semantics; missing-value JSON checks supply the JSON
+option independently before the missing-value option.
+
+Independent code review is pending; this implementation session is not that
+review. PR #23 remains draft. No migration, dependency upgrade, release, tag or
+merge is included. Trial requires a fresh disposable schema-5 Workspace; older
+stores are rejected without mutation. Outcome targets, GUI blocking controls,
+blocking filters, archive and a cycle linter remain deferred. Windows runtime
+checks are recorded below; Linux and a separate manual board trial are not claimed.

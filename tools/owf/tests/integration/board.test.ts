@@ -25,6 +25,83 @@ import {
 } from '../../src/contracts/index.js';
 import { cleanup, snapshot, temporaryDirectory } from '../support/workspace.js';
 const roots: string[] = [];
+
+test('HTTP preserves CLI blocking fields, rejects stale sources and checks current targets even with a matching source snapshot', async () => {
+  const root = directory();
+  initialize(root);
+  const target = createAction(root, { title: 'Target', state: 'completed' })
+    .result.action;
+  const original = createAction(root, { title: 'Source' }).result.action;
+  let source = setAction(root, original.id, {
+    addDependency: [target.id],
+    manualBlock: 'Access',
+  }).result.action;
+  const server = createBoardServer(
+    () => listActions(root),
+    resolve('dist/web'),
+    (input) => createAction(root, input),
+    (id, input) => setAction(root, id, { state: input.state }, input.expected),
+    (id, { expected, ...input }) => setAction(root, id, input, expected),
+  );
+  const state = (expected: typeof original, value: string) =>
+    server.inject({
+      method: 'PATCH',
+      url: `/api/actions/${source.id}/state`,
+      headers: trustedHeaders,
+      payload: {
+        state: value,
+        expected: { state: expected.state, updated_at: expected.updated_at },
+      },
+    });
+  try {
+    expect((await state(original, 'completed')).statusCode).toBe(409);
+    const manual = await state(source, 'completed');
+    expect(manual.statusCode).toBe(400);
+    expect(boardError.parse(manual.json()).error.message).toMatch(
+      /clear.*explicitly/i,
+    );
+    const content = await server.inject({
+      method: 'PATCH',
+      url: `/api/actions/${source.id}`,
+      headers: trustedHeaders,
+      payload: {
+        title: 'Browser content edit',
+        expected: {
+          title: source.title,
+          state: source.state,
+          owner: source.owner,
+          updated_at: source.updated_at,
+        },
+      },
+    });
+    expect(content.statusCode).toBe(200);
+    source = getAction(root, source.id).result.action;
+    expect(source.manual_block).toBe('Access');
+    expect(source.depends_on).toEqual([`owf:action:${target.id}`]);
+    source = setAction(root, source.id, { clearManualBlock: true }).result
+      .action;
+    setAction(root, target.id, { state: 'open' });
+    expect(getAction(root, source.id).result.action.updated_at).toBe(
+      source.updated_at,
+    );
+    const before = snapshot(root);
+    const blocked = await state(source, 'completed');
+    expect(blocked.statusCode).toBe(409);
+    const failure = boardError.parse(blocked.json()).error;
+    expect(failure.code).toBe('ACTION_BLOCKED');
+    expect(failure.message).toContain(target.id);
+    expect(snapshot(root)).toEqual(before);
+    expect(getAction(root, source.id).result.action.state).toBe('open');
+    setAction(root, target.id, { state: 'completed' });
+    expect((await state(source, 'completed')).statusCode).toBe(200);
+    expect(
+      (await state(getAction(root, source.id).result.action, 'completed'))
+        .statusCode,
+    ).toBe(200);
+  } finally {
+    await server.close();
+  }
+});
 test('HTTP selection round trips literal values, uses shared AND selection and never changes the store', async () => {
   const root = directory();
   const { store } = initialize(root);

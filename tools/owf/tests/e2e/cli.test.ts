@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
 import { afterEach, expect, test } from 'vitest';
+import { boardAction } from '../../src/contracts/index.js';
 import { cleanup, snapshot, temporaryDirectory } from '../support/workspace.js';
 
 const metadata = z
@@ -24,6 +25,155 @@ function run(root: string, args: string[]) {
 afterEach(() => {
   roots.splice(0).forEach(cleanup);
 });
+
+test('CLI manual/dependency journey exposes complete JSON and concise text while rejecting invalid atomic edits', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  expect(run(root, ['init']).status).toBe(0);
+  expect(
+    run(root, ['create', 'project', '--title', 'Other', '--slug', 'other'])
+      .status,
+  ).toBe(0);
+  const record = z.object({ result: z.object({ action: boardAction }) });
+  const action = (args: string[]) => {
+    const result = run(root, [...args, '--json']);
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    return record.parse(JSON.parse(result.stdout)).result.action;
+  };
+  const target = action([
+    'create',
+    'action',
+    '--title',
+    'Approve',
+    '--owner',
+    '/_projects/other/',
+  ]);
+  const satisfied = action([
+    'create',
+    'action',
+    '--title',
+    'Tests',
+    '--state',
+    'completed',
+  ]);
+  const source = action(['create', 'action', '--title', 'Deploy']);
+  const edit = ['set', 'action', source.id];
+  const read = ['get', 'action', source.id];
+  const manualExample = readFileSync(join(root, 'AGENTS.md'), 'utf8')
+    .split('\n')
+    .find((line) => line.startsWith('owf set action {id} --manual-block'));
+  expect(manualExample).toBeDefined();
+  const manualText = manualExample!.match(/--manual-block "([^"]+)"/)?.[1];
+  expect(manualText).toBeDefined();
+  expect(run(root, read).stdout).toContain('Blocked: no');
+  expect(run(root, [...edit, '--manual-block', manualText!]).stdout).toContain(
+    'Blocked: yes (manual)',
+  );
+  const blocked = action([
+    ...edit,
+    '--add-dependency',
+    target.id.toUpperCase(),
+    '--add-dependency',
+    `owf:action:${target.id}`,
+    '--add-dependency',
+    satisfied.id,
+  ]);
+  const refs = [target.id, satisfied.id].map((id) => `owf:action:${id}`).sort();
+  expect(blocked.depends_on).toEqual(refs);
+  expect(blocked.blocking).toMatchObject({
+    blocked: true,
+    manual: true,
+    unresolved_dependencies: [`owf:action:${target.id}`],
+  });
+  const human = run(root, read).stdout;
+  expect(human).toContain(
+    'State: open\nBlocked: yes (manual; dependencies: 1 unresolved of 2)',
+  );
+  expect(human).toContain(
+    `owf:action:${target.id} | Approve | open | unresolved`,
+  );
+  expect(human).toContain(
+    `owf:action:${satisfied.id} | Tests | completed | satisfied`,
+  );
+  expect(human.indexOf(refs[0]!)).toBeLessThan(human.indexOf(refs[1]!));
+  const listArgs = [
+    'list',
+    'actions',
+    '--owner',
+    '/',
+    '--state',
+    'open',
+    '--search',
+    'Deploy',
+  ];
+  expect(run(root, listArgs).stdout).toContain(`Manual block: ${manualText}`);
+  expect(run(root, listArgs).stdout).not.toContain('Dependencies:');
+  expect(JSON.parse(run(root, [...listArgs, '--json']).stdout)).toMatchObject({
+    result: { actions: [blocked] },
+  });
+  const before = snapshot(root);
+  for (const flags of [
+    ['--manual-block', ' '],
+    ['--manual-block', 'One', '--manual-block', 'Two'],
+    ['--clear-manual-block', '--clear-manual-block'],
+    ['--manual-block', 'One', '--clear-manual-block'],
+    [
+      '--add-dependency',
+      target.id,
+      '--remove-dependency',
+      `owf:action:${target.id}`,
+    ],
+    ['--add-dependency', '/project/'],
+    ['--add-dependency'],
+  ]) {
+    const invalid = run(root, [...edit, '--json', ...flags]);
+    expect(invalid.status).toBe(2);
+    expect(JSON.parse(invalid.stdout)).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' },
+    });
+    expect(snapshot(root)).toEqual(before);
+  }
+  const forbidden = run(root, [
+    ...edit,
+    '--state',
+    'completed',
+    '--clear-manual-block',
+    '--json',
+  ]);
+  expect(forbidden.status).toBe(1);
+  const failure = z
+    .object({ error: z.object({ code: z.string(), message: z.string() }) })
+    .parse(JSON.parse(forbidden.stdout));
+  expect(failure.error.code).toBe('ACTION_BLOCKED');
+  expect(failure.error.message).toContain(target.id);
+  expect(snapshot(root)).toEqual(before);
+  expect(run(root, [...edit, '--clear-manual-block']).stdout).toContain(
+    'Blocked: yes (dependencies: 1 unresolved of 2)',
+  );
+  action(['set', 'action', target.id, '--state', 'completed']);
+  const complete = action([...edit, '--state', 'completed']);
+  expect(complete.blocking?.blocked).toBe(false);
+  action(['set', 'action', target.id, '--state', 'open']);
+  const corrected = action(read);
+  expect(corrected.state).toBe('completed');
+  expect(corrected.updated_at).toBe(complete.updated_at);
+  expect(corrected.blocking?.blocked).toBe(true);
+  action([
+    ...edit,
+    '--remove-dependency',
+    target.id,
+    '--add-dependency',
+    source.id,
+  ]);
+  action(['set', 'action', satisfied.id, '--add-dependency', source.id]);
+  expect(action(read).depends_on).toContain(`owf:action:${source.id}`);
+  expect(run(root, [...read]).status).toBe(0);
+  expect(run(root, ['set', 'action', '--help']).stdout).toContain(
+    '--remove-dependency',
+  );
+  // This journey exercises many independent CLI processes on Windows.
+}, 15_000);
 
 test('create CLI accepts initial waiting state, renders it and rejects malformed options without writes', () => {
   const root = temporaryDirectory();
@@ -199,7 +349,8 @@ test('set CLI renders changed and unchanged Actions, validates arguments and for
   const help = run(root, ['set', 'action', '--help']).stdout;
   expect(help).toContain('--waiting-for');
   expect(help).toContain('unchanged');
-});
+  // Fourteen real Node processes can exceed the default 5 seconds on Windows.
+}, 15_000);
 test('real processes initialize and rediscover immutable workspace in spaces/Unicode path', () => {
   const root = temporaryDirectory();
   roots.push(root);
@@ -256,6 +407,28 @@ test('generated guide examples execute through the built CLI outside checkout', 
   const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
   expect(guide).toContain('owf serve');
   expect(guide).toContain('http://127.0.0.1:4317');
+  const prerequisiteIds = Array.from({ length: 3 }, (_, index) => {
+    const created = run(root, [
+      'create',
+      'action',
+      '--title',
+      `Guide prerequisite ${index}`,
+      '--state',
+      'completed',
+      '--json',
+    ]);
+    expect(created.status).toBe(0);
+    return z
+      .object({ result: z.object({ action: z.object({ id: z.string() }) }) })
+      .parse(JSON.parse(created.stdout)).result.action.id;
+  });
+  const placeholders: Record<string, string> = {
+    '{prerequisite-id}': prerequisiteIds[0]!,
+    '{first-id}': prerequisiteIds[0]!,
+    '{second-id}': prerequisiteIds[1]!,
+    '{old-id}': prerequisiteIds[0]!,
+    '{new-id}': prerequisiteIds[2]!,
+  };
   let cwd = root;
   let actionId = '';
   for (const line of guide.split('\n')) {
@@ -265,7 +438,10 @@ test('generated guide examples execute through the built CLI outside checkout', 
     }
     if (!line.startsWith('owf ')) continue;
     const args = [...line.slice(4).matchAll(/"([^"]*)"|(\S+)/gu)].map((match) =>
-      (match[1] ?? match[2] ?? '').replace('{id}', actionId),
+      Object.entries(placeholders).reduce(
+        (value, [placeholder, id]) => value.replace(placeholder, id),
+        (match[1] ?? match[2] ?? '').replace('{id}', actionId),
+      ),
     );
     const result = run(cwd, args);
     expect(result.status, result.stderr).toBe(0);
@@ -418,6 +594,13 @@ test('Action commands round trip across processes with complete envelopes, human
           state: z.literal('open'),
           owner: z.strictObject({ url: z.literal('/') }),
           description: z.literal(''),
+          depends_on: z.tuple([]),
+          blocking: z.strictObject({
+            blocked: z.literal(false),
+            manual: z.literal(false),
+            unresolved_dependencies: z.tuple([]),
+            dependencies: z.tuple([]),
+          }),
           created_at: z.iso.datetime(),
           updated_at: z.iso.datetime(),
         }),

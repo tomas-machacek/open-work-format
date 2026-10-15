@@ -194,9 +194,10 @@ Obsidian does not imply a general graphical definition editor. No Inbox feature,
 Snapshot runtime or automated Planning/Review is authorized by this specification and design
 change. Registered selection/filtering/ordering capabilities and custom
 transitions are deferred because of their complexity; revisit them only when
-a concrete need justifies generalization. Manual blocking and dependencies are
-not delivered in the current Action MVP and require implementation before the
-full Blocked workflow can be claimed.
+a concrete need justifies generalization. CLI manual blocking and Action-to-Action dependencies are delivered by
+[increment 0017](../../tools/owf/docs/increments/0017-action-blocking-cli.md).
+Outcome dependencies and GUI blocking controls remain deferred; the full Blocked
+View workflow still requires later implementation.
 
 Concrete schema, migration policy, commands, endpoints, UI, and tests belong
 to later code increments. Keep shipped-feature documentation truthful until
