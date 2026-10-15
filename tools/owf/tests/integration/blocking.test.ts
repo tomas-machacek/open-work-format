@@ -24,6 +24,8 @@ afterEach(() => roots.splice(0).forEach(cleanup));
 
 test('set semantics validate even no-op targets and reject the entire edit on conflicts or missing targets', () => {
   const { root, source, target, store } = workspace();
+  const unrelated = createAction(root, { title: 'Unrelated Action' }).result
+    .action;
   const uri = `owf:action:${target.id}`;
   const action = setAction(root, source.id, {
     addDependency: [target.id.toUpperCase(), uri],
@@ -36,6 +38,11 @@ test('set semantics validate even no-op targets and reject the entire edit on co
   expect(
     setAction(root, source.id, { clearManualBlock: true }).result.status,
   ).toBe('unchanged');
+  const absentRemoval = setAction(root, source.id, {
+    removeDependency: [unrelated.id],
+  });
+  expect(absentRemoval.result.status).toBe('unchanged');
+  expect(absentRemoval.result.action).toEqual(action);
   expect(snapshot(root)).toEqual(before);
   for (const input of [
     { addDependency: [target.id], removeDependency: [uri] },
@@ -58,6 +65,65 @@ test('set semantics validate even no-op targets and reject the entire edit on co
       old_depends_on: '[]',
       new_depends_on: JSON.stringify([uri]),
     });
+  } finally {
+    db.close();
+  }
+});
+
+test('manual set, replacement and clear with completion each record one event with old and new values', () => {
+  const { root, source, store } = workspace();
+  const blocked = setAction(root, source.id, { manualBlock: 'Missing access' })
+    .result.action;
+  const replaced = setAction(root, source.id, {
+    manualBlock: 'Awaiting approval',
+  }).result.action;
+  const completed = setAction(root, source.id, {
+    clearManualBlock: true,
+    state: 'completed',
+  }).result.action;
+  const db = new DatabaseSync(store, { readOnly: true });
+  try {
+    const events = db
+      .prepare(
+        'SELECT * FROM action_events WHERE action_id = ? ORDER BY event_id',
+      )
+      .all(source.id);
+    expect(events).toHaveLength(4);
+    expect(events.slice(1)).toMatchObject([
+      {
+        kind: 'action.updated',
+        created_at: blocked.updated_at,
+        changed_fields: JSON.stringify(['manual_block']),
+        old_manual_block: null,
+        new_manual_block: 'Missing access',
+        old_state: null,
+        new_state: null,
+      },
+      {
+        kind: 'action.updated',
+        created_at: replaced.updated_at,
+        changed_fields: JSON.stringify(['manual_block']),
+        old_manual_block: 'Missing access',
+        new_manual_block: 'Awaiting approval',
+        old_state: null,
+        new_state: null,
+      },
+      {
+        kind: 'action.updated',
+        created_at: completed.updated_at,
+        old_manual_block: 'Awaiting approval',
+        new_manual_block: null,
+        old_state: 'open',
+        new_state: 'completed',
+      },
+    ]);
+    const completionFields: unknown = JSON.parse(
+      String(events[3]?.changed_fields),
+    );
+    expect(completionFields).toEqual(
+      expect.arrayContaining(['state', 'manual_block']),
+    );
+    expect(completionFields).toHaveLength(2);
   } finally {
     db.close();
   }

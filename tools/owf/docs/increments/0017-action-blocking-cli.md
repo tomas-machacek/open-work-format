@@ -363,8 +363,17 @@ assertions. The new journey has the same allowance. Flag-looking values retain
 the existing CLI argument semantics; missing-value JSON checks supply the JSON
 option independently before the missing-value option.
 
-Independent code review is pending; this implementation session is not that
-review. PR #23 remains draft. No migration, dependency upgrade, release, tag or
+Independent code review on 2026-10-15 compared `27da53d` with `main` (`6e08add`)
+and found no confirmed defects or unmet acceptance criteria. Two optional test
+improvements were accepted and implemented: successful manual set/replace/clear
+events now check old/new values and combined completion, and removing an absent
+edge to an existing target checks the unchanged result and store snapshot.
+Focused follow-up verification passed on Windows x64 / PowerShell with Node.js
+24.21.0: all 10 blocking integration tests, TypeScript checks, ESLint for the changed
+test, Prettier for the changed files, and `git diff --check`. The full verification
+suite was not repeated for these test and documentation changes; production code
+is unchanged. Increment status remains `in_progress` and PR #23 remains draft.
+No migration, dependency upgrade, release, tag or
 merge is included. Trial requires a fresh disposable schema-5 Workspace; older
 stores are rejected without mutation. Outcome targets, GUI blocking controls,
 blocking filters, archive and a cycle linter remain deferred. Windows runtime
