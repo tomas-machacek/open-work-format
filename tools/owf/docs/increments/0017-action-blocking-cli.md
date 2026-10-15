@@ -341,10 +341,22 @@ Executable evidence:
   canonical URIs, invalid/error exits, cycles and generated guide examples
   (AC1, AC2, AC5). Existing board tests/journeys are reused as planned.
 
-Verification result will be recorded after the final complete run. Earlier
-checks found and corrected lint issues in new tests, pre-existing architecture
+Final verification on 2026-10-15: `npm run verify` passed with exit 0 on the
+clean implementation revision `0262a386752efe6067ec02554e4ff8ea049d3884`,
+on Windows x64 / PowerShell with Node.js 24.21.0. It ran TypeScript checks,
+ESLint, Prettier, dependency-cruiser (46 modules, no violations), production
+TypeScript/Vite build, 104 unit tests (7 files), 158 integration tests (9 files),
+30 acceptance scenarios / 164 steps, 23 CLI process tests, and 5 Chromium
+Playwright journeys (all passed). Browser output included only the environment's
+NO_COLOR/FORCE_COLOR warning. `git diff --check` also passed.
+
+The follow-up handoff commit changes only this outcome record; code and tests
+remain identical to the verified revision. Its formatting and diff are checked
+separately without repeating unchanged runtime tests.
+
+Earlier checks found and corrected lint issues in new tests, pre-existing architecture
 table formatting, generated-guide placeholder setup and the strict JSON
-projection expectation. An existing fourteen-process CLI test exceeded Vitest's
+projection expectation. An existing multi-process CLI test exceeded Vitest's
 default five-second timeout on Windows (5.448 s); it now uses the same focused
 15-second allowance as the generated-guide process journey, retaining all
 assertions. The new journey has the same allowance. Flag-looking values retain
@@ -356,4 +368,4 @@ review. PR #23 remains draft. No migration, dependency upgrade, release, tag or
 merge is included. Trial requires a fresh disposable schema-5 Workspace; older
 stores are rejected without mutation. Outcome targets, GUI blocking controls,
 blocking filters, archive and a cycle linter remain deferred. Windows runtime
-checks are recorded below; Linux and a separate manual board trial are not claimed.
+checks are recorded above; Linux and a separate manual board trial are not claimed.
