@@ -1,12 +1,12 @@
 # 0017 — Manual blocking and Action dependencies through the CLI
 
-> Status: draft
+> Status: reviewed
 > Description: Set and clear manual blocks, manage Action prerequisites, and explain derived blocking in CLI reads.
 > Depends on: [0011 — CLI Action editing](0011-action-edit-cli.md) and [0014 — CLI Action search](0014-action-search-cli.md).
 
 Proposed on 2026-10-14 as a prerequisite to implementing Views. This document
-defines a tool increment; it does not change Core semantics. Not yet approved
-for implementation.
+defines a tool increment; it does not change Core semantics. The user reviewed
+and approved this design for implementation on 2026-10-15.
 
 ## Goal and scope
 
@@ -62,7 +62,7 @@ a manual reason remains fails with an explanation to clear it explicitly;
 `--clear-manual-block` can be combined with that transition atomically. Do not
 silently discard the reason. Clearing an absent reason is an idempotent no-op,
 including on terminal Actions. Setting a reason with a resulting terminal state
-is invalid. This explicit-clear interaction is a proposed CLI choice, not a new
+is invalid. This explicit-clear interaction is an approved CLI choice, not a new
 Core requirement.
 
 Dependency flags are repeatable and may be combined with each other and all
@@ -287,10 +287,11 @@ the source again. Also try forbidden completion through the existing board.
 
 ## Open questions
 
-The proposal awaits user review, particularly the explicit manual-clear rule
-for terminal transitions and the chosen CLI command/output shape. No Core
+No blocking questions remain. The user approved the CLI command/output shape
+and explicit manual-clear rule for terminal transitions on 2026-10-15. No Core
 specification change is proposed.
 
 ## Implementation and review outcome
 
-Not implemented. This is a design draft only.
+Design reviewed and approved for implementation on 2026-10-15. Implementation
+and code review have not started.
