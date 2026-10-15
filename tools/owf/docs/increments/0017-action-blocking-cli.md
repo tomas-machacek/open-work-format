@@ -1,6 +1,6 @@
 # 0017 — Manual blocking and Action dependencies through the CLI
 
-> Status: in_progress
+> Status: completed
 > Description: Set and clear manual blocks, manage Action prerequisites, and explain derived blocking in CLI reads.
 > Depends on: [0011 — CLI Action editing](0011-action-edit-cli.md) and [0014 — CLI Action search](0014-action-search-cli.md).
 
@@ -293,8 +293,9 @@ specification change is proposed.
 ## Implementation and review outcome
 
 Implemented on 2026-10-15 in the existing
-`docs/increment-0017-action-blocking-cli` branch. Status remains `in_progress`
-in this document and the index pending independent code review. The approved
+`docs/increment-0017-action-blocking-cli` branch. The user confirmed completed
+implementation and independent review on 2026-10-15 and authorized merge to main.
+This document and the index are `completed`. The approved
 behavior and Core semantics were retained; no unresolved requirement conflict
 was identified.
 
@@ -372,9 +373,10 @@ Focused follow-up verification passed on Windows x64 / PowerShell with Node.js
 24.21.0: all 10 blocking integration tests, TypeScript checks, ESLint for the changed
 test, Prettier for the changed files, and `git diff --check`. The full verification
 suite was not repeated for these test and documentation changes; production code
-is unchanged. Increment status remains `in_progress` and PR #23 remains draft.
-No migration, dependency upgrade, release, tag or
-merge is included. Trial requires a fresh disposable schema-5 Workspace; older
+is unchanged. Completion was authorized by the user on 2026-10-15 at
+pre-completion revision `e2dc160662479c9a026eca269c4b07f6e9edd4ac`. The completion
+update changes documentation only; no additional runtime verification is claimed.
+No migration, dependency upgrade, release or tag is included. Trial requires a fresh disposable schema-5 Workspace; older
 stores are rejected without mutation. Outcome targets, GUI blocking controls,
 blocking filters, archive and a cycle linter remain deferred. Windows runtime
 checks are recorded above; Linux and a separate manual board trial are not claimed.
