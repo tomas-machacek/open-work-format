@@ -251,7 +251,7 @@ test('the write transaction excludes a competing writer after the Action is read
       actions: {
         ...actionPorts.actions,
         update(path, id, change) {
-          return actionPorts.actions.update(path, id, (current) => {
+          return actionPorts.actions.update(path, id, (current, target) => {
             const writer = new DatabaseSync(path);
             try {
               writer.exec('PRAGMA busy_timeout = 0');
@@ -263,7 +263,7 @@ test('the write transaction excludes a competing writer after the Action is read
             } finally {
               writer.close();
             }
-            return change(current);
+            return change(current, target);
           });
         },
       },
@@ -461,7 +461,7 @@ test.each(['action', 'event', 'commit'])(
   },
 );
 
-test.each(['1', '2', '3', '99'])(
+test.each(['1', '2', '3', '4', '99'])(
   'schema %s rejected without writes by init and all create/get operations',
   (version) => {
     const { root, store } = workspace();
@@ -509,7 +509,7 @@ test.each(['1', '2', '3', '99'])(
   },
 );
 
-test('schema 4 discovery rejects an event table that only mentions action.updated outside the kind constraint', () => {
+test('schema 5 discovery rejects an event table that only mentions action.updated outside the kind constraint', () => {
   const { root, store } = workspace();
   sql(
     store,
@@ -805,7 +805,7 @@ test('canonical filters treat percent and underscore literally and keep stale st
   const db = new DatabaseSync(store);
   try {
     const insert = db.prepare(
-      'INSERT INTO actions SELECT ?,title,state,?,description,created_at,updated_at,waiting_for FROM actions WHERE id = ?',
+      'INSERT INTO actions (id,title,state,owner_url,description,created_at,updated_at,waiting_for) SELECT ?,title,state,?,description,created_at,updated_at,waiting_for FROM actions WHERE id = ?',
     );
     owners.forEach((owner, index) =>
       insert.run(

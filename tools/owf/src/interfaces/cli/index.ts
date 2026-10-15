@@ -15,6 +15,7 @@ import {
   type WorkspaceResult,
 } from '../../application/workspaces/index.js';
 import type {
+  ActionProjection,
   ActionInput,
   ActionResult,
   ListActionsInput,
@@ -201,7 +202,26 @@ export async function runCli(
     .description('Change operational objects')
     .command('action')
     .description(
-      'Edit Action content, owner, state or waiting reason atomically; identical requests succeed unchanged',
+      'Edit Action content, owner, state, reasons or prerequisites atomically; identical requests succeed unchanged',
+    )
+    .addHelpText(
+      'after',
+      `
+The identifier is the dependent source; dependency targets are its prerequisites.
+Only completed targets satisfy an edge. Entering completed requires every remaining
+target completed. Cancellation allows unresolved dependencies. Clear any manual
+reason explicitly when entering either terminal state. Later target changes affect
+derived blocking without rewriting the source state. Cycles can be represented.
+
+Examples (replace placeholders with real Action UUIDs or owf:action:UUID URIs):
+  owf set action {id} --manual-block "Missing access" --add-dependency {prerequisite-id}
+  owf set action {id} --remove-dependency {old-id} --add-dependency {new-id}
+  owf set action {id} --clear-manual-block --state completed
+
+JSON preserves the Action envelope and adds optional manual_block, depends_on
+(canonical URI array), and derived blocking: blocked, manual,
+unresolved_dependencies, dependencies [{ uri, title, state, satisfied }].
+`,
     )
     .argument('<identifier>', 'UUID or owf:action:<UUID>')
     .option(
@@ -218,6 +238,26 @@ export async function runCli(
       '--clear-waiting-for',
       'Remove the reason while staying waiting',
       onceFlag('--clear-waiting-for'),
+    )
+    .option(
+      '--manual-block <text>',
+      'Nonblank literal block reason; resulting state must be open, in_progress or waiting; supply once',
+      once('--manual-block'),
+    )
+    .option(
+      '--clear-manual-block',
+      'Explicitly clear manual reason, including with a terminal transition',
+      onceFlag('--clear-manual-block'),
+    )
+    .option(
+      '--add-dependency <identifier>',
+      'Source depends on this prerequisite Action UUID/URI in this Workspace; repeatable',
+      (value: string, previous: string[] = []) => [...previous, value],
+    )
+    .option(
+      '--remove-dependency <identifier>',
+      'Remove a prerequisite Action UUID/URI; repeatable; completion requires remaining targets completed',
+      (value: string, previous: string[] = []) => [...previous, value],
     )
     .option('--title <title>', 'Nonempty single-line title', once('--title'))
     .option(
@@ -249,12 +289,17 @@ export async function runCli(
     .description('Retrieve an operational object');
   get
     .command('action')
-    .description('Retrieve an Action by UUID or owf:action URI')
+    .description(
+      'Retrieve an Action by UUID or owf:action URI, with separate blocking and all prerequisite details',
+    )
     .argument(
       '<identifier>',
       'UUID or owf:action:<UUID>; replace placeholders with a real ID',
     )
-    .option('--json', 'Emit one JSON result')
+    .option(
+      '--json',
+      'Emit one JSON result including manual_block, depends_on and complete derived blocking',
+    )
     .action((identifier: string, options: { json?: boolean }) => {
       json = options.json ?? false;
       const result = getAction(identifier);
@@ -277,7 +322,10 @@ export async function runCli(
       '--recursive',
       'Include stored descendant owner URLs; requires --owner',
     )
-    .option('--json', 'Emit one JSON result with complete Action records')
+    .option(
+      '--json',
+      'Emit complete Action projections including manual_block, depends_on and derived blocking; targets resolve outside filters',
+    )
     .option(
       '--search <text>',
       'Literal case-insensitive substring in title or description; trim edges, keep diacritics; supply once; AND with owner/states',
@@ -300,7 +348,7 @@ export async function runCli(
             : result.result.actions
                 .map(
                   (action) =>
-                    `Title: ${action.title}\nID: ${action.id}\nState: ${action.state}\nOwner: ${action.owner.url}${action.waiting_for === undefined ? '' : `\nWaiting for: ${action.waiting_for}`}`,
+                    `Title: ${action.title}\nID: ${action.id}\nState: ${action.state}\n${renderBlocking(action)}\nOwner: ${action.owner.url}${action.waiting_for === undefined ? '' : `\nWaiting for: ${action.waiting_for}`}`,
                 )
                 .join('\n\n'),
       );
@@ -320,6 +368,9 @@ export async function runCli(
         '--state',
         '--waiting-for',
         '--search',
+        '--manual-block',
+        '--add-dependency',
+        '--remove-dependency',
       ].includes(arg ?? '')
     ) {
       index++;
@@ -367,5 +418,18 @@ export async function runCli(
 
 function renderAction(result: ActionResult): string {
   const { action } = result.result;
-  return `${result.result.status} action\nTitle: ${action.title}\nID: ${action.id}\nURI: ${result.result.uri}\nState: ${action.state}\nOwner: ${action.owner.url}${action.waiting_for === undefined ? '' : `\nWaiting for: ${action.waiting_for}`}\nDescription: ${action.description ?? '(none)'}\nCreated: ${action.created_at}\nUpdated: ${action.updated_at}\nRoot: ${result.result.root}`;
+  return `${result.result.status} action\nTitle: ${action.title}\nID: ${action.id}\nURI: ${result.result.uri}\nState: ${action.state}\n${renderBlocking(action)}\nOwner: ${action.owner.url}${action.waiting_for === undefined ? '' : `\nWaiting for: ${action.waiting_for}`}\n${action.blocking.dependencies.length === 0 ? 'Dependencies: none' : `Dependencies:\n${action.blocking.dependencies.map((target) => `  ${target.uri} | ${target.title} | ${target.state} | ${target.satisfied ? 'satisfied' : 'unresolved'}`).join('\n')}`}\nDescription: ${action.description ?? '(none)'}\nCreated: ${action.created_at}\nUpdated: ${action.updated_at}\nRoot: ${result.result.root}`;
+}
+
+function renderBlocking(action: ActionProjection): string {
+  const { blocking } = action;
+  const reasons = [
+    ...(blocking.manual ? ['manual'] : []),
+    ...(blocking.unresolved_dependencies.length
+      ? [
+          `dependencies: ${blocking.unresolved_dependencies.length} unresolved of ${blocking.dependencies.length}`,
+        ]
+      : []),
+  ];
+  return `Blocked: ${blocking.blocked ? `yes (${reasons.join('; ')})` : 'no'}${action.manual_block === undefined ? '' : `\nManual block: ${action.manual_block}`}`;
 }

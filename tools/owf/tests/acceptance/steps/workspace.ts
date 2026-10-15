@@ -44,6 +44,8 @@ class WorkspaceWorld extends World {
   listed: Action[] = [];
   action: Action | undefined;
   actionOwner = '';
+  prerequisite: Action | undefined;
+  blockedBefore: Action | undefined;
   base = temporaryDirectory();
   root = this.base;
   cwd = this.root;
@@ -387,7 +389,7 @@ Then(
   },
 );
 Then(
-  'the declared local store has recognized schema version 4',
+  'the declared local store has recognized schema version 5',
   function (this: WorkspaceWorld) {
     assert.ok(this.result);
     workspacePorts.store.validate(this.result.store);
@@ -589,5 +591,205 @@ When(
       recursive: true,
       state: states.split(','),
     }).result.actions;
+  },
+);
+
+Given(
+  'a waiting dependent Action with a manual block and an unfinished prerequisite',
+  function (this: WorkspaceWorld) {
+    const project = create(this.root, {
+      type: 'project',
+      title: 'Other project',
+    }).result;
+    this.prerequisite = createAction(this.root, {
+      title: 'Approve',
+      owner: project.url,
+    }).result.action;
+    this.action = createAction(this.root, {
+      title: 'Deploy',
+      state: 'waiting',
+      waitingFor: 'External reply',
+    }).result.action;
+    this.action = setAction(this.root, this.action.id, {
+      manualBlock: 'No access',
+      addDependency: [this.prerequisite.id],
+    }).result.action;
+  },
+);
+When(
+  'I replace its manual block with {string}',
+  function (this: WorkspaceWorld, manualBlock: string) {
+    assert.ok(this.action);
+    this.action = setAction(this.root, this.action.id, {
+      manualBlock,
+    }).result.action;
+  },
+);
+Then(
+  'its waiting context and prerequisite remain intact',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    assert.ok(this.prerequisite);
+    const action = getAction(this.root, this.action.id).result.action;
+    assert.equal(action.state, 'waiting');
+    assert.equal(action.waiting_for, 'External reply');
+    assert.equal(action.manual_block, 'Access restored tomorrow');
+    assert.deepEqual(action.depends_on, [`owf:action:${this.prerequisite.id}`]);
+  },
+);
+When('I clear its manual block', function (this: WorkspaceWorld) {
+  assert.ok(this.action);
+  this.action = setAction(this.root, this.action.id, {
+    clearManualBlock: true,
+  }).result.action;
+});
+Then(
+  'it remains dependency blocked without a manual reason',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    const action = getAction(this.root, this.action.id).result.action;
+    assert.equal(action.manual_block, undefined);
+    assert.equal(action.state, 'waiting');
+    assert.equal(action.waiting_for, 'External reply');
+    assert.equal(action.blocking.blocked, true);
+    assert.equal(action.blocking.unresolved_dependencies.length, 1);
+  },
+);
+When('I try to complete the dependent Action', function (this: WorkspaceWorld) {
+  assert.ok(this.action);
+  this.blockedBefore = getAction(this.root, this.action.id).result.action;
+  assert.throws(
+    () =>
+      setAction(this.root, this.action!.id, {
+        state: 'completed',
+        clearManualBlock: true,
+      }),
+    (error: unknown) =>
+      error instanceof WorkspaceError && error.code === 'ACTION_BLOCKED',
+  );
+});
+Then('the blocked edit is rejected unchanged', function (this: WorkspaceWorld) {
+  assert.ok(this.action);
+  assert.deepEqual(
+    getAction(this.root, this.action.id).result.action,
+    this.blockedBefore,
+  );
+});
+When('I cancel the prerequisite', function (this: WorkspaceWorld) {
+  assert.ok(this.prerequisite);
+  setAction(this.root, this.prerequisite.id, { state: 'cancelled' });
+});
+Then(
+  'the dependent Action is still dependency blocked',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    assert.equal(
+      getAction(this.root, this.action.id).result.action.blocking
+        .unresolved_dependencies.length,
+      1,
+    );
+  },
+);
+When('I complete the prerequisite', function (this: WorkspaceWorld) {
+  assert.ok(this.prerequisite);
+  setAction(this.root, this.prerequisite.id, { state: 'completed' });
+});
+Then(
+  'the dependent Action is blocked only manually',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    const action = getAction(this.root, this.action.id).result.action;
+    assert.equal(action.blocking.manual, true);
+    assert.equal(action.blocking.blocked, true);
+    assert.equal(action.blocking.unresolved_dependencies.length, 0);
+  },
+);
+When(
+  'I clear the manual block and complete the dependent Action together',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    this.action = setAction(this.root, this.action.id, {
+      clearManualBlock: true,
+      state: 'completed',
+    }).result.action;
+  },
+);
+Then(
+  'the dependent Action is completed and unblocked',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    const action = getAction(this.root, this.action.id).result.action;
+    assert.equal(action.state, 'completed');
+    assert.equal(action.blocking.blocked, false);
+  },
+);
+When('I reopen the prerequisite', function (this: WorkspaceWorld) {
+  assert.ok(this.prerequisite);
+  setAction(this.root, this.prerequisite.id, { state: 'open' });
+});
+Then(
+  'the completed dependent Action reports dependency blocking',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    const action = getAction(this.root, this.action.id).result.action;
+    assert.equal(action.state, 'completed');
+    assert.equal(action.blocking.blocked, true);
+  },
+);
+Then(
+  'unrelated edits and an unchanged completed request still succeed',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    setAction(this.root, this.action.id, { title: 'Revised title' });
+    assert.equal(
+      setAction(this.root, this.action.id, { state: 'completed' }).result
+        .status,
+      'unchanged',
+    );
+  },
+);
+When(
+  'I clear the manual block, remove the prerequisite and complete together',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    assert.ok(this.prerequisite);
+    this.action = setAction(this.root, this.action.id, {
+      clearManualBlock: true,
+      removeDependency: [this.prerequisite.id],
+      state: 'completed',
+    }).result.action;
+  },
+);
+When(
+  'I cancel the dependent Action with an explicit manual clear',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    assert.throws(() =>
+      setAction(this.root, this.action!.id, { state: 'cancelled' }),
+    );
+    this.action = setAction(this.root, this.action.id, {
+      state: 'cancelled',
+      clearManualBlock: true,
+    }).result.action;
+  },
+);
+Then(
+  'it is cancelled and still dependency blocked',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.action);
+    const action = getAction(this.root, this.action.id).result.action;
+    assert.equal(action.state, 'cancelled');
+    assert.equal(action.blocking.blocked, true);
+  },
+);
+When(
+  'I give the completed prerequisite an unfinished prerequisite',
+  function (this: WorkspaceWorld) {
+    assert.ok(this.prerequisite);
+    const unfinished = createAction(this.root, { title: 'Later correction' })
+      .result.action;
+    setAction(this.root, this.prerequisite.id, {
+      addDependency: [unfinished.id],
+    });
   },
 );

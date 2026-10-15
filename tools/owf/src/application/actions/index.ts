@@ -1,4 +1,7 @@
 import {
+  projectAction,
+  validateCompletion,
+  type ActionProjection,
   actionId,
   actionState,
   editAction,
@@ -7,7 +10,6 @@ import {
   type SetActionInput,
   newAction,
   validateActionOwner,
-  type Action,
   type ActionInput,
 } from '../../domain/actions/index.js';
 import {
@@ -20,6 +22,7 @@ import { discoverWorkspace } from '../workspaces/index.js';
 
 export type {
   Action,
+  ActionProjection,
   ActionInput,
   SetActionInput,
 } from '../../domain/actions/index.js';
@@ -34,7 +37,7 @@ export interface ListActionsResult {
     status: 'listed';
     type: 'actions';
     root: string;
-    actions: Action[];
+    actions: ActionProjection[];
   };
   warnings: [];
 }
@@ -89,7 +92,7 @@ export interface ActionResult {
     type: 'action';
     root: string;
     uri: string;
-    action: Action;
+    action: ActionProjection;
   };
   warnings: [];
 }
@@ -112,7 +115,7 @@ function workspace(start: string, ports: ActionPorts) {
 }
 function result(
   root: string,
-  action: Action,
+  action: ActionProjection,
   status: ActionResult['result']['status'],
 ): ActionResult {
   return {
@@ -152,7 +155,7 @@ export function setAction(
     validateActionOwner(resolved.chain);
     owner = ports.contexts.url(resolved.segments);
   }
-  const saved = ports.actions.update(found.store, id, (current) => {
+  const saved = ports.actions.update(found.store, id, (current, target) => {
     if (
       expected &&
       (current.state !== expected.state ||
@@ -167,7 +170,20 @@ export function setAction(
         'ACTION_CONFLICT',
         'The Action changed since it was displayed. Refresh the board and inspect the current values.',
       );
-    return editAction(current, input, ports.now(), owner);
+    // Validate even idempotent supplied additions/removals within the write snapshot.
+    for (const value of [
+      ...(input.addDependency ?? []),
+      ...(input.removeDependency ?? []),
+    ]) {
+      if (!target(actionId(value)))
+        throw new WorkspaceError(
+          'ACTION_NOT_FOUND',
+          `No prerequisite ${value} exists in this Workspace.`,
+        );
+    }
+    const candidate = editAction(current, input, ports.now(), owner);
+    validateCompletion(current, projectAction(candidate, target));
+    return candidate;
   });
   return result(
     found.root,
@@ -199,7 +215,11 @@ export function createAction(
     ports.contexts.url(owner.segments),
   );
   ports.actions.create(found.store, action);
-  return result(found.root, action, 'created');
+  return result(
+    found.root,
+    projectAction(action, () => undefined),
+    'created',
+  );
 }
 export function getAction(
   start: string,
