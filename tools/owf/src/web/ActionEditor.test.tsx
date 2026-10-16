@@ -241,6 +241,132 @@ test('search ignores superseded results, preserves selection on failure and retr
   expect(fetchBoard).toHaveBeenCalledWith({ search: 'new' });
 });
 
+test.each(['before selection', 'after selection'])(
+  'new search facts survive an older Workspace lookup completing %s',
+  async (completion) => {
+    let finishLookup!: (result: BoardResponse) => void;
+    const older = new Promise<BoardResponse>((resolve) => {
+      finishLookup = resolve;
+    });
+    const corrected: BoardAction = {
+      ...target,
+      title: 'Corrected prerequisite',
+      state: 'completed',
+    };
+    vi.mocked(fetchBoard).mockImplementation((query) =>
+      query?.search ? Promise.resolve(response([corrected])) : older,
+    );
+    const save = vi.fn();
+    render(
+      <ActionEditor
+        action={action}
+        current={action}
+        save={save}
+        refresh={() => Promise.resolve(true)}
+        onSaved={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    change('Title', 'Preserved draft');
+    change('Add prerequisite', 'Corrected');
+    const candidate = await screen.findByRole('button', {
+      name: /Corrected prerequisite completed/,
+    });
+    async function completeOlderLookup() {
+      await act(async () => {
+        finishLookup(response([target]));
+        await older;
+      });
+    }
+    if (completion === 'before selection') await completeOlderLookup();
+    fireEvent.click(candidate);
+    const row = screen
+      .getByRole('button', {
+        name: 'Remove prerequisite owf:action:target',
+      })
+      .closest('li')!;
+    expect(within(row).getByText('Corrected prerequisite')).toBeTruthy();
+    expect(
+      within(row).getByText('Pending addition · completed · Satisfied'),
+    ).toBeTruthy();
+    if (completion === 'after selection') await completeOlderLookup();
+    expect(within(row).getByText('Corrected prerequisite')).toBeTruthy();
+    expect(
+      within(row).getByText('Pending addition · completed · Satisfied'),
+    ).toBeTruthy();
+    // A later search that omits the selection cannot erase its observed facts.
+    vi.mocked(fetchBoard).mockResolvedValue(response([]));
+    change('Add prerequisite', 'No match');
+    await screen.findByText('No Actions match this search.');
+    expect(within(row).getByText('Corrected prerequisite')).toBeTruthy();
+    expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
+      'Preserved draft',
+    );
+    expect(save).not.toHaveBeenCalled();
+  },
+);
+
+test('re-adding a saved edge uses newer search facts and retains them as stale after a failed refresh', async () => {
+  const uri = 'owf:action:target';
+  const source: BoardAction = {
+    ...action,
+    depends_on: [uri],
+    blocking: {
+      blocked: true,
+      manual: false,
+      unresolved_dependencies: [uri],
+      dependencies: [
+        { uri, title: target.title, state: target.state, satisfied: false },
+      ],
+    },
+  };
+  render(
+    <ActionEditor
+      action={source}
+      current={source}
+      save={vi.fn()}
+      refresh={() => Promise.resolve(true)}
+      onSaved={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  await screen.findByRole('list', { name: 'Prerequisite candidates' });
+  fireEvent.click(
+    screen.getByRole('button', { name: `Remove prerequisite ${uri}` }),
+  );
+  vi.mocked(fetchBoard).mockResolvedValue(
+    response([{ ...target, title: 'Corrected target', state: 'completed' }]),
+  );
+  change('Add prerequisite', 'Corrected');
+  fireEvent.click(
+    await screen.findByRole('button', { name: /Corrected target completed/ }),
+  );
+  const row = screen
+    .getByRole('button', { name: `Remove prerequisite ${uri}` })
+    .closest('li')!;
+  expect(within(row).getByText('Corrected target')).toBeTruthy();
+  expect(
+    within(row).getByText('Selected · completed · Satisfied'),
+  ).toBeTruthy();
+  vi.mocked(fetchBoard).mockRejectedValue(new Error('Unavailable'));
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Refresh prerequisite lookup' }),
+  );
+  await screen.findByText('Lookup failed: Unavailable');
+  expect(within(row).getByText('Corrected target')).toBeTruthy();
+  expect(
+    within(row).getByText('Selected · completed · Facts stale'),
+  ).toBeTruthy();
+  vi.mocked(fetchBoard).mockResolvedValue(
+    response([{ ...target, title: 'Reopened target', state: 'open' }]),
+  );
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Retry prerequisite lookup' }),
+  );
+  await within(row).findByText('Reopened target');
+  expect(within(row).getByText('Selected · open · Unresolved')).toBeTruthy();
+});
+
 test('target-only refresh updates saved and unsaved facts without conflicting or discarding draft; failed facts are labeled stale', async () => {
   const uri = 'owf:action:target';
   const source: BoardAction = {

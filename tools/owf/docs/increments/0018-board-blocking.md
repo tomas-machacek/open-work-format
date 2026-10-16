@@ -246,8 +246,8 @@ are proposed.
 
 ## Implementation and review outcome
 
-Implemented on 2026-10-16. Status remains `in_progress` pending independent code
-review; implementation verification does not substitute for that review.
+Implemented on 2026-10-16. Status remains `in_progress`; the independent review
+finding and its correction are recorded below.
 
 - Cards show compact text badges using unresolved counts and retain the five
   intrinsic-state columns. Detail lists saved manual blocking and all sorted
@@ -299,7 +299,28 @@ Canonical added technical coverage lives in
 [`board-blocking.spec.ts`](../../tests/e2e/board-blocking.spec.ts).
 Existing 0017 domain/transaction and acceptance scenarios remain the rule matrix.
 
+Independent review and correction on 2026-10-16:
+
+- Review of PR #24 at `152d823` against `main` at `80102f8` found one P2 issue:
+  selecting a prerequisite could replace fresh search facts with older facts
+  from the independent Workspace lookup, without labeling them stale.
+- The picker now retains target observations across searches and reconciles both
+  lookups by request order. An older response cannot overwrite a newer observation;
+  absence from filtered results cannot establish that a selected target is missing.
+  A new source projection supersedes older cached facts. Failed refreshes retain
+  observed values with stale labels, including after removing and re-adding an edge.
+- Three component regressions cover older lookups finishing before/after selection,
+  preserving facts when a later search excludes the selection, and re-adding an
+  existing edge followed by failed refresh and successful retry. Both original
+  race cases were observed failing before the fix. Existing target-only refresh,
+  conflict, draft, focus and search-failure coverage remains in place.
+- `npm run verify` passed for the corrected working tree based on `152d823` on
+  Windows x64, Node.js 24.21.0 / npm 11.4.1: types, lint, formatting, architecture,
+  build, 114 unit tests, 160 integration tests, 30 Cucumber scenarios (164 steps),
+  23 CLI process tests and all 7 Chromium journeys, including 1440px and 390px
+  blocking journeys. The subsequent edits only record this review and verification.
+
 No approved behavior change or requirement conflict was needed. No package,
-schema, migration, new CLI command or release was added. Independent review and
-testing on other platforms/browsers remain outstanding; this handoff does not
-claim them. Outcome targets and configurable Views remain deferred as agreed.
+schema, migration, new CLI command or release was added. Testing on other
+platforms/browsers remains outstanding. Outcome targets and configurable Views
+remain deferred as agreed.

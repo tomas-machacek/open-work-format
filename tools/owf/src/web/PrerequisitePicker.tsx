@@ -3,6 +3,40 @@ import type { BoardAction } from '../contracts/index.js';
 import { fetchBoard } from './client.js';
 import styles from './Board.module.css';
 
+type TargetFact = BoardAction['blocking']['dependencies'][number];
+type Observations = Map<
+  string,
+  { target: TargetFact | undefined; request: number }
+>;
+
+function rememberFacts(
+  previous: Observations,
+  actions: BoardAction[],
+  request: number,
+  complete = false,
+): Observations {
+  const next = new Map(previous);
+  // Only a complete Workspace lookup can establish that a target is unavailable.
+  if (complete)
+    for (const [uri, fact] of next)
+      if (fact.request <= request)
+        next.set(uri, { target: undefined, request });
+  for (const action of actions) {
+    const uri = `owf:action:${action.id}`;
+    if ((next.get(uri)?.request ?? -1) > request) continue;
+    next.set(uri, {
+      request,
+      target: {
+        uri,
+        title: action.title,
+        state: action.state,
+        satisfied: action.state === 'completed',
+      },
+    });
+  }
+  return next;
+}
+
 export function PrerequisitePicker({
   value,
   original,
@@ -23,19 +57,29 @@ export function PrerequisitePicker({
   const [candidates, setCandidates] = useState<BoardAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
-  const [facts, setFacts] = useState<BoardAction[]>([]);
-  const [factsStale, setFactsStale] = useState(true);
+  const [facts, setFacts] = useState<Observations>(() => new Map());
+  const requests = useRef(0);
+  const [factsRefresh, setFactsRefresh] = useState({
+    request: 0,
+    stale: true,
+    source: current,
+    sourceRequest: 0,
+  });
   const searchInput = useRef<HTMLInputElement>(null);
   const options = useRef<HTMLUListElement>(null);
   const rows = useRef<HTMLUListElement>(null);
   useEffect(() => {
     let active = true;
+    const request = ++requests.current;
     setLoading(true);
     setError(undefined);
     void fetchBoard(search.trim() ? { search: search.trim() } : {}).then(
       (result) => {
         if (!active) return;
         setCandidates(result.actions);
+        setFacts((previous) =>
+          rememberFacts(previous, result.actions, request),
+        );
         setLoading(false);
       },
       (failure: unknown) => {
@@ -53,18 +97,29 @@ export function PrerequisitePicker({
     };
   }, [search, attempt]);
   // Unsaved selections are not part of the source projection. Refresh their
-  // observed facts independently of board filters and picker search responses.
+  // observed facts independently of board filters. Both lookups share request
+  // ordering so an older response cannot replace a newer target observation.
   useEffect(() => {
     let active = true;
-    setFactsStale(true);
+    const request = ++requests.current;
+    setFactsRefresh((previous) => ({
+      request,
+      stale: true,
+      source: current,
+      sourceRequest:
+        previous.source === current ? previous.sourceRequest : request,
+    }));
     void fetchBoard().then(
       (result) => {
         if (!active) return;
-        setFacts(result.actions);
-        setFactsStale(false);
+        setFacts((previous) =>
+          rememberFacts(previous, result.actions, request, true),
+        );
+        setFactsRefresh((previous) => ({ ...previous, stale: false }));
       },
       () => {
-        if (active) setFactsStale(true);
+        if (active)
+          setFactsRefresh((previous) => ({ ...previous, stale: true }));
       },
     );
     return () => {
@@ -98,25 +153,30 @@ export function PrerequisitePicker({
           const saved = current?.blocking.dependencies.find(
             (item) => item.uri === uri,
           );
-          const observed = facts.find(
-            (item) => `owf:action:${item.id}` === uri,
-          );
+          const observed = facts.get(uri);
+          // A new source projection supersedes older cached observations;
+          // subsequent lookup results may update even an existing draft edge.
+          const useObserved =
+            observed &&
+            (!saved || observed.request >= factsRefresh.sourceRequest);
+          const target = useObserved ? observed.target : saved;
+          const stale =
+            sourceFactsStale ||
+            (useObserved &&
+              factsRefresh.stale &&
+              observed.request < factsRefresh.request);
           const pending = !original.includes(uri);
           return (
             <li key={uri}>
-              <strong>
-                {saved?.title ?? observed?.title ?? 'Action unavailable'}
-              </strong>
+              <strong>{target?.title ?? 'Action unavailable'}</strong>
               <small>{uri}</small>
               <span>
                 {pending ? 'Pending addition' : 'Selected'} ·{' '}
-                {saved
-                  ? `${saved.state} · ${sourceFactsStale ? 'Facts stale' : saved.satisfied ? 'Satisfied' : 'Unresolved'}`
-                  : observed
-                    ? `${observed.state} · ${factsStale || sourceFactsStale ? 'Facts stale' : observed.state === 'completed' ? 'Satisfied' : 'Unresolved'}`
-                    : 'Facts unavailable'}
+                {target
+                  ? `${target.state} · ${stale ? 'Facts stale' : target.satisfied ? 'Satisfied' : 'Unresolved'}`
+                  : 'Facts unavailable'}
               </span>
-              {pending && (factsStale || sourceFactsStale) && (
+              {pending && (stale || !target) && (
                 <small>Facts stale/unavailable. Retry lookup to refresh.</small>
               )}
               <button
@@ -166,7 +226,7 @@ export function PrerequisitePicker({
         disabled={disabled || loading}
         onClick={() => setAttempt((value) => value + 1)}
       >
-        {error || factsStale
+        {error || factsRefresh.stale
           ? 'Retry prerequisite lookup'
           : 'Refresh prerequisite lookup'}
       </button>
