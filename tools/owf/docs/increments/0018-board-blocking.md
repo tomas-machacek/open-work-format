@@ -1,10 +1,11 @@
 # 0018 — Manual blocking and dependencies on the board
 
-> Status: draft
+> Status: reviewed
 > Description: Inspect and edit manual blocking and Action prerequisites in the Kanban Action detail.
 > Depends on: [0017 — CLI blocking and dependencies](0017-action-blocking-cli.md), [0012 — Action detail editing](0012-board-action-edit.md), and [0016 — Board filtering](0016-board-search.md).
 
-Proposed on 2026-10-15. Not yet approved for implementation.
+Proposed on 2026-10-15. The user reviewed and approved this design for
+implementation on 2026-10-16.
 
 ## Goal and scope
 
@@ -238,10 +239,12 @@ the still-completed source. Test picker and removal using the keyboard.
 
 ## Open questions
 
-Awaiting user review of scope and interaction: editing within the existing
-Save/Cancel detail flow, checkbox plus manual reason, searchable prerequisite
-selection, and compact card indicators. No Core changes are proposed.
+No blocking questions remain. The user approved the scope and interaction on
+2026-10-16: existing Save/Cancel detail flow, checkbox plus manual reason,
+searchable prerequisite selection, and compact card indicators. No Core changes
+are proposed.
 
 ## Implementation and review outcome
 
-Not implemented. This is a design draft only; no runtime verification is claimed.
+Design reviewed and approved for implementation on 2026-10-16. Implementation
+and code review have not started; no runtime verification is claimed.
