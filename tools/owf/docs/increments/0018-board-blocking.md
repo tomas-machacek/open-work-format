@@ -1,6 +1,6 @@
 # 0018 — Manual blocking and dependencies on the board
 
-> Status: in_progress
+> Status: completed
 > Description: Inspect and edit manual blocking and Action prerequisites in the Kanban Action detail.
 > Depends on: [0017 — CLI blocking and dependencies](0017-action-blocking-cli.md), [0012 — Action detail editing](0012-board-action-edit.md), and [0016 — Board filtering](0016-board-search.md).
 
@@ -246,8 +246,9 @@ are proposed.
 
 ## Implementation and review outcome
 
-Implemented on 2026-10-16. Status remains `in_progress`; the independent review
-finding and its correction are recorded below.
+Implemented on 2026-10-16. Independent review and its correction are recorded
+below. The user confirmed the changes were committed and pushed and authorized
+merge on 2026-10-16. This document and the index are `completed`.
 
 - Cards show compact text badges using unresolved counts and retain the five
   intrinsic-state columns. Detail lists saved manual blocking and all sorted
@@ -324,3 +325,7 @@ No approved behavior change or requirement conflict was needed. No package,
 schema, migration, new CLI command or release was added. Testing on other
 platforms/browsers remains outstanding. Outcome targets and configurable Views
 remain deferred as agreed.
+
+Completion recorded on 2026-10-16 at pre-completion revision
+`a27ee7af88dc6f307d459dc65a21b9935d29eb5e`. The completion update changes
+documentation only; no additional runtime verification or release is claimed.
