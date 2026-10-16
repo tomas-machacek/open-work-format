@@ -281,7 +281,15 @@ Verification evidence:
 - Visually inspected desktop and narrow board/detail screenshots from these
   journeys. Text badges, wrapped URIs, focus outlines, scrollable detail and picker
   remain usable; the journey checks that the dialog has no horizontal overflow.
-- Final `npm run verify` of the committed implementation: pending below.
+- Final `npm run verify` passed on 2026-10-16 for implementation commit
+  `870c950794e92fe86f9c961093fa6cfdcb9bb50f` on Windows x64, Node.js 24.21.0,
+  npm 11.4.1. Typecheck, ESLint, Prettier, dependency-cruiser and production build
+  passed, followed by 111 unit tests, 160 integration tests, 30 Cucumber scenarios
+  (164 steps), 23 CLI process tests and all 7 Chromium journeys. The new blocking
+  journey passed at both viewport sizes in this final run as well.
+- The subsequent handoff commit changes documentation only: this verification
+  record and corrections to the README's older introductory capability/test text.
+  Documentation formatting and `git diff --check` were checked separately.
 
 Canonical added technical coverage lives in
 [`ActionEditor.test.tsx`](../../src/web/ActionEditor.test.tsx),

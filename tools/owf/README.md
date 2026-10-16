@@ -2,8 +2,10 @@
 
 The CLI initializes a named local OWF Workspace, discovers it from descendant
 directories, creates Markdown Projects and Outcomes, and creates, retrieves or
-lists Actions and changes their execution state in the Workspace Operational Store. Inbox operations and the
-future web interface are not yet implemented.
+lists Actions and changes their execution state in the Workspace Operational Store.
+The local web board supports Action creation, editing, state moves, filtering,
+manual blocking and Action prerequisites through the same operations. Inbox
+operations are not yet implemented.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
 deferred features, and acceptance scenarios.
@@ -35,7 +37,8 @@ npm run verify
 
 `verify` checks types (including tests/configuration), lint, formatting and module
 boundaries, builds production code, then runs unit, integration, Cucumber and CLI
-process suites. `npm run test:e2e` runs only CLI tests and requires a prior build.
+process and Chromium suites. `npm run test:e2e` runs CLI and browser tests and
+requires a prior build.
 `npm run format` applies formatting. All checks are local; no Git hooks or CI are
 installed. Platform/runtime evidence for each change is recorded in its increment
 outcome; increment 0002 also passed Linux verification on Node 24.19.0.
