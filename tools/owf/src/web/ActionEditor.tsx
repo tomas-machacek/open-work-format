@@ -8,6 +8,7 @@ import {
 import type { BoardAction, EditActionRequest } from '../contracts/index.js';
 import { StateUpdateError } from './client.js';
 import { OwnerPicker } from './OwnerPicker.js';
+import { PrerequisitePicker } from './PrerequisitePicker.js';
 import styles from './Board.module.css';
 
 const sameSnapshot = (a: BoardAction, b: BoardAction) =>
@@ -16,11 +17,14 @@ const sameSnapshot = (a: BoardAction, b: BoardAction) =>
   a.owner.url === b.owner.url &&
   a.state === b.state &&
   a.waiting_for === b.waiting_for &&
+  a.manual_block === b.manual_block &&
+  JSON.stringify(a.depends_on) === JSON.stringify(b.depends_on) &&
   a.updated_at === b.updated_at;
 
 export function ActionEditor({
   action,
   current,
+  factsStale = false,
   save,
   refresh,
   onSaved,
@@ -28,6 +32,7 @@ export function ActionEditor({
 }: {
   action: BoardAction;
   current: BoardAction | undefined;
+  factsStale?: boolean;
   save: (id: string, input: EditActionRequest) => Promise<BoardAction>;
   refresh: () => Promise<boolean>;
   onSaved: (action: BoardAction) => void;
@@ -41,6 +46,16 @@ export function ActionEditor({
   const [description, setDescription] = useState(action.description ?? '');
   const [owner, setOwner] = useState(action.owner.url);
   const [reason, setReason] = useState(action.waiting_for ?? '');
+  const [manual, setManual] = useState(action.manual_block !== undefined);
+  const [manualReason, setManualReason] = useState(action.manual_block ?? '');
+  const [dependencies, setDependencies] = useState(action.depends_on);
+  const manualEligible = !['completed', 'cancelled'].includes(baseline.state);
+  const manualDirty =
+    manual !== (baseline.manual_block !== undefined) ||
+    (manual && manualReason !== baseline.manual_block);
+  const dependencyDirty =
+    dependencies.length !== baseline.depends_on.length ||
+    dependencies.some((uri) => !baseline.depends_on.includes(uri));
   const [discard, setDiscard] = useState(false);
   const [saving, setSaving] = useState(false);
   const [blocked, setBlocked] = useState(false);
@@ -48,6 +63,8 @@ export function ActionEditor({
   const [error, setError] = useState<string>();
   const stale = !current || !sameSnapshot(baseline, current);
   const dirty =
+    manualDirty ||
+    dependencyDirty ||
     title !== baseline.title ||
     description !== (baseline.description ?? '') ||
     owner !== baseline.owner.url ||
@@ -74,6 +91,9 @@ export function ActionEditor({
     setDescription(current.description ?? '');
     setOwner(current.owner.url);
     setReason(current.waiting_for ?? '');
+    setManual(current.manual_block !== undefined);
+    setManualReason(current.manual_block ?? '');
+    setDependencies(current.depends_on);
     setBlocked(false);
     setInspected(false);
     setError(undefined);
@@ -86,7 +106,23 @@ export function ActionEditor({
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (saving || blocked || stale) return;
+    if (manual && !manualReason.trim()) {
+      setError('Enter a nonblank manual blocking reason.');
+      return;
+    }
     const changes: Omit<EditActionRequest, 'expected'> = {};
+    if (manualDirty) {
+      if (manual) changes.manualBlock = manualReason;
+      else changes.clearManualBlock = true;
+    }
+    const added = dependencies.filter(
+      (uri) => !baseline.depends_on.includes(uri),
+    );
+    const removed = baseline.depends_on.filter(
+      (uri) => !dependencies.includes(uri),
+    );
+    if (added.length) changes.addDependency = added;
+    if (removed.length) changes.removeDependency = removed;
     if (title !== baseline.title) changes.title = title;
     if (owner !== baseline.owner.url) changes.owner = owner;
     if (
@@ -239,6 +275,101 @@ export function ActionEditor({
               disabled={saving}
             />
             <OwnerPicker value={owner} onChange={setOwner} disabled={saving} />
+            <section
+              className={styles.blockingSection}
+              aria-labelledby="saved-blocking-heading"
+            >
+              <h3 id="saved-blocking-heading">Saved blocking</h3>
+              <button
+                className={styles.ownerRefresh}
+                type="button"
+                disabled={saving}
+                onClick={() => {
+                  void refresh();
+                }}
+              >
+                Refresh saved facts
+              </button>
+              {(factsStale || !current) && (
+                <p role="status">
+                  Saved facts stale/unavailable. Refresh to check current
+                  blocking.
+                </p>
+              )}
+              <p>
+                {(current ?? baseline).blocking.blocked
+                  ? 'Blocked'
+                  : 'Not blocked'}
+                {(current ?? baseline).blocking.manual ? ' · manual' : ''}
+                {(current ?? baseline).blocking.unresolved_dependencies.length
+                  ? ` · ${(current ?? baseline).blocking.unresolved_dependencies.length} unresolved prerequisites`
+                  : ''}
+              </p>
+              {(current ?? baseline).manual_block !== undefined && (
+                <p className={styles.literalReason}>
+                  Manual reason: {(current ?? baseline).manual_block}
+                </p>
+              )}
+              {(current ?? baseline).blocking.dependencies.length === 0 && (
+                <p>No saved prerequisites.</p>
+              )}
+              <ul className={styles.dependencyRows}>
+                {[...(current ?? baseline).blocking.dependencies]
+                  .sort((a, b) => a.uri.localeCompare(b.uri))
+                  .map((dependency) => (
+                    <li key={dependency.uri}>
+                      <strong>{dependency.title}</strong>
+                      <small>{dependency.uri}</small>
+                      <span>
+                        {dependency.state} ·{' '}
+                        {dependency.satisfied ? 'Satisfied' : 'Unresolved'}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </section>
+            <label className={styles.manualToggle}>
+              <input
+                type="checkbox"
+                checked={manual}
+                disabled={saving || !manualEligible}
+                onChange={(event) => setManual(event.target.checked)}
+              />
+              Manually blocked
+            </label>
+            {!manualEligible && (
+              <p className={styles.hint}>
+                Completed and cancelled Actions cannot receive a manual reason.
+                Prerequisites remain editable.
+              </p>
+            )}
+            {manual && (
+              <>
+                <label htmlFor="manual-reason">Manual blocking reason</label>
+                <textarea
+                  id="manual-reason"
+                  rows={3}
+                  value={manualReason}
+                  disabled={saving || !manualEligible}
+                  onChange={(event) => setManualReason(event.target.value)}
+                />
+              </>
+            )}
+            {manualDirty && (
+              <p role="status" className={styles.hint}>
+                {manual
+                  ? 'Pending manual reason edit. Save to apply.'
+                  : 'Saving will clear the manual block.'}
+              </p>
+            )}
+            <PrerequisitePicker
+              value={dependencies}
+              original={baseline.depends_on}
+              current={current}
+              sourceFactsStale={factsStale || !current}
+              disabled={saving}
+              onChange={setDependencies}
+            />
             {baseline.state === 'waiting' && (
               <>
                 <label htmlFor="edit-reason">

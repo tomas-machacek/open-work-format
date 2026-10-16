@@ -26,6 +26,165 @@ import {
 import { cleanup, snapshot, temporaryDirectory } from '../support/workspace.js';
 const roots: string[] = [];
 
+test('HTTP blocking edits combine atomically, reject invalid boundaries and emit no event for idempotent changes', async () => {
+  const root = directory();
+  const { store } = initialize(root);
+  const target = createAction(root, { title: 'Target', state: 'cancelled' })
+    .result.action;
+  const source = createAction(root, {
+    title: 'Source',
+    state: 'waiting',
+    waitingFor: 'Reply',
+  }).result.action;
+  const expected = {
+    title: source.title,
+    owner: source.owner,
+    state: source.state,
+    waiting_for: source.waiting_for,
+    updated_at: source.updated_at,
+  };
+  const server = createBoardServer(
+    () => listActions(root),
+    resolve('dist/web'),
+    (input) => createAction(root, input),
+    (id, input) => setAction(root, id, { state: input.state }, input.expected),
+    (id, { expected, ...input }) => setAction(root, id, input, expected),
+  );
+  const edit = (payload: unknown) =>
+    server.inject({
+      method: 'PATCH',
+      url: `/api/actions/${source.id}`,
+      headers: trustedHeaders,
+      payload: JSON.stringify(payload),
+    });
+  try {
+    const before = snapshot(root);
+    for (const fields of [
+      { manualBlock: 3 },
+      { clearManualBlock: false },
+      { manualBlock: ' ' },
+      { manualBlock: 'Reason', clearManualBlock: true },
+      { addDependency: target.id },
+      { removeDependency: [false] },
+      { addDependency: [] },
+      { removeDependency: [] },
+      {
+        addDependency: [target.id],
+        removeDependency: [`owf:action:${target.id}`],
+      },
+      { addDependency: ['owf:outcome:unsupported'] },
+      { state: 'completed' },
+      { unknown: true },
+    ]) {
+      expect(
+        (await edit({ expected, ...fields })).statusCode,
+        JSON.stringify(fields),
+      ).toBe(400);
+      expect(snapshot(root)).toEqual(before);
+    }
+    expect(
+      (
+        await edit({
+          expected,
+          title: 'Partial',
+          manualBlock: 'Reason',
+          addDependency: ['00000000-0000-4000-8000-000000000000'],
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect(snapshot(root)).toEqual(before);
+    const db = new DatabaseSync(store);
+    const events = () =>
+      db.prepare('SELECT count(*) AS n FROM action_events').get()?.['n'];
+    try {
+      for (const table of ['actions', 'action_events']) {
+        db.exec(
+          `CREATE TRIGGER fail_blocking BEFORE ${table === 'actions' ? 'UPDATE' : 'INSERT'} ON ${table} BEGIN SELECT RAISE(ABORT, 'injected'); END`,
+        );
+        const failing = snapshot(root);
+        expect(
+          (
+            await edit({
+              expected,
+              title: 'Partial',
+              manualBlock: 'Reason',
+              addDependency: [target.id],
+            })
+          ).statusCode,
+        ).toBe(503);
+        expect(snapshot(root)).toEqual(failing);
+        db.exec('DROP TRIGGER fail_blocking');
+      }
+      const count = Number(events());
+      const response = await edit({
+        expected,
+        title: 'Combined',
+        waitingFor: 'New reply',
+        manualBlock: '  Literal\nreason  ',
+        addDependency: [target.id, `owf:action:${target.id}`],
+      });
+      expect(response.statusCode).toBe(200);
+      const saved = editActionResponse.parse(response.json()).action;
+      expect(saved).toMatchObject({
+        title: 'Combined',
+        waiting_for: 'New reply',
+        manual_block: '  Literal\nreason  ',
+        depends_on: [`owf:action:${target.id}`],
+        blocking: {
+          blocked: true,
+          manual: true,
+          dependencies: [
+            {
+              uri: `owf:action:${target.id}`,
+              state: 'cancelled',
+              satisfied: false,
+            },
+          ],
+        },
+      });
+      expect(Number(events())).toBe(count + 1);
+      const nextExpected = {
+        ...expected,
+        title: saved.title,
+        waiting_for: saved.waiting_for,
+        updated_at: saved.updated_at,
+      };
+      const stable = snapshot(root);
+      const noop = await edit({
+        expected: nextExpected,
+        manualBlock: saved.manual_block,
+        addDependency: [target.id],
+      });
+      expect(editActionResponse.parse(noop.json()).status).toBe('unchanged');
+      expect(snapshot(root)).toEqual(stable);
+      expect(
+        (await edit({ expected, clearManualBlock: true })).statusCode,
+      ).toBe(409);
+      expect(snapshot(root)).toEqual(stable);
+      const cleared = await edit({
+        expected: nextExpected,
+        clearManualBlock: true,
+      });
+      expect(
+        editActionResponse.parse(cleared.json()).action.blocking,
+      ).toMatchObject({ manual: false, blocked: true });
+      const latest = getAction(root, source.id).result.action;
+      const removed = await edit({
+        expected: { ...nextExpected, updated_at: latest.updated_at },
+        removeDependency: [target.id],
+      });
+      expect(editActionResponse.parse(removed.json()).action).toMatchObject({
+        depends_on: [],
+        blocking: { blocked: false },
+      });
+    } finally {
+      db.close();
+    }
+  } finally {
+    await server.close();
+  }
+});
+
 test('HTTP preserves CLI blocking fields, rejects stale sources and checks current targets even with a matching source snapshot', async () => {
   const root = directory();
   initialize(root);

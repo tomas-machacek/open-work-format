@@ -70,7 +70,7 @@ export const createActionOptions = z.object({
   json: z.boolean().optional(),
 });
 
-export const boardAction = z.object({
+const actionRecord = z.object({
   id: z.string(),
   title: z.string(),
   state: z.enum(['open', 'in_progress', 'waiting', 'completed', 'cancelled']),
@@ -78,31 +78,49 @@ export const boardAction = z.object({
   description: z.string().optional(),
   waiting_for: z.string().optional(),
   manual_block: z.string().optional(),
-  depends_on: z.array(z.string()).optional(),
-  blocking: z
-    .object({
-      blocked: z.boolean(),
-      manual: z.boolean(),
-      unresolved_dependencies: z.array(z.string()),
-      dependencies: z.array(
-        z.object({
-          uri: z.string(),
-          title: z.string(),
-          state: z.enum([
-            'open',
-            'in_progress',
-            'waiting',
-            'completed',
-            'cancelled',
-          ]),
-          satisfied: z.boolean(),
-        }),
-      ),
-    })
-    .optional(),
+  depends_on: z.array(z.string()),
+  blocking: z.object({
+    blocked: z.boolean(),
+    manual: z.boolean(),
+    unresolved_dependencies: z.array(z.string()),
+    dependencies: z.array(
+      z.object({
+        uri: z.string(),
+        title: z.string(),
+        state: z.enum([
+          'open',
+          'in_progress',
+          'waiting',
+          'completed',
+          'cancelled',
+        ]),
+        satisfied: z.boolean(),
+      }),
+    ),
+  }),
   created_at: z.string(),
   updated_at: z.string(),
 });
+export const boardAction = actionRecord.refine(
+  (action) => {
+    const { blocking } = action;
+    const uris = blocking.dependencies.map((target) => target.uri);
+    const unresolved = blocking.dependencies
+      .filter((target) => !target.satisfied)
+      .map((target) => target.uri);
+    const sameSet = (a: string[], b: string[]) =>
+      a.length === b.length &&
+      new Set(a).size === a.length &&
+      a.every((uri) => b.includes(uri));
+    return (
+      sameSet(action.depends_on, uris) &&
+      sameSet(unresolved, blocking.unresolved_dependencies) &&
+      blocking.manual === (action.manual_block !== undefined) &&
+      blocking.blocked === (blocking.manual || unresolved.length > 0)
+    );
+  },
+  { message: 'Invalid blocking projection.' },
+);
 export const boardResponse = z.object({
   workspace: z.object({ root: z.string() }),
   actions: z.array(boardAction),
@@ -126,10 +144,10 @@ export const createActionResponse = z.object({ action: boardAction });
 export type CreateActionRequest = z.infer<typeof createActionRequest>;
 export const updateActionStateRequest = z
   .object({
-    state: boardAction.shape.state,
+    state: actionRecord.shape.state,
     expected: z
       .object({
-        state: boardAction.shape.state,
+        state: actionRecord.shape.state,
         updated_at: z.iso.datetime(),
         waiting_for: z.string().optional(),
       })
@@ -149,7 +167,7 @@ export type UpdateActionStateRequest = z.infer<typeof updateActionStateRequest>;
 
 export const editActionRequest = z
   .object({
-    expected: boardAction
+    expected: actionRecord
       .pick({
         title: true,
         description: true,
@@ -166,6 +184,10 @@ export const editActionRequest = z
     owner: z.string().optional(),
     waitingFor: z.string().optional(),
     clearWaitingFor: z.literal(true).optional(),
+    manualBlock: z.string().optional(),
+    clearManualBlock: z.literal(true).optional(),
+    addDependency: z.array(z.string()).optional(),
+    removeDependency: z.array(z.string()).optional(),
   })
   .strict()
   .refine((value) =>
@@ -176,13 +198,18 @@ export const editActionRequest = z
       value.waitingFor,
       value.clearDescription,
       value.clearWaitingFor,
+      value.manualBlock,
+      value.clearManualBlock,
+      ...(value.addDependency ?? []),
+      ...(value.removeDependency ?? []),
     ].some((field) => field !== undefined),
   )
   .refine(
     (value) => !(value.description !== undefined && value.clearDescription),
   )
+  .refine((value) => !(value.waitingFor !== undefined && value.clearWaitingFor))
   .refine(
-    (value) => !(value.waitingFor !== undefined && value.clearWaitingFor),
+    (value) => !(value.manualBlock !== undefined && value.clearManualBlock),
   );
 export const editActionResponse = updateActionStateResponse;
 export type EditActionRequest = z.infer<typeof editActionRequest>;

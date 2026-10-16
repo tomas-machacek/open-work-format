@@ -1,6 +1,6 @@
 # 0018 — Manual blocking and dependencies on the board
 
-> Status: reviewed
+> Status: in_progress
 > Description: Inspect and edit manual blocking and Action prerequisites in the Kanban Action detail.
 > Depends on: [0017 — CLI blocking and dependencies](0017-action-blocking-cli.md), [0012 — Action detail editing](0012-board-action-edit.md), and [0016 — Board filtering](0016-board-search.md).
 
@@ -246,5 +246,52 @@ are proposed.
 
 ## Implementation and review outcome
 
-Design reviewed and approved for implementation on 2026-10-16. Implementation
-and code review have not started; no runtime verification is claimed.
+Implemented on 2026-10-16. Status remains `in_progress` pending independent code
+review; implementation verification does not substitute for that review.
+
+- Cards show compact text badges using unresolved counts and retain the five
+  intrinsic-state columns. Detail lists saved manual blocking and all sorted
+  prerequisites, including satisfied targets, separately from editable drafts.
+- The manual checkbox/reason and Workspace-wide prerequisite picker participate
+  in the existing atomic Save/Cancel, dirty detection, saving lock, conflict,
+  reload and uncertain-write handling. Membership undo produces no edit. Search
+  ignores superseded responses, preserves selections on errors, and offers Retry.
+- HTTP accepts the four agreed blocking edit fields through the existing shared
+  operation. Strict transport validation and complete blocking projections are
+  required. Shared transaction validation, normalization, terminal rules and
+  expected source revisions remain authoritative; no domain/schema changes.
+- Confirmed moves now refresh the applied query even without filters, so target
+  changes update dependents. Source conflicts retain drafts; target-only facts
+  refresh without conflicting. `Refresh saved facts` works inside the editor;
+  selected unsaved targets use an independent unfiltered lookup and stale labels.
+- Updated the tool README, MVP capability description and the generated Workspace
+  guide's stale CLI-only limitation. No existing Workspace guide was overwritten.
+
+Verification evidence:
+
+- Focused component/client and HTTP tests: 70 passed before the final verification
+  run. These cover literal manual reasons, membership undo, focus after removal,
+  search races/errors, malformed projections, target-only updates, source conflicts,
+  combined edits, idempotency and injected Action/event write failures.
+- New real-store Chromium journey passed at 1440×1000 and 390×844. Keyboard-only
+  detail editing covers an out-of-filter Project target, pending selection/removal,
+  discard confirmation, combined save, terminal move rejection, CLI target completion,
+  manual clearing, source completion and later target correction. It also refreshes
+  target facts inside an open draft without losing that draft.
+- Visually inspected desktop and narrow board/detail screenshots from these
+  journeys. Text badges, wrapped URIs, focus outlines, scrollable detail and picker
+  remain usable; the journey checks that the dialog has no horizontal overflow.
+- Final `npm run verify` of the committed implementation: pending below.
+
+Canonical added technical coverage lives in
+[`ActionEditor.test.tsx`](../../src/web/ActionEditor.test.tsx),
+[`Board.test.tsx`](../../src/web/Board.test.tsx),
+[`client.test.ts`](../../src/web/client.test.ts),
+[`board.test.ts`](../../tests/integration/board.test.ts) and
+[`board-blocking.spec.ts`](../../tests/e2e/board-blocking.spec.ts).
+Existing 0017 domain/transaction and acceptance scenarios remain the rule matrix.
+
+No approved behavior change or requirement conflict was needed. No package,
+schema, migration, new CLI command or release was added. Independent review and
+testing on other platforms/browsers remain outstanding; this handoff does not
+claim them. Outcome targets and configurable Views remain deferred as agreed.

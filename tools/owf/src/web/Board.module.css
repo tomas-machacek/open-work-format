@@ -591,6 +591,75 @@
 .editor::backdrop {
   background: #1d302976;
 }
+.blockBadge {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 3px 6px;
+  border: 1px solid #b99364;
+  border-radius: 5px;
+  background: #fff4e9;
+  color: #794422;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.blockingSection {
+  margin: 20px 0;
+  padding-top: 16px;
+  border-top: 1px solid #dfe5df;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.blockingSection h3 {
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+.blockingSection .hint {
+  margin: 8px 0;
+}
+.dependencyRows {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+}
+.dependencyRows li {
+  padding: 12px;
+  margin-bottom: 8px;
+  background: #f6f8f5;
+  border: 1px solid #dfe5df;
+  border-radius: 6px;
+}
+.dependencyRows small,
+.dependencyRows span {
+  display: block;
+  margin: 5px 0;
+}
+.dependencyRows button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #cad5cd;
+  border-radius: 5px;
+  background: #fff;
+  color: #304c3e;
+  cursor: pointer;
+}
+.literalReason {
+  white-space: pre-wrap;
+}
+.editorCard .manualToggle {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin: 18px 0;
+}
+.editorCard .manualToggle input {
+  width: auto;
+  margin: 0;
+  accent-color: #3e624d;
+}
+.ownerOptions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 .editorCard {
   padding: clamp(20px, 4vw, 36px);
   background: #fff;
