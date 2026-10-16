@@ -46,6 +46,19 @@ export function MovableCard({
       }
     >
       <h3>{action.title}</h3>
+      {action.blocking.blocked && (
+        <p className={styles.blockBadge}>
+          Blocked ·{' '}
+          {[
+            ...(action.blocking.manual ? ['manual'] : []),
+            ...(action.blocking.unresolved_dependencies.length
+              ? [
+                  `${action.blocking.unresolved_dependencies.length} prerequisite${action.blocking.unresolved_dependencies.length === 1 ? '' : 's'}`,
+                ]
+              : []),
+          ].join(' + ')}
+        </p>
+      )}
       <dl>
         <div>
           <dt>Owner:</dt>

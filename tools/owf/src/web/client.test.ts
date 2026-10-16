@@ -5,7 +5,47 @@ import {
   saveAction,
   updateActionState,
 } from './client.js';
+import { boardAction } from '../contracts/index.js';
 afterEach(() => vi.unstubAllGlobals());
+test('GUI reads reject missing, malformed and contradictory blocking projections', async () => {
+  const action = {
+    id: 'source',
+    title: 'Source',
+    owner: { url: '/' },
+    state: 'open',
+    created_at: 'now',
+    updated_at: 'now',
+    depends_on: [],
+  };
+  const valid = {
+    blocked: false,
+    manual: false,
+    unresolved_dependencies: [],
+    dependencies: [],
+  };
+  const fetch = vi.fn<typeof globalThis.fetch>();
+  vi.stubGlobal('fetch', fetch);
+  for (const fields of [
+    {},
+    { blocking: {} },
+    { blocking: { ...valid, blocked: true } },
+    { blocking: { ...valid, manual: true } },
+    { blocking: { ...valid, unresolved_dependencies: ['owf:action:missing'] } },
+  ]) {
+    fetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          workspace: { root: '/work' },
+          actions: [{ ...action, ...fields }],
+        }),
+      ),
+    );
+    await expect(fetchBoard()).rejects.toThrow();
+  }
+  expect(
+    boardAction.parse({ ...action, blocking: valid }).blocking.blocked,
+  ).toBe(false);
+});
 test('board query serialization preserves literal search and canonical URL escapes', async () => {
   const fetch = vi
     .fn<typeof globalThis.fetch>()
@@ -63,6 +103,13 @@ test('create sends JSON once, parses confirmation and preserves server error fee
     owner: { url: '/' },
     state: 'waiting',
     waiting_for: 'Reply',
+    depends_on: [],
+    blocking: {
+      blocked: false,
+      manual: false,
+      unresolved_dependencies: [],
+      dependencies: [],
+    },
     created_at: 'now',
     updated_at: 'now',
   };
@@ -119,6 +166,13 @@ test('state update sends the observed snapshot once and reports conflict or unce
     title: 'Work',
     owner: { url: '/' },
     state: 'waiting',
+    depends_on: [],
+    blocking: {
+      blocked: false,
+      manual: false,
+      unresolved_dependencies: [],
+      dependencies: [],
+    },
     created_at: 'now',
     updated_at: 'later',
   };

@@ -163,7 +163,10 @@ Real manual/dependency edits emit one action.updated event with changed fields
 and old/new reasons or reference sets, committing with all other edits. No-ops
 produce no event or timestamp change. The existing board state operation enforces
 the same completion guard, and browser content edits preserve CLI-added fields.
-Blocking controls and indicators remain CLI-only; refresh the board after CLI edits.
+The board shows compact blocking indicators. Its Action detail supports manual
+reasons and searchable Workspace-wide prerequisites through one Save/Cancel flow.
+State changes remain on the board: clear manual blocking in detail and save before
+retrying a terminal move. Refresh the board after CLI edits to see current facts.
 
 
 

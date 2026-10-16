@@ -22,6 +22,8 @@ import type {
 import { StateUpdateError } from './client.js';
 vi.mock('./client.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./client.js')>()),
+  fetchBoard: () =>
+    Promise.resolve({ workspace: { root: '/work' }, actions: [] }),
   fetchOwners: () =>
     Promise.resolve([
       {
@@ -75,6 +77,13 @@ const data: BoardResponse = {
       title: 'First',
       state: 'open',
       owner: { url: '/' },
+      depends_on: [],
+      blocking: {
+        blocked: false,
+        manual: false,
+        unresolved_dependencies: [],
+        dependencies: [],
+      },
       created_at: 'now',
       updated_at: 'now',
     },
@@ -83,6 +92,13 @@ const data: BoardResponse = {
       title: 'Second',
       state: 'open',
       owner: { url: '/_projects/hello/' },
+      depends_on: [],
+      blocking: {
+        blocked: false,
+        manual: false,
+        unresolved_dependencies: [],
+        dependencies: [],
+      },
       created_at: 'before',
       updated_at: 'before',
     },
@@ -92,11 +108,87 @@ const data: BoardResponse = {
       state: 'waiting',
       waiting_for: 'Supplier reply',
       owner: { url: '/' },
+      depends_on: [],
+      blocking: {
+        blocked: false,
+        manual: false,
+        unresolved_dependencies: [],
+        dependencies: [],
+      },
       created_at: 'before',
       updated_at: 'before',
     },
   ],
 };
+
+test('confirmed target moves refresh unfiltered dependents even when source revisions stay unchanged', async () => {
+  const satisfied = {
+    uri: 'owf:action:done',
+    title: 'Already complete',
+    state: 'completed' as const,
+    satisfied: true,
+  };
+  const source = {
+    ...data.actions[0]!,
+    depends_on: ['owf:action:done', 'owf:action:two'],
+    blocking: {
+      blocked: true,
+      manual: false,
+      unresolved_dependencies: ['owf:action:two'],
+      dependencies: [
+        satisfied,
+        {
+          uri: 'owf:action:two',
+          title: 'Second',
+          state: 'open' as const,
+          satisfied: false,
+        },
+      ],
+    },
+  };
+  const initial = { ...data, actions: [source, data.actions[1]!] };
+  const moved: BoardAction = {
+    ...data.actions[1]!,
+    state: 'completed',
+    updated_at: 'later',
+  };
+  const refreshed = {
+    ...initial,
+    actions: [
+      {
+        ...source,
+        blocking: {
+          blocked: false,
+          manual: false,
+          unresolved_dependencies: [],
+          dependencies: [
+            satisfied,
+            {
+              uri: 'owf:action:two',
+              title: 'Second',
+              state: 'completed' as const,
+              satisfied: true,
+            },
+          ],
+        },
+      },
+      moved,
+    ],
+  };
+  const load = vi
+    .fn<() => Promise<BoardResponse>>()
+    .mockResolvedValueOnce(initial)
+    .mockResolvedValue(refreshed);
+  const move = vi.fn().mockResolvedValue(moved);
+  render(<Board load={load} move={move} />);
+  const sourceCard = (await screen.findByText('First')).closest('article')!;
+  expect(within(sourceCard).getByText('Blocked · 1 prerequisite')).toBeTruthy();
+  dropCard('two', 'completed');
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(within(sourceCard).queryByText(/Blocked/)).toBeNull(),
+  );
+});
 test('filter drafts apply explicitly; picker Enter selects only, recursion and Clear use distinct owner scope', async () => {
   const load = vi
     .fn<(query: BoardQuery) => Promise<BoardResponse>>()
@@ -679,6 +771,13 @@ const created: BoardAction = {
   state: 'waiting',
   owner: { url: '/_projects/launch/' },
   waiting_for: '  Reply  ',
+  depends_on: [],
+  blocking: {
+    blocked: false,
+    manual: false,
+    unresolved_dependencies: [],
+    dependencies: [],
+  },
   created_at: 'zz',
   updated_at: 'zz',
 };
@@ -884,6 +983,13 @@ test('drop keeps the card visible while pending, then reconciles a confirmed mov
     .fn<() => Promise<BoardResponse>>()
     .mockResolvedValueOnce(data)
     .mockReturnValueOnce(oldRead.promise)
+    .mockResolvedValueOnce({
+      ...data,
+      actions: [
+        { ...data.actions[0]!, state: 'waiting', updated_at: 'later' },
+        ...data.actions.slice(1),
+      ],
+    })
     .mockResolvedValue({
       ...data,
       actions: [{ ...data.actions[0]!, state: 'completed' }],

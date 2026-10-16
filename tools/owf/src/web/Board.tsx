@@ -214,13 +214,19 @@ export function Board({
       });
       if (hadFocus) setFocusAfterMove(saved.id);
       accept(saved);
-      if (isFiltered()) void refresh();
+      void refresh();
       setAnnouncement(
         `${action.title} moved to ${columns.find(([s]) => s === saved.state)?.[1]}.`,
       );
     } catch (failure) {
-      const message =
+      let message =
         failure instanceof Error ? failure.message : 'Unable to move Action.';
+      if (
+        failure instanceof StateUpdateError &&
+        (failure.code === 'ACTION_BLOCKED' || /manual block/i.test(message))
+      )
+        message +=
+          ' Resolve prerequisites or clear the manual block in Action detail and save before retrying the move.';
       setMoveErrors((old) => ({ ...old, [action.id]: message }));
       if (
         failure instanceof StateUpdateError &&
@@ -498,6 +504,7 @@ export function Board({
         <ActionEditor
           action={detail}
           current={current}
+          factsStale={!!error || loading}
           save={editAction}
           refresh={async () => {
             return refresh();

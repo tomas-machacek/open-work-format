@@ -16,6 +16,8 @@ import { OwnerPicker } from './OwnerPicker.js';
 
 vi.mock('./client.js', async (original) => ({
   ...(await original<typeof import('./client.js')>()),
+  fetchBoard: () =>
+    Promise.resolve({ workspace: { root: '/work' }, actions: [] }),
   fetchOwners: vi.fn(),
 }));
 const owners: AvailableOwner[] = [
@@ -40,6 +42,13 @@ const action: BoardAction = {
   state: 'waiting',
   waiting_for: 'Reply',
   description: 'Notes',
+  depends_on: [],
+  blocking: {
+    blocked: false,
+    manual: false,
+    unresolved_dependencies: [],
+    dependencies: [],
+  },
   created_at: 'before',
   updated_at: 'now',
 };

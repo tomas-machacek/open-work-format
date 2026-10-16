@@ -2,8 +2,10 @@
 
 The CLI initializes a named local OWF Workspace, discovers it from descendant
 directories, creates Markdown Projects and Outcomes, and creates, retrieves or
-lists Actions and changes their execution state in the Workspace Operational Store. Inbox operations and the
-future web interface are not yet implemented.
+lists Actions and changes their execution state in the Workspace Operational Store.
+The local web board supports Action creation, editing, state moves, filtering,
+manual blocking and Action prerequisites through the same operations. Inbox
+operations are not yet implemented.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
 deferred features, and acceptance scenarios.
@@ -35,7 +37,8 @@ npm run verify
 
 `verify` checks types (including tests/configuration), lint, formatting and module
 boundaries, builds production code, then runs unit, integration, Cucumber and CLI
-process suites. `npm run test:e2e` runs only CLI tests and requires a prior build.
+process and Chromium suites. `npm run test:e2e` runs CLI and browser tests and
+requires a prior build.
 `npm run format` applies formatting. All checks are local; no Git hooks or CI are
 installed. Platform/runtime evidence for each change is recorded in its increment
 outcome; increment 0002 also passed Linux verification on Node 24.19.0.
@@ -245,7 +248,8 @@ Real manual/dependency edits emit one action.updated event with changed fields
 and old/new reasons or reference sets, committing with all other edits. No-ops
 produce no event or timestamp change. The existing board state operation enforces
 the same completion guard, and browser content edits preserve CLI-added fields.
-Blocking controls and indicators remain CLI-only; refresh the board after CLI edits.
+The board also exposes manual reasons and Action prerequisites in detail; refresh
+after CLI edits to see current blocking. See the board instructions below.
 
 Successful Project/Outcome JSON creation returns `ok`, `result` (status, type, title, root, url,
 path, owner) and `warnings`. Log failures keep the usable object and return exit 0
@@ -357,6 +361,37 @@ fails; their filter membership is marked unconfirmed until a successful refresh.
 Save notices follow the latest board selection and refresh outcome.
 
 Click a card (or press Enter while it is focused) to open its detail editor.
+Blocked cards show a compact **Blocked** badge with `manual`, the unresolved
+prerequisite count, or both. They stay in their intrinsic-state columns. Detail
+separates **Saved blocking** from draft edits and lists every saved prerequisite
+by canonical URI with its current title, state and Satisfied/Unresolved status.
+**Refresh saved facts** updates the board and open detail without discarding drafts.
+
+Use **Manually blocked** and a nonblank **Manual blocking reason** to set or
+replace literal reason text. Unchecking it schedules clearing on save; toggling
+back retains draft text. Waiting for remains independent. Completed/cancelled
+Actions cannot receive manual reasons, but their prerequisites remain editable.
+
+**Add prerequisite** searches title/description across the entire Workspace,
+including other Projects and terminal Actions, independently of board filters.
+Empty search lists all Actions. Results show title, state, owner URL and canonical
+URI. Self/cyclic edges are allowed; selected targets cannot be added twice.
+Tab through results, press Enter to add, or use Enter/ArrowDown in search to focus
+the first available result. Remove changes draft membership and retains focus.
+Pending additions/removals are labeled; undoing membership changes sends no edit.
+Lookup failure offers Retry without clearing selections. The dialog and results
+scroll on narrow screens. Save changes commits all fields and edges together;
+Cancel, outside click and Escape use the existing discard confirmation.
+
+Completing requires satisfied prerequisites. Completing or cancelling requires
+clearing a manual reason first: open detail, resolve prerequisites or clear the
+manual block, save, then retry the move. Drag never clears blockers automatically.
+Confirmed writes refresh dependents, including after target title edits. Target-only
+refresh updates derived facts while preserving source drafts; source changes
+require explicit reload. Stale/unavailable facts are labeled. A successful save
+followed by refresh failure remains a successful save; do not repeat it. The
+board requires schema 5, with no migration or implicit store replacement.
+
 The editor uses the same owner picker. An unavailable stored owner stays visible;
 editing other fields retains it without requiring its Markdown context. Selecting
 a different owner sends its canonical URL and the server validates it again at
@@ -398,6 +433,21 @@ card's `state`, `updated_at` and optional `waiting_for`. It returns `status`
 (`updated` or `unchanged`) and the persisted `action`. A stale snapshot returns
 409 `ACTION_CONFLICT`, an absent Action returns 404, malformed input 400, and
 storage failures 503. The comparison and state/event update occur in one transaction.
+
+`PATCH /api/actions/{id}` requires `expected` with `title`, `owner`, `state`,
+`updated_at` and optional `description`/`waiting_for` from the source snapshot.
+Editable optional fields are `title`, `description`, `clearDescription: true`,
+`owner`, `waitingFor`, `clearWaitingFor: true`, `manualBlock`,
+`clearManualBlock: true`, `addDependency: string[]` and `removeDependency: string[]`.
+Omission preserves values; empty edge arrays do nothing and alone are not an edit.
+Contradictory set/clear flags, malformed/unknown fields and normalized targets in
+both lists fail. State is read-only in this endpoint. Shared operations normalize
+UUID/Action URI targets and validate their existence and terminal rules inside
+the write transaction. Returns `{ status: "updated" | "unchanged", action }` with
+complete `depends_on` and derived `blocking`; no-ops emit no event. Invalid input
+returns 400, missing source/target 404, source conflict 409 and write failure 503.
+No partial fields or events persist on rejection/failure. GUI reads reject missing
+or malformed blocking projections rather than treating them as unblocked.
 
 For frontend development, run `owf serve` on its default port 4317 and `npx vite`
 in `tools/owf`. Vite binds to 127.0.0.1 and proxies `/api` to that local server,
