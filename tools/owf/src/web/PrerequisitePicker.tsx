@@ -77,7 +77,7 @@ export function PrerequisitePicker({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [attempt, setAttempt] = useState(0);
-  const [candidates, setCandidates] = useState<BoardAction[]>([]);
+  const [candidates, setCandidates] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [facts, setFacts] = useState<Observations>(() => new Map());
@@ -142,7 +142,9 @@ export function PrerequisitePicker({
     void fetchBoard(search.trim() ? { search: search.trim() } : {}).then(
       (result) => {
         if (!active) return;
-        setCandidates(result.actions);
+        setCandidates(
+          result.actions.map((action) => `owf:action:${action.id}`),
+        );
         setFacts((previous) =>
           rememberFacts(previous, result.actions, request),
         );
@@ -184,7 +186,21 @@ export function PrerequisitePicker({
       }
     };
     document.addEventListener('pointerdown', outside);
-    return () => document.removeEventListener('pointerdown', outside);
+    // Identity handles Escape in capture phase first. The picker must also
+    // handle it when focus is on Refresh or was lost by a disabled control.
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      setSearch('');
+      addButton.current?.focus();
+    };
+    document.addEventListener('keydown', dismiss);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', dismiss);
+    };
   }, [open]);
   useLayoutEffect(() => {
     // Loading results grow the picker after input focus has already scrolled
@@ -194,6 +210,7 @@ export function PrerequisitePicker({
   async function refreshAll() {
     if (refreshLock.current) return;
     refreshLock.current = true;
+    if (open) searchInput.current?.focus();
     setRefreshing(true);
     await Promise.all([
       refreshSource().then(
@@ -223,6 +240,36 @@ export function PrerequisitePicker({
   function choose(uri: string) {
     if (!value.includes(uri)) onChange([...value, uri]);
     closePicker(true);
+  }
+  function observeTarget(uri: string) {
+    const sourceFact = saved.blocking.dependencies.find(
+      (item) => item.uri === uri,
+    );
+    const observed = facts.get(uri);
+    const useObserved =
+      observed && (!sourceFact || observed.request >= sourceRequest);
+    const target = useObserved ? observed.target : sourceFact;
+    const stale = useObserved
+      ? targetRefresh.stale && observed.request < targetRefresh.request
+      : sourceFactsStale || sourceFailed;
+    const owner = observed?.owner;
+    const ownerStale =
+      owner &&
+      (owner.request < sourceRequest ||
+        (targetRefresh.stale && owner.request < targetRefresh.request) ||
+        !observed.target);
+    return {
+      target,
+      stale,
+      owner: owner?.url,
+      ownerStatus: ownerStale
+        ? 'Owner stale'
+        : !owner
+          ? targetRefresh.loading
+            ? 'Owner loading…'
+            : 'Owner unavailable'
+          : undefined,
+    };
   }
   const blocking = saved.blocking;
   const count = blocking.unresolved_dependencies.length;
@@ -266,22 +313,7 @@ export function PrerequisitePicker({
         aria-label="Prerequisites"
       >
         {[...new Set([...original, ...value])].sort().map((uri, index) => {
-          const sourceFact = saved.blocking.dependencies.find(
-            (item) => item.uri === uri,
-          );
-          const observed = facts.get(uri);
-          const useObserved =
-            observed && (!sourceFact || observed.request >= sourceRequest);
-          const target = useObserved ? observed.target : sourceFact;
-          const stale = useObserved
-            ? targetRefresh.stale && observed.request < targetRefresh.request
-            : sourceFactsStale || sourceFailed;
-          const owner = observed?.owner;
-          const ownerStale =
-            owner &&
-            (owner.request < sourceRequest ||
-              (targetRefresh.stale && owner.request < targetRefresh.request) ||
-              !observed.target);
+          const { target, stale, owner, ownerStatus } = observeTarget(uri);
           const removed = !value.includes(uri);
           const added = !original.includes(uri);
           return (
@@ -292,16 +324,8 @@ export function PrerequisitePicker({
               <ActionIdentity
                 uri={uri}
                 title={target?.title ?? 'Action unavailable'}
-                owner={owner?.url}
-                ownerStatus={
-                  ownerStale
-                    ? 'Owner stale'
-                    : !owner
-                      ? targetRefresh.loading
-                        ? 'Owner loading…'
-                        : 'Owner unavailable'
-                      : undefined
-                }
+                owner={owner}
+                ownerStatus={ownerStatus}
               />
               <span className={styles.targetState}>
                 {target
@@ -332,13 +356,6 @@ export function PrerequisitePicker({
       <div
         ref={picker}
         className={styles.prerequisitePicker}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' && open) {
-            event.preventDefault();
-            event.stopPropagation();
-            closePicker(true);
-          }
-        }}
         onBlur={(event) => {
           if (
             !event.currentTarget.contains(event.relatedTarget) &&
@@ -411,28 +428,37 @@ export function PrerequisitePicker({
                   className={styles.prerequisiteOptions}
                   aria-label="Prerequisite candidates"
                 >
-                  {candidates.map((candidate) => {
-                    const uri = `owf:action:${candidate.id}`;
+                  {candidates.map((uri) => {
+                    const { target, stale, owner, ownerStatus } =
+                      observeTarget(uri);
+                    const title = target?.title ?? 'Action unavailable';
                     const selected = value.includes(uri);
                     return (
                       <li key={uri}>
                         <ActionIdentity
                           uri={uri}
-                          title={candidate.title}
-                          owner={candidate.owner.url}
+                          title={title}
+                          owner={owner}
+                          ownerStatus={ownerStatus}
                         />
                         <span className={styles.targetState}>
-                          {candidate.state}
+                          {target
+                            ? `${target.state}${stale ? ' · Facts stale' : ''}`
+                            : 'Facts unavailable'}
                         </span>
                         <button
                           data-candidate
                           type="button"
                           className={styles.compactButton}
-                          disabled={disabled || selected}
-                          aria-label={`Add prerequisite ${uri} ${candidate.title}`}
+                          disabled={disabled || selected || !target}
+                          aria-label={`Add prerequisite ${uri} ${title}`}
                           onClick={() => choose(uri)}
                         >
-                          {selected ? 'Already selected' : 'Add'}
+                          {selected
+                            ? 'Already selected'
+                            : !target
+                              ? 'Unavailable'
+                              : 'Add'}
                         </button>
                       </li>
                     );

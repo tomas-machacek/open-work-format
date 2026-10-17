@@ -304,3 +304,63 @@ search/select another target, remove/Undo a saved row, toggle the manual reason,
 and Refresh before Save. Check the saved summary versus Unsaved changes, try
 identity with focus/tap and Escape, then Save or Cancel. Use the existing CLI to
 change a target owner/title/state and Refresh while keeping a source draft open.
+
+Independent review and corrections on 2026-10-17:
+
+- Review of PR #25 at `d9fb422` found two P2 issues: identity disclosures for
+  lower candidates were clipped by the scrollable list, and Escape after Refresh
+  could close the editor instead of the open picker after the disabled Refresh
+  button lost focus.
+- Opening an identity now scrolls its disclosure into the visible area of the
+  candidate list and dialog. The picker handles Escape outside its own subtree,
+  after identity dismissal, and Refresh moves focus back to its search input.
+- The existing Chromium journey now checks the last long candidate's complete
+  identity bounds through keyboard, hover and touch at both viewports, and checks
+  Refresh/Escape with clean and dirty forms. It no longer manually scrolls the
+  results before testing the dropdown's automatic visibility.
+- The partial-refresh component regression now supplies a new source projection,
+  fails its subsequent target lookup and completes an older lookup afterwards.
+  It checks that the newer source title, stale owner and failure notice survive.
+  It also checks Escape with focus outside the picker.
+- Focused validation passed: 45 editor/board component tests and both real-store
+  Chromium blocking journeys. Full `npm run verify` then passed on Windows x64,
+  Node.js 24.21.0, for the working-tree corrections based on `d9fb422`: types,
+  lint, formatting, architecture, build, 120 unit tests, 160 integration tests,
+  30 acceptance scenarios (164 steps), 23 CLI process tests and all 7 Chromium
+  journeys. Log: `tools/owf/.test-artifacts/0019-review-fixes-verify.log`.
+- Visually inspected the corrected `last-identity-touch-*` screenshots under
+  `tools/owf/test-results/board-blocking-*/`: the entire identity is visible inside
+  the result list at 1440px and 390px. Physical touch hardware and other browsers
+  remain untested. This final outcome-record update changes documentation only;
+  its formatting and `git diff --check` were checked separately.
+
+The increment status remains `in_progress`; no merge or release was performed.
+
+Further independent review and correction on 2026-10-17:
+
+- A browser probe reproduced a third P2 issue: shared Refresh updated selected
+  prerequisites while an open picker continued to display its older title,
+  state and owner without a stale indication. Candidates now retain only query
+  membership; both presentations resolve facts from the same request-ordered
+  observations. Failed refreshes retain known candidate facts with stale labels,
+  and a target absent from a complete lookup cannot be revived by an old search
+  result or added as available.
+- Three focused component cases cover search completion before/after a newer
+  refresh, failure/retry and unavailable candidates. Both response-order cases
+  failed on the original implementation before the correction. The existing
+  real-store Chromium journey now checks an open picker's title/state/owner
+  after a CLI correction and shared Refresh, while preserving the search query
+  and source draft at both viewport sizes.
+- The previous local identity-visibility and Refresh/Escape fixes are included
+  in the same correction. The increment status remains `in_progress`; merge and
+  release remain outside this task.
+- Final `npm run verify` passed on Windows x64, Node.js 24.21.0, for these
+  corrections in the working tree based on `d9fb422`: typecheck, lint,
+  formatting, architecture, production build, 123 unit tests, 160 integration
+  tests, 30 acceptance scenarios (164 steps), 23 CLI process tests and all
+  7 Chromium journeys. Focused editor/board validation also passed all 48 tests.
+  Log: `tools/owf/.test-artifacts/0019-final-review-fixes-verify.log`.
+- Visually checked the resulting narrow lower-candidate identity and desktop
+  long-result screenshots; disclosure bounds, wrapping and scrolling remain
+  usable. This verification-record addition changes documentation only and was
+  checked separately for formatting and whitespace before commit.

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import styles from './Board.module.css';
 
 function displayOwner(url: string) {
@@ -25,6 +25,13 @@ export function ActionIdentity({
   const id = useId();
   const [visible, setVisible] = useState(false);
   const [pinned, setPinned] = useState(false);
+  const details = useRef<HTMLDivElement>(null);
+  const disclosed = visible || pinned;
+  useLayoutEffect(() => {
+    // Focus scrolls the label before the disclosure exists. Reveal the identity
+    // as well, including inside the bounded candidate list and dialog.
+    if (disclosed) details.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [disclosed]);
   useEffect(() => {
     if (!visible && !pinned) return;
     // Hover may expose identity while focus is elsewhere in the editor. Escape
@@ -70,7 +77,12 @@ export function ActionIdentity({
         )}
       </button>
       {(visible || pinned) && (
-        <div id={id} role="tooltip" className={styles.identityDetails}>
+        <div
+          ref={details}
+          id={id}
+          role="tooltip"
+          className={styles.identityDetails}
+        >
           {uri}
           <br />
           Owner: {owner ?? 'unavailable'}

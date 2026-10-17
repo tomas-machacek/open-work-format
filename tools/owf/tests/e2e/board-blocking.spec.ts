@@ -97,6 +97,19 @@ for (const viewport of [
       await page.keyboard.press('Enter');
       const detail = page.getByRole('dialog', { name: 'Edit Action' });
       await expect(detail.getByLabel('Title', { exact: true })).toBeFocused();
+      // Refresh keeps an open picker usable even when the form is still clean.
+      await detail
+        .getByRole('button', { name: '+ Add prerequisite', exact: true })
+        .click();
+      await detail.getByRole('button', { name: 'Refresh blocking' }).click();
+      await expect(
+        detail.getByLabel('Add prerequisite', { exact: true }),
+      ).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(detail).toBeVisible();
+      await expect(
+        detail.getByRole('button', { name: '+ Add prerequisite', exact: true }),
+      ).toBeFocused();
       await tabTo(page, detail.getByLabel('Manual block'));
       await page.keyboard.press('Space');
       await page.keyboard.press('Tab');
@@ -276,6 +289,17 @@ for (const viewport of [
       await tabTo(page, detail.getByLabel('Title', { exact: true }));
       await page.keyboard.press('ControlOrMeta+A');
       await page.keyboard.type('Preserved draft');
+      await add.tap();
+      const refreshSearch = detail.getByLabel('Add prerequisite', {
+        exact: true,
+      });
+      await refreshSearch.fill('Corrected prerequisite');
+      const refreshCandidates = detail.getByRole('list', {
+        name: 'Prerequisite candidates',
+      });
+      await expect(
+        refreshCandidates.getByText('Corrected prerequisite', { exact: true }),
+      ).toBeVisible();
       run(
         'set',
         'action',
@@ -287,14 +311,10 @@ for (const viewport of [
         '--owner',
         '/_projects/alpha/',
       );
-      await tabTo(
-        page,
-        detail.getByRole('button', { name: 'Refresh blocking' }),
-      );
-      await page.keyboard.press('Enter');
+      await detail.getByRole('button', { name: 'Refresh blocking' }).tap();
       await expect(
         detail
-          .getByRole('region', { name: 'Blocking' })
+          .getByRole('list', { name: 'Prerequisites', exact: true })
           .getByText('Refreshed target'),
       ).toBeVisible();
       await expect(detail.getByLabel('Title', { exact: true })).toHaveValue(
@@ -303,6 +323,18 @@ for (const viewport of [
       await expect(
         detail.getByRole('button', { name: 'Save changes' }),
       ).toBeEnabled();
+      await expect(
+        refreshCandidates.getByText('Refreshed target', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        refreshCandidates.getByText('/_projects/alpha/', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        refreshCandidates.getByText('completed', { exact: true }),
+      ).toBeVisible();
+      await expect(refreshSearch).toHaveValue('Corrected prerequisite');
+      await page.keyboard.press('Escape');
+      await expect(add).toBeFocused();
       const blocking = detail.getByRole('region', {
         name: 'Blocking',
         exact: true,
@@ -370,7 +402,13 @@ for (const viewport of [
       await expect(detail.getByLabel('Title', { exact: true })).toHaveValue(
         'Preserved draft',
       );
-      await longResults.scrollIntoViewIfNeeded();
+      await expect(input).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(add).toBeFocused();
+      await expect(detail.getByText('Discard unsaved changes?')).toHaveCount(0);
+      await add.tap();
+      await input.fill('Long prerequisite');
+      await expect(longResults.getByRole('listitem')).toHaveCount(6);
       const dialogBounds = await detail.boundingBox();
       const resultsBounds = await longResults.boundingBox();
       expect(resultsBounds!.y).toBeGreaterThanOrEqual(dialogBounds!.y);
@@ -394,11 +432,36 @@ for (const viewport of [
       });
       const longIdentity = longResults
         .getByRole('button', { name: /^Identity for/ })
-        .first();
+        .last();
+      const tooltip = longIdentity.locator('..').getByRole('tooltip');
+      async function expectIdentityInView() {
+        await expect(tooltip).toContainText(`/_projects/${longSlug}/`);
+        const identityBounds = (await tooltip.boundingBox())!;
+        const listBounds = (await longResults.boundingBox())!;
+        const bounds = (await detail.boundingBox())!;
+        expect(identityBounds.y).toBeGreaterThanOrEqual(
+          Math.max(listBounds.y, bounds.y) - 1,
+        );
+        expect(identityBounds.y + identityBounds.height).toBeLessThanOrEqual(
+          Math.min(listBounds.y + listBounds.height, bounds.y + bounds.height) +
+            1,
+        );
+      }
+      await page.mouse.move(0, 0);
+      await tabTo(page, longIdentity);
+      await expectIdentityInView();
+      await page.keyboard.press('Escape');
+      await expect(tooltip).toHaveCount(0);
+      await expect(longIdentity).toBeFocused();
+      await longIdentity.hover();
+      await expectIdentityInView();
+      await page.keyboard.press('Escape');
+      await page.mouse.move(0, 0);
       await longIdentity.tap();
-      await expect(detail.getByRole('tooltip')).toContainText(
-        `/_projects/${longSlug}/`,
-      );
+      await expectIdentityInView();
+      await page.screenshot({
+        path: testInfo.outputPath(`last-identity-touch-${viewport.width}.png`),
+      });
       await page.keyboard.press('Escape');
       await expect(longResults).toBeVisible();
       await longResults

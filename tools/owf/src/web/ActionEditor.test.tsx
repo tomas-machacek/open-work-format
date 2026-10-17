@@ -312,16 +312,15 @@ test.each(['source', 'target'])(
         }),
     );
     const save = vi.fn();
-    render(
-      <ActionEditor
-        action={source}
-        current={source}
-        save={save}
-        refresh={refresh}
-        onSaved={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    const props = {
+      action: source,
+      current: source,
+      save,
+      refresh,
+      onSaved: vi.fn(),
+      onClose: vi.fn(),
+    };
+    const { rerender } = render(<ActionEditor {...props} />);
     await screen.findByText('/_projects/other/');
     fireEvent.click(
       screen.getByRole('button', {
@@ -339,8 +338,16 @@ test.each(['source', 'target'])(
     await screen.findByRole('list', { name: 'Prerequisite candidates' });
     change('Add prerequisite', 'keep query');
     await screen.findByRole('list', { name: 'Prerequisite candidates' });
+    let finishOlderLookup!: (result: BoardResponse) => void;
     if (failure === 'target')
-      vi.mocked(fetchBoard).mockRejectedValue(new Error('Offline'));
+      vi.mocked(fetchBoard)
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              finishOlderLookup = resolve;
+            }),
+        )
+        .mockRejectedValue(new Error('Offline'));
     else
       vi.mocked(fetchBoard).mockResolvedValue(
         response([{ ...target, owner: { url: '/new/' } }]),
@@ -357,6 +364,35 @@ test.each(['source', 'target'])(
       finishSource(failure !== 'source');
       await Promise.resolve();
     });
+    if (failure === 'target') {
+      // A real successful source refresh supplies a new projection and starts
+      // another target lookup. Its failure must survive the older success.
+      rerender(
+        <ActionEditor
+          {...props}
+          current={{
+            ...source,
+            blocking: {
+              ...source.blocking,
+              dependencies: source.blocking.dependencies.map((item) => ({
+                ...item,
+                title: 'Fresh target title',
+              })),
+            },
+          }}
+        />,
+      );
+      await screen.findByText(
+        'Target facts stale/unavailable. Refresh to retry.',
+      );
+      await act(async () => {
+        finishOlderLookup(response([target]));
+        await Promise.resolve();
+      });
+      const rows = screen.getByRole('list', { name: 'Prerequisites' });
+      expect(within(rows).getByText('Fresh target title')).toBeTruthy();
+      expect(within(rows).getByText(/Owner stale/)).toBeTruthy();
+    }
     const notice =
       failure === 'source'
         ? 'Saved facts stale/unavailable. Refresh to check current blocking.'
@@ -371,9 +407,128 @@ test.each(['source', 'target'])(
     refresh.mockResolvedValue(true);
     fireEvent.click(control);
     await waitFor(() => expect(screen.queryByText(notice)).toBeNull());
+    // Escape is scoped to the open picker even if focus leaves its subtree.
+    act(() => control.focus());
+    fireEvent.keyDown(control, { key: 'Escape' });
+    expect(screen.queryByLabelText('Add prerequisite')).toBeNull();
+    expect(screen.getByRole('button', { name: '+ Add prerequisite' })).toBe(
+      document.activeElement,
+    );
+    expect(screen.queryByText('Discard unsaved changes?')).toBeNull();
     expect(save).not.toHaveBeenCalled();
   },
 );
+
+test.each(['before refresh', 'after refresh'])(
+  'open candidates share refreshed observations when search completes %s',
+  async (completion) => {
+    const source = withTarget();
+    const save = vi.fn();
+    const refresh = vi.fn().mockResolvedValue(true);
+    render(
+      <ActionEditor
+        action={source}
+        current={source}
+        save={save}
+        refresh={refresh}
+        onSaved={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const selected = screen.getByRole('list', { name: 'Prerequisites' });
+    await within(selected).findByText(target.title);
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole('button', { name: 'Refresh blocking' })
+          .hasAttribute('disabled'),
+      ).toBe(false),
+    );
+    openPicker();
+    await screen.findByRole('list', { name: 'Prerequisite candidates' });
+    let finishSearch!: (result: BoardResponse) => void;
+    const corrected = {
+      ...target,
+      title: 'Corrected prerequisite',
+      state: 'completed' as const,
+      owner: { url: '/_projects/corrected/' },
+    };
+    vi.mocked(fetchBoard).mockImplementation((query) =>
+      query?.search
+        ? new Promise((resolve) => {
+            finishSearch = resolve;
+          })
+        : Promise.resolve(response([corrected])),
+    );
+    change('Add prerequisite', 'keep query');
+    const completeSearch = () =>
+      act(async () => {
+        finishSearch(response([target]));
+        await Promise.resolve();
+      });
+    if (completion === 'before refresh') await completeSearch();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh blocking' }));
+    await within(selected).findByText(corrected.title);
+    if (completion === 'after refresh') await completeSearch();
+    const options = await screen.findByRole('list', {
+      name: 'Prerequisite candidates',
+    });
+    expect(within(options).getByText(corrected.title)).toBeTruthy();
+    expect(within(options).getByText(corrected.owner.url)).toBeTruthy();
+    expect(within(options).getByText('completed')).toBeTruthy();
+    expect(within(options).queryByText(target.title)).toBeNull();
+    expect(within(selected).getByText('completed · Satisfied')).toBeTruthy();
+    expect(
+      screen.getByLabelText<HTMLInputElement>('Add prerequisite').value,
+    ).toBe('keep query');
+    // A failed refresh retains the same known candidate facts with stale labels.
+    vi.mocked(fetchBoard).mockRejectedValue(new Error('Offline'));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh blocking' }));
+    await screen.findByText(
+      'Target facts stale/unavailable. Refresh to retry.',
+    );
+    expect(within(options).getByText(corrected.title)).toBeTruthy();
+    expect(within(options).getByText(/Owner stale/)).toBeTruthy();
+    expect(within(options).getByText('completed · Facts stale')).toBeTruthy();
+    vi.mocked(fetchBoard).mockResolvedValue(response([corrected]));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh blocking' }));
+    await waitFor(() =>
+      expect(within(options).queryByText(/Owner stale/)).toBeNull(),
+    );
+    expect(within(options).getByText('completed')).toBeTruthy();
+    expect(save).not.toHaveBeenCalled();
+  },
+);
+
+test('a complete lookup cannot revive an unavailable candidate from its old search result', async () => {
+  const save = vi.fn();
+  render(
+    <ActionEditor
+      action={action}
+      current={action}
+      save={save}
+      refresh={() => Promise.resolve(true)}
+      onSaved={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  openPicker();
+  const options = await screen.findByRole('list', {
+    name: 'Prerequisite candidates',
+  });
+  await within(options).findByText(target.title);
+  vi.mocked(fetchBoard).mockResolvedValue(response([action]));
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh blocking' }));
+  await within(options).findByText('Facts unavailable');
+  expect(within(options).queryByText(target.title)).toBeNull();
+  const unavailable = within(options).getByRole('button', {
+    name: 'Add prerequisite owf:action:target Action unavailable',
+  });
+  expect(unavailable.hasAttribute('disabled')).toBe(true);
+  fireEvent.click(unavailable);
+  expect(screen.queryByText('Added')).toBeNull();
+  expect(save).not.toHaveBeenCalled();
+});
 
 test('manual and membership drafts preserve saved summary, literal reason, waiting context and one combined save', async () => {
   const save = vi.fn().mockResolvedValue(action);
