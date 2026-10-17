@@ -82,6 +82,9 @@ label, reachable on hover and keyboard focus. A tap/click on the label may toggl
 this same identity disclosure for touch users; it must not edit/navigate to the
 target or submit the form. Do not rely solely on the native title attribute for
 keyboard/touch access. Escape dismisses the disclosure before closing the editor.
+The tooltip floats outside the row layout: opening it must not move surrounding
+content or scroll the dialog/result list. Keep it within the visible dialog
+bounds, including for lower candidates in the scrollable picker.
 
 Equal titles and owners remain distinguishable through identity disclosure;
 selection and removal always use the canonical URI. Keep the main Action's
@@ -364,3 +367,30 @@ Further independent review and correction on 2026-10-17:
   long-result screenshots; disclosure bounds, wrapping and scrolling remain
   usable. This verification-record addition changes documentation only and was
   checked separately for formatting and whitespace before commit.
+
+User layout correction on 2026-10-17:
+
+- The user's `dependency.png` showed that hover identity expanded the dependency
+  row and shifted following content. The previous visibility fix also scrolled
+  to the inline disclosure. Identity now uses a manual popover in the browser's
+  top layer with fixed placement inside the dialog bounds. It escapes result-list
+  clipping, chooses space above/below the label and does not change row geometry
+  or scroll either container. Keyboard/touch activation and Escape ordering are
+  preserved; scrolling repositions the tooltip or dismisses it when its label
+  leaves view.
+- Existing Chromium journeys now compare row/following-control geometry and
+  dialog/list scroll positions across hover, at 1440px and 390px. Complete lower
+  candidate identities remain checked through keyboard, hover and touch, with
+  tooltip bounds checked against the dialog rather than the list it overlays.
+- Focused editor tests (17) and both real-store blocking journeys passed.
+  Inspected `floating-identity-*` and narrow `last-identity-touch-*` screenshots;
+  the overlay is readable while underlying rows stay in place. Native popover
+  visibility is stubbed in jsdom; geometry is verified in Chromium.
+- Final `npm run verify` passed on Windows x64, Node.js 24.21.0, for this
+  working-tree correction based on `910f617`: types, lint, formatting,
+  architecture, build, 123 unit tests, 160 integration tests, 30 acceptance
+  scenarios (164 steps), 23 CLI process tests and all 7 Chromium journeys.
+  Log: `tools/owf/.test-artifacts/0019-floating-identity-verify.log`.
+  The subsequent verification-record update changes documentation only and was
+  checked separately for formatting and whitespace. Status stays `in_progress`;
+  no merge or release was performed.

@@ -46,6 +46,11 @@ const response = (actions: BoardAction[]): BoardResponse => ({
   actions,
 });
 beforeAll(() => {
+  // jsdom hides popovers by default but does not implement the top-layer API.
+  // Real placement, clipping and scroll stability are covered in Chromium.
+  HTMLElement.prototype.showPopover = function () {
+    this.style.display = 'block';
+  };
   HTMLDialogElement.prototype.showModal = function () {
     this.open = true;
   };

@@ -701,16 +701,20 @@
   opacity: 0.65;
 }
 .identityDetails {
-  position: relative;
-  z-index: 1;
+  position: fixed;
+  inset: auto;
+  width: max-content;
+  max-width: 420px;
+  margin: 0;
   padding: 8px;
-  margin-bottom: 4px;
   border: 1px solid #cad5cd;
   border-radius: 5px;
   background: #f6f8f5;
   color: #25342f;
   font-size: 12px;
   overflow-wrap: anywhere;
+  overflow: auto;
+  box-shadow: 0 4px 12px #25342f26;
 }
 .prerequisiteDropdown {
   padding: 10px;

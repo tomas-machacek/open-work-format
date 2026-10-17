@@ -235,6 +235,31 @@ for (const viewport of [
       ).toBeVisible();
       // Screenshot the scrollable detail at the blocking/picker section.
       await add.scrollIntoViewIfNeeded();
+      const selectedRow = detail
+        .getByRole('list', { name: 'Prerequisites', exact: true })
+        .getByRole('listitem');
+      const selectedIdentity = selectedRow.getByRole('button', {
+        name: 'Identity for Outside prerequisite',
+      });
+      await selectedIdentity.scrollIntoViewIfNeeded();
+      await page.mouse.move(0, 0);
+      const selectedLayout = async () => ({
+        row: await selectedRow.boundingBox(),
+        add: await add.boundingBox(),
+        scroll: await detail.evaluate(
+          (element: { scrollTop: number }) => element.scrollTop,
+        ),
+      });
+      const beforeHover = await selectedLayout();
+      await selectedIdentity.hover();
+      await expect(detail.getByRole('tooltip')).toBeVisible();
+      expect(await selectedLayout()).toEqual(beforeHover);
+      await page.screenshot({
+        path: testInfo.outputPath(`floating-identity-${viewport.width}.png`),
+      });
+      await page.mouse.move(0, 0);
+      await expect(detail.getByRole('tooltip')).toHaveCount(0);
+      expect(await selectedLayout()).toEqual(beforeHover);
       await page.screenshot({
         path: testInfo.outputPath(`detail-${viewport.width}.png`),
       });
@@ -437,14 +462,16 @@ for (const viewport of [
       async function expectIdentityInView() {
         await expect(tooltip).toContainText(`/_projects/${longSlug}/`);
         const identityBounds = (await tooltip.boundingBox())!;
-        const listBounds = (await longResults.boundingBox())!;
         const bounds = (await detail.boundingBox())!;
-        expect(identityBounds.y).toBeGreaterThanOrEqual(
-          Math.max(listBounds.y, bounds.y) - 1,
-        );
+        // Floating identity can overlap the list boundary, but stays within
+        // the dialog without changing its rows or scrolling either container.
+        expect(identityBounds.y).toBeGreaterThanOrEqual(bounds.y - 1);
         expect(identityBounds.y + identityBounds.height).toBeLessThanOrEqual(
-          Math.min(listBounds.y + listBounds.height, bounds.y + bounds.height) +
-            1,
+          bounds.y + bounds.height + 1,
+        );
+        expect(identityBounds.x).toBeGreaterThanOrEqual(bounds.x - 1);
+        expect(identityBounds.x + identityBounds.width).toBeLessThanOrEqual(
+          bounds.x + bounds.width + 1,
         );
       }
       await page.mouse.move(0, 0);
@@ -453,8 +480,20 @@ for (const viewport of [
       await page.keyboard.press('Escape');
       await expect(tooltip).toHaveCount(0);
       await expect(longIdentity).toBeFocused();
+      const candidateLayout = async () => ({
+        label: await longIdentity.boundingBox(),
+        results: await longResults.boundingBox(),
+        listScroll: await longResults.evaluate(
+          (element: { scrollTop: number }) => element.scrollTop,
+        ),
+        dialogScroll: await detail.evaluate(
+          (element: { scrollTop: number }) => element.scrollTop,
+        ),
+      });
+      const beforeCandidateHover = await candidateLayout();
       await longIdentity.hover();
       await expectIdentityInView();
+      expect(await candidateLayout()).toEqual(beforeCandidateHover);
       await page.keyboard.press('Escape');
       await page.mouse.move(0, 0);
       await longIdentity.tap();
