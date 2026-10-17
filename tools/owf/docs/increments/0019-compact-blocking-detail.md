@@ -1,12 +1,13 @@
 # 0019 — Compact blocking detail
 
-> Status: draft
+> Status: reviewed
 > Description: Replace the oversized blocking editor with one compact prerequisite list and an on-demand picker.
 > Depends on: [0018 — Board blocking and dependencies](0018-board-blocking.md).
 
 Proposed on 2026-10-16 following the user's review of the delivered Kanban and
 screenshot. The user agreed with the compact direction and requested a separate
-increment because 0018 is already merged. This detailed brief awaits review.
+increment because 0018 is already merged. The user reviewed and approved this
+design for implementation on 2026-10-17.
 
 ## Goal and scope
 
@@ -210,9 +211,10 @@ perform no writes until Save.
 
 ## Open questions
 
-The compact direction is agreed; this detailed increment awaits user review.
-No domain or storage decision is reopened.
+No blocking questions remain. The user approved the detailed increment on
+2026-10-17. No domain or storage decision is reopened.
 
 ## Implementation and review outcome
 
-Not implemented. No runtime verification is claimed for this design document.
+Design reviewed and approved for implementation on 2026-10-17. Implementation
+and code review have not started; no runtime verification is claimed.
