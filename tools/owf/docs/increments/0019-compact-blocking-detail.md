@@ -265,17 +265,32 @@ The narrow row wraps naturally. Screenshots and JSON measurements are retained
 locally under `tools/owf/.test-artifacts/0019/` (`before-*`, `after-*`, `after-section-*`,
 `picker-*`, `touch-identity-*`, `before.json`, `after.json`).
 
-Verification so far:
+Verification completed on 2026-10-17:
 
 - Focused component checks passed, including Undo, late closed-picker responses,
   duplicate identity/URL decoding, owner freshness and both partial refresh
   failure directions. Existing 0018 race regressions now also assert owner paths.
 - Real-store Chromium keyboard/touch checks passed at 1440px and 390px, including
   long titles/owner paths, bounded result scrolling and refreshing with an open
-  picker. Final full verification will be recorded before handoff.
+  picker. Inspection found that asynchronously loaded results initially extended
+  below the visible dialog; the picker now scrolls into view when its results
+  grow. The journey checks that the results' bounds stay inside the dialog.
 - Visually inspected ordinary closed-picker, open-picker, identity and multi-row
   pending/error screenshots at both sizes. No horizontal dialog overflow;
   identity text wraps and controls retain 44px minimum hit height.
+- Final `npm run verify` passed for implementation commit
+  `8d9e4243eae860c121ccf1b87677f05ebbddbe62` on Windows x64, Node.js 24.21.0,
+  npm 11.4.1. Typecheck, ESLint, Prettier, dependency-cruiser and production build
+  passed, followed by 120 unit tests, 160 integration tests, 30 Cucumber scenarios
+  (164 steps), 23 CLI process tests and all 7 Chromium journeys. Both updated
+  blocking viewport journeys passed in this final run, preserving the 0018
+  regressions alongside the new checks. No verification failures remain.
+- Full local log: `tools/owf/.test-artifacts/0019-verify.log`. Browser screenshot
+  evidence is also under `tools/owf/test-results/board-blocking-*/`, including
+  `detail-*`, `long-picker-touch-*` and `pending-error-touch-*`. These generated
+  artifacts are ignored by Git. The following handoff commit changes only this
+  outcome record; documentation formatting and `git diff --check` were checked
+  separately. No runtime verification on another revision or platform is claimed.
 
 No requirement conflict or approved behavior change was needed. No domain,
 transport, persistence, dependency, CLI or release change was made. Other browsers,
