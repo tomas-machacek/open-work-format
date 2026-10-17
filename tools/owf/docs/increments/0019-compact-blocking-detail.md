@@ -1,6 +1,6 @@
 # 0019 — Compact blocking detail
 
-> Status: in_progress
+> Status: completed
 > Description: Replace the oversized blocking editor with one compact prerequisite list and an on-demand picker.
 > Depends on: [0018 — Board blocking and dependencies](0018-board-blocking.md).
 
@@ -218,6 +218,14 @@ No blocking questions remain. The user approved the detailed increment on
 2026-10-17. No domain or storage decision is reopened.
 
 ## Implementation and review outcome
+
+Completed on 2026-10-17 after implementation, independent review and corrections.
+The user confirmed completion and authorized merge to main at pre-completion
+revision `97b8bac890ed22030cbc7d61d729b5fc4d7636f4`. This document and the index
+are `completed`. The entries below preserve the chronological implementation and
+review record; their pending-status notes describe those earlier handoffs.
+The completion update changes documentation only and claims no additional runtime
+verification or release.
 
 Implemented on 2026-10-17 on the existing
 `docs/increment-0019-compact-blocking` branch after fetching origin and confirming
