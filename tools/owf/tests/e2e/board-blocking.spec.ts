@@ -6,8 +6,9 @@ import { boardAction } from '../../src/contracts/index.js';
 import { cleanup, temporaryDirectory } from '../support/workspace.js';
 import { z } from 'zod';
 
-// All detail interactions in this journey use keyboard events, including narrow
-// viewport scrolling, candidate selection, removal, cancellation and saving.
+// The real-store journey retains keyboard editing, cancellation, saving and drag
+// regressions from 0018. The final checks also exercise touch disclosures/picking.
+test.use({ hasTouch: true });
 async function tabTo(page: Page, control: Locator) {
   for (let index = 0; index < 90; index++) {
     if (await control.and(page.locator(':focus')).count()) return;
@@ -23,6 +24,7 @@ for (const viewport of [
   test(`blocking across filtered Projects with keyboard at ${viewport.width}px`, async ({
     page,
   }, testInfo) => {
+    test.setTimeout(60_000);
     await page.setViewportSize(viewport);
     const root = temporaryDirectory();
     const cli = resolve('dist/bootstrap/cli.js');
@@ -94,32 +96,80 @@ for (const viewport of [
       await tabTo(page, card);
       await page.keyboard.press('Enter');
       const detail = page.getByRole('dialog', { name: 'Edit Action' });
-      await expect(detail.getByLabel('Title')).toBeFocused();
-      await tabTo(page, detail.getByLabel('Manually blocked'));
+      await expect(detail.getByLabel('Title', { exact: true })).toBeFocused();
+      // Refresh keeps an open picker usable even when the form is still clean.
+      await detail
+        .getByRole('button', { name: '+ Add prerequisite', exact: true })
+        .click();
+      await detail.getByRole('button', { name: 'Refresh blocking' }).click();
+      await expect(
+        detail.getByLabel('Add prerequisite', { exact: true }),
+      ).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(detail).toBeVisible();
+      await expect(
+        detail.getByRole('button', { name: '+ Add prerequisite', exact: true }),
+      ).toBeFocused();
+      await tabTo(page, detail.getByLabel('Manual block'));
       await page.keyboard.press('Space');
       await page.keyboard.press('Tab');
       await expect(detail.getByLabel('Manual blocking reason')).toBeFocused();
       await page.keyboard.type('Access approval');
-      await tabTo(page, detail.getByLabel('Add prerequisite'));
+      const add = detail.getByRole('button', {
+        name: '+ Add prerequisite',
+        exact: true,
+      });
+      await expect(
+        detail.getByRole('list', { name: 'Prerequisite candidates' }),
+      ).toHaveCount(0);
+      await tabTo(page, add);
+      await page.keyboard.press('Enter');
+      await expect(
+        detail.getByLabel('Add prerequisite', { exact: true }),
+      ).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(add).toBeFocused();
+      await expect(detail.getByText('Discard unsaved changes?')).toHaveCount(0);
+      await page.keyboard.press('Enter');
       await page.keyboard.type('Outside');
       const candidate = detail
         .getByRole('list', { name: 'Prerequisite candidates' })
-        .getByRole('button', { name: /Outside prerequisite/ });
+        .getByRole('button', {
+          name: /Add prerequisite.*Outside prerequisite/,
+        });
       await expect(candidate).toBeVisible();
-      await expect(candidate).toContainText('/_projects/beta/');
-      await expect(candidate).toContainText(`owf:action:${target.id}`);
+      const candidateRow = candidate.locator('..');
+      await expect(candidateRow).toContainText('/_projects/beta/');
+      const identity = candidateRow.getByRole('button', {
+        name: 'Identity for Outside prerequisite',
+      });
+      await tabTo(page, identity);
+      await expect(detail.getByRole('tooltip')).toContainText(
+        `owf:action:${target.id}`,
+      );
+      await page.keyboard.press('Escape');
+      await expect(detail.getByRole('tooltip')).toHaveCount(0);
+      await expect(candidate).toBeVisible();
+      await page.keyboard.press('Shift+Tab');
+      await expect(
+        detail.getByLabel('Add prerequisite', { exact: true }),
+      ).toBeFocused();
       await page.keyboard.press('Enter');
       await expect(candidate).toBeFocused();
       await page.keyboard.press('Enter');
       await expect(detail).toBeVisible();
-      await expect(detail.getByText(/Pending addition/)).toBeVisible();
+      await expect(detail.getByText(/Added/)).toBeVisible();
       const remove = detail.getByRole('button', {
         name: `Remove prerequisite owf:action:${target.id}`,
       });
       await tabTo(page, remove);
       await page.keyboard.press('Enter');
-      await expect(detail.getByLabel('Add prerequisite')).toBeFocused();
+      await expect(add).toBeFocused();
       await page.keyboard.press('Enter');
+      await page.keyboard.type('Outside');
+      await expect(candidate).toBeVisible();
+      await page.keyboard.press('Enter');
+      await expect(candidate).toBeFocused();
       await page.keyboard.press('Enter');
       // Confirm the draft can be cancelled without writing, then continue it.
       await page.keyboard.press('Escape');
@@ -130,7 +180,7 @@ for (const viewport of [
       expect(
         parsedAction(run('get', 'action', source.id, '--json')).depends_on,
       ).toEqual([]);
-      await tabTo(page, detail.getByLabel('Title'));
+      await tabTo(page, detail.getByLabel('Title', { exact: true }));
       await page.keyboard.press('ControlOrMeta+A');
       await page.keyboard.type('Source combined');
       await tabTo(page, detail.getByRole('button', { name: 'Save changes' }));
@@ -175,16 +225,41 @@ for (const viewport of [
       await page.keyboard.press('Enter');
       await expect(
         detail
-          .getByRole('region', { name: 'Saved blocking' })
+          .getByRole('region', { name: 'Blocking' })
           .getByText('completed · Satisfied'),
       ).toBeVisible();
-      await tabTo(page, detail.getByLabel('Manually blocked'));
+      await tabTo(page, detail.getByLabel('Manual block'));
       await page.keyboard.press('Space');
       await expect(
         detail.getByText('Saving will clear the manual block.'),
       ).toBeVisible();
       // Screenshot the scrollable detail at the blocking/picker section.
-      await detail.getByLabel('Add prerequisite').scrollIntoViewIfNeeded();
+      await add.scrollIntoViewIfNeeded();
+      const selectedRow = detail
+        .getByRole('list', { name: 'Prerequisites', exact: true })
+        .getByRole('listitem');
+      const selectedIdentity = selectedRow.getByRole('button', {
+        name: 'Identity for Outside prerequisite',
+      });
+      await selectedIdentity.scrollIntoViewIfNeeded();
+      await page.mouse.move(0, 0);
+      const selectedLayout = async () => ({
+        row: await selectedRow.boundingBox(),
+        add: await add.boundingBox(),
+        scroll: await detail.evaluate(
+          (element: { scrollTop: number }) => element.scrollTop,
+        ),
+      });
+      const beforeHover = await selectedLayout();
+      await selectedIdentity.hover();
+      await expect(detail.getByRole('tooltip')).toBeVisible();
+      expect(await selectedLayout()).toEqual(beforeHover);
+      await page.screenshot({
+        path: testInfo.outputPath(`floating-identity-${viewport.width}.png`),
+      });
+      await page.mouse.move(0, 0);
+      await expect(detail.getByRole('tooltip')).toHaveCount(0);
+      expect(await selectedLayout()).toEqual(beforeHover);
       await page.screenshot({
         path: testInfo.outputPath(`detail-${viewport.width}.png`),
       });
@@ -224,21 +299,32 @@ for (const viewport of [
       await expect(card.getByText('Blocked · 1 prerequisite')).toBeVisible();
       await tabTo(page, card);
       await page.keyboard.press('Enter');
-      await expect(detail.getByLabel('Manually blocked')).toBeDisabled();
+      await expect(detail.getByLabel('Manual block')).toBeDisabled();
       await expect(
         detail
-          .getByRole('region', { name: 'Saved blocking' })
+          .getByRole('region', { name: 'Blocking' })
           .getByText('Corrected prerequisite'),
       ).toBeVisible();
       await expect(
         detail
-          .getByRole('region', { name: 'Saved blocking' })
+          .getByRole('region', { name: 'Blocking' })
           .getByText('open · Unresolved'),
       ).toBeVisible();
       // Refresh a target-only CLI change with a source draft still open.
-      await tabTo(page, detail.getByLabel('Title'));
+      await tabTo(page, detail.getByLabel('Title', { exact: true }));
       await page.keyboard.press('ControlOrMeta+A');
       await page.keyboard.type('Preserved draft');
+      await add.tap();
+      const refreshSearch = detail.getByLabel('Add prerequisite', {
+        exact: true,
+      });
+      await refreshSearch.fill('Corrected prerequisite');
+      const refreshCandidates = detail.getByRole('list', {
+        name: 'Prerequisite candidates',
+      });
+      await expect(
+        refreshCandidates.getByText('Corrected prerequisite', { exact: true }),
+      ).toBeVisible();
       run(
         'set',
         'action',
@@ -247,21 +333,200 @@ for (const viewport of [
         'completed',
         '--title',
         'Refreshed target',
+        '--owner',
+        '/_projects/alpha/',
       );
-      await tabTo(
-        page,
-        detail.getByRole('button', { name: 'Refresh saved facts' }),
-      );
-      await page.keyboard.press('Enter');
+      await detail.getByRole('button', { name: 'Refresh blocking' }).tap();
       await expect(
         detail
-          .getByRole('region', { name: 'Saved blocking' })
+          .getByRole('list', { name: 'Prerequisites', exact: true })
           .getByText('Refreshed target'),
       ).toBeVisible();
-      await expect(detail.getByLabel('Title')).toHaveValue('Preserved draft');
+      await expect(detail.getByLabel('Title', { exact: true })).toHaveValue(
+        'Preserved draft',
+      );
       await expect(
         detail.getByRole('button', { name: 'Save changes' }),
       ).toBeEnabled();
+      await expect(
+        refreshCandidates.getByText('Refreshed target', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        refreshCandidates.getByText('/_projects/alpha/', { exact: true }),
+      ).toBeVisible();
+      await expect(
+        refreshCandidates.getByText('completed', { exact: true }),
+      ).toBeVisible();
+      await expect(refreshSearch).toHaveValue('Corrected prerequisite');
+      await page.keyboard.press('Escape');
+      await expect(add).toBeFocused();
+      const blocking = detail.getByRole('region', {
+        name: 'Blocking',
+        exact: true,
+      });
+      await expect(
+        blocking.getByText('/_projects/alpha/', { exact: true }),
+      ).toBeVisible();
+      const touchIdentity = blocking.getByRole('button', {
+        name: 'Identity for Refreshed target',
+      });
+      await touchIdentity.tap();
+      await expect(detail.getByRole('tooltip')).toContainText(
+        `owf:action:${target.id}`,
+      );
+      await expect(detail.getByRole('tooltip')).toContainText(
+        '/_projects/alpha/',
+      );
+      await page.keyboard.press('Escape');
+      await expect(detail.getByRole('tooltip')).toHaveCount(0);
+      await expect(detail).toBeVisible();
+      await add.tap();
+      const input = detail.getByLabel('Add prerequisite', { exact: true });
+      await input.fill('Source combined');
+      const touchCandidate = detail
+        .getByRole('list', { name: 'Prerequisite candidates' })
+        .getByRole('button', { name: /Add prerequisite.*Source combined/ });
+      await touchCandidate.tap();
+      await expect(add).toBeFocused();
+      await expect(blocking.getByText('Added', { exact: true })).toBeVisible();
+      const savedRemove = blocking.getByRole('button', {
+        name: `Remove prerequisite owf:action:${target.id}`,
+      });
+      await savedRemove.tap();
+      await expect(
+        blocking.getByText('Removed', { exact: true }),
+      ).toBeVisible();
+      const undo = blocking.getByRole('button', {
+        name: `Undo removal of prerequisite owf:action:${target.id}`,
+      });
+      await undo.tap();
+      await expect(blocking.getByText('Removed', { exact: true })).toHaveCount(
+        0,
+      );
+      const longSlug =
+        'long-owner-path-for-prerequisite-display-and-touch-verification';
+      run('create', 'project', '--title', 'Long owner', '--slug', longSlug);
+      for (let index = 0; index < 6; index++)
+        run(
+          'create',
+          'action',
+          '--title',
+          `Long prerequisite ${index} ${'UnbrokenTitle'.repeat(8)}`,
+          '--owner',
+          `/_projects/${longSlug}/`,
+        );
+      await add.tap();
+      await input.fill('Long prerequisite');
+      const longResults = detail.getByRole('list', {
+        name: 'Prerequisite candidates',
+      });
+      await expect(longResults.getByRole('listitem')).toHaveCount(6);
+      await blocking.getByRole('button', { name: 'Refresh blocking' }).tap();
+      await expect(input).toHaveValue('Long prerequisite');
+      await expect(longResults.getByRole('listitem')).toHaveCount(6);
+      await expect(detail.getByLabel('Title', { exact: true })).toHaveValue(
+        'Preserved draft',
+      );
+      await expect(input).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(add).toBeFocused();
+      await expect(detail.getByText('Discard unsaved changes?')).toHaveCount(0);
+      await add.tap();
+      await input.fill('Long prerequisite');
+      await expect(longResults.getByRole('listitem')).toHaveCount(6);
+      const dialogBounds = await detail.boundingBox();
+      const resultsBounds = await longResults.boundingBox();
+      expect(resultsBounds!.y).toBeGreaterThanOrEqual(dialogBounds!.y);
+      expect(resultsBounds!.y + resultsBounds!.height).toBeLessThanOrEqual(
+        dialogBounds!.y + dialogBounds!.height,
+      );
+      expect(
+        await longResults.evaluate(
+          (element: { scrollHeight: number; clientHeight: number }) =>
+            element.scrollHeight > element.clientHeight,
+        ),
+      ).toBe(true);
+      expect(
+        await detail.evaluate(
+          (element: { scrollWidth: number; clientWidth: number }) =>
+            element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`long-picker-touch-${viewport.width}.png`),
+      });
+      const longIdentity = longResults
+        .getByRole('button', { name: /^Identity for/ })
+        .last();
+      const tooltip = longIdentity.locator('..').getByRole('tooltip');
+      async function expectIdentityInView() {
+        await expect(tooltip).toContainText(`/_projects/${longSlug}/`);
+        const identityBounds = (await tooltip.boundingBox())!;
+        const bounds = (await detail.boundingBox())!;
+        // Floating identity can overlap the list boundary, but stays within
+        // the dialog without changing its rows or scrolling either container.
+        expect(identityBounds.y).toBeGreaterThanOrEqual(bounds.y - 1);
+        expect(identityBounds.y + identityBounds.height).toBeLessThanOrEqual(
+          bounds.y + bounds.height + 1,
+        );
+        expect(identityBounds.x).toBeGreaterThanOrEqual(bounds.x - 1);
+        expect(identityBounds.x + identityBounds.width).toBeLessThanOrEqual(
+          bounds.x + bounds.width + 1,
+        );
+      }
+      await page.mouse.move(0, 0);
+      await tabTo(page, longIdentity);
+      await expectIdentityInView();
+      await page.keyboard.press('Escape');
+      await expect(tooltip).toHaveCount(0);
+      await expect(longIdentity).toBeFocused();
+      const candidateLayout = async () => ({
+        label: await longIdentity.boundingBox(),
+        results: await longResults.boundingBox(),
+        listScroll: await longResults.evaluate(
+          (element: { scrollTop: number }) => element.scrollTop,
+        ),
+        dialogScroll: await detail.evaluate(
+          (element: { scrollTop: number }) => element.scrollTop,
+        ),
+      });
+      const beforeCandidateHover = await candidateLayout();
+      await longIdentity.hover();
+      await expectIdentityInView();
+      expect(await candidateLayout()).toEqual(beforeCandidateHover);
+      await page.keyboard.press('Escape');
+      await page.mouse.move(0, 0);
+      await longIdentity.tap();
+      await expectIdentityInView();
+      await page.screenshot({
+        path: testInfo.outputPath(`last-identity-touch-${viewport.width}.png`),
+      });
+      await page.keyboard.press('Escape');
+      await expect(longResults).toBeVisible();
+      await longResults
+        .getByRole('button', { name: /^Add prerequisite/ })
+        .last()
+        .tap();
+      await expect(add).toBeFocused();
+      // A failed Workspace refresh retains known rows, paths and the draft.
+      await page.route('**/api/actions*', (route) => route.abort('failed'));
+      await blocking.getByRole('button', { name: 'Refresh blocking' }).tap();
+      await expect(
+        blocking.getByText('Target facts stale/unavailable. Refresh to retry.'),
+      ).toBeVisible();
+      await add.scrollIntoViewIfNeeded();
+      await page.screenshot({
+        path: testInfo.outputPath(`pending-error-touch-${viewport.width}.png`),
+      });
+      await expect(detail.getByLabel('Title', { exact: true })).toHaveValue(
+        'Preserved draft',
+      );
+      expect(
+        await detail.evaluate(
+          (element: { scrollWidth: number; clientWidth: number }) =>
+            element.scrollWidth <= element.clientWidth,
+        ),
+      ).toBe(true);
     } finally {
       if (server.exitCode === null) {
         const exited = once(server, 'exit');

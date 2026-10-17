@@ -603,58 +603,136 @@
   line-height: 1.5;
 }
 .blockingSection {
-  margin: 20px 0;
-  padding-top: 16px;
+  margin: 18px 0;
+  padding-top: 12px;
   border-top: 1px solid #dfe5df;
   font-size: 13px;
   overflow-wrap: anywhere;
 }
-.blockingSection h3 {
+.blockingHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: center;
+}
+.blockingHeader h3 {
   font-size: 14px;
-  margin: 0 0 12px;
+  margin: 0;
 }
-.blockingSection .hint {
-  margin: 8px 0;
+.blockingHeader > button {
+  margin-left: auto;
 }
-.dependencyRows {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0;
-}
-.dependencyRows li {
-  padding: 12px;
-  margin-bottom: 8px;
-  background: #f6f8f5;
-  border: 1px solid #dfe5df;
-  border-radius: 6px;
-}
-.dependencyRows small,
-.dependencyRows span {
-  display: block;
-  margin: 5px 0;
-}
-.dependencyRows button {
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid #cad5cd;
-  border-radius: 5px;
-  background: #fff;
-  color: #304c3e;
-  cursor: pointer;
-}
-.literalReason {
-  white-space: pre-wrap;
+.blockingSection p {
+  margin: 6px 0;
 }
 .editorCard .manualToggle {
   display: flex;
   gap: 9px;
   align-items: center;
-  margin: 18px 0;
+  min-height: 44px;
+  margin: 0;
+  font-weight: 400;
+  cursor: pointer;
 }
 .editorCard .manualToggle input {
-  width: auto;
+  width: 18px;
+  height: 18px;
   margin: 0;
+  padding: 0;
   accent-color: #3e624d;
+}
+.dependencyRows,
+.prerequisiteOptions {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.dependencyRows li,
+.prerequisiteOptions li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+}
+.targetIdentity {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+.editorCard .compactButton,
+.editorCard .identityLabel {
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #304c3e;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.editorCard .identityLabel {
+  width: 100%;
+  padding-left: 0;
+  overflow-wrap: anywhere;
+}
+.identityLabel:hover,
+.compactButton:hover {
+  background: #edf2ec;
+}
+.compactButton:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.targetOwner {
+  color: #65716a;
+  font-weight: 400;
+}
+.targetState {
+  color: #52665b;
+  font-size: 12px;
+}
+.pendingChange {
+  color: #80521e;
+  font-size: 12px;
+}
+.removedDependency .targetIdentity,
+.removedDependency .targetState {
+  opacity: 0.65;
+}
+.identityDetails {
+  position: fixed;
+  inset: auto;
+  width: max-content;
+  max-width: 420px;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid #cad5cd;
+  border-radius: 5px;
+  background: #f6f8f5;
+  color: #25342f;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  overflow: auto;
+  box-shadow: 0 4px 12px #25342f26;
+}
+.prerequisiteDropdown {
+  padding: 10px;
+  border: 1px solid #cad5cd;
+  border-radius: 7px;
+  box-shadow: 0 4px 12px #25342f15;
+  background: #fcfdfb;
+}
+.editorCard .prerequisiteDropdown input {
+  margin-bottom: 6px;
+}
+.prerequisiteOptions {
+  max-height: min(240px, 28dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.prerequisiteOptions li + li {
+  border-top: 1px solid #dfe5df;
 }
 .ownerOptions button:disabled {
   opacity: 0.6;

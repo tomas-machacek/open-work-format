@@ -275,101 +275,52 @@ export function ActionEditor({
               disabled={saving}
             />
             <OwnerPicker value={owner} onChange={setOwner} disabled={saving} />
-            <section
-              className={styles.blockingSection}
-              aria-labelledby="saved-blocking-heading"
-            >
-              <h3 id="saved-blocking-heading">Saved blocking</h3>
-              <button
-                className={styles.ownerRefresh}
-                type="button"
-                disabled={saving}
-                onClick={() => {
-                  void refresh();
-                }}
-              >
-                Refresh saved facts
-              </button>
-              {(factsStale || !current) && (
-                <p role="status">
-                  Saved facts stale/unavailable. Refresh to check current
-                  blocking.
-                </p>
-              )}
-              <p>
-                {(current ?? baseline).blocking.blocked
-                  ? 'Blocked'
-                  : 'Not blocked'}
-                {(current ?? baseline).blocking.manual ? ' · manual' : ''}
-                {(current ?? baseline).blocking.unresolved_dependencies.length
-                  ? ` · ${(current ?? baseline).blocking.unresolved_dependencies.length} unresolved prerequisites`
-                  : ''}
-              </p>
-              {(current ?? baseline).manual_block !== undefined && (
-                <p className={styles.literalReason}>
-                  Manual reason: {(current ?? baseline).manual_block}
-                </p>
-              )}
-              {(current ?? baseline).blocking.dependencies.length === 0 && (
-                <p>No saved prerequisites.</p>
-              )}
-              <ul className={styles.dependencyRows}>
-                {[...(current ?? baseline).blocking.dependencies]
-                  .sort((a, b) => a.uri.localeCompare(b.uri))
-                  .map((dependency) => (
-                    <li key={dependency.uri}>
-                      <strong>{dependency.title}</strong>
-                      <small>{dependency.uri}</small>
-                      <span>
-                        {dependency.state} ·{' '}
-                        {dependency.satisfied ? 'Satisfied' : 'Unresolved'}
-                      </span>
-                    </li>
-                  ))}
-              </ul>
-            </section>
-            <label className={styles.manualToggle}>
-              <input
-                type="checkbox"
-                checked={manual}
-                disabled={saving || !manualEligible}
-                onChange={(event) => setManual(event.target.checked)}
-              />
-              Manually blocked
-            </label>
-            {!manualEligible && (
-              <p className={styles.hint}>
-                Completed and cancelled Actions cannot receive a manual reason.
-                Prerequisites remain editable.
-              </p>
-            )}
-            {manual && (
-              <>
-                <label htmlFor="manual-reason">Manual blocking reason</label>
-                <textarea
-                  id="manual-reason"
-                  rows={3}
-                  value={manualReason}
-                  disabled={saving || !manualEligible}
-                  onChange={(event) => setManualReason(event.target.value)}
-                />
-              </>
-            )}
-            {manualDirty && (
-              <p role="status" className={styles.hint}>
-                {manual
-                  ? 'Pending manual reason edit. Save to apply.'
-                  : 'Saving will clear the manual block.'}
-              </p>
-            )}
             <PrerequisitePicker
               value={dependencies}
               original={baseline.depends_on}
               current={current}
+              saved={current ?? baseline}
               sourceFactsStale={factsStale || !current}
               disabled={saving}
+              dirty={manualDirty || dependencyDirty}
+              refreshSource={refresh}
               onChange={setDependencies}
-            />
+            >
+              <label className={styles.manualToggle}>
+                <input
+                  type="checkbox"
+                  checked={manual}
+                  disabled={saving || !manualEligible}
+                  onChange={(event) => setManual(event.target.checked)}
+                />
+                Manual block
+              </label>
+              {!manualEligible && (
+                <p className={styles.hint}>
+                  Completed and cancelled Actions cannot receive a manual
+                  reason. Prerequisites remain editable.
+                </p>
+              )}
+              {manual && (
+                <>
+                  <label htmlFor="manual-reason">Manual blocking reason</label>
+                  <textarea
+                    id="manual-reason"
+                    rows={3}
+                    value={manualReason}
+                    disabled={saving || !manualEligible}
+                    onChange={(event) => setManualReason(event.target.value)}
+                  />
+                </>
+              )}
+              {manualDirty && (
+                <p role="status" className={styles.hint}>
+                  {manual
+                    ? 'Pending manual reason edit. Save to apply.'
+                    : 'Saving will clear the manual block.'}
+                </p>
+              )}
+            </PrerequisitePicker>
             {baseline.state === 'waiting' && (
               <>
                 <label htmlFor="edit-reason">
