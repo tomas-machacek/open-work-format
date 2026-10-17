@@ -363,25 +363,34 @@ Save notices follow the latest board selection and refresh outcome.
 Click a card (or press Enter while it is focused) to open its detail editor.
 Blocked cards show a compact **Blocked** badge with `manual`, the unresolved
 prerequisite count, or both. They stay in their intrinsic-state columns. Detail
-separates **Saved blocking** from draft edits and lists every saved prerequisite
-by canonical URI with its current title, state and Satisfied/Unresolved status.
-**Refresh saved facts** updates the board and open detail without discarding drafts.
+has one compact **Blocking** section: its summary describes saved blocking and
+**Unsaved changes** marks pending edits. Each prerequisite appears once, including
+satisfied targets, with owner path before title and state/Satisfied/Unresolved.
+Hover, focus or tap the Action label to disclose its full canonical URI and stored
+owner URL; Escape dismisses the disclosure first. Workspace-root owners have no
+visible path prefix. **Refresh** in this section updates source and target facts,
+including unsaved selections, without discarding drafts or picker state. Partial
+failures retain known data with stale labels; use the same Refresh to retry.
 
-Use **Manually blocked** and a nonblank **Manual blocking reason** to set or
+Use **Manual block** and a nonblank **Manual blocking reason** to set or
 replace literal reason text. Unchecking it schedules clearing on save; toggling
 back retains draft text. Waiting for remains independent. Completed/cancelled
 Actions cannot receive manual reasons, but their prerequisites remain editable.
 
-**Add prerequisite** searches title/description across the entire Workspace,
-including other Projects and terminal Actions, independently of board filters.
-Empty search lists all Actions. Results show title, state, owner URL and canonical
-URI. Self/cyclic edges are allowed; selected targets cannot be added twice.
-Tab through results, press Enter to add, or use Enter/ArrowDown in search to focus
-the first available result. Remove changes draft membership and retains focus.
-Pending additions/removals are labeled; undoing membership changes sends no edit.
-Lookup failure offers Retry without clearing selections. The dialog and results
-scroll on narrow screens. Save changes commits all fields and edges together;
-Cancel, outside click and Escape use the existing discard confirmation.
+**+ Add prerequisite** opens and focuses a search across the entire Workspace,
+including other Projects and terminal Actions, matching title/description
+independently of board filters. Empty search lists all
+Actions while the picker is open. Self/cyclic edges are allowed; selected targets
+cannot be added twice. Enter/ArrowDown in search focuses the first available Add
+button; Tab also reaches identity disclosures. Selection closes/clears the picker
+and focuses Add prerequisite. Escape or clicking outside the picker dismisses it
+without changing the draft. Added rows are labeled **Added**; removing them drops
+the draft row. Saved rows remain **Removed** with **Undo** until Save; selecting
+them again also restores membership. Net membership undo sends no edit.
+Lookup failure offers Retry inside the active picker without clearing selections.
+The dialog and bounded results scroll on narrow screens. Save changes commits all
+fields and edges together; Cancel, outside-dialog click and Escape after closing
+inner disclosures/picker use the existing discard confirmation.
 
 Completing requires satisfied prerequisites. Completing or cancelling requires
 clearing a manual reason first: open detail, resolve prerequisites or clear the

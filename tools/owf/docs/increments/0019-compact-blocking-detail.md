@@ -1,6 +1,6 @@
 # 0019 — Compact blocking detail
 
-> Status: reviewed
+> Status: in_progress
 > Description: Replace the oversized blocking editor with one compact prerequisite list and an on-demand picker.
 > Depends on: [0018 — Board blocking and dependencies](0018-board-blocking.md).
 
@@ -216,5 +216,76 @@ No blocking questions remain. The user approved the detailed increment on
 
 ## Implementation and review outcome
 
-Design reviewed and approved for implementation on 2026-10-17. Implementation
-and code review have not started; no runtime verification is claimed.
+Implemented on 2026-10-17 on the existing
+`docs/increment-0019-compact-blocking` branch after fetching origin and confirming
+that the clean local branch already contained approval commit `d9b7f53`. Status
+remains `in_progress` until independent code review; PR #25 remains draft.
+
+- One Blocking header shows saved causes, a section-level Unsaved changes marker
+  and one Refresh. The manual checkbox/reason and one canonically sorted list
+  replace the duplicate saved/draft presentations. Saved removals stay visible
+  as Removed with Undo; new rows use Added and disappear on removal. Save still
+  computes the net atomic edit against the original source snapshot.
+- Selected rows and candidates show the target's decoded stored owner path before
+  its title. Workspace root has no path prefix. Hover, focus and click/tap disclose
+  the canonical URI and full stored owner URL. Escape dismisses identity before
+  picker/editor. No target navigation or writes occur through these controls.
+- Add prerequisite opens/focuses a bounded, scrollable Workspace search. Selection
+  closes/clears it and focuses Add; Escape/outside-picker clicks dismiss it.
+  Closed or superseded requests cannot reopen results. Identity and Add are
+  separate controls so even already-selected/identical candidates can be inspected.
+- Target observations retain owner independently from owner-less source facts.
+  Request ordering protects title/state/owner against older Workspace lookups;
+  filtered absence never establishes a missing target. Loading/unavailable owner
+  and stale retained paths are explicit. Refresh works with the picker closed or
+  open, preserves pending removals/selections/reasons/search, prevents duplicate
+  activation, and reports source and target failures independently.
+- Updated the tool README and existing real-store blocking journey. Retained all
+  0018 component race scenarios and board/client/HTTP/transaction regressions.
+  The target-only refresh fixture now supplies a complete Workspace result,
+  including the corrected saved target, for the single shared row presentation.
+
+Visual comparison, measured in Chromium on Windows at the same viewport sizes,
+with one saved open prerequisite (`Outside prerequisite`, owner
+`/_projects/beta/`), no manual reason, pending changes or errors, and no user-opened
+picker:
+
+| Viewport    | Before |  After |      Reduction |
+| ----------- | -----: | -----: | -------------: |
+| 1440 × 1000 | 803 px | 189 px | 614 px (76.5%) |
+| 390 × 844   | 850 px | 237 px | 613 px (72.1%) |
+
+Before measures from the old Saved blocking section's top border through the
+Prerequisites to save section's bottom, including the intervening manual line
+and the previously permanent candidate UI. After measures the complete unified
+Blocking section. Measurements use DOM bounding rectangles, rounded to whole CSS
+pixels, excluding external section margins; these are evidence, not pixel gates.
+The ordinary desktop case is four 44px control rows plus 13px top border/spacing.
+The narrow row wraps naturally. Screenshots and JSON measurements are retained
+locally under `tools/owf/.test-artifacts/0019/` (`before-*`, `after-*`, `after-section-*`,
+`picker-*`, `touch-identity-*`, `before.json`, `after.json`).
+
+Verification so far:
+
+- Focused component checks passed, including Undo, late closed-picker responses,
+  duplicate identity/URL decoding, owner freshness and both partial refresh
+  failure directions. Existing 0018 race regressions now also assert owner paths.
+- Real-store Chromium keyboard/touch checks passed at 1440px and 390px, including
+  long titles/owner paths, bounded result scrolling and refreshing with an open
+  picker. Final full verification will be recorded before handoff.
+- Visually inspected ordinary closed-picker, open-picker, identity and multi-row
+  pending/error screenshots at both sizes. No horizontal dialog overflow;
+  identity text wraps and controls retain 44px minimum hit height.
+
+No requirement conflict or approved behavior change was needed. No domain,
+transport, persistence, dependency, CLI or release change was made. Other browsers,
+other operating systems and physical touch hardware have not been tested; touch
+checks use Chromium touch emulation. Independent code review remains outstanding.
+
+To try it: build the tool, run `node <repo>/tools/owf/dist/bootstrap/cli.js serve`
+inside an initialized schema-5 Workspace, and open the printed local URL. Open
+an Action with one prerequisite; inspect the compact Blocking section. Open Add,
+search/select another target, remove/Undo a saved row, toggle the manual reason,
+and Refresh before Save. Check the saved summary versus Unsaved changes, try
+identity with focus/tap and Escape, then Save or Cancel. Use the existing CLI to
+change a target owner/title/state and Refresh while keeping a source draft open.
