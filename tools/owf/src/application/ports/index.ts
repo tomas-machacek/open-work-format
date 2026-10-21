@@ -1,5 +1,24 @@
 import type { WorkspaceMetadata } from '../../domain/workspaces/index.js';
 import type {
+  MarkdownObjectReference,
+  ViewDefinition,
+  ViewInstance,
+} from '../../domain/views/index.js';
+
+export interface ViewRepository {
+  create(path: string, view: ViewInstance): void;
+  get(path: string, id: string): ViewInstance | undefined;
+  list(path: string): ViewInstance[];
+}
+export interface ViewPorts extends WorkspacePorts {
+  views: ViewRepository;
+  definitions: {
+    load(root: string, reference: MarkdownObjectReference): ViewDefinition;
+  };
+  newId(): string;
+  now(): string;
+}
+import type {
   Action,
   ActionState,
   ActionProjection,

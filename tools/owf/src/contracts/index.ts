@@ -1,4 +1,9 @@
 import { z } from 'zod';
+export const createViewOptions = z.object({
+  title: z.string(),
+  definition: z.string(),
+  json: z.boolean().optional(),
+});
 export const ownersResponse = z.object({
   owners: z.array(
     z.object({

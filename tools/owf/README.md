@@ -7,6 +7,71 @@ The local web board supports Action creation, editing, state moves, filtering,
 manual blocking and Action prerequisites through the same operations. Inbox
 operations are not yet implemented.
 
+The CLI also creates, lists and retrieves independent View instances backed by
+validated shared Markdown definitions. It does not evaluate Actions into Views.
+
+## View instances
+
+Use a fresh Workspace initialized by this version (Operational Store schema 6).
+Prepare `_views/` manually with a navigation `index.md`, for example:
+
+```markdown
+# Index
+
+- [Work board](work-board.md)
+```
+
+Copy the complete [Work board definition](docs/examples/work-board.md) to
+`_views/work-board.md`. Add a link to `_views/index.md` in the Workspace navigation
+index. Nested grouping directories under `_views/` are supported; each grouping
+directory should have its own navigation `index.md`. Navigation indexes are not
+definitions. View commands read only the specified definition, without scanning
+or repairing navigation.
+
+```sh
+owf create view --definition /_views/work-board.md --title "My work" --json
+owf create view --definition /_views/work-board.md --title "My work" --json
+owf list views --json
+owf get view VIEW_ID --json
+```
+
+Replace `VIEW_ID` with a returned instance UUID. Commands work from any descendant
+directory of the Workspace without a web server. Definition URLs start at the
+Workspace root and use forward slashes and URL encoding (for example
+`/_views/My%20board.md`), including on Windows. External URLs, traversal, and
+targets outside `_views/` are rejected.
+
+Each create stores a new UUID, normalized instance title, definition reference
+`{ url, id? }`, and `created_at`, with one atomic `view.created` event. Duplicate
+instance titles are allowed. Optional `owf.id` identifies the Markdown definition;
+it is retained in the reference and must still match on get. There is no new View
+URI scheme, ID scan or automatic reference repair.
+
+JSON uses the existing `{ ok: true, result, warnings: [] }` envelope. Create and
+get return `result.view` containing the stored metadata. Get additionally returns
+`result.definition` with the current definition `title`, optional `id` and
+`purpose`, `renderer`, ordered `columns`, and effective `defaults`. Ordinary
+columns have `type: "status"`, a `status` array, effective `default_status`, and
+effective boolean `include_blocked`. Blocked columns have only `id`, `title`, and
+`type: "blocked"`. Implicit defaults are resolved without modifying Markdown.
+List returns `result.views`, ordered by ascending instance ID, without opening
+definitions. It includes broken references and returns `[]` for an empty store.
+
+Edit the shared Markdown definition and get either instance again: both use the
+new valid configuration while retaining their own title and UUID. A missing,
+invalid or ID-mismatched definition causes get to fail with its URL and instance
+ID, while list still returns the stored instances. Definition errors use
+`INVALID_VIEW_DEFINITION` or `INVALID_VIEW_REFERENCE`; unknown instances use
+`VIEW_NOT_FOUND`. Store errors remain explicit, never empty successful results.
+JSON errors use `{ ok: false, error: { code, message } }`; human errors go to
+stderr. Invalid arguments/titles exit 2 and operational failures exit 1.
+
+No Action membership, counts, placements, ordering, windows, View editing,
+deletion or HTTP/GUI View operations are delivered here. The existing five-state
+board retains its behavior. Reads do not change definitions, instances, Actions
+or events. Validation of editable Markdown and the SQLite create transaction do
+not provide a cross-representation snapshot guarantee.
+
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
 deferred features, and acceptance scenarios.
 
@@ -189,7 +254,7 @@ transaction saves neither change nor event. `ACTION_NOT_FOUND` means the ID is
 absent; `ACTION_CONFLICT` reports a rejected conditional write;
 `ACTION_UPDATE_FAILED` reports a write failure or clock rollback. The browser preserves blocking data and enforces shared completion rules.
 
-Fresh PoC Workspaces use schema 5. Older stores (including schema 4) are refused with
+Fresh PoC Workspaces use schema 6. Older stores (including schema 5) are refused with
 `UNSUPPORTED_STORE_VERSION` without migration or mutation;
 create a new disposable Workspace with `owf init` to try this increment. Never
 reset or overwrite an existing store.
@@ -271,8 +336,8 @@ existing `AGENTS.md` in a fresh directory prevents initialization.
 
 The tool refuses target collisions and unavailable/unsupported stores. It does
 not rename, repair, overwrite, or create nested Workspaces. Fresh initialization
-creates `owf_metadata`, Actions, and the Operational Event Log with format
-`owf-tool-operational` and schema version `5`; profile version `0.1` and package
+creates `owf_metadata`, Actions, View instances, and the Operational Event Log with format
+`owf-tool-operational` and schema version `6`; profile version `0.1` and package
 version `0.0.0` are independent. Older and unknown schema versions are rejected
 without upgrade. Use a fresh disposable directory to try this version; do not
 overwrite an existing Workspace. This is
@@ -399,7 +464,7 @@ Confirmed writes refresh dependents, including after target title edits. Target-
 refresh updates derived facts while preserving source drafts; source changes
 require explicit reload. Stale/unavailable facts are labeled. A successful save
 followed by refresh failure remains a successful save; do not repeat it. The
-board requires schema 5, with no migration or implicit store replacement.
+board requires schema 6, with no migration or implicit store replacement.
 
 The editor uses the same owner picker. An unavailable stored owner stays visible;
 editing other fields retains it without requiring its Markdown context. Selecting

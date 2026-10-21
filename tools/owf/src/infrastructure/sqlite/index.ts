@@ -11,6 +11,11 @@ const eventTableSchema = `CREATE TABLE action_events (
           old_manual_block TEXT, new_manual_block TEXT, old_depends_on TEXT, new_depends_on TEXT
         )`;
 
+const viewEventTableSchema = `CREATE TABLE view_events (
+          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind = 'view.created'),
+          view_id TEXT NOT NULL REFERENCES views(id), created_at TEXT NOT NULL
+        )`;
+
 export const workspaceStore: WorkspaceStore = {
   initializeReserved(path) {
     const db = new DatabaseSync(path);
@@ -25,7 +30,7 @@ export const workspaceStore: WorkspaceStore = {
         'INSERT INTO owf_metadata (key, value) VALUES (?, ?)',
       );
       insert.run('format', 'owf-tool-operational');
-      insert.run('schema_version', '5');
+      insert.run('schema_version', '6');
       db.exec(`
         CREATE TABLE actions (
           id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
@@ -36,6 +41,11 @@ export const workspaceStore: WorkspaceStore = {
           depends_on TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(depends_on) AND json_type(depends_on) = 'array')
         ) STRICT;
         ${eventTableSchema} STRICT;
+        CREATE TABLE views (
+          id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
+          definition_url TEXT NOT NULL, definition_id TEXT, created_at TEXT NOT NULL
+        ) STRICT;
+        ${viewEventTableSchema} STRICT;
       `);
       db.exec('COMMIT');
     } finally {
@@ -71,7 +81,7 @@ export const workspaceStore: WorkspaceStore = {
           'INVALID_STORE',
           `Unrecognized store: ${path}`,
         );
-      if (version !== '5')
+      if (version !== '6')
         throw new WorkspaceError(
           'UNSUPPORTED_STORE_VERSION',
           `Unsupported store schema ${version}: ${path}`,
@@ -93,6 +103,20 @@ export const workspaceStore: WorkspaceStore = {
           `${eventTableSchema} STRICT`.replace(/\s+/gu, ' ').trim()
       )
         throw new Error('Invalid Action event table');
+      db.prepare(
+        'SELECT id, title, definition_url, definition_id, created_at FROM views LIMIT 0',
+      ).all();
+      const viewEventTable = db
+        .prepare(
+          "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'view_events'",
+        )
+        .get()?.sql;
+      if (
+        typeof viewEventTable !== 'string' ||
+        viewEventTable.replace(/\s+/gu, ' ').trim() !==
+          `${viewEventTableSchema} STRICT`.replace(/\s+/gu, ' ').trim()
+      )
+        throw new Error('Invalid View event table');
       const integrity = db.prepare('PRAGMA quick_check').get();
       if (integrity?.quick_check !== 'ok') throw new Error('Corrupt store');
     } catch (error) {
@@ -108,3 +132,4 @@ export const workspaceStore: WorkspaceStore = {
 };
 
 export { actionRepository } from './actions.js';
+export { viewRepository } from './views.js';

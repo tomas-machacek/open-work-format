@@ -1,6 +1,6 @@
 # 0020 — View instance CLI foundation
 
-> Status: reviewed
+> Status: in_progress
 > Description: Create, list and retrieve operational View instances backed by validated, reusable Markdown definitions.
 > Depends on: [0003 — Action creation and retrieval](0003-action-create-get.md) for the Operational Store baseline and [0017 — CLI Action blocking and dependencies](0017-action-blocking-cli.md) for the current store baseline.
 
@@ -58,11 +58,11 @@ The discussion's `owf view create/list/get` spelling was illustrative. This
 document uses the existing `create action/get action/list actions` convention
 without adding parallel aliases.
 
-| Operation | Result and behavior |
-| --- | --- |
-| Create | Require a non-empty title and definition URL; load and validate the definition; atomically persist a new instance and creation event; return the saved instance and its ID. |
-| List | Return every stored instance with ID, title and definition reference; do not load or validate referenced definition files. An empty supported store returns an empty list. |
-| Get | Resolve the instance by ID, load and validate its current definition, and return instance metadata plus the resolved definition configuration. Unknown IDs fail explicitly. |
+| Operation | Result and behavior                                                                                                                                                         |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Create    | Require a non-empty title and definition URL; load and validate the definition; atomically persist a new instance and creation event; return the saved instance and its ID. |
+| List      | Return every stored instance with ID, title and definition reference; do not load or validate referenced definition files. An empty supported store returns an empty list.  |
+| Get       | Resolve the instance by ID, load and validate its current definition, and return instance metadata plus the resolved definition configuration. Unknown IDs fail explicitly. |
 
 Instance titles use existing title normalization conventions. Duplicate titles
 are allowed. Every successful create produces a new independent ID, including
@@ -149,13 +149,13 @@ copy, resolved column configuration, or authoritative Action lists in the
 instance. Editing the definition changes subsequent get results for all its
 instances; it does not rename those instances or change Actions.
 
-| Situation | Required outcome |
-| --- | --- |
-| Create references missing, unreadable or invalid definition | Fail without an instance or creation event. |
-| Definition changes validly after creation | Get returns the new configuration with the same stored instance ID and title. |
-| Existing definition disappears or becomes invalid | Get fails with actionable diagnostics; the instance remains stored. |
-| One instance references a broken definition | List still returns all valid stored instance records, including that reference; it makes no claim that definitions are healthy. |
-| Operational Store unavailable or unsupported | Fail explicitly; never return an empty success or initialize a replacement. |
+| Situation                                                   | Required outcome                                                                                                                |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Create references missing, unreadable or invalid definition | Fail without an instance or creation event.                                                                                     |
+| Definition changes validly after creation                   | Get returns the new configuration with the same stored instance ID and title.                                                   |
+| Existing definition disappears or becomes invalid           | Get fails with actionable diagnostics; the instance remains stored.                                                             |
+| One instance references a broken definition                 | List still returns all valid stored instance records, including that reference; it makes no claim that definitions are healthy. |
+| Operational Store unavailable or unsupported                | Fail explicitly; never return an empty success or initialize a replacement.                                                     |
 
 Diagnostics identify the definition URL and relevant field/column where possible;
 get failures also identify the instance. An invalid stored instance record is
@@ -236,38 +236,26 @@ alone does not deliver the commands.
   A user can complete the documented flow without a web server. Existing guides
   remain untouched; schema compatibility limitations are explicit.
 
-Draft behavior scenario, to be replaced with a link to the executable scenario
-when implemented:
-
-```gherkin
-Scenario: Independent instances use a shared current definition
-  Given a Workspace with a valid View definition
-  When I create two View instances using that definition
-  Then the instances have different identities
-  When I change a column title in the shared definition
-  Then retrieving either instance shows the changed column title
-  And both instances retain their original identities and titles
-  And reading them does not change operational data or events
-```
+Executable acceptance: [Independent instances use a shared current definition](../../tests/acceptance/features/view-instances.feature).
 
 ## Verification plan
 
 Follow the development guidelines; each test protects a distinct rule or
 boundary, without a test-count target or repeating the whole matrix at every layer.
 
-| Risk / criteria | Appropriate verification |
-| --- | --- |
-| Definition rules and effective defaults (AC5) | Focused domain/parser tests, including valid overlapping states and invalid field combinations. |
-| Real Markdown/reference boundaries (AC4, AC5, AC7) | Integration with temporary files: valid edit, missing target, ID mismatch, encoded path and containment cases. |
-| Store round-trip and creation/event atomicity (AC1, AC2, AC6) | SQLite integration including injected event-write failure and reopened store. |
-| Inventory and read purity (AC3, AC4, AC7) | Check broken references remain listed and get/list leave stored data and logs unchanged. |
-| Observable shared-definition behavior (AC2, AC4) | Small Cucumber scenario through the application boundary. |
-| Actual CLI contract and documentation (AC1, AC8) | Small built-CLI journey exercising create/list/get and JSON, plus documentation/example checks. |
+| Risk / criteria                                               | Appropriate verification                                                                                       |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Definition rules and effective defaults (AC5)                 | Focused domain/parser tests, including valid overlapping states and invalid field combinations.                |
+| Real Markdown/reference boundaries (AC4, AC5, AC7)            | Integration with temporary files: valid edit, missing target, ID mismatch, encoded path and containment cases. |
+| Store round-trip and creation/event atomicity (AC1, AC2, AC6) | SQLite integration including injected event-write failure and reopened store.                                  |
+| Inventory and read purity (AC3, AC4, AC7)                     | Check broken references remain listed and get/list leave stored data and logs unchanged.                       |
+| Observable shared-definition behavior (AC2, AC4)              | Small Cucumber scenario through the application boundary.                                                      |
+| Actual CLI contract and documentation (AC1, AC8)              | Small built-CLI journey exercising create/list/get and JSON, plus documentation/example checks.                |
 
 Run required `npm run verify` before implementation handoff and record the
 actual revision, platform and results. New browser scenarios are unnecessary
 because this increment changes no GUI behavior; existing required gates remain.
-No runtime checks are claimed by this design-only PR.
+Actual implementation checks are recorded below.
 
 Human try-out after implementation:
 
@@ -286,9 +274,47 @@ choices within this contract. Record those choices in the implementation outcome
 
 ## Implementation and review outcome
 
-Not implemented. Scope agreed by the user on 2026-10-20; design reviewed
-and approved for implementation by the user on 2026-10-21. Implementation,
-independent code review and runtime verification remain pending.
+Implemented on 2026-10-21; remains `in_progress` pending independent code review.
+
+Delivered verb-first create/list/get commands with human and structured JSON
+output, strict shared-definition validation, current-file reads, independent
+UUID v4 instance identities, deterministic inventory, and atomic creation events.
+No Action evaluation, placements, windows, HTTP or GUI changes were introduced.
+
+Implementation choices:
+
+- SQLite schema **6**, with `views` and `view_events` tables. One `view.created`
+  event commits with each instance. New Workspaces use schema 6; older/unknown
+  versions are rejected unchanged. No migration or implicit replacement.
+- Stored data: `id`, normalized `title`, `definition: { url, id? }`, `created_at`.
+  Get separates `result.view` from `result.definition`; list uses `result.views`.
+  The tool README documents effective column/default fields and error codes.
+- Optional definition IDs remain nonblank strings, without an invented UUID
+  constraint or global uniqueness scan. References resolve only their supplied
+  URL and verify a retained ID. Encoded paths and physical containment are checked.
+- YAML duplicate keys/custom tags and unsupported configuration fail explicitly.
+  H1 recognition excludes code examples; correspondence normalizes Markdown
+  formatting, whitespace and case rather than requiring literal string equality.
+  Empty column arrays remain valid: the agreed profile requires nonempty state
+  sets in ordinary columns, but does not require a nonempty column array.
+- Updated CLI help, README, copyable definition, architecture capability summary,
+  and single-source generated Workspace guide. Existing guides remain untouched.
+
+Verification: focused domain/parser, SQLite, application, Cucumber and built-CLI
+checks were developed with behavior. Full `npm run verify` passed: typecheck, lint,
+formatting, architecture, production build, 145 unit tests, 201 integration tests,
+31 Cucumber scenarios (171 steps), 24 CLI E2E tests and 7 Chromium browser tests.
+The first verification attempts exposed increment formatting and the existing
+guide-example fixture needing definition preparation and View-ID substitution;
+both were corrected, then the complete verification passed without weakening gates.
+Validation platform: Windows, Node.js 24.21.0, npm 11.4.1; Linux execution was not
+performed. Base revision: `0f400e5f259052297d238842696209abe7f06c2d`; implementation
+revision is the commit containing this outcome. The implementing agent inspected
+all delegated diffs; this does not replace the pending independent review.
+
+Known scope limits: editable Markdown validation and SQLite persistence do not
+form a cross-representation snapshot. Definitions are not discovered or repaired,
+and a valid get reports configuration, never evaluated membership.
 
 ## Decision changes and follow-up
 

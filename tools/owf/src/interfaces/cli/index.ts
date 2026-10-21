@@ -5,6 +5,7 @@ import {
   createActionOptions,
   listActionsOptions,
   setActionOptions,
+  createViewOptions,
 } from '../../contracts/index.js';
 import type {
   ContextInput,
@@ -22,6 +23,12 @@ import type {
   ListActionsResult,
   SetActionInput,
 } from '../../application/actions/index.js';
+import type {
+  CreateViewInput,
+  ViewResult,
+  ListViewsResult,
+  ViewInstance,
+} from '../../application/views/index.js';
 
 function once(label: string) {
   return (value: string, previous: string | undefined) => {
@@ -55,12 +62,17 @@ export async function runCli(
   listActions: (input: ListActionsInput) => ListActionsResult,
   setAction: (identifier: string, input: SetActionInput) => ActionResult,
   serve: (port: number) => Promise<string>,
+  views: {
+    create(input: CreateViewInput): ViewResult;
+    get(id: string): ViewResult;
+    list(): ListViewsResult;
+  },
 ): Promise<void> {
   let json = false;
   const program = new Command()
     .name('owf')
     .description(
-      'Initialize an OWF Workspace; create contexts and create, get, set, or list Actions',
+      'Initialize an OWF Workspace; manage contexts, Actions and View instances',
     )
     .version(version)
     .exitOverride();
@@ -106,7 +118,31 @@ export async function runCli(
     });
   const creation = program
     .command('create')
-    .description('Create Markdown work contexts or an operational Action');
+    .description('Create Markdown work contexts, an Action or a View instance');
+  creation
+    .command('view')
+    .description(
+      'Create an independent View instance from a current Markdown definition; does not evaluate Actions',
+    )
+    .requiredOption(
+      '--title <title>',
+      'Nonempty single-line instance title',
+      once('--title'),
+    )
+    .requiredOption(
+      '--definition <url>',
+      'Workspace-rooted Markdown URL under /_views/',
+      once('--definition'),
+    )
+    .option('--json', 'Emit saved instance metadata as JSON')
+    .action((options: unknown) => {
+      const parsed = createViewOptions.parse(options);
+      json = parsed.json ?? false;
+      const result = views.create(parsed);
+      console.log(
+        json ? JSON.stringify({ ok: true, ...result }) : renderView(result),
+      );
+    });
   for (const type of ['project', 'outcome'] as const) {
     const command = creation
       .command(type)
@@ -288,6 +324,23 @@ unresolved_dependencies, dependencies [{ uri, title, state, satisfied }].
     .command('get')
     .description('Retrieve an operational object');
   get
+    .command('view')
+    .description(
+      'Retrieve a View instance and validate its current shared definition; no Action evaluation',
+    )
+    .argument('<id>', 'Stored View instance ID')
+    .option(
+      '--json',
+      'Emit separate instance metadata and resolved definition configuration',
+    )
+    .action((id: string, options: { json?: boolean }) => {
+      json = options.json ?? false;
+      const result = views.get(id);
+      console.log(
+        json ? JSON.stringify({ ok: true, ...result }) : renderView(result),
+      );
+    });
+  get
     .command('action')
     .description(
       'Retrieve an Action by UUID or owf:action URI, with separate blocking and all prerequisite details',
@@ -307,9 +360,25 @@ unresolved_dependencies, dependencies [{ uri, title, state, satisfied }].
         json ? JSON.stringify({ ok: true, ...result }) : renderAction(result),
       );
     });
-  program
-    .command('list')
-    .description('List operational objects')
+  const list = program.command('list').description('List operational objects');
+  list
+    .command('views')
+    .description(
+      'List stored View instances by ascending ID without loading definitions',
+    )
+    .option('--json', 'Emit structured instance records')
+    .action((options: { json?: boolean }) => {
+      json = options.json ?? false;
+      const result = views.list();
+      console.log(
+        json
+          ? JSON.stringify({ ok: true, ...result })
+          : result.result.views.length
+            ? result.result.views.map(renderViewInstance).join('\n\n')
+            : 'No View instances found.',
+      );
+    });
+  list
     .command('actions')
     .description(
       'List all Actions in the current Workspace, regardless of working directory',
@@ -361,6 +430,7 @@ unresolved_dependencies, dependencies [{ uri, title, state, satisfied }].
     if (
       [
         '--title',
+        '--definition',
         '--slug',
         '--owner',
         '--expected-result',
@@ -414,6 +484,19 @@ unresolved_dependencies, dependencies [{ uri, title, state, satisfied }].
       ? 2
       : 1;
   }
+}
+
+function renderViewInstance(view: ViewInstance): string {
+  return `Title: ${view.title}\nID: ${view.id}\nDefinition: ${view.definition.url}${view.definition.id === undefined ? '' : ` (ID: ${view.definition.id})`}\nCreated: ${view.created_at}`;
+}
+function renderView(result: ViewResult): string {
+  const { view, definition } = result.result;
+  return (
+    `${result.result.status} view\n${renderViewInstance(view)}\nRoot: ${result.result.root}` +
+    (definition === undefined
+      ? ''
+      : `\nDefinition title: ${definition.title}\nRenderer: ${definition.renderer}${definition.purpose === undefined ? '' : `\nPurpose: ${definition.purpose}`}\nColumns:\n${definition.columns.map((column) => (column.type === 'blocked' ? `  ${column.id} | ${column.title} | blocked` : `  ${column.id} | ${column.title} | ${column.status.join(', ')} | default: ${column.default_status} | include_blocked: ${String(column.include_blocked)}`)).join('\n')}\nDefaults: ${JSON.stringify(definition.defaults)}\nConfiguration validated; Actions have not been evaluated.`)
+  );
 }
 
 function renderAction(result: ActionResult): string {
