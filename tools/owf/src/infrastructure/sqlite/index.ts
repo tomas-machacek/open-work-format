@@ -16,6 +16,11 @@ const viewEventTableSchema = `CREATE TABLE view_events (
           view_id TEXT NOT NULL REFERENCES views(id), created_at TEXT NOT NULL
         )`;
 
+const viewTableSchema = `CREATE TABLE views (
+          id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
+          definition_url TEXT NOT NULL, definition_id TEXT, created_at TEXT NOT NULL
+        )`;
+
 export const workspaceStore: WorkspaceStore = {
   initializeReserved(path) {
     const db = new DatabaseSync(path);
@@ -41,10 +46,7 @@ export const workspaceStore: WorkspaceStore = {
           depends_on TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(depends_on) AND json_type(depends_on) = 'array')
         ) STRICT;
         ${eventTableSchema} STRICT;
-        CREATE TABLE views (
-          id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
-          definition_url TEXT NOT NULL, definition_id TEXT, created_at TEXT NOT NULL
-        ) STRICT;
+        ${viewTableSchema} STRICT;
         ${viewEventTableSchema} STRICT;
       `);
       db.exec('COMMIT');
@@ -103,9 +105,17 @@ export const workspaceStore: WorkspaceStore = {
           `${eventTableSchema} STRICT`.replace(/\s+/gu, ' ').trim()
       )
         throw new Error('Invalid Action event table');
-      db.prepare(
-        'SELECT id, title, definition_url, definition_id, created_at FROM views LIMIT 0',
-      ).all();
+      const viewTable = db
+        .prepare(
+          "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'views'",
+        )
+        .get()?.sql;
+      if (
+        typeof viewTable !== 'string' ||
+        viewTable.replace(/\s+/gu, ' ').trim() !==
+          `${viewTableSchema} STRICT`.replace(/\s+/gu, ' ').trim()
+      )
+        throw new Error('Invalid View instance table');
       const viewEventTable = db
         .prepare(
           "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'view_events'",

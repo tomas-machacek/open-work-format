@@ -1,6 +1,6 @@
 # 0020 — View instance CLI foundation
 
-> Status: in_progress
+> Status: completed
 > Description: Create, list and retrieve operational View instances backed by validated, reusable Markdown definitions.
 > Depends on: [0003 — Action creation and retrieval](0003-action-create-get.md) for the Operational Store baseline and [0017 — CLI Action blocking and dependencies](0017-action-blocking-cli.md) for the current store baseline.
 
@@ -274,7 +274,8 @@ choices within this contract. Record those choices in the implementation outcome
 
 ## Implementation and review outcome
 
-Implemented on 2026-10-21; remains `in_progress` pending independent code review.
+Implemented on 2026-10-21; completed after independent review and corrections
+recorded below.
 
 Delivered verb-first create/list/get commands with human and structured JSON
 output, strict shared-definition validation, current-file reads, independent
@@ -309,8 +310,51 @@ guide-example fixture needing definition preparation and View-ID substitution;
 both were corrected, then the complete verification passed without weakening gates.
 Validation platform: Windows, Node.js 24.21.0, npm 11.4.1; Linux execution was not
 performed. Base revision: `0f400e5f259052297d238842696209abe7f06c2d`; implementation
-revision is the commit containing this outcome. The implementing agent inspected
-all delegated diffs; this does not replace the pending independent review.
+revision: `4dce27917c3e7ffb8fee582180e0305ccb233c0f`. The implementing agent inspected
+all delegated diffs; this did not replace the subsequent independent review.
+
+### Independent review and corrections — 2026-10-21
+
+Independent review checked the complete diff against `main` at implementation
+revision `4dce27917c3e7ffb8fee582180e0305ccb233c0f`, the acceptance criteria,
+referenced specifications, surrounding code and test value. Two P2 findings
+were reproduced and corrected:
+
+- Replaced line-pattern H1 recognition with the pinned CommonMark parser. HTML
+  blocks cannot supply a fake H1, multiline setext headings retain their complete
+  text, and an actual heading after an HTML block remains valid. Regression
+  tests failed before the correction and passed afterward.
+- Shared the `views` table definition between initialization and schema validation.
+  A table missing the instance primary key is rejected without writes, both before
+  and after duplicate IDs exist. The supported schema remains version 6 and its
+  physical definition is unchanged.
+
+URL rejection tests now assert reference errors and use existing valid targets
+for reserved indexes and traversal, preventing missing files from masking a
+removed validation check. The generated-guide journey retains all assertions
+and allows 30 seconds for its many CLI process startups on Windows. The
+architecture records the parser dependency; development guidance now requires
+parsed Markdown structure for structural validation. Each delegated reviewer
+rechecked their correction read-only and reported no remaining findings; the
+primary reviewer also inspected the final changes. No review findings remain
+unresolved.
+
+Correction verification applies to the code, tests and dependencies in the commit
+containing this record, based on `4dce27917c3e7ffb8fee582180e0305ccb233c0f`:
+
+- `npm run verify` passed typecheck, lint, formatting, architecture, production
+  build, 145 unit tests, 207 integration tests and 31 Cucumber scenarios
+  (171 steps). Its CLI phase stopped on the existing Action-listing journey's
+  5-second timeout at 6.5 seconds; no functional assertion failed.
+- The affected Action-listing journey passed in isolation in 4.2 seconds.
+  Repeating only `npm run test:e2e` passed all 24 CLI tests and all 7 Chromium
+  browser tests. Thus every verification gate passed, across these recorded runs;
+  the first full command is not reported as an uninterrupted success.
+- Documentation-only completion edits were followed by formatting and diff checks.
+  Windows, Node.js 24.21.0, npm 11.4.1; Linux execution remains unperformed.
+- Dependency audit reported only the pre-existing Vite 8.3.1 advisory group;
+  the added parser dependencies had no reported findings. Updating Vite is outside
+  these View review corrections.
 
 Known scope limits: editable Markdown validation and SQLite persistence do not
 form a cross-representation snapshot. Definitions are not discovered or repaired,

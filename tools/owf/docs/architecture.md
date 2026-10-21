@@ -208,7 +208,7 @@ need; it is not an extension framework to implement preemptively.
 | Styling          | CSS Modules                                                            |
 | HTTP client      | Native fetch in a small shared frontend data-access layer              |
 | Frontend state   | Local React state; no global state framework initially                 |
-| Metadata         | yaml package for YAML frontmatter; Node filesystem APIs                |
+| Metadata         | yaml frontmatter, commonmark Markdown parsing; Node filesystem APIs    |
 
 Zod checks external shapes, not OWF business rules. Keep transport schemas in
 contracts where shared. Do not maintain a second handwritten HTTP schema set.

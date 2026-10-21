@@ -1,6 +1,7 @@
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { join, relative, sep, isAbsolute, basename } from 'node:path';
 import { parseDocument, visit } from 'yaml';
+import { Parser } from 'commonmark';
 import {
   validateViewDefinition,
   type MarkdownObjectReference,
@@ -8,59 +9,24 @@ import {
 } from '../../domain/views/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
 
-function headings(lines: string[]): string[] {
+function headings(markdown: string): string[] {
   const result: string[] = [];
-  let fence: { marker: string; length: number } | undefined;
-  let comment = false;
-  let rawBlock: string | undefined;
-  let previous = '';
-  for (const raw of lines) {
-    let line = raw;
-    if (rawBlock) {
-      if (line.toLowerCase().includes(`</${rawBlock}>`)) rawBlock = undefined;
-      continue;
+  const walker = new Parser().parse(markdown).walker();
+  let heading: string[] | undefined;
+  for (let event = walker.next(); event; event = walker.next()) {
+    const { node, entering } = event;
+    if (node.type === 'heading' && node.level === 1) {
+      if (entering) heading = [];
+      else {
+        result.push(heading!.join(''));
+        heading = undefined;
+      }
+    } else if (heading && entering) {
+      if (node.type === 'text' || node.type === 'code')
+        heading.push(node.literal ?? '');
+      else if (node.type === 'softbreak' || node.type === 'linebreak')
+        heading.push(' ');
     }
-    if (fence) {
-      const closing = /^ {0,3}(`+|~+)[ \t]*$/u.exec(line)?.[1];
-      if (closing?.[0] === fence.marker && closing.length >= fence.length)
-        fence = undefined;
-      continue;
-    }
-    if (comment) {
-      const end = line.indexOf('-->');
-      if (end < 0) continue;
-      line = line.slice(end + 3);
-      comment = false;
-    }
-    line = line.replace(/<!--.*?-->/gu, '');
-    const start = line.indexOf('<!--');
-    if (start >= 0) {
-      line = line.slice(0, start);
-      comment = true;
-    }
-    const rawOpening = /^ {0,3}<(pre|script|style|textarea)(?:\s|>|$)/iu
-      .exec(line)?.[1]
-      ?.toLowerCase();
-    if (rawOpening) {
-      if (!line.toLowerCase().includes(`</${rawOpening}>`))
-        rawBlock = rawOpening;
-      previous = '';
-      continue;
-    }
-    const opening = /^ {0,3}(`{3,}|~{3,})(.*)$/u.exec(line);
-    if (
-      opening &&
-      !(opening[1]!.startsWith('`') && opening[2]!.includes('`'))
-    ) {
-      fence = { marker: opening[1]![0]!, length: opening[1]!.length };
-      previous = '';
-      continue;
-    }
-    const atx = /^ {0,3}#(?:[ \t]+(.*)|[ \t]*)$/u.exec(line);
-    if (atx) result.push((atx[1] ?? '').replace(/[ \t]+#+[ \t]*$/u, '').trim());
-    else if (/^ {0,3}=+[ \t]*$/u.test(line) && previous) result.push(previous);
-    previous =
-      !atx && !/^(?: {4}|\t| {0,3}[>#])/u.test(line) ? line.trim() : '';
   }
   return result;
 }
@@ -185,7 +151,7 @@ export const viewDefinitions = {
         error instanceof Error ? error.message : String(error),
       );
     }
-    const h1 = headings(lines.slice(end + 1));
+    const h1 = headings(lines.slice(end + 1).join('\n'));
     if (
       h1.length !== 1 ||
       normalizedTitle(h1[0]!) !== normalizedTitle(definition.title)

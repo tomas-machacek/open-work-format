@@ -162,7 +162,9 @@ encoding cases where these boundaries are crossed.
 
 When replacing existing text, validate lossless decoding before writing and test
 preservation of malformed input bytes. When recognizing required Markdown
-structure, test that examples inside code blocks cannot satisfy that structure.
+structure, use parsed Markdown blocks and inline content rather than line-pattern
+approximations. Test that code and HTML examples cannot satisfy that structure
+and that complete multiline headings are retained.
 Preservation snapshots should include empty directories, not only file contents.
 
 Derive changing values, such as the tool version, from their authoritative source

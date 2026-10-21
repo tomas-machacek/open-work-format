@@ -64,6 +64,7 @@ describe('current Markdown View definitions', () => {
     ['no real H1', `---\n${yaml}\n---\n~~~markdown\n# Work board\n~~~`],
     ['indented code H1', `---\n${yaml}\n---\n    # Work board`],
     ['HTML code H1', `---\n${yaml}\n---\n<pre>\n# Work board\n</pre>`],
+    ['HTML block H1', `---\n${yaml}\n---\n<div>\n# Work board\n</div>`],
     ['comment H1', `---\n${yaml}\n---\n<!--\n# Work board\n-->`],
     ['two H1s', `${document}\n# Work board`],
     ['unrelated H1', document.replace('# Work board', '# Another thing')],
@@ -73,6 +74,19 @@ describe('current Markdown View definitions', () => {
   });
   it('accepts Markdown title formatting and setext H1 without exact text equality', () => {
     save(document.replace('# Work board', '**Work** board\n=========='));
+    expect(load().title).toBe('Work board');
+  });
+  it('accepts the complete text of a multiline setext H1', () => {
+    save(document.replace('# Work board', 'Work\nboard\n==='));
+    expect(load().title).toBe('Work board');
+  });
+  it('recognizes a real H1 after an HTML block ends at a blank line', () => {
+    save(
+      document.replace(
+        '# Work board',
+        '<div>\n# Example\n</div>\n\n# Work board',
+      ),
+    );
     expect(load().title).toBe('Work board');
   });
   it.each([
@@ -86,13 +100,31 @@ describe('current Markdown View definitions', () => {
     '/_views/x.md?query',
     '/_views/x.md#fragment',
     '/_views/x%.md',
-    '/_views/index.md',
-    '/_views/group/index.md',
     '/_views/x.md:stream',
     '/_views/x.md.',
   ])('rejects unsafe or reserved reference %s', (url) => {
-    expect(() => load(url)).toThrow();
+    expect(() => load(url)).toThrow(
+      expect.objectContaining({ code: 'INVALID_VIEW_REFERENCE' }),
+    );
   });
+  it.each([
+    '/_views/index.md',
+    '/_views/group/index.md',
+    '/_views/group/../board.md',
+    '/_views/group/%2e%2e/board.md',
+  ])(
+    'rejects reserved or traversal URL %s even when its target exists',
+    (url) => {
+      mkdirSync(join(root, '_views', 'group'));
+      save();
+      save(document, 'index.md');
+      save(document, 'group/index.md');
+      expect(load().title).toBe('Work board');
+      expect(() => load(url)).toThrow(
+        expect.objectContaining({ code: 'INVALID_VIEW_REFERENCE' }),
+      );
+    },
+  );
   it('rejects physical directory links outside _views, including outside the Workspace', () => {
     const elsewhere = join(root, 'elsewhere');
     mkdirSync(elsewhere);

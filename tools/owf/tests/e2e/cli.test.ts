@@ -473,8 +473,8 @@ test('generated guide examples execute through the built CLI outside checkout', 
   expect(run(root, ['create', 'outcome', '--help']).stdout).toContain(
     '--expected-result',
   );
-  // The guide starts over twenty independent Node processes on Windows.
-}, 15_000);
+  // Allow process startup under concurrent suite load on Windows; this is not a performance assertion.
+}, 30_000);
 
 test.each([
   [['project', '--json'], 'INVALID_ARGUMENT', 2],

@@ -172,3 +172,27 @@ test('schema discovery rejects a View event table without its semantic kind cons
   );
   expect(snapshot(root)).toEqual(before);
 });
+
+test('schema discovery rejects View storage without unique instance identity, even before duplicates exist', () => {
+  const { root, path } = store();
+  const view = instance();
+  const db = new DatabaseSync(path);
+  try {
+    db.exec(`DROP TABLE views;
+      CREATE TABLE views (
+        id TEXT NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
+        definition_url TEXT NOT NULL, definition_id TEXT, created_at TEXT NOT NULL
+      ) STRICT;`);
+    const insert = db.prepare('INSERT INTO views VALUES (?, ?, ?, ?, ?)');
+    for (const title of [view.title, 'Another instance']) {
+      insert.run(view.id, title, view.definition.url, null, view.created_at);
+      const before = snapshot(root);
+      expect(() => workspaceStore.validate(path)).toThrow(
+        expect.objectContaining({ code: 'INVALID_STORE' }),
+      );
+      expect(snapshot(root)).toEqual(before);
+    }
+  } finally {
+    db.close();
+  }
+});
