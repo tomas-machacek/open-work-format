@@ -39,7 +39,7 @@ link and a one-line description; keep its status in sync.
 | [0017 — CLI Action blocking and dependencies](0017-action-blocking-cli.md) | Manage manual blocks and Action prerequisites; explain derived blocking. | completed   |
 | [0018 — Board blocking and dependencies](0018-board-blocking.md)           | Inspect and edit manual blocks and Action prerequisites on the board.    | completed   |
 | [0019 — Compact blocking detail](0019-compact-blocking-detail.md)          | Compact prerequisite rows and on-demand selection in Action detail.      | completed   |
-| [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md) | Create, list and get instances using validated shared Markdown definitions. | agreed      |
+| [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md) | Create, list and get instances using validated shared Markdown definitions. | reviewed    |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;
