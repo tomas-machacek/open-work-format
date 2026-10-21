@@ -1,6 +1,6 @@
 # 0020 — View instance CLI foundation
 
-> Status: agreed
+> Status: reviewed
 > Description: Create, list and retrieve operational View instances backed by validated, reusable Markdown definitions.
 > Depends on: [0003 — Action creation and retrieval](0003-action-create-get.md) for the Operational Store baseline and [0017 — CLI Action blocking and dependencies](0017-action-blocking-cli.md) for the current store baseline.
 
@@ -286,7 +286,8 @@ choices within this contract. Record those choices in the implementation outcome
 
 ## Implementation and review outcome
 
-Not implemented. Scope agreed by the user on 2026-10-20. Implementation,
+Not implemented. Scope agreed by the user on 2026-10-20; design reviewed
+and approved for implementation by the user on 2026-10-21. Implementation,
 independent code review and runtime verification remain pending.
 
 ## Decision changes and follow-up
