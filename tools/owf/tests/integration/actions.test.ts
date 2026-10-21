@@ -461,7 +461,7 @@ test.each(['action', 'event', 'commit'])(
   },
 );
 
-test.each(['1', '2', '3', '4', '99'])(
+test.each(['1', '2', '3', '4', '5', '99'])(
   'schema %s rejected without writes by init and all create/get operations',
   (version) => {
     const { root, store } = workspace();
@@ -509,7 +509,7 @@ test.each(['1', '2', '3', '4', '99'])(
   },
 );
 
-test('schema 5 discovery rejects an event table that only mentions action.updated outside the kind constraint', () => {
+test('schema 6 discovery rejects an event table that only mentions action.updated outside the kind constraint', () => {
   const { root, store } = workspace();
   sql(
     store,

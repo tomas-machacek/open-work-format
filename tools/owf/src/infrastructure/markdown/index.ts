@@ -5,6 +5,7 @@ import { WorkspaceError } from '../../domain/workspaces/index.js';
 import { workspaceGuide } from './agents.js';
 import { literal } from './literal.js';
 export { contextDocuments } from './contexts.js';
+export { viewDefinitions } from './views.js';
 
 const metadataSchema = z.object({
   type: z.literal('OWF Workspace'),

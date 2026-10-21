@@ -15,6 +15,76 @@ The board refreshes on return to its tab or with Refresh. Failed reads retain
 cards marked not current; use Retry. Drag cards to change state; use the CLI
 to edit their content, owner or waiting reason.
 
+## View instances
+
+Create reusable Markdown definitions manually under Workspace-root _views/.
+Prepare _views/index.md as a navigation index linking the definitions; nested
+grouping directories also have index.md. An index is not a definition. Add the
+_views/index.md link to the Workspace navigation. A complete copyable definition:
+
+\`\`\`markdown
+---
+type: OWF View Definition
+title: Work board
+owf:
+  renderer: kanban
+  purpose: focus
+  columns:
+    - id: new-actions
+      title: New to organize
+      status: open
+    - id: todo
+      title: Todo
+      status: open
+    - id: blocked
+      title: Blocked
+      type: blocked
+    - id: active
+      title: Active
+      status: [in_progress, waiting]
+      include_blocked: true
+    - id: done
+      title: Done
+      status: completed
+---
+
+# Work board
+\`\`\`
+
+Save it as _views/work-board.md, then run:
+
+\`\`\`sh
+owf create view --definition /_views/work-board.md --title "My work" --json
+owf list views --json
+owf get view {view-id} --json
+\`\`\`
+
+Replace {view-id} with the UUID returned by create. These commands need no web
+server. Definition URLs are Workspace-rooted even from descendant directories;
+use forward slashes and encode path characters, such as My%20board.md.
+Each create makes a new independent instance, even with the same title and
+definition. Instance title and UUID differ from definition title and optional
+owf.id. A declared owf.id is retained and checked on get; reads never repair it.
+
+Get returns stored result.view and current result.definition with ordered
+columns and effective defaults. Ordinary columns default to type status;
+default_status defaults to the first status and include_blocked to false.
+Per-state defaults select the first supporting ordinary column unless explicitly
+specified in owf.defaults. The example intentionally has two Open columns.
+Blocked is a column type, not an execution state. Definition edits affect all
+referencing instances on their next get without renaming them or changing Actions.
+
+List returns result.views in ascending ID order without reading definitions.
+A missing or invalid definition fails get but remains listed. No command evaluates
+Action membership or returns member counts. These commands do not place cards,
+move Actions, edit/delete instances, or change the existing browser board.
+Create saves instance metadata and one view.created event atomically; reads
+change no instance, Action, Markdown or event. Markdown validation and SQLite
+creation are not a cross-representation snapshot transaction.
+
+This guide is installed only during fresh initialization. Existing user-edited
+guides are preserved; there is no automatic refresh or backfill.
+
 ## Basic operations
 
 Initialize an existing directory (repeat init preserves the existing Workspace):
@@ -170,7 +240,7 @@ retrying a terminal move. Refresh the board after CLI edits to see current facts
 
 
 
-This tool requires schema 5. Older stores are refused without migration or
+This tool requires schema 6. Older stores are refused without migration or
 mutation. For this PoC, initialize a fresh disposable directory with owf init;
 never reset or replace an existing store. Existing user guidance stays untouched.
 

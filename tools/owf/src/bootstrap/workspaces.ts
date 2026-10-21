@@ -2,6 +2,15 @@ import {
   newActionId,
   currentTimestamp,
 } from '../infrastructure/runtime/index.js';
+import {
+  createView as createViewUseCase,
+  getView as getViewUseCase,
+  listViews as listViewsUseCase,
+  type CreateViewInput,
+} from '../application/views/index.js';
+import { viewRepository } from '../infrastructure/sqlite/index.js';
+import { viewDefinitions } from '../infrastructure/markdown/index.js';
+import type { ViewPorts } from '../application/ports/index.js';
 import { actionRepository } from '../infrastructure/sqlite/index.js';
 import {
   createAction as createActionUseCase,
@@ -41,6 +50,18 @@ export const workspacePorts: WorkspacePorts = {
 };
 export const initialize = (root: string, title?: string) =>
   initializeWorkspace(root, title, workspacePorts);
+export const viewPorts: ViewPorts = {
+  ...workspacePorts,
+  views: viewRepository,
+  definitions: viewDefinitions,
+  newId: newActionId,
+  now: currentTimestamp,
+};
+export const createView = (root: string, input: CreateViewInput) =>
+  createViewUseCase(root, input, viewPorts);
+export const getView = (root: string, id: string) =>
+  getViewUseCase(root, id, viewPorts);
+export const listViews = (root: string) => listViewsUseCase(root, viewPorts);
 export const contextPorts: ContextPorts = {
   ...workspacePorts,
   contexts: contextFiles,

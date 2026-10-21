@@ -8,6 +8,9 @@ import {
   getAction,
   listActions,
   setAction,
+  createView,
+  getView,
+  listViews,
 } from './workspaces.js';
 
 const metadata: unknown = JSON.parse(
@@ -41,5 +44,10 @@ await runCli(
     process.once('SIGINT', stop);
     process.once('SIGTERM', stop);
     return `http://127.0.0.1:${port}`;
+  },
+  {
+    create: (input) => createView(process.cwd(), input),
+    get: (id) => getView(process.cwd(), id),
+    list: () => listViews(process.cwd()),
   },
 );

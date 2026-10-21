@@ -407,6 +407,14 @@ test('generated guide examples execute through the built CLI outside checkout', 
   const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
   expect(guide).toContain('owf serve');
   expect(guide).toContain('http://127.0.0.1:4317');
+  const viewDefinition = /```markdown\n([\s\S]*?)\n```/u.exec(guide)?.[1];
+  expect(viewDefinition).toBeDefined();
+  mkdirSync(join(root, '_views'));
+  writeFileSync(join(root, '_views', 'work-board.md'), viewDefinition!);
+  writeFileSync(
+    join(root, '_views', 'index.md'),
+    '# Index\n\n- [Work board](work-board.md)\n',
+  );
   const prerequisiteIds = Array.from({ length: 3 }, (_, index) => {
     const created = run(root, [
       'create',
@@ -444,7 +452,11 @@ test('generated guide examples execute through the built CLI outside checkout', 
       ),
     );
     const result = run(cwd, args);
-    expect(result.status, result.stderr).toBe(0);
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    if (args[0] === 'create' && args[1] === 'view')
+      placeholders['{view-id}'] = z
+        .object({ result: z.object({ view: z.object({ id: z.string() }) }) })
+        .parse(JSON.parse(result.stdout)).result.view.id;
     if (args[0] === 'create' && args[1] === 'action' && args.includes('--json'))
       actionId = z
         .object({ result: z.object({ action: z.object({ id: z.string() }) }) })
@@ -461,8 +473,8 @@ test('generated guide examples execute through the built CLI outside checkout', 
   expect(run(root, ['create', 'outcome', '--help']).stdout).toContain(
     '--expected-result',
   );
-  // The guide starts over twenty independent Node processes on Windows.
-}, 15_000);
+  // Allow process startup under concurrent suite load on Windows; this is not a performance assertion.
+}, 30_000);
 
 test.each([
   [['project', '--json'], 'INVALID_ARGUMENT', 2],
