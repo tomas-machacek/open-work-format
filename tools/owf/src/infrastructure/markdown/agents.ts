@@ -57,14 +57,25 @@ Save it as _views/work-board.md, then run:
 owf create view --definition /_views/work-board.md --title "My work" --json
 owf list views --json
 owf get view {view-id} --json
+owf create action --title "Read the brief" --json
+owf create action --title "Wait for reply" --state waiting
+owf create action --title "Finished task" --state completed
+owf show view {view-id}
+owf set action {id} --state in_progress
+owf show view {view-id} --json
+owf set action {id} --manual-block "Needs approval"
+owf show view {view-id}
+owf set action {id} --clear-manual-block
+owf show view {view-id}
 \`\`\`
 
-Replace {view-id} with the UUID returned by create. These commands need no web
-server. Definition URLs are Workspace-rooted even from descendant directories;
+Replace {view-id} with the View UUID and {id} with the Read the brief Action UUID
+returned by create. These commands need no web server.
+Definition URLs are Workspace-rooted even from descendant directories;
 use forward slashes and encode path characters, such as My%20board.md.
 Each create makes a new independent instance, even with the same title and
 definition. Instance title and UUID differ from definition title and optional
-owf.id. A declared owf.id is retained and checked on get; reads never repair it.
+owf.id. A declared owf.id is retained and checked on get/show; reads never repair it.
 
 Get returns stored result.view and current result.definition with ordered
 columns and effective defaults. Ordinary columns default to type status;
@@ -72,15 +83,33 @@ default_status defaults to the first status and include_blocked to false.
 Per-state defaults select the first supporting ordinary column unless explicitly
 specified in owf.defaults. The example intentionally has two Open columns.
 Blocked is a column type, not an execution state. Definition edits affect all
-referencing instances on their next get without renaming them or changing Actions.
+referencing instances on their next get/show without renaming them or changing Actions.
 
 List returns result.views in ascending ID order without reading definitions.
-A missing or invalid definition fails get but remains listed. No command evaluates
-Action membership or returns member counts. These commands do not place cards,
-move Actions, edit/delete instances, or change the existing browser board.
+A missing or invalid definition fails get/show but remains listed.
+Show returns result.view and ordered result.columns with id, title and members.
+Members have id, title, actual state and derived blocked boolean; human output
+shows the same content and visibly empty columns. Get returns configuration only.
+Show evaluates the entire Workspace, regardless of current Project/Outcome.
+All Actions are currently unplaced. Blocked non-terminal Actions prefer Blocked;
+otherwise use the effective state default when eligible, then the first eligible
+ordinary column in definition order. Ordinary columns require include_blocked:
+true to accept blocked Actions. Waiting alone is not blocking; default_status
+does not reinterpret current states. Ineligible Actions are omitted.
+Members use ascending Action ID with a fixed locale-independent comparison.
+There are no persisted placements or manual ordering. Same-definition instances
+show the same Workspace content while retaining different identities and titles.
+Unblocked Open Actions go only to New to organize; Todo stays empty. Change
+owf.defaults.open to todo and show again to see the new routing immediately.
+Prerequisites outside the View still affect blocking. Malformed Actions and
+missing prerequisites fail the whole read, even for otherwise omitted Actions.
+Schema 6 has five states and no Action archival support; externally injected
+archived data is rejected. Empty membership and zero columns are successful.
+These commands do not move Actions, edit/delete instances, or change the browser board.
 Create saves instance metadata and one view.created event atomically; reads
 change no instance, Action, Markdown or event. Markdown validation and SQLite
-creation are not a cross-representation snapshot transaction.
+reads are not a cross-representation atomic snapshot. Action and prerequisite
+facts use one coherent SQLite read; show does not create an immutable Snapshot.
 
 This guide is installed only during fresh initialization. Existing user-edited
 guides are preserved; there is no automatic refresh or backfill.

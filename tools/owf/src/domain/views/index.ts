@@ -1,4 +1,8 @@
-import { actionStates, type ActionState } from '../actions/index.js';
+import {
+  actionStates,
+  type ActionState,
+  type ActionProjection,
+} from '../actions/index.js';
 import { validateTitle, WorkspaceError } from '../workspaces/index.js';
 
 export type ViewState = ActionState;
@@ -29,6 +33,60 @@ export interface ViewDefinition {
   renderer: 'kanban';
   columns: ViewColumn[];
   defaults: Partial<Record<ViewState, string>>;
+}
+
+export interface ViewMember {
+  id: string;
+  title: string;
+  state: ActionState;
+  blocked: boolean;
+}
+export interface EvaluatedViewColumn {
+  id: string;
+  title: string;
+  members: ViewMember[];
+}
+
+// All members are unplaced: no read persists a placement or a manual rank.
+export function evaluateView(
+  definition: ViewDefinition,
+  actions: readonly ActionProjection[],
+): EvaluatedViewColumn[] {
+  const columns = definition.columns.map(({ id, title }) => ({
+    id,
+    title,
+    members: [] as ViewMember[],
+  }));
+  const special = definition.columns.find(
+    (column) => column.type === 'blocked',
+  );
+  for (const action of actions) {
+    const blocked = action.blocking.blocked;
+    const eligible = definition.columns.filter(
+      (column) =>
+        column.type === 'status' &&
+        column.status.includes(action.state) &&
+        (!blocked || column.include_blocked),
+    );
+    const target =
+      blocked && !['completed', 'cancelled'].includes(action.state) && special
+        ? special
+        : (eligible.find(
+            (column) => column.id === definition.defaults[action.state],
+          ) ?? eligible[0]);
+    if (target)
+      columns
+        .find((column) => column.id === target.id)!
+        .members.push({
+          id: action.id,
+          title: action.title,
+          state: action.state,
+          blocked,
+        });
+  }
+  for (const column of columns)
+    column.members.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return columns;
 }
 
 function invalid(field: string): never {

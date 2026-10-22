@@ -2,8 +2,13 @@ import {
   validateTitle,
   WorkspaceError,
 } from '../../domain/workspaces/index.js';
-import type { ViewDefinition, ViewInstance } from '../../domain/views/index.js';
-import type { ViewPorts } from '../ports/index.js';
+import {
+  evaluateView,
+  type EvaluatedViewColumn,
+  type ViewDefinition,
+  type ViewInstance,
+} from '../../domain/views/index.js';
+import type { ViewPorts, ViewEvaluationPorts } from '../ports/index.js';
 import { discoverWorkspace } from '../workspaces/index.js';
 
 export type { ViewDefinition, ViewInstance } from '../../domain/views/index.js';
@@ -29,6 +34,52 @@ export interface ListViewsResult {
     views: ViewInstance[];
   };
   warnings: [];
+}
+export interface ShowViewResult {
+  result: {
+    status: 'evaluated';
+    type: 'view';
+    root: string;
+    view: ViewInstance;
+    columns: EvaluatedViewColumn[];
+  };
+  warnings: [];
+}
+
+export function showView(
+  start: string,
+  id: string,
+  ports: ViewEvaluationPorts,
+): ShowViewResult {
+  let reference: string | undefined;
+  try {
+    const found = workspace(start, ports);
+    const view = ports.views.get(found.store, id);
+    if (!view)
+      throw new WorkspaceError(
+        'VIEW_NOT_FOUND',
+        'No such stored View instance.',
+      );
+    reference = view.definition.url;
+    const definition = ports.definitions.load(found.root, view.definition);
+    // The repository reads candidates and prerequisite facts in one SQLite statement.
+    const actions = ports.actions.list(found.store);
+    return {
+      result: {
+        status: 'evaluated',
+        type: 'view',
+        root: found.root,
+        view,
+        columns: evaluateView(definition, actions),
+      },
+      warnings: [],
+    };
+  } catch (error) {
+    throw new WorkspaceError(
+      error instanceof WorkspaceError ? error.code : 'VIEW_READ_FAILED',
+      `View instance ${id}${reference === undefined ? '' : `, definition ${reference}`}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 function workspace(start: string, ports: ViewPorts) {
   const found = discoverWorkspace(start, ports);

@@ -8,13 +8,17 @@ export function temporaryDirectory(): string {
 export function cleanup(root: string): void {
   rmSync(root, { recursive: true, force: true });
 }
-export function snapshot(root: string): Record<string, string> {
+export function snapshot(
+  root: string,
+  omitted: readonly string[] = [],
+): Record<string, string> {
   const result: Record<string, string> = {};
   for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (omitted.includes(join(root, entry.name))) continue;
     if (entry.isDirectory()) {
       result[`${entry.name}/`] = 'directory';
       for (const [name, value] of Object.entries(
-        snapshot(join(root, entry.name)),
+        snapshot(join(root, entry.name), omitted),
       ))
         result[`${entry.name}/${name}`] = value;
     } else

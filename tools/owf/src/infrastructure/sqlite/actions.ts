@@ -92,11 +92,30 @@ function readActions(db: DatabaseSync): Map<string, Action> {
         'SELECT id,title,state,owner_url,description,created_at,updated_at,waiting_for,manual_block,depends_on FROM actions ORDER BY created_at DESC, id ASC',
       )
       .all()
-      .map(mapRow);
+      .map((row) => {
+        try {
+          return mapRow(row);
+        } catch {
+          throw new WorkspaceError(
+            'ACTION_READ_FAILED',
+            `Invalid stored Action ${String(row.id)}. Check store integrity.`,
+          );
+        }
+      });
     const byId = new Map(actions.map((action) => [action.id, action]));
-    for (const action of actions) projectAction(action, (id) => byId.get(id));
+    for (const action of actions) {
+      try {
+        projectAction(action, (id) => byId.get(id));
+      } catch (error) {
+        throw new WorkspaceError(
+          'ACTION_READ_FAILED',
+          `Action ${action.id}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
     return byId;
-  } catch {
+  } catch (error) {
+    if (error instanceof WorkspaceError) throw error;
     throw new WorkspaceError(
       'ACTION_READ_FAILED',
       'Could not read valid Actions and prerequisites. Check store access and integrity.',
@@ -250,7 +269,8 @@ export const actionRepository: ActionRepository = {
               filter.states.includes(action.state)),
         )
         .map((action) => projectAction(action, (id) => byId.get(id)));
-    } catch {
+    } catch (error) {
+      if (error instanceof WorkspaceError) throw error;
       throw new WorkspaceError(
         'ACTION_READ_FAILED',
         'Could not read valid Actions. Check store access and integrity.',

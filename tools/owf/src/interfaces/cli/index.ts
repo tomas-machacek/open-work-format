@@ -28,6 +28,7 @@ import type {
   ViewResult,
   ListViewsResult,
   ViewInstance,
+  ShowViewResult,
 } from '../../application/views/index.js';
 
 function once(label: string) {
@@ -66,6 +67,7 @@ export async function runCli(
     create(input: CreateViewInput): ViewResult;
     get(id: string): ViewResult;
     list(): ListViewsResult;
+    show(id: string): ShowViewResult;
   },
 ): Promise<void> {
   let json = false;
@@ -114,6 +116,27 @@ export async function runCli(
         );
       console.log(
         `Action board: ${await serve(Number(options.port))}\nCreate Actions with Add Action; press Ctrl+C to stop.`,
+      );
+    });
+  program
+    .command('show')
+    .description('Evaluate current Workspace content')
+    .command('view')
+    .description(
+      'Show current Actions in View columns; get view returns configuration only. All Actions are unplaced; eligible defaults then definition order determine columns, with Action ID order inside each column. No placements are saved.',
+    )
+    .argument('<view-id>', 'Stored instance UUID')
+    .option(
+      '--json',
+      'Emit instance metadata and ordered columns with members as JSON',
+    )
+    .action((id: string, options: { json?: boolean }) => {
+      json = options.json ?? false;
+      const result = views.show(id);
+      console.log(
+        json
+          ? JSON.stringify({ ok: true, ...result })
+          : renderShownView(result),
       );
     });
   const creation = program
@@ -484,6 +507,28 @@ unresolved_dependencies, dependencies [{ uri, title, state, satisfied }].
       ? 2
       : 1;
   }
+}
+
+function renderShownView({ result }: ShowViewResult): string {
+  return `evaluated view\n${renderViewInstance(result.view)}\nRoot: ${result.root}\nColumns:\n${
+    result.columns.length === 0
+      ? '  (none)'
+      : result.columns
+          .map(
+            (column) =>
+              `  ${column.title} (${column.id})\n${
+                column.members.length === 0
+                  ? '    (empty)'
+                  : column.members
+                      .map(
+                        (member) =>
+                          `    ${member.id} | ${member.title} | ${member.state} | blocked: ${String(member.blocked)}`,
+                      )
+                      .join('\n')
+              }`,
+          )
+          .join('\n')
+  }`;
 }
 
 function renderViewInstance(view: ViewInstance): string {

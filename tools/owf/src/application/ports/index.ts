@@ -41,6 +41,9 @@ export interface ActionRepository {
     ) => Action,
   ): { action: ActionProjection; changed: boolean };
 }
+export interface ViewEvaluationPorts extends ViewPorts {
+  actions: Pick<ActionRepository, 'list'>;
+}
 export interface ActionPorts extends ContextPorts {
   actions: ActionRepository;
   newId(): string;

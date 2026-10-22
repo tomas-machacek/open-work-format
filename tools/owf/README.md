@@ -7,8 +7,9 @@ The local web board supports Action creation, editing, state moves, filtering,
 manual blocking and Action prerequisites through the same operations. Inbox
 operations are not yet implemented.
 
-The CLI also creates, lists and retrieves independent View instances backed by
-validated shared Markdown definitions. It does not evaluate Actions into Views.
+The CLI creates, lists and retrieves independent View instances backed by
+validated shared Markdown definitions, and evaluates current Actions into their
+columns with read-only `show view`.
 
 ## View instances
 
@@ -33,6 +34,8 @@ owf create view --definition /_views/work-board.md --title "My work" --json
 owf create view --definition /_views/work-board.md --title "My work" --json
 owf list views --json
 owf get view VIEW_ID --json
+owf show view VIEW_ID
+owf show view VIEW_ID --json
 ```
 
 Replace `VIEW_ID` with a returned instance UUID. Commands work from any descendant
@@ -44,7 +47,7 @@ targets outside `_views/` are rejected.
 Each create stores a new UUID, normalized instance title, definition reference
 `{ url, id? }`, and `created_at`, with one atomic `view.created` event. Duplicate
 instance titles are allowed. Optional `owf.id` identifies the Markdown definition;
-it is retained in the reference and must still match on get. There is no new View
+it is retained in the reference and must still match on get/show. There is no new View
 URI scheme, ID scan or automatic reference repair.
 
 JSON uses the existing `{ ok: true, result, warnings: [] }` envelope. Create and
@@ -57,20 +60,67 @@ effective boolean `include_blocked`. Blocked columns have only `id`, `title`, an
 List returns `result.views`, ordered by ascending instance ID, without opening
 definitions. It includes broken references and returns `[]` for an empty store.
 
+Show returns `result.status: "evaluated"`, `result.type: "view"`, `result.root`,
+the stored `result.view`, and ordered `result.columns`. Each column has `id`,
+`title` and `members`; each member has `id`, `title`, its actual `state`, and a
+derived `blocked` boolean. Human output shows the same order and content and
+marks empty columns. Get returns configuration only; list inventories instances.
+
+All current Actions across the Workspace are evaluated, even when invoked from a
+Project/Outcome directory. Every Action is currently **unplaced**. A blocked
+non-terminal Action prefers the special Blocked column; otherwise the effective
+per-state default wins if eligible, then the first eligible ordinary column in
+definition order. Ordinary columns accept blocked Actions only with
+`include_blocked: true`. Waiting alone is not blocking. A column's `default_status`
+does not change a member's actual state. Ineligible Actions are omitted.
+All columns remain visible, including empty columns, and members use ascending
+Action ID with a fixed, locale-independent comparison. No placement or manual
+order is persisted. Two instances of the same definition therefore show the same
+Workspace content with their own identities and titles. With the supplied
+example all unblocked Open Actions go to New to organize and Todo stays empty.
+
+After copying the example above, try this flow. Replace `VIEW_ID` and `ACTION_ID`
+with the IDs returned by create:
+
+```sh
+owf create view --definition /_views/work-board.md --title "Try evaluation" --json
+owf create action --title "Read the brief" --json
+owf create action --title "Wait for reply" --state waiting
+owf create action --title "Finished task" --state completed
+owf show view VIEW_ID
+owf set action ACTION_ID --state in_progress
+owf show view VIEW_ID --json
+owf set action ACTION_ID --manual-block "Needs approval"
+owf show view VIEW_ID
+owf set action ACTION_ID --clear-manual-block
+owf show view VIEW_ID
+```
+
+Change `owf.defaults.open` in the shared definition to `todo` and show again to
+see live routing without refresh/rebuild. Current dependency facts are reused
+even when prerequisites are outside the View. Missing prerequisites and malformed
+Actions fail the entire read, including Actions that routing would otherwise omit.
+Schema 6 supports five execution states; Action archival and archived prerequisite
+dispositions are not supported by this version. Externally injected `archived`
+records are invalid store data and fail explicitly.
+
 Edit the shared Markdown definition and get either instance again: both use the
 new valid configuration while retaining their own title and UUID. A missing,
-invalid or ID-mismatched definition causes get to fail with its URL and instance
+invalid or ID-mismatched definition causes get/show to fail with its URL and instance
 ID, while list still returns the stored instances. Definition errors use
 `INVALID_VIEW_DEFINITION` or `INVALID_VIEW_REFERENCE`; unknown instances use
 `VIEW_NOT_FOUND`. Store errors remain explicit, never empty successful results.
 JSON errors use `{ ok: false, error: { code, message } }`; human errors go to
 stderr. Invalid arguments/titles exit 2 and operational failures exit 1.
 
-No Action membership, counts, placements, ordering, windows, View editing,
-deletion or HTTP/GUI View operations are delivered here. The existing five-state
+Persisted placements, manual ordering, moves, windows, View editing,
+deletion and HTTP/GUI View operations remain deferred. The existing five-state
 board retains its behavior. Reads do not change definitions, instances, Actions
-or events. Validation of editable Markdown and the SQLite create transaction do
-not provide a cross-representation snapshot guarantee.
+or events. Action candidates and prerequisite facts are read from one coherent
+SQLite statement. Editable Markdown and SQLite do not provide a
+cross-representation atomic snapshot; show returns current content, not an
+immutable Snapshot. Empty Workspaces, no eligible members and zero-column
+definitions are successful evaluations.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
 deferred features, and acceptance scenarios.
