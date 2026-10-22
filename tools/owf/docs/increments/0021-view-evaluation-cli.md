@@ -1,6 +1,6 @@
 # 0021 — Read-only View evaluation through CLI
 
-> Status: in_progress
+> Status: completed
 > Description: Show current Actions grouped into a View instance's columns without changing persistent data.
 > Depends on: [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md) and [0017 — CLI Action blocking and dependencies](0017-action-blocking-cli.md).
 
@@ -300,8 +300,7 @@ outside scope. Independent review of `dd773592db09cd898689a82b46351f052b4628d7`
 found no functional defects. Its minor documentation finding was corrected to
 match the shipped example, and the optional CLI test recommendation was adopted:
 human output is compared by complete column sections, including the order of two
-members after clearing a block. Both increment records remain `in_progress` as
-requested.
+members after clearing a block.
 
 Verification on 2026-10-22:
 
@@ -339,8 +338,9 @@ Review follow-up verification on 2026-10-22, based on reviewed revision
 - Only this documentation record changed after the final complete gate;
   formatting and `git diff --check` were checked separately. Linux was not tested.
 
-No unresolved review findings remain. No merge, version change, tag or release
-was performed.
+No unresolved review findings remain. On 2026-10-22 the user confirmed completion
+of implementation and review and authorized closing the increment and merging
+PR #27. The document and index are marked completed. No release is implied.
 
 ## Decision changes and follow-up
 
@@ -352,6 +352,8 @@ was performed.
   User approved retaining schema 6 without Action archival/archived prerequisites;
   externally injected archived data is rejected explicitly. No schema change or
   new archival interpretation was introduced.
+- 2026-10-22: Implementation, independent review and recorded verification
+  completed; user authorized merge. Status changed to completed.
 - Persisted placements and CLI moves are the next candidate. That increment must
   define atomic Action/placement writes and reconciliation before introducing
   instance-specific organization. It is not authorized by this document.
