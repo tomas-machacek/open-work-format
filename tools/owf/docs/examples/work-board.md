@@ -28,5 +28,7 @@ owf:
 
 # Work board
 
-Reusable state and blocking configuration. Instance commands validate this
-configuration; they do not evaluate Actions or place cards into these columns.
+Reusable state and blocking configuration. `get view` validates configuration;
+`show view` evaluates current Actions without persisting placements. Unblocked
+Open Actions route to New to organize; Todo stays empty while all Actions are
+unplaced. Shared-definition instances show the same current Workspace content.

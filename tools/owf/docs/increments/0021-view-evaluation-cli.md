@@ -1,6 +1,6 @@
 # 0021 — Read-only View evaluation through CLI
 
-> Status: reviewed
+> Status: in_progress
 > Description: Show current Actions grouped into a View instance's columns without changing persistent data.
 > Depends on: [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md) and [0017 — CLI Action blocking and dependencies](0017-action-blocking-cli.md).
 
@@ -17,6 +17,15 @@ especially eligibility and unique placement in Section 4, together with
 Follow the [architecture](../architecture.md),
 [development guidelines](../development-guidelines.md) and current
 [MVP sequence](../../../../docs/design/mvp-scope.md).
+
+Implementation clarification approved by the user on 2026-10-22: schema 6 and
+the existing Action model support only `open`, `in_progress`, `waiting`,
+`completed` and `cancelled`, without `archived` or `archived_from`. Preserve
+schema 6 and existing blocking semantics. Archival exclusion and archived
+prerequisite disposition cannot be delivered or verified in this increment;
+they require a future agreed schema/model change. Externally injected archived
+records are invalid data and must fail explicitly. The criteria below reflect
+this accepted resolution of the original archival requirement.
 
 Included:
 
@@ -53,11 +62,11 @@ implicitly narrow membership. No web server or interactive prompt is required.
 
 Keep the existing operations distinct:
 
-| Command | Meaning |
-| --- | --- |
-| `list views` | Inventory of stored instances without loading definitions. |
-| `get view VIEW_ID` | Instance metadata and validated current configuration. |
-| `show view VIEW_ID` | Instance metadata and evaluated current column content. |
+| Command             | Meaning                                                    |
+| ------------------- | ---------------------------------------------------------- |
+| `list views`        | Inventory of stored instances without loading definitions. |
+| `get view VIEW_ID`  | Instance metadata and validated current configuration.     |
+| `show view VIEW_ID` | Instance metadata and evaluated current column content.    |
 
 Do not change the existing get/list contracts or add parallel aliases.
 The command name is fixed for this proposal; exact DTO names and diagnostic
@@ -66,13 +75,12 @@ codes are implementation choices and must be documented.
 ### Evaluation and blocking
 
 Load and validate the stored instance and its current definition using the 0020
-reference and definition rules. Obtain non-archived Actions across the Workspace
+reference and definition rules. Obtain supported Actions across the Workspace
 and the prerequisite facts needed by the existing blocking evaluator.
 
 Reuse existing Action dependency/blocking semantics, including manual reasons,
-unsatisfied Cancelled prerequisites, preserved terminal disposition of archived
-prerequisites, and established missing-target behavior. Archived Actions are
-excluded as displayed members, but may still be needed as prerequisite facts.
+unsatisfied Cancelled prerequisites and established missing-target behavior.
+Action archival is unavailable in schema 6, as clarified above.
 Do not infer blocking from whether a prerequisite appears in this View. Waiting
 alone is not blocking. Do not add Outcome dependencies, graph traversal rules,
 cycle rejection or a new lint subsystem in this increment.
@@ -98,15 +106,15 @@ the same state are valid and do not duplicate cards. Terminal Actions never
 enter the special Blocked column; ordinary eligibility uses the existing
 derived blocking result rather than a View-specific reinterpretation.
 
-| Situation | Expected assignment |
-| --- | --- |
-| Unblocked Open Action; several Open columns | Effective Open default only. |
-| Blocked non-terminal Action; Blocked exists | Blocked, even if an ordinary column permits blocked Actions. |
-| Blocked Action; no Blocked; state default excludes blocked | First eligible ordinary column permitting blocked Actions, if any. |
-| Unblocked Waiting Action; no Waiting column | Outside this View. |
-| Blocked Waiting Action; Blocked exists | Blocked, despite the omitted ordinary Waiting state. |
-| State has no eligible ordinary column and Blocked does not apply | Outside this View. |
-| Archived Action | Not displayed. |
+| Situation                                                        | Expected assignment                                                |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Unblocked Open Action; several Open columns                      | Effective Open default only.                                       |
+| Blocked non-terminal Action; Blocked exists                      | Blocked, even if an ordinary column permits blocked Actions.       |
+| Blocked Action; no Blocked; state default excludes blocked       | First eligible ordinary column permitting blocked Actions, if any. |
+| Unblocked Waiting Action; no Waiting column                      | Outside this View.                                                 |
+| Blocked Waiting Action; Blocked exists                           | Blocked, despite the omitted ordinary Waiting state.               |
+| State has no eligible ordinary column and Blocked does not apply | Outside this View.                                                 |
+| Externally injected archived Action in schema 6                  | Explicit invalid-data failure; archival is unsupported.            |
 
 These are the unplaced branch of the agreed profile rules. Do not implement
 hypothetical placement retention or reconciliation against nonexistent data.
@@ -200,9 +208,11 @@ claims accurate: this proposal alone delivers no command.
 - **AC3 — Blocking:** Manual and dependency blocking use existing semantics.
   Unplaced blocked non-terminal Actions prefer Blocked; without it, ordinary
   inclusion and fallback apply. Waiting alone does not route to Blocked.
-  Prerequisites outside the View, including archived targets, still affect blocking.
-- **AC4 — Exclusion and emptiness:** Archived Actions are not displayed.
-  Unsupported states/ineligible Actions are outside the View. Empty columns stay
+  Prerequisites outside the View still affect blocking; schema 6 has no archived
+  target representation, as agreed in the clarification above.
+- **AC4 — Exclusion and emptiness:** States unsupported by the definition and
+  ineligible Actions are outside the View. Invalid stored states fail explicitly.
+  Empty columns stay
   visible; empty Workspace, no eligible members and zero columns succeed.
 - **AC5 — Output and order:** Both formats identify the instance and columns,
   expose member identity/title/state/blocking, preserve definition column order,
@@ -219,35 +229,21 @@ claims accurate: this proposal alone delivers no command.
   guidance describe the implemented contract and limitations. Schema 6 remains
   supported without migration; existing guides and GUI behavior remain untouched.
 
-Draft acceptance scenario, to be replaced by a link to its executable counterpart:
-
-```gherkin
-Scenario: A View reflects current work without changing it
-  Given a View with New and Todo columns accepting Open and a Blocked column
-  And New is the default column for Open
-  And an unblocked Open Action and a manually blocked Open Action exist
-  When I inspect the View content
-  Then the unblocked Action appears only in New
-  And the blocked Action appears only in Blocked
-  And Todo is empty
-  And inspection changes no stored work or View data and records no event
-  When I clear the blocked Action's manual block
-  And I inspect the View content again
-  Then both Actions appear only in New
-```
+Executable acceptance scenario:
+[A View reflects current work without changing it](../../tests/acceptance/features/view-evaluation.feature).
 
 ## Verification plan
 
 Use distinct behavioral and boundary tests, not a test-count target or the same
 full matrix at every layer.
 
-| Risk / criteria | Verification |
-| --- | --- |
-| Unique routing, eligibility and deterministic fallback (AC2–AC5) | Focused domain cases covering overlapping states, explicit defaults, blocked fallback, terminal exclusion from Blocked, omitted states and shuffled input order. |
-| Real dependency facts and live reads (AC3, AC6) | Integration with SQLite, current Markdown and existing Action operations; include a prerequisite outside the View and archived prerequisite disposition. |
-| Read purity and errors (AC7) | Semantic before/after store and file comparisons for success/failure; cover malformed excluded candidates and broken definitions/store errors. Avoid byte comparisons of SQLite bookkeeping files. |
-| Observable behavior (AC2, AC3, AC6) | Small Cucumber journey through the real application boundary, based on the scenario above. |
-| CLI and guidance (AC1, AC5, AC8) | Built-CLI journey covering human/JSON results, descendant invocation and a failure exit; verify help/examples and new Workspace guidance. |
+| Risk / criteria                                                  | Verification                                                                                                                                                                                       |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unique routing, eligibility and deterministic fallback (AC2–AC5) | Focused domain cases covering overlapping states, explicit defaults, blocked fallback, terminal exclusion from Blocked, omitted states and shuffled input order.                                   |
+| Real dependency facts and live reads (AC3, AC6)                  | Integration with SQLite, current Markdown and existing Action operations; include a prerequisite outside the View and Cancelled/Completed disposition. Archived data is unsupported in schema 6.   |
+| Read purity and errors (AC7)                                     | Semantic before/after store and file comparisons for success/failure; cover malformed excluded candidates and broken definitions/store errors. Avoid byte comparisons of SQLite bookkeeping files. |
+| Observable behavior (AC2, AC3, AC6)                              | Small Cucumber journey through the real application boundary, based on the scenario above.                                                                                                         |
+| CLI and guidance (AC1, AC5, AC8)                                 | Built-CLI journey covering human/JSON results, descendant invocation and a failure exit; verify help/examples and new Workspace guidance.                                                          |
 
 Run required `npm run verify` before implementation handoff and record the
 revision, platform and actual results. No new browser scenarios are required
@@ -271,8 +267,39 @@ The user reviewed and approved this document for implementation on 2026-10-22.
 
 ## Implementation and review outcome
 
-Not implemented. Record delivered behavior, deviations, verification evidence
-and independent review results here at handoff.
+Implemented `owf show view VIEW_ID [--json]` through the shared application
+boundary. Domain routing returns every configured column, chooses one eligible
+column per Action, preserves current execution state and derived blocking, and
+orders members by fixed ascending Action ID. Application reads use the existing
+instance/definition ports and the Action repository's coherent candidate and
+prerequisite read. No schema, write operations, placements, events or GUI behavior
+were added or changed.
+
+The public application DTO is `ShowViewResult`: the standard success envelope
+contains `result.status: evaluated`, `type: view`, `root`, stored `view` metadata,
+and `columns: [{ id, title, members: [{ id, title, state, blocked }] }]`.
+Diagnostics reuse `VIEW_NOT_FOUND`, `VIEW_READ_FAILED`,
+`INVALID_VIEW_DEFINITION`, `INVALID_VIEW_REFERENCE`, `ACTION_READ_FAILED` and
+existing Workspace/store codes. Show adds instance/definition context; Action
+validation includes source ID and missing prerequisite identity where available.
+Get/list result contracts remain unchanged.
+
+Tests cover routing/fallback/terminal blocking, real dependency and definition
+changes, separate instance identities, root/Project context equivalence, empty
+results, malformed omitted candidates, unknown instances, definitions/references,
+invalid/old/unknown/missing stores, and semantic read purity. The executable
+acceptance journey above uses real application operations. Built-CLI tests compare
+human and JSON output, verify failures without partial success and preserve
+user-edited guides; the existing guide-example journey executes the new flow.
+Help, README, architecture summary, example and the single-source Workspace guide
+describe unplaced routing and its limitations.
+
+The only scope clarification is the user-approved archival limitation above.
+Persisted placement/manual order and a cross-representation atomic snapshot remain
+outside scope. Independent code review is pending; both increment records remain
+`in_progress` as requested.
+
+Verification evidence will be recorded after the final complete gate run.
 
 ## Decision changes and follow-up
 
@@ -280,6 +307,10 @@ and independent review results here at handoff.
   this draft makes the proposed command, routing, output and verification precise.
 - 2026-10-22: User reviewed the detailed document and approved implementation;
   status changed to reviewed.
+- 2026-10-22: Implementation started; document and index changed to in_progress.
+  User approved retaining schema 6 without Action archival/archived prerequisites;
+  externally injected archived data is rejected explicitly. No schema change or
+  new archival interpretation was introduced.
 - Persisted placements and CLI moves are the next candidate. That increment must
   define atomic Action/placement writes and reconciliation before introducing
   instance-specific organization. It is not authorized by this document.

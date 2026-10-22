@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { z } from 'zod';
 import { afterEach, expect, test } from 'vitest';
 import { cleanup, snapshot, temporaryDirectory } from '../support/workspace.js';
+import { semanticSnapshot } from '../support/store-snapshot.js';
+import { initialize } from '../../src/bootstrap/workspaces.js';
 
 const cli = resolve('dist/bootstrap/cli.js');
 const roots: string[] = [];
@@ -51,6 +53,7 @@ test('documented View commands work across CLI processes from a descendant with 
     ['create', 'view'],
     ['get', 'view'],
     ['list', 'views'],
+    ['show', 'view'],
   ]) {
     const help = run(child, [...command, '--help']);
     expect(help.status).toBe(0);
@@ -154,4 +157,147 @@ test('documented View commands work across CLI processes from a descendant with 
   expect(humanCreate.status).toBe(0);
   expect(humanCreate.stdout).toContain('Second view');
   expect(humanCreate.stdout).toContain('/_views/work-board.md');
+});
+
+test('show View has matching ordered human/JSON content from root and Project context, live changes and explicit failures', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  const { store } = initialize(root, 'Show views');
+  const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  expect(guide).toContain('owf show view {view-id} --json');
+  expect(guide).toContain('unplaced');
+  mkdirSync(join(root, '_views'));
+  const definition = join(root, '_views', 'work-board.md');
+  copyFileSync(
+    new URL('../../docs/examples/work-board.md', import.meta.url),
+    definition,
+  );
+  const created = run(root, [
+    'create',
+    'view',
+    '--definition',
+    '/_views/work-board.md',
+    '--title',
+    'My work',
+    '--json',
+  ]);
+  expect(created.status).toBe(0);
+  const view = envelope.parse(JSON.parse(created.stdout)).result.view;
+  expect(
+    run(root, ['create', 'project', '--title', 'Project', '--slug', 'project'])
+      .status,
+  ).toBe(0);
+  const child = join(root, '_projects', 'project');
+  const actionEnvelope = z.object({
+    result: z.object({ action: z.object({ id: z.string() }) }),
+  });
+  const ids = ['Read brief', 'Review result'].map((title) => {
+    const created = run(root, ['create', 'action', '--title', title, '--json']);
+    expect(created.status).toBe(0);
+    return actionEnvelope.parse(JSON.parse(created.stdout)).result.action.id;
+  });
+  expect(
+    run(root, ['set', 'action', ids[1]!, '--manual-block', 'Needs approval'])
+      .status,
+  ).toBe(0);
+  const showEnvelope = z.object({
+    ok: z.literal(true),
+    warnings: z.array(z.unknown()),
+    result: z.object({
+      status: z.literal('evaluated'),
+      type: z.literal('view'),
+      view: viewSchema,
+      columns: z.array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          members: z.array(
+            z.object({
+              id: z.string(),
+              title: z.string(),
+              state: z.enum([
+                'open',
+                'in_progress',
+                'waiting',
+                'completed',
+                'cancelled',
+              ]),
+              blocked: z.boolean(),
+            }),
+          ),
+        }),
+      ),
+    }),
+  });
+  const before = semanticSnapshot(root, store);
+  const shown = run(root, ['show', 'view', view.id, '--json']);
+  expect(shown.status, shown.stdout + shown.stderr).toBe(0);
+  const parsed = showEnvelope.parse(JSON.parse(shown.stdout));
+  expect(parsed.result.view).toEqual(view);
+  expect(
+    parsed.result.columns.map((column) =>
+      column.members.map((member) => member.id),
+    ),
+  ).toEqual([[ids[0]], [], [], [ids[1]], []]);
+  const descendant = run(child, ['show', 'view', view.id, '--json']);
+  expect(descendant.status).toBe(0);
+  expect(JSON.parse(descendant.stdout)).toEqual(JSON.parse(shown.stdout));
+  const human = run(child, ['show', 'view', view.id]);
+  expect(human.status).toBe(0);
+  expect(human.stdout).toContain('My work');
+  expect(human.stdout).toContain(view.id);
+  let position = -1;
+  for (const column of parsed.result.columns) {
+    const next = human.stdout.indexOf(`${column.title} (${column.id})`);
+    expect(next).toBeGreaterThan(position);
+    position = next;
+    if (column.members.length === 0)
+      expect(human.stdout).toContain(
+        `${column.title} (${column.id})\n    (empty)`,
+      );
+    for (const member of column.members)
+      expect(human.stdout).toContain(
+        `${member.id} | ${member.title} | ${member.state} | blocked: ${String(member.blocked)}`,
+      );
+  }
+  expect(semanticSnapshot(root, store)).toEqual(before);
+  expect(
+    run(root, ['set', 'action', ids[1]!, '--clear-manual-block']).status,
+  ).toBe(0);
+  const cleared = run(child, ['show', 'view', view.id, '--json']);
+  expect(cleared.status).toBe(0);
+  expect(
+    showEnvelope
+      .parse(JSON.parse(cleared.stdout))
+      .result.columns[0]!.members.map((member) => member.id),
+  ).toEqual([...ids].sort());
+  writeFileSync(definition, 'Broken definition');
+  const broken = semanticSnapshot(root, store);
+  const failed = run(child, ['show', 'view', view.id, '--json']);
+  expect(failed.status).toBe(1);
+  expect(
+    z
+      .object({
+        ok: z.literal(false),
+        error: z.object({
+          code: z.literal('INVALID_VIEW_DEFINITION'),
+          message: z.string(),
+        }),
+      })
+      .parse(JSON.parse(failed.stdout)).error.message,
+  ).toContain(view.id);
+  expect(JSON.parse(failed.stdout)).not.toHaveProperty('result');
+  const humanFailure = run(child, ['show', 'view', view.id]);
+  expect(humanFailure.status).toBe(1);
+  expect(humanFailure.stdout).toBe('');
+  expect(humanFailure.stderr).toContain('INVALID_VIEW_DEFINITION');
+  expect(run(child, ['list', 'views']).status).toBe(0);
+  // Repeat initialization preserves an existing user-edited guide.
+  writeFileSync(join(root, 'AGENTS.md'), 'My custom guide\n');
+  expect(run(child, ['init']).status).toBe(0);
+  expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toBe(
+    'My custom guide\n',
+  );
+  writeFileSync(join(root, 'AGENTS.md'), guide);
+  expect(semanticSnapshot(root, store)).toEqual(broken);
 });

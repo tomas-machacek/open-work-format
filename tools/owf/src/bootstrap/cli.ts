@@ -11,6 +11,7 @@ import {
   createView,
   getView,
   listViews,
+  showView,
 } from './workspaces.js';
 
 const metadata: unknown = JSON.parse(
@@ -49,5 +50,6 @@ await runCli(
     create: (input) => createView(process.cwd(), input),
     get: (id) => getView(process.cwd(), id),
     list: () => listViews(process.cwd()),
+    show: (id) => showView(process.cwd(), id),
   },
 );

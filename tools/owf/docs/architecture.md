@@ -2,7 +2,7 @@
 
 > Status: Agreed implementation baseline, 2026-09-15.
 > View architecture direction simplified 2026-10-11; definition validation and
-> CLI instance create/list/get implemented in 0020; evaluation remains deferred.
+> CLI instance create/list/get implemented in 0020; read-only evaluation in 0021.
 
 ## Purpose and authority
 
@@ -37,8 +37,8 @@ Planned layout; directories and abstractions are created only when needed:
 | src/domain/references/            | Shared domain identifiers and references                                        |
 | src/application/actions/          | Action use cases                                                                |
 | src/application/inbox/            | Inbox use cases                                                                 |
-| src/domain/views/                 | View definition and instance validation; placement and ordering deferred        |
-| src/application/views/            | View instance create/list/get; evaluation deferred                              |
+| src/domain/views/                 | View validation and unplaced routing with deterministic Action ID order         |
+| src/application/views/            | View instance create/list/get and read-only show evaluation                     |
 | src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces |
 | src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations             |
 | src/infrastructure/markdown/      | Reading Markdown objects and metadata                                           |
@@ -151,7 +151,22 @@ authoritative in the same Workspace Operational Store.
 An unavailable store must be reported, never treated as empty or silently replaced.
 Retain the paused-write backup/restore requirement in the MVP scope.
 
-## Planned View evaluation and command boundary
+## View evaluation and planned write command boundary
+
+Delivered in 0021: CLI `show view VIEW_ID [--json]` coordinates instance and
+current definition reads with the existing Action repository through ports.
+Domain code routes unplaced Actions uniquely and orders members by fixed ascending
+ID; every definition column remains visible. All Workspace Actions are candidates,
+without contextual owner narrowing. Existing blocking projection reads candidate
+and prerequisite facts from one SQLite statement; it validates before routing.
+Get remains configuration-only and list remains definition-independent inventory.
+Reads save no placement, rank, timestamps or events. Same-definition instances
+show the same content and retain distinct identities. Schema 6 and its five
+Action states are unchanged; archival is not available in this tool version.
+Effective state defaults win when eligible, otherwise the first eligible ordinary
+column in definition order; Blocked takes precedence for blocked non-terminals.
+The fallback member order is not persisted manual order. The remaining movement,
+placement retention, ordering and reconciliation design below is deferred.
 
 Definitions are data: state mappings, per-state default columns, target default
 states, and blocking inclusion. Domain rules determine eligibility and unique
