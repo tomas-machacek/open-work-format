@@ -40,7 +40,7 @@ link and a one-line description; keep its status in sync.
 | [0018 — Board blocking and dependencies](0018-board-blocking.md)            | Inspect and edit manual blocks and Action prerequisites on the board.       | completed   |
 | [0019 — Compact blocking detail](0019-compact-blocking-detail.md)           | Compact prerequisite rows and on-demand selection in Action detail.         | completed   |
 | [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md) | Create, list and get instances using validated shared Markdown definitions. | completed   |
-| [0021 — Read-only View evaluation through CLI](0021-view-evaluation-cli.md) | Show current Actions in View columns without changing persistent data.      | in_progress |
+| [0021 — Read-only View evaluation through CLI](0021-view-evaluation-cli.md) | Show current Actions in View columns without changing persistent data.      | completed   |
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
 `reviewed` means the design has been reviewed and approved for implementation;
