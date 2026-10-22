@@ -120,8 +120,8 @@ These are the unplaced branch of the agreed profile rules. Do not implement
 hypothetical placement retention or reconciliation against nonexistent data.
 
 With the shipped example, all unblocked Open Actions go to New to organize;
-Todo, Sprint backlog and Backlog remain empty. Two instances of the same
-definition evaluate the same Workspace content while retaining different
+Todo remains empty. Two instances of the same definition evaluate the same
+Workspace content while retaining different
 identities and titles. Independent organization arrives with persisted
 placements in a later increment.
 
@@ -296,8 +296,12 @@ describe unplaced routing and its limitations.
 
 The only scope clarification is the user-approved archival limitation above.
 Persisted placement/manual order and a cross-representation atomic snapshot remain
-outside scope. Independent code review is pending; both increment records remain
-`in_progress` as requested.
+outside scope. Independent review of `dd773592db09cd898689a82b46351f052b4628d7`
+found no functional defects. Its minor documentation finding was corrected to
+match the shipped example, and the optional CLI test recommendation was adopted:
+human output is compared by complete column sections, including the order of two
+members after clearing a block. Both increment records remain `in_progress` as
+requested.
 
 Verification on 2026-10-22:
 
@@ -320,9 +324,23 @@ Verification on 2026-10-22:
   and checked separately; implementation/test/configuration files did not change
   after the verified revision.
 
-No unresolved implementation findings are known. Independent code review has
-not been performed in this session and remains the next gate. No merge, version
-change, tag or release was performed.
+Review follow-up verification on 2026-10-22, based on reviewed revision
+`dd773592db09cd898689a82b46351f052b4628d7`:
+
+- No production code changed. The strengthened CLI test has Git blob ID
+  `d514aed974af0e3a7cd026e9937deba868a35fb9`.
+- A focused View CLI run passed both tests. Intermediate full runs exposed the
+  default five-second timeout in each View CLI journey under concurrent Windows
+  process startup. Both now use a local 30-second allowance, consistent with the
+  existing guide-example journey; all behavioral assertions remain enforced.
+- Final `npm run verify` passed, exit 0, on Windows x64 with Node.js 24.21.0 and
+  npm 11.4.1: all static gates and build, 149 unit tests, 211 integration tests,
+  32 acceptance scenarios (181 steps), 25 CLI tests and 7 Chromium journeys.
+- Only this documentation record changed after the final complete gate;
+  formatting and `git diff --check` were checked separately. Linux was not tested.
+
+No unresolved review findings remain. No merge, version change, tag or release
+was performed.
 
 ## Decision changes and follow-up
 

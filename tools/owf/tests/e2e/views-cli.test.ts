@@ -157,7 +157,9 @@ test('documented View commands work across CLI processes from a descendant with 
   expect(humanCreate.status).toBe(0);
   expect(humanCreate.stdout).toContain('Second view');
   expect(humanCreate.stdout).toContain('/_views/work-board.md');
-});
+  // Allow CLI process startup under concurrent suite load on Windows;
+  // this journey verifies behavior, not a performance limit.
+}, 30_000);
 
 test('show View has matching ordered human/JSON content from root and Project context, live changes and explicit failures', () => {
   const root = temporaryDirectory();
@@ -246,31 +248,45 @@ test('show View has matching ordered human/JSON content from root and Project co
   expect(human.status).toBe(0);
   expect(human.stdout).toContain('My work');
   expect(human.stdout).toContain(view.id);
-  let position = -1;
-  for (const column of parsed.result.columns) {
-    const next = human.stdout.indexOf(`${column.title} (${column.id})`);
-    expect(next).toBeGreaterThan(position);
-    position = next;
-    if (column.members.length === 0)
-      expect(human.stdout).toContain(
-        `${column.title} (${column.id})\n    (empty)`,
-      );
-    for (const member of column.members)
-      expect(human.stdout).toContain(
-        `${member.id} | ${member.title} | ${member.state} | blocked: ${String(member.blocked)}`,
-      );
+  function expectHumanColumns(
+    output: string,
+    columns: z.infer<typeof showEnvelope>['result']['columns'],
+  ) {
+    // Compare complete column sections so misplaced, duplicated or reordered
+    // cards cannot pass merely by appearing somewhere in the output.
+    const sections = output
+      .split('Columns:\n')[1]
+      ?.trimEnd()
+      .split(/\n(?= {2}\S)/u);
+    expect(sections).toEqual(
+      columns.map((column) =>
+        [
+          `  ${column.title} (${column.id})`,
+          ...(column.members.length === 0
+            ? ['    (empty)']
+            : column.members.map(
+                (member) =>
+                  `    ${member.id} | ${member.title} | ${member.state} | blocked: ${String(member.blocked)}`,
+              )),
+        ].join('\n'),
+      ),
+    );
   }
+  expectHumanColumns(human.stdout, parsed.result.columns);
   expect(semanticSnapshot(root, store)).toEqual(before);
   expect(
     run(root, ['set', 'action', ids[1]!, '--clear-manual-block']).status,
   ).toBe(0);
   const cleared = run(child, ['show', 'view', view.id, '--json']);
   expect(cleared.status).toBe(0);
-  expect(
-    showEnvelope
-      .parse(JSON.parse(cleared.stdout))
-      .result.columns[0]!.members.map((member) => member.id),
-  ).toEqual([...ids].sort());
+  const clearedColumns = showEnvelope.parse(JSON.parse(cleared.stdout)).result
+    .columns;
+  expect(clearedColumns[0]!.members.map((member) => member.id)).toEqual(
+    [...ids].sort(),
+  );
+  const clearedHuman = run(child, ['show', 'view', view.id]);
+  expect(clearedHuman.status).toBe(0);
+  expectHumanColumns(clearedHuman.stdout, clearedColumns);
   writeFileSync(definition, 'Broken definition');
   const broken = semanticSnapshot(root, store);
   const failed = run(child, ['show', 'view', view.id, '--json']);
@@ -300,4 +316,6 @@ test('show View has matching ordered human/JSON content from root and Project co
   );
   writeFileSync(join(root, 'AGENTS.md'), guide);
   expect(semanticSnapshot(root, store)).toEqual(broken);
-});
+  // Allow CLI process startup under concurrent suite load on Windows;
+  // this journey verifies behavior, not a performance limit.
+}, 30_000);
