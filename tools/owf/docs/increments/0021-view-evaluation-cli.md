@@ -299,7 +299,30 @@ Persisted placement/manual order and a cross-representation atomic snapshot rema
 outside scope. Independent code review is pending; both increment records remain
 `in_progress` as requested.
 
-Verification evidence will be recorded after the final complete gate run.
+Verification on 2026-10-22:
+
+- Verified implementation revision: `a9548c391bc4848422b5793cabcc4ba4060bdedb`.
+  This subsequent handoff update changes only the verification record.
+- Platform: Windows x64 (`win32`, Windows NT 10.0.26300.0), Node.js 24.21.0,
+  npm 11.4.1. Linux verification was not performed.
+- Focused domain/View integration run: 3 files, 30 tests passed.
+- The initial complete gate found a new guide-example placeholder mismatch
+  (`{action-id}` versus the established `{id}`). Corrected the guide; the focused
+  built-CLI guide-example test passed before the implementation commit.
+- Final `npm run verify` on the revision above: **passed**, exit 0. Typecheck,
+  ESLint, Prettier, architecture (53 modules, no violations), production build,
+  149 unit tests, 211 integration tests, 32 Cucumber scenarios (181 steps),
+  25 built-CLI tests and all 7 existing Chromium journeys passed.
+- Windows sandbox blocked Vite/Vitest helper startup with `spawn EPERM` during
+  an intermediate focused rerun. Build/test retries and the final complete gate
+  ran outside that sandbox successfully; no checks were weakened or disabled.
+- `git diff --check` passed. The documentation-only handoff update was formatted
+  and checked separately; implementation/test/configuration files did not change
+  after the verified revision.
+
+No unresolved implementation findings are known. Independent code review has
+not been performed in this session and remains the next gate. No merge, version
+change, tag or release was performed.
 
 ## Decision changes and follow-up
 
