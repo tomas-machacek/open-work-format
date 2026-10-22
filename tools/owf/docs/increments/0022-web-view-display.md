@@ -40,7 +40,7 @@ Deferred:
   filters remain available; they do not narrow View evaluation.
 - Windows, Snapshots, additional renderers, polling and push synchronization.
 - Action archiving and all archive-specific display/filter/dependency behavior.
-  Archiving is not implemented; it is being deferred in 0021 and is not an
+  Archiving is not implemented; it was explicitly deferred in 0021 and is not an
   implementation or test prerequisite here.
 
 Moves and manual ordering must be designed and implemented through CLI in a
@@ -50,11 +50,12 @@ later increment before adding their web interactions.
 
 ### Dependency and branch boundary
 
-This proposal is prepared on a separate branch from main while 0021 is being
-implemented in PR #27. Implementation of 0022 requires the completed 0021
-application evaluator and the agreed deferral of archive-related behavior.
-Integrate completed 0021 before implementing 0022; do not copy its implementation
-or maintain a competing evaluator. This branch does not modify 0021.
+Increment 0021 is completed and merged into main through
+[PR #27](https://github.com/tomas-machacek/open-work-format/pull/27).
+This branch has been rebased onto that implementation. Reuse its application
+evaluation and agreed schema 6 limitations; do not copy its implementation or
+maintain a competing evaluator. Archival remains deferred, and existing
+invalid-data rejection must not be weakened by the web adapter.
 
 ### Permanent navigation and identity
 
@@ -104,9 +105,12 @@ zero-column definition and a View with no eligible Actions are successful empty
 states; explain them without offering creation in a View column.
 
 Same-definition instances can have different identities/titles but the same
-content until persisted placements are introduced. With the shipped example,
-unblocked Open Actions route to New to organize while Todo, Sprint backlog and
-Backlog can remain empty. Explain this current limitation in user documentation.
+content until persisted placements are introduced. With the
+[shipped example](../examples/work-board.md), unblocked Open Actions route to
+New to organize while Todo remains empty. Its other columns are Active
+(In Progress and Waiting), Blocked and Done; Sprint backlog and Backlog appear
+only in the broader design example. Explain this current limitation in user
+documentation.
 
 Cards reuse the current compact presentation: title, owner, waiting reason when
 applicable, and blocking summary. Because a View column can represent multiple
@@ -153,10 +157,20 @@ Expose narrow read-only HTTP operations for instance inventory and evaluated
 View content. Follow existing contracts, response validation, error envelopes
 and Workspace binding. Exact endpoint/DTO names are implementation choices.
 
+The delivered 0021 application operation is `showView`, returning
+`ShowViewResult` with ordered columns whose members contain only
+`id`, `title`, `state` and `blocked`. That result alone does not contain the
+owner, description, timestamps or full blocking/prerequisite data needed by the
+existing editor.
+
 Provide the full existing card/detail projection without per-card browser
-requests. Reuse established Action projection and blocking facts; ensure
-membership and card facts come from the same evaluation read. Do not parse CLI
-text or spawn the CLI from HTTP, and do not duplicate domain rules in adapters.
+requests. Extend or factor shared application orchestration narrowly so the
+existing `evaluateView` and the HTTP card projection use the same Action facts
+from one coherent repository read. Do not call `showView` and independently
+re-read Actions to join potentially different snapshots. Preserve the existing
+CLI output contract. Reuse established Action projection and blocking facts;
+do not parse CLI text, spawn the CLI from HTTP or duplicate domain rules in
+adapters.
 
 Read current instance definitions and Action facts on selection, manual refresh,
 and the existing coalesced focus/visibility refresh. Refresh the inventory as
@@ -210,7 +224,8 @@ No new fundamental CLI command or generated Workspace guide change is required.
 - **AC2 — Identity and rendering:** Selecting a View visibly identifies its
   instance title and View mode, with all evaluated columns in definition order,
   exact memberships, member order and counts. Empty and zero-column results
-  succeed; unsupported/ineligible Actions are not synthesized elsewhere.
+  succeed; valid Actions with states omitted by the definition are outside the
+  View. Malformed stored Actions fail evaluation rather than being hidden.
 - **AC3 — Information parity:** Cards and expanded detail preserve the existing
   information and compact layout. View cards show actual execution state,
   including multi-state and Blocked columns. Detail opens by pointer and keyboard.
@@ -280,4 +295,7 @@ after delivery. No runtime checks are claimed for this documentation proposal.
   existing Action detail editing. Moves and manual card ordering are deferred
   to a subsequent increment, CLI first.
 - 2026-10-22: Archive-related scope is excluded because Action archiving is not
-  implemented and is being deferred in 0021.
+  implemented and was explicitly deferred in 0021.
+- 2026-10-22: Rebased onto completed 0021. Aligned the shipped example,
+  documented the minimal evaluation DTO and required shared-read enrichment for
+  web detail, and distinguished omitted states from malformed stored data.
