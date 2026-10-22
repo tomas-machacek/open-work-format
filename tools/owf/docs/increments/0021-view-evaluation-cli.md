@@ -1,6 +1,6 @@
 # 0021 — Read-only View evaluation through CLI
 
-> Status: draft
+> Status: reviewed
 > Description: Show current Actions grouped into a View instance's columns without changing persistent data.
 > Depends on: [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md) and [0017 — CLI Action blocking and dependencies](0017-action-blocking-cli.md).
 
@@ -267,8 +267,7 @@ Human try-out:
 
 No blocking product questions remain in this proposal. DTO names, diagnostic
 codes and module decomposition are implementation choices within the contract.
-The detailed document awaits design review; it is not yet marked ready for
-implementation.
+The user reviewed and approved this document for implementation on 2026-10-22.
 
 ## Implementation and review outcome
 
@@ -279,6 +278,8 @@ and independent review results here at handoff.
 
 - 2026-10-22: User accepted read-only CLI evaluation as the next increment;
   this draft makes the proposed command, routing, output and verification precise.
+- 2026-10-22: User reviewed the detailed document and approved implementation;
+  status changed to reviewed.
 - Persisted placements and CLI moves are the next candidate. That increment must
   define atomic Action/placement writes and reconciliation before introducing
   instance-specific organization. It is not authorized by this document.
