@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { Board } from './Board.js';
+import { Workspace } from './Workspace.js';
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing root');
-createRoot(root).render(<Board />);
+createRoot(root).render(<Workspace />);

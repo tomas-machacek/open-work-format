@@ -733,7 +733,9 @@ test('edit a Waiting Action in detail and still move its card by dragging', asyn
     const ownerPicker = detail.getByRole('combobox', { name: 'Owner' });
     await ownerPicker.fill('Board edit');
     await ownerPicker.press('ArrowDown');
-    await expect(detail.getByRole('option')).toHaveCount(1);
+    await expect(detail.getByRole('listbox').getByRole('option')).toHaveCount(
+      1,
+    );
     await ownerPicker.press('Escape');
     await expect(ownerPicker).toHaveAttribute('aria-expanded', 'false');
     await expect(detail).toBeVisible();

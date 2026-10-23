@@ -20,6 +20,8 @@ import {
   editBoardAction,
 } from './client.js';
 import { ActionEditor } from './ActionEditor.js';
+import type { EditorNavigation } from './ActionEditor.js';
+import type { BoardNavigation } from './ViewSelector.js';
 import { OwnerPicker } from './OwnerPicker.js';
 import type {
   CreateActionRequest,
@@ -41,8 +43,20 @@ const columns: [BoardAction['state'], string][] = [
   ['completed', 'Completed'],
   ['cancelled', 'Cancelled'],
 ];
-const columnCollision: CollisionDetection = (args) =>
-  args.pointerCoordinates ? pointerWithin(args) : closestCenter(args);
+const columnCollision: CollisionDetection = (args) => {
+  if (args.pointerCoordinates) return pointerWithin(args);
+  // Unequal column heights must not make a keyboard pickup start in a
+  // neighbouring column merely because its centre is closer to the card.
+  const { left, top, width, height } = args.collisionRect;
+  const containing = pointerWithin({
+    ...args,
+    pointerCoordinates: {
+      x: left + width / 2,
+      y: top + height / 2,
+    },
+  });
+  return containing.length ? containing : closestCenter(args);
+};
 const keyboardCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
   if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code))
     return undefined;
@@ -72,11 +86,17 @@ export function Board({
   save = saveAction,
   move = updateActionState,
   editAction = editBoardAction,
+  active = true,
+  navigation,
+  onRefresh,
 }: {
   load?: (query: BoardQuery) => Promise<BoardResponse>;
   save?: (input: CreateActionRequest) => Promise<BoardAction>;
   move?: (id: string, input: UpdateActionStateRequest) => Promise<BoardAction>;
   editAction?: (id: string, input: EditActionRequest) => Promise<BoardAction>;
+  active?: boolean;
+  navigation?: BoardNavigation;
+  onRefresh?: () => void;
 }) {
   const {
     data,
@@ -92,7 +112,8 @@ export function Board({
     current,
     includes,
     isFiltered,
-  } = useBoard(load);
+  } = useBoard(load, active, onRefresh);
+  const editorNavigation = useRef<EditorNavigation>(null);
   const [search, setSearch] = useState('');
   const [owner, setOwner] = useState('');
   const [recursive, setRecursive] = useState(false);
@@ -279,12 +300,19 @@ export function Board({
         <span className={styles.brand}>
           owf <span>/ workspace</span>
         </span>
-        <span className={styles.readOnly}>Local board</span>
+        {navigation ? (
+          navigation(
+            editorNavigation,
+            editing !== undefined || pending.size > 0,
+          )
+        ) : (
+          <span className={styles.readOnly}>Local board</span>
+        )}
       </header>
       <section className={styles.intro} aria-labelledby="title">
         <div>
           <p className={styles.eyebrow}>Workspace overview</p>
-          <h1 id="title">Actions</h1>
+          <h1 id="title">Default Kanban</h1>
           <p className={styles.subtitle}>Actions, organized by state.</p>
         </div>
         <button
@@ -502,6 +530,8 @@ export function Board({
       </DndContext>
       {detail && (
         <ActionEditor
+          navigationRef={editorNavigation}
+          navigation={navigation?.(editorNavigation)}
           action={detail}
           current={current}
           factsStale={!!error || loading}

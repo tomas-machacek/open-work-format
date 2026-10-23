@@ -1,3 +1,4 @@
+import { CardContent } from './CardContent.js';
 import { useDraggable } from '@dnd-kit/core';
 import type { BoardAction } from '../contracts/index.js';
 import styles from './Board.module.css';
@@ -45,32 +46,7 @@ export function MovableCard({
           : undefined
       }
     >
-      <h3>{action.title}</h3>
-      {action.blocking.blocked && (
-        <p className={styles.blockBadge}>
-          Blocked ·{' '}
-          {[
-            ...(action.blocking.manual ? ['manual'] : []),
-            ...(action.blocking.unresolved_dependencies.length
-              ? [
-                  `${action.blocking.unresolved_dependencies.length} prerequisite${action.blocking.unresolved_dependencies.length === 1 ? '' : 's'}`,
-                ]
-              : []),
-          ].join(' + ')}
-        </p>
-      )}
-      <dl>
-        <div>
-          <dt>Owner:</dt>
-          <dd>{action.owner.url}</dd>
-        </div>
-        {action.state === 'waiting' && action.waiting_for !== undefined && (
-          <div className={styles.reason}>
-            <dt>Waiting for:</dt>
-            <dd>{action.waiting_for}</dd>
-          </div>
-        )}
-      </dl>
+      <CardContent action={action} />
       {pending && (
         <p className={styles.cardStatus} role="status">
           Moving…

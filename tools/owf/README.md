@@ -3,13 +3,55 @@
 The CLI initializes a named local OWF Workspace, discovers it from descendant
 directories, creates Markdown Projects and Outcomes, and creates, retrieves or
 lists Actions and changes their execution state in the Workspace Operational Store.
-The local web board supports Action creation, editing, state moves, filtering,
-manual blocking and Action prerequisites through the same operations. Inbox
+The local web interface offers Default Kanban and stored Views. Default Kanban
+supports Action creation, editing, state moves, filtering, manual blocking and
+Action prerequisites through the same operations. Views display evaluated columns
+and reuse shared Action detail editing. Inbox
 operations are not yet implemented.
 
 The CLI creates, lists and retrieves independent View instances backed by
 validated shared Markdown definitions, and evaluates current Actions into their
 columns with read-only `show view`.
+
+## Views in the web interface
+
+Run the existing `owf serve` command and open `http://127.0.0.1:4317` (or your
+chosen port). The page starts in **Default Kanban**. The sticky **Display**
+selector lists CLI-created View instances in the same order as `owf list views`;
+duplicate titles include instance IDs. Choose an instance to see its title and
+the explicit **View** label. Default Kanban is always available, including when
+a View definition is broken. A full page reload returns to Default Kanban.
+
+Views show all configured columns and counts, including empty columns, in
+definition order. Members retain the evaluator's ascending Action ID order.
+Cards include owner, waiting reason, compact blocking information and the actual
+execution state, even when a column combines states. Click a card or focus it
+and press Enter to open the existing detail editor. Edits change the shared
+Action and re-evaluate membership: a block or prerequisite edit can move the
+card or remove it from the View. Column defaults never change Action state on
+display or save. The selector is also available inside detail; unsaved drafts
+require a discard decision, and switching is prevented while saving.
+
+Refresh and returning to the browser tab read current Actions, definitions and
+instance inventory while preserving the selection. There is no polling. Failed
+refreshes retain only the same View's last successful content, visibly marked
+stale, and disable saving until refresh succeeds. A confirmed save followed by
+a failed refresh is reported separately; do not repeat that save. Missing or
+invalid definitions and disappeared instances produce errors with retry.
+
+Default Kanban's search and owner filters do not narrow Views. Returning restores
+the in-page filters and existing creation, drag/state changes and detail editing.
+Finish or cancel an open default creation form before switching modes.
+
+Views have no creation controls, dragging, drop targets or manual ordering.
+Create instances and edit definitions through the CLI/Markdown workflow below.
+Moves and manual ordering require a later CLI-first increment; placements,
+ranks, View editing in the browser, selection persistence, Windows, Snapshots
+and Action archiving are not implemented. Same-definition instances currently
+have distinct identities but identical content. In the shipped example, unblocked
+Open Actions enter **New to organize**, **Todo** stays empty, **Active** combines
+In Progress and Waiting, and **Blocked** and **Done** complete the board. Sprint
+backlog and Backlog belong only to the broader design example.
 
 ## View instances
 

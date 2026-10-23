@@ -3,6 +3,7 @@
 > Status: Agreed implementation baseline, 2026-09-15.
 > View architecture direction simplified 2026-10-11; definition validation and
 > CLI instance create/list/get implemented in 0020; read-only evaluation in 0021.
+> Web View inventory, passive display and shared Action editing delivered in 0022.
 
 ## Purpose and authority
 
@@ -167,6 +168,23 @@ Effective state defaults win when eligible, otherwise the first eligible ordinar
 column in definition order; Blocked takes precedence for blocked non-terminals.
 The fallback member order is not persisted manual order. The remaining movement,
 placement retention, ordering and reconciliation design below is deferred.
+
+Delivered in 0022: `displayView` shares the evaluation read with `showView`,
+joining evaluated member IDs to complete existing Action projections from that
+same repository result. CLI output remains minimal and unchanged. HTTP exposes
+read-only `/api/views` inventory and `/api/views/:id` evaluation, validates their
+contracts and binds reads to the server's original Workspace. No per-card browser
+fetches or second Action snapshot are used to build View content.
+
+The browser starts in Default Kanban and offers stored instances in a sticky
+selector. View boards reuse compact card content and the existing editor, show
+actual state, and have no drag/create/reorder controls. The hidden default board
+retains in-page filters while its automatic reads are suspended. View selection
+mounts an isolated read lifecycle; superseded responses cannot change another
+selection. Manual and coalesced tab-return refreshes also refresh inventory.
+Confirmed edits trigger evaluation without speculative placement. Retained View
+content after read failure is stale with saves disabled; draft protection applies
+to navigation, including selection from the modal editor. Schema 6 is unchanged.
 
 Definitions are data: state mappings, per-state default columns, target default
 states, and blocking inclusion. Domain rules determine eligibility and unique

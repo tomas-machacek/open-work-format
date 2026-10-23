@@ -1,6 +1,6 @@
 # 0022 — Display Views in the web interface
 
-> Status: reviewed
+> Status: in_progress
 > Description: Select an existing View in the web interface, display its evaluated columns and Actions, and return to the default Kanban at any time.
 > Depends on: [0021 — Read-only View evaluation through CLI](0021-view-evaluation-cli.md), [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md), and the existing board/detail capabilities through [0019](0019-compact-blocking-detail.md).
 
@@ -250,14 +250,14 @@ No new fundamental CLI command or generated Workspace guide change is required.
 
 ## Verification plan
 
-| Risk / criteria | Verification |
-| --- | --- |
-| HTTP/evaluator consistency (AC2, AC8) | Real application/HTTP integration comparing evaluated column/member IDs and order with the shared 0021 result, plus complete card facts. Reuse 0021's domain matrix rather than duplicate it. |
-| Errors and purity (AC1, AC4, AC6) | Integration for list with broken definition, failed evaluation and semantic before/after comparisons of store/events/Markdown for reads. |
-| UI identity and races (AC1, AC2, AC6) | Focused component tests for rapid switches, superseded errors, same-View stale refresh, duplicate titles, empty inventory and zero columns. |
-| Edits and membership (AC5) | Existing editor integration plus targeted tests of block-driven rerouting/exclusion, dirty-switch cancellation, and confirmed save followed by failed refresh. |
-| Main browser journey (AC1–AC7) | Small Playwright journey: default → View → inspect/edit Action → refresh → another View → default; check default operations still work and View movement/creation controls are absent. |
-| Visual/accessibility behavior (AC1, AC3, AC4) | Inspect wide/narrow layouts and scrolling, long titles, compact cards, multi-state/Blocked state labels, keyboard selector/detail access and focus restoration. |
+| Risk / criteria                               | Verification                                                                                                                                                                                  |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP/evaluator consistency (AC2, AC8)         | Real application/HTTP integration comparing evaluated column/member IDs and order with the shared 0021 result, plus complete card facts. Reuse 0021's domain matrix rather than duplicate it. |
+| Errors and purity (AC1, AC4, AC6)             | Integration for list with broken definition, failed evaluation and semantic before/after comparisons of store/events/Markdown for reads.                                                      |
+| UI identity and races (AC1, AC2, AC6)         | Focused component tests for rapid switches, superseded errors, same-View stale refresh, duplicate titles, empty inventory and zero columns.                                                   |
+| Edits and membership (AC5)                    | Existing editor integration plus targeted tests of block-driven rerouting/exclusion, dirty-switch cancellation, and confirmed save followed by failed refresh.                                |
+| Main browser journey (AC1–AC7)                | Small Playwright journey: default → View → inspect/edit Action → refresh → another View → default; check default operations still work and View movement/creation controls are absent.        |
+| Visual/accessibility behavior (AC1, AC3, AC4) | Inspect wide/narrow layouts and scrolling, long titles, compact cards, multi-state/Blocked state labels, keyboard selector/detail access and focus restoration.                               |
 
 Run the required `npm run verify` before implementation handoff. Record actual
 platform, revision, commands and results. Do not add tests of unimplemented
@@ -283,9 +283,77 @@ The user reviewed and approved this document for implementation on 2026-10-23.
 
 ## Implementation and review outcome
 
-Not implemented. This change prepares the increment document only.
-Record implementation, verification and independent code-review evidence here
-after delivery. No runtime checks are claimed for this documentation proposal.
+Implemented on 2026-10-23. The document and index remain **in_progress** pending
+the separately requested independent code review. PR #28 must not be merged or
+the increment marked completed as part of this implementation handoff.
+
+Delivered:
+
+- `/api/views` inventories instances independently of definitions;
+  `/api/views/:id` returns ordered evaluated columns with complete existing
+  Action projections. `displayView` and CLI `showView` share one evaluation
+  read; the CLI contract, routing rules, schema and event behavior are unchanged.
+- The sticky Display selector starts in Default Kanban, distinguishes duplicate
+  instance titles by ID, and remains available through loading and errors.
+  View headings use instance titles. All columns and their counts are displayed,
+  including successful empty/zero-column results; cards show actual state.
+- View cards reuse compact content and the existing Action editor without
+  dragging, drop targets, creation or reordering. The modal includes the same
+  selector so navigation remains accessible while editing. Existing discard
+  protection governs switching; in-flight saves prevent it. An open default
+  creation form must be finished or cancelled before mode switching.
+- Successful edits re-evaluate membership, report departure, and distinguish
+  confirmed saves from failed subsequent reads. Failed same-instance refreshes
+  retain visibly stale content with saving disabled. Superseded responses are
+  ignored. Manual/tab-return refreshes also discover new CLI-created instances.
+- Default Kanban preserves in-page filters and existing editing/creation/state
+  operations. Browser testing exposed a keyboard pickup issue with unequal
+  column heights; collision selection now uses the card centre's containing
+  column before the nearest-centre fallback. The wide/narrow browser journeys
+  retain this regression case.
+- README and architecture describe the delivered behavior, current example
+  routing and deferred CLI-first movement/manual ordering.
+
+Verification evidence:
+
+- [HTTP integration](../../tests/integration/view-http.test.ts): shared-evaluator
+  order and full detail parity, one Action repository read, semantic store/event/
+  Markdown preservation, broken/missing definitions, unknown instances, malformed
+  excluded Actions, block-driven movement/exclusion and zero columns.
+- [Component tests](../../src/web/Workspace.test.tsx): selection identity,
+  duplicate titles, empty/error inventory, first-load errors, stale read-only
+  detail, rapid switching, queued tab-return refresh, inventory changes,
+  disappeared instances, dirty navigation in both modes, in-flight saves and
+  confirmed-save/read-failure feedback.
+- [Browser journeys](../../tests/e2e/views.spec.ts): real CLI-created instances
+  and Actions, exact HTTP/member order, detail via keyboard, block editing,
+  focus restoration after rerouting, definition refresh, broken definitions,
+  scrolling, default filter restoration, creation and keyboard state movement,
+  and full-reload reset. Screenshots were inspected at 1440 × 900 and 390 × 900;
+  the mobile long-title layout was adjusted after inspection.
+
+Final verification on 2026-10-23: **`npm run verify` passed**. This includes
+TypeScript checking, ESLint, Prettier, dependency-cruiser (58 modules; no
+violations), production build, **159 unit/component tests**, **214 integration
+tests**, **32 acceptance scenarios / 181 steps**, **25 CLI E2E tests**, and
+**9 Playwright browser tests**. `git diff --check` also passed.
+
+Platform: Microsoft Windows NT 10.0.26300.0, Node **24.21.0**, npm **11.4.1**,
+Playwright **1.63.0** with Chromium. Vite/test subprocesses required execution
+outside the filesystem sandbox after sandboxed runs returned `spawn EPERM`.
+Earlier development runs exposed and resolved the mobile heading layout,
+post-rerouting focus restoration, keyboard column collision, formatting, and an
+existing owner-picker test whose option query needed scoping to its listbox now
+that the editor also contains a View selector. No checks were disabled.
+
+The exact verified implementation revision is added in the subsequent
+verification-record commit; that follow-up changes documentation only.
+
+Limitations: verification is on Windows and Chromium only; Linux/macOS and
+Firefox/WebKit were not exercised. Selection persistence, polling/push,
+View-authoring UI, placements, moves, ranks, manual ordering, Windows, Snapshots
+and archiving remain outside this increment. Markdown and SQLite do not form a
+cross-representation transaction. Independent code review has not been performed.
 
 ## Decision changes and follow-up
 
@@ -303,3 +371,5 @@ after delivery. No runtime checks are claimed for this documentation proposal.
 - 2026-10-23: User reviewed and approved the proposal for implementation;
   document and index status changed to reviewed. Implementation and code review
   remain pending.
+- 2026-10-23: Implemented the approved scope; document and index changed to
+  in_progress. Independent review and completion remain a separate follow-up.

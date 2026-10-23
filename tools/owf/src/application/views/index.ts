@@ -9,6 +9,7 @@ import {
   type ViewInstance,
 } from '../../domain/views/index.js';
 import type { ViewPorts, ViewEvaluationPorts } from '../ports/index.js';
+import type { ActionProjection } from '../../domain/actions/index.js';
 import { discoverWorkspace } from '../workspaces/index.js';
 
 export type { ViewDefinition, ViewInstance } from '../../domain/views/index.js';
@@ -51,6 +52,37 @@ export function showView(
   id: string,
   ports: ViewEvaluationPorts,
 ): ShowViewResult {
+  const { root, view, columns } = readEvaluation(start, id, ports);
+  return {
+    result: { status: 'evaluated', type: 'view', root, view, columns },
+    warnings: [],
+  };
+}
+
+export interface DisplayViewResult {
+  root: string;
+  view: ViewInstance;
+  columns: { id: string; title: string; members: ActionProjection[] }[];
+}
+
+export function displayView(
+  start: string,
+  id: string,
+  ports: ViewEvaluationPorts,
+): DisplayViewResult {
+  const { root, view, columns, actions } = readEvaluation(start, id, ports);
+  const byId = new Map(actions.map((action) => [action.id, action]));
+  return {
+    root,
+    view,
+    columns: columns.map((column) => ({
+      ...column,
+      members: column.members.map((member) => byId.get(member.id)!),
+    })),
+  };
+}
+
+function readEvaluation(start: string, id: string, ports: ViewEvaluationPorts) {
   let reference: string | undefined;
   try {
     const found = workspace(start, ports);
@@ -65,14 +97,12 @@ export function showView(
     // The repository reads candidates and prerequisite facts in one SQLite statement.
     const actions = ports.actions.list(found.store);
     return {
-      result: {
-        status: 'evaluated',
-        type: 'view',
-        root: found.root,
-        view,
-        columns: evaluateView(definition, actions),
-      },
-      warnings: [],
+      status: 'evaluated' as const,
+      type: 'view' as const,
+      root: found.root,
+      view,
+      columns: evaluateView(definition, actions),
+      actions,
     };
   } catch (error) {
     throw new WorkspaceError(

@@ -5,6 +5,8 @@ import {
   createAction,
   setAction,
   listOwners,
+  listViews,
+  displayView,
 } from './workspaces.js';
 
 export async function serve(start: string, port = 4317) {
@@ -38,6 +40,20 @@ export async function serve(start: string, port = 4317) {
       if (current.root !== result.root)
         throw new Error('The original Workspace is no longer available.');
       return current;
+    },
+    {
+      list: () => {
+        const current = listViews(result.root);
+        if (current.result.root !== result.root)
+          throw new Error('The original Workspace is no longer available.');
+        return current;
+      },
+      display: (id) => {
+        const current = displayView(result.root, id);
+        if (current.root !== result.root)
+          throw new Error('The original Workspace is no longer available.');
+        return current;
+      },
     },
   );
   try {
