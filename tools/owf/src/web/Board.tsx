@@ -157,8 +157,11 @@ export function Board({
   }
   const [editing, setEditing] = useState<BoardAction['state']>();
   const [detail, setDetail] = useState<BoardAction>();
+  const [dragging, setDragging] = useState(false);
   const suppressOpen = useRef(new Set<string>());
   const [pending, setPending] = useState<Set<string>>(new Set());
+  const navigationDisabled =
+    editing !== undefined || pending.size > 0 || dragging;
   const [pendingActions, setPendingActions] = useState<
     Map<string, { action: BoardAction; scope: string }>
   >(new Map());
@@ -203,7 +206,8 @@ export function Board({
     }),
   );
   async function changeState(action: BoardAction, state: BoardAction['state']) {
-    if (state === action.state || moving.current.has(action.id)) return;
+    if (!active || state === action.state || moving.current.has(action.id))
+      return;
     const hadFocus =
       document.activeElement
         ?.closest('[data-action-id]')
@@ -273,7 +277,9 @@ export function Board({
     }
   }
   function onDragEnd(event: DragEndEvent) {
+    setDragging(false);
     setTimeout(() => suppressOpen.current.delete(String(event.active.id)), 300);
+    if (!active) return;
     const action = data?.actions.find((item) => item.id === event.active.id);
     const target = columns.find(([state]) => state === event.over?.id)?.[0];
     if (action && target && target === action.state)
@@ -301,10 +307,7 @@ export function Board({
           owf <span>/ workspace</span>
         </span>
         {navigation ? (
-          navigation(
-            editorNavigation,
-            editing !== undefined || pending.size > 0,
-          )
+          navigation(editorNavigation, navigationDisabled)
         ) : (
           <span className={styles.readOnly}>Local board</span>
         )}
@@ -442,10 +445,11 @@ export function Board({
         {announcement}
       </div>
       <DndContext
-        sensors={sensors}
+        sensors={active ? sensors : []}
         collisionDetection={columnCollision}
         onDragEnd={onDragEnd}
         onDragCancel={(event) => {
+          setDragging(false);
           setTimeout(
             () => suppressOpen.current.delete(String(event.active.id)),
             300,
@@ -453,6 +457,7 @@ export function Board({
           setAnnouncement('Move cancelled.');
         }}
         onDragStart={(event) => {
+          setDragging(true);
           suppressOpen.current.add(String(event.active.id));
           const action = data?.actions.find(
             (item) => item.id === event.active.id,
@@ -531,7 +536,7 @@ export function Board({
       {detail && (
         <ActionEditor
           navigationRef={editorNavigation}
-          navigation={navigation?.(editorNavigation)}
+          navigation={navigation?.(editorNavigation, navigationDisabled)}
           action={detail}
           current={current}
           factsStale={!!error || loading}

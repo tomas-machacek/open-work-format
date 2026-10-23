@@ -39,7 +39,7 @@ export function Workspace() {
       selected={selected}
       disabled={disabled ?? false}
       onChange={(next) => {
-        if (next?.id === selected?.id) return;
+        if (disabled || next?.id === selected?.id) return;
         const change = () => {
           setSelected(next);
           requestAnimationFrame(() =>

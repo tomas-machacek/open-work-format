@@ -388,3 +388,42 @@ test('default detail protects its draft when entering a View and does not reappe
   select('');
   expect(screen.queryByRole('dialog')).toBeNull();
 });
+
+test('detail navigation cannot bypass an open creation form or discard its draft', async () => {
+  await start();
+  fireEvent.click(
+    within(screen.getByRole('region', { name: 'Open' })).getByRole('button', {
+      name: /Add Action/,
+    }),
+  );
+  const form = screen.getByRole('form', { name: 'Add Action to Open' });
+  fireEvent.change(within(form).getByLabelText('Title'), {
+    target: { value: 'Creation draft' },
+  });
+  fireEvent.click(screen.getByRole('article'));
+  const detail = screen.getByRole('dialog');
+  const selector = within(detail).getByRole<HTMLSelectElement>('combobox', {
+    name: 'Display',
+  });
+  expect(selector.disabled).toBe(true);
+  // The navigation boundary must reject changes as well as disabling the UI.
+  fireEvent.change(selector, { target: { value: 'a' } });
+  expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
+    'Default Kanban',
+  );
+  expect(fetchView).not.toHaveBeenCalled();
+  fireEvent.click(within(detail).getByRole('button', { name: 'Cancel' }));
+  expect(within(form).getByLabelText<HTMLInputElement>('Title').value).toBe(
+    'Creation draft',
+  );
+  fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }));
+  fireEvent.click(screen.getByRole('article'));
+  const nextDetail = screen.getByRole('dialog');
+  const nextSelector = within(nextDetail).getByRole<HTMLSelectElement>(
+    'combobox',
+    { name: 'Display' },
+  );
+  expect(nextSelector.disabled).toBe(false);
+  fireEvent.change(nextSelector, { target: { value: 'a' } });
+  await screen.findByText('State · waiting');
+});

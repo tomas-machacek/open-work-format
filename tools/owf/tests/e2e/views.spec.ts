@@ -219,13 +219,47 @@ for (const width of [1440, 390]) {
       );
       await page.getByRole('button', { name: 'Clear filters' }).click();
       await expect(page.getByRole('article')).toHaveCount(9);
+      writeFileSync(file, valid);
       const open = page.getByRole('region', { name: 'Open', exact: true });
       await open.getByRole('button', { name: 'Add Action' }).click();
       const form = page.getByRole('form', { name: 'Add Action to Open' });
       await form
         .getByLabel('Title', { exact: true })
         .fill('Created after View');
-      await form.getByRole('button', { name: 'Save', exact: true }).click();
+      let releaseCreate!: () => void;
+      const createReleased = new Promise<void>((resolve) => {
+        releaseCreate = resolve;
+      });
+      await page.route('**/api/actions', async (route) => {
+        if (route.request().method() === 'POST') await createReleased;
+        await route.continue();
+      });
+      try {
+        await form.getByRole('button', { name: 'Save', exact: true }).click();
+        await expect(
+          form.getByRole('button', { name: 'Saving…', exact: true }),
+        ).toBeDisabled();
+        await page
+          .getByRole('article')
+          .filter({ hasText: action.title })
+          .click();
+        const creationDetail = page.getByRole('dialog');
+        const detailSelector = creationDetail.getByRole('combobox', {
+          name: 'Display',
+        });
+        await expect(detailSelector).toBeDisabled();
+        releaseCreate();
+        await expect(form).toHaveCount(0);
+        await expect(detailSelector).toBeEnabled();
+        await detailSelector.selectOption(first.id);
+        await expect(
+          page.getByRole('article').filter({ hasText: 'Created after View' }),
+        ).toBeVisible();
+        await selector.selectOption('');
+      } finally {
+        releaseCreate();
+        await page.unrouteAll({ behavior: 'wait' });
+      }
       const newCard = open
         .getByRole('article')
         .filter({ hasText: 'Created after View' });
@@ -239,13 +273,60 @@ for (const width of [1440, 390]) {
       await expect(
         page.getByRole('region', { name: 'In Progress', exact: true }),
       ).toHaveAttribute('class', /dropTarget/);
+      await expect(selector).toBeDisabled();
+      const unexpectedWrites: string[] = [];
+      page.on('request', (request) => {
+        if (['POST', 'PATCH'].includes(request.method()))
+          unexpectedWrites.push(request.url());
+      });
+      await page.keyboard.press('Escape');
+      await expect(selector).toBeEnabled();
+      await selector.selectOption(first.id);
+      const passiveCard = page
+        .getByRole('article')
+        .filter({ hasText: 'Created after View' });
+      await passiveCard.focus();
+      await page.keyboard.press('Enter');
+      const passiveDetail = page.getByRole('dialog');
+      const passiveTitle = passiveDetail.getByLabel('Title', { exact: true });
+      await passiveTitle.fill('Alpha');
+      await passiveTitle.press('End');
+      await passiveTitle.press('Space');
+      await passiveTitle.pressSequentially('Beta');
+      await expect(passiveTitle).toHaveValue('Alpha Beta');
+      await passiveDetail.getByRole('button', { name: 'Cancel' }).click();
+      await passiveDetail
+        .getByRole('button', { name: 'Discard changes' })
+        .click();
+      await selector.selectOption('');
+      expect(unexpectedWrites).toEqual([]);
+      const created = parseAction(
+        run(
+          'get',
+          'action',
+          (await newCard.getAttribute('data-action-id'))!,
+          '--json',
+        ),
+      );
+      expect(created.state).toBe('open');
+      await newCard.focus();
+      await page.keyboard.press('Space');
+      await expect(newCard).toHaveAttribute('class', /dragging/);
+      await page.waitForTimeout(50);
+      await page.keyboard.press('ArrowRight');
+      await expect(
+        page.getByRole('region', { name: 'In Progress', exact: true }),
+      ).toHaveAttribute('class', /dropTarget/);
       await page.keyboard.press('Space');
       await expect(
         page
           .getByRole('region', { name: 'In Progress', exact: true })
           .getByRole('article'),
       ).toContainText('Created after View');
-      writeFileSync(file, valid);
+      await selector.selectOption(first.id);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+        longTitle,
+      );
       await page.reload();
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(
         'Default Kanban',

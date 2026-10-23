@@ -179,7 +179,9 @@ fetches or second Action snapshot are used to build View content.
 The browser starts in Default Kanban and offers stored instances in a sticky
 selector. View boards reuse compact card content and the existing editor, show
 actual state, and have no drag/create/reorder controls. The hidden default board
-retains in-page filters while its automatic reads are suspended. View selection
+retains in-page filters while its automatic reads and drag sensors are suspended.
+All selectors share navigation restrictions for open creation forms, active drags
+and pending moves; inactive boards cannot submit state changes. View selection
 mounts an isolated read lifecycle; superseded responses cannot change another
 selection. Manual and coalesced tab-return refreshes also refresh inventory.
 Confirmed edits trigger evaluation without speculative placement. Retained View

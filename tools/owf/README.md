@@ -41,7 +41,8 @@ invalid definitions and disappeared instances produce errors with retry.
 
 Default Kanban's search and owner filters do not narrow Views. Returning restores
 the in-page filters and existing creation, drag/state changes and detail editing.
-Finish or cancel an open default creation form before switching modes.
+Finish or cancel an open default creation form or drag before switching modes.
+The same navigation restrictions apply in the header and Action detail.
 
 Views have no creation controls, dragging, drop targets or manual ordering.
 Create instances and edit definitions through the CLI/Markdown workflow below.

@@ -283,9 +283,12 @@ The user reviewed and approved this document for implementation on 2026-10-23.
 
 ## Implementation and review outcome
 
-Implemented on 2026-10-23. The document and index remain **in_progress** pending
-the separately requested independent code review. PR #28 must not be merged or
-the increment marked completed as part of this implementation handoff.
+Implemented on 2026-10-23 and independently reviewed at revision `9a5a852`.
+The review found an active Default Kanban drag surviving a switch to View and
+modal navigation bypassing the creation/pending-operation guard. The follow-up
+fixes below address both findings. The document and index remain **in_progress**
+at the user's request. PR #28 must not be merged or the increment marked completed
+as part of this handoff.
 
 Delivered:
 
@@ -332,7 +335,7 @@ Verification evidence:
   and full-reload reset. Screenshots were inspected at 1440 × 900 and 390 × 900;
   the mobile long-title layout was adjusted after inspection.
 
-Final verification on 2026-10-23: **`npm run verify` passed**. This includes
+Initial implementation verification on 2026-10-23: **`npm run verify` passed**. This includes
 TypeScript checking, ESLint, Prettier, dependency-cruiser (58 modules; no
 violations), production build, **159 unit/component tests**, **214 integration
 tests**, **32 acceptance scenarios / 181 steps**, **25 CLI E2E tests**, and
@@ -357,7 +360,21 @@ Limitations: verification is on Windows and Chromium only; Linux/macOS and
 Firefox/WebKit were not exercised. Selection persistence, polling/push,
 View-authoring UI, placements, moves, ranks, manual ordering, Windows, Snapshots
 and archiving remain outside this increment. Markdown and SQLite do not form a
-cross-representation transaction. Independent code review has not been performed.
+cross-representation transaction.
+
+Independent review follow-up on 2026-10-23:
+
+- Mode selection is disabled during an active Default Kanban drag until it is
+  dropped or cancelled. Inactive Default boards have no drag sensors and reject
+  state-change submissions. Header and modal selectors share the same restrictions
+  for open creation forms and pending moves; the navigation callback also rejects
+  disabled requests.
+- A component regression protects creation drafts against modal navigation.
+  Both browser viewport journeys hold a real creation request pending while
+  opening another Action's detail, then verify navigation becomes available only
+  after confirmation and the View includes the created Action. They also cover
+  drag cancellation before switching, normal space entry in View detail, absence
+  of inspection/navigation writes and preservation of the original Action state.
 
 ## Decision changes and follow-up
 

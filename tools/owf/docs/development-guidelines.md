@@ -125,6 +125,8 @@ failure, not only stale successful responses. Keep confirmed object snapshots
 separate from query membership; retaining a snapshot does not establish that it
 matches a filter. Controlled query results should describe a plausible external
 change when membership changes without a corresponding local edit.
+Navigation guards must cover every entry point, including modal controls, and
+account for ongoing gestures as well as pending writes.
 
 Write Gherkin in English, matching project terminology. Scenarios describe
 domain behavior, not selectors, CLI flags or SQL. Bind them to the real
