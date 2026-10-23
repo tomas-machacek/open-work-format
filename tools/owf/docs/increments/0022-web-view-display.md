@@ -1,6 +1,6 @@
 # 0022 — Display Views in the web interface
 
-> Status: in_progress
+> Status: completed
 > Description: Select an existing View in the web interface, display its evaluated columns and Actions, and return to the default Kanban at any time.
 > Depends on: [0021 — Read-only View evaluation through CLI](0021-view-evaluation-cli.md), [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md), and the existing board/detail capabilities through [0019](0019-compact-blocking-detail.md).
 
@@ -286,9 +286,8 @@ The user reviewed and approved this document for implementation on 2026-10-23.
 Implemented on 2026-10-23 and independently reviewed at revision `9a5a852`.
 The review found an active Default Kanban drag surviving a switch to View and
 modal navigation bypassing the creation/pending-operation guard. The follow-up
-fixes below address both findings. The document and index remain **in_progress**
-at the user's request. PR #28 must not be merged or the increment marked completed
-as part of this handoff.
+fixes below address both findings. On 2026-10-23 the user authorized completion
+and merge of PR #28. The document and index are marked **completed**.
 
 Delivered:
 
@@ -391,8 +390,9 @@ The verification platform and browser are the Windows/Node/npm/Chromium versions
 recorded above. Browser/Vite subprocesses again required execution outside the
 filesystem sandbox after `spawn EPERM`. This following evidence update changes
 documentation only; runtime, tests, dependencies and configuration remain identical
-to the verified review-fix revision. Both review findings are addressed; the
-increment remains **in_progress** and PR #28 remains draft and unmerged.
+to the verified review-fix revision. Both review findings are addressed.
+No unresolved review findings are recorded. The completion update changes
+documentation only and reuses the recorded verification evidence.
 
 ## Decision changes and follow-up
 
@@ -412,3 +412,7 @@ increment remains **in_progress** and PR #28 remains draft and unmerged.
   remain pending.
 - 2026-10-23: Implemented the approved scope; document and index changed to
   in_progress. Independent review and completion remain a separate follow-up.
+
+- 2026-10-23: User confirmed implementation and authorized completion and merge
+  of PR #28. Independent review findings are fixed and the recorded full verify
+  passed; document and index changed to completed. No release is implied.
