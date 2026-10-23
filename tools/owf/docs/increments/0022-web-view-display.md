@@ -1,6 +1,6 @@
 # 0022 — Display Views in the web interface
 
-> Status: draft
+> Status: reviewed
 > Description: Select an existing View in the web interface, display its evaluated columns and Actions, and return to the default Kanban at any time.
 > Depends on: [0021 — Read-only View evaluation through CLI](0021-view-evaluation-cli.md), [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md), and the existing board/detail capabilities through [0019](0019-compact-blocking-detail.md).
 
@@ -277,9 +277,9 @@ Human try-out:
 
 ## Open questions
 
-No additional product decision is required to review this proposal. Endpoint
-names, DTO composition and narrow component extraction are implementation
-choices within the contract. The full document remains draft pending review.
+No blocking product questions remain. Endpoint names, DTO composition and
+narrow component extraction are implementation choices within the contract.
+The user reviewed and approved this document for implementation on 2026-10-23.
 
 ## Implementation and review outcome
 
@@ -299,3 +299,7 @@ after delivery. No runtime checks are claimed for this documentation proposal.
 - 2026-10-22: Rebased onto completed 0021. Aligned the shipped example,
   documented the minimal evaluation DTO and required shared-read enrichment for
   web detail, and distinguished omitted states from malformed stored data.
+
+- 2026-10-23: User reviewed and approved the proposal for implementation;
+  document and index status changed to reviewed. Implementation and code review
+  remain pending.
