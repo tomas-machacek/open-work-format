@@ -349,7 +349,7 @@ post-rerouting focus restoration, keyboard column collision, formatting, and an
 existing owner-picker test whose option query needed scoping to its listbox now
 that the editor also contains a View selector. No checks were disabled.
 
-Verified implementation revision: `832cc751c7a064ba659d224cdfcca14fb5527be2`.
+Initial verified implementation revision: `832cc751c7a064ba659d224cdfcca14fb5527be2`.
 The following verification-record commit changes documentation only; runtime,
 tests, dependencies and configuration are identical to the verified revision.
 Board/detail screenshots from both viewport sizes are retained locally under
@@ -375,6 +375,24 @@ Independent review follow-up on 2026-10-23:
   after confirmation and the View includes the created Action. They also cover
   drag cancellation before switching, normal space entry in View detail, absence
   of inspection/navigation writes and preservation of the original Action state.
+
+Review-fix verification: **`npm run verify` passed** on
+`99b168e592abfe379f0e3dea874ebbaace34bc13` on 2026-10-23. This includes types,
+lint, formatting, architecture (58 modules; no violations), build, **160
+unit/component tests**, **214 integration tests**, **32 acceptance scenarios /
+181 steps**, **25 CLI E2E tests** and **9 Playwright browser tests**.
+`git diff --check` passed. Focused Workspace tests and both View browser journeys
+also passed; the new modal-navigation regression failed against the pre-fix
+implementation. During development the browser fixture was corrected to restore
+its intentionally broken definition before re-entering a View. No checks or
+acceptance expectations were weakened.
+
+The verification platform and browser are the Windows/Node/npm/Chromium versions
+recorded above. Browser/Vite subprocesses again required execution outside the
+filesystem sandbox after `spawn EPERM`. This following evidence update changes
+documentation only; runtime, tests, dependencies and configuration remain identical
+to the verified review-fix revision. Both review findings are addressed; the
+increment remains **in_progress** and PR #28 remains draft and unmerged.
 
 ## Decision changes and follow-up
 
