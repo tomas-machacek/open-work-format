@@ -6,12 +6,18 @@ import Fastify, {
 import staticFiles from '@fastify/static';
 import type { AvailableOwner } from '../../application/owners/index.js';
 import type {
+  DisplayViewResult,
+  ListViewsResult,
+} from '../../application/views/index.js';
+import type {
   ListActionsResult,
   ActionResult,
 } from '../../application/actions/index.js';
 import { WorkspaceError } from '../../application/workspaces/index.js';
 import {
   boardResponse,
+  viewsResponse,
+  viewResponse,
   boardQuery,
   type BoardQuery,
   ownersResponse,
@@ -33,8 +39,40 @@ export function createBoardServer(
   update?: (id: string, input: UpdateActionStateRequest) => ActionResult,
   edit?: (id: string, input: EditActionRequest) => ActionResult,
   owners?: () => { owners: AvailableOwner[] },
+  views?: {
+    list: () => ListViewsResult;
+    display: (id: string) => DisplayViewResult;
+  },
 ) {
   const server = Fastify({ logger: false });
+  server.get('/api/views', (_request, reply) => {
+    try {
+      if (!views) throw new Error('View inventory is unavailable.');
+      return viewsResponse.parse({ views: views.list().result.views });
+    } catch (error) {
+      return viewError(error, reply);
+    }
+  });
+  server.get<{ Params: { id: string } }>('/api/views/:id', (request, reply) => {
+    try {
+      if (!views) throw new Error('View evaluation is unavailable.');
+      const { root, view, columns } = views.display(request.params.id);
+      return viewResponse.parse({ workspace: { root }, view, columns });
+    } catch (error) {
+      return viewError(error, reply);
+    }
+  });
+  function viewError(error: unknown, reply: FastifyReply) {
+    const code =
+      error instanceof WorkspaceError ? error.code : 'VIEW_READ_FAILED';
+    return reply.code(code === 'VIEW_NOT_FOUND' ? 404 : 503).send({
+      error: {
+        code,
+        message:
+          error instanceof Error ? error.message : 'Unable to read Views.',
+      },
+    });
+  }
   server.get('/api/owners', (_request, reply) => {
     try {
       if (!owners) throw new Error('Owner discovery is unavailable.');

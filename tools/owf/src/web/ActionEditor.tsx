@@ -3,6 +3,9 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useImperativeHandle,
+  type Ref,
+  type ReactNode,
   type FormEvent,
 } from 'react';
 import type { BoardAction, EditActionRequest } from '../contracts/index.js';
@@ -21,6 +24,10 @@ const sameSnapshot = (a: BoardAction, b: BoardAction) =>
   JSON.stringify(a.depends_on) === JSON.stringify(b.depends_on) &&
   a.updated_at === b.updated_at;
 
+export interface EditorNavigation {
+  requestClose: (afterClose: () => void) => void;
+}
+
 export function ActionEditor({
   action,
   current,
@@ -29,6 +36,9 @@ export function ActionEditor({
   refresh,
   onSaved,
   onClose,
+  navigationRef,
+  navigation,
+  passive = false,
 }: {
   action: BoardAction;
   current: BoardAction | undefined;
@@ -37,6 +47,9 @@ export function ActionEditor({
   refresh: () => Promise<boolean>;
   onSaved: (action: BoardAction) => void;
   onClose: () => void;
+  navigationRef?: Ref<EditorNavigation>;
+  navigation?: ReactNode;
+  passive?: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleInput = useRef<HTMLInputElement>(null);
@@ -58,6 +71,7 @@ export function ActionEditor({
     dependencies.some((uri) => !baseline.depends_on.includes(uri));
   const [discard, setDiscard] = useState(false);
   const [saving, setSaving] = useState(false);
+  const afterClose = useRef<(() => void) | undefined>(undefined);
   const [blocked, setBlocked] = useState(false);
   const [inspected, setInspected] = useState(false);
   const [error, setError] = useState<string>();
@@ -79,11 +93,18 @@ export function ActionEditor({
     if (discard) continueButton.current?.focus();
     else if (dialog.current?.open) titleInput.current?.focus();
   }, [discard]);
-  function requestClose() {
-    if (saving) return;
-    if (dirty) setDiscard(true);
-    else onClose();
+  function close() {
+    onClose();
+    afterClose.current?.();
+    afterClose.current = undefined;
   }
+  function requestClose(next?: () => void) {
+    if (saving) return;
+    afterClose.current = next;
+    if (dirty) setDiscard(true);
+    else close();
+  }
+  useImperativeHandle(navigationRef, () => ({ requestClose }));
   function reload() {
     if (!current) return;
     setBaseline(current);
@@ -105,7 +126,7 @@ export function ActionEditor({
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (saving || blocked || stale) return;
+    if (saving || blocked || stale || (passive && factsStale)) return;
     if (manual && !manualReason.trim()) {
       setError('Enter a nonblank manual blocking reason.');
       return;
@@ -187,26 +208,30 @@ export function ActionEditor({
       aria-describedby="editor-intro"
       onCancel={(event) => {
         event.preventDefault();
-        if (discard) setDiscard(false);
-        else requestClose();
+        if (discard) {
+          setDiscard(false);
+          afterClose.current = undefined;
+        } else requestClose();
       }}
       onClick={(event) => {
         if (event.target === dialog.current) requestClose();
       }}
     >
       <div className={styles.editorCard}>
+        {navigation}
         <p className={styles.eyebrow}>Action detail</p>
         <h2 id="editor-heading">Edit Action</h2>
         <p id="editor-intro" className={styles.editorIntro}>
-          Change the details below. To change state, close this card and drag it
-          to another column.
+          {passive
+            ? 'Edit this shared Action. State changes and card moves are unavailable in Views.'
+            : 'Change the details below. To change state, close this card and drag it to another column.'}
         </p>
         {discard ? (
           <div className={styles.editorNotice} role="alert">
             <strong>Discard unsaved changes?</strong>
             <p>Your edits will be lost.</p>
             <div className={styles.formButtons}>
-              <button type="button" onClick={onClose}>
+              <button type="button" onClick={close}>
                 Discard changes
               </button>
               <button
@@ -214,6 +239,7 @@ export function ActionEditor({
                 type="button"
                 onClick={() => {
                   setDiscard(false);
+                  afterClose.current = undefined;
                 }}
               >
                 Continue editing
@@ -235,6 +261,11 @@ export function ActionEditor({
                   Reload current values
                 </button>
               </div>
+            )}
+            {passive && factsStale && (
+              <p role="status" className={styles.editorNotice}>
+                View data is not current. Refresh successfully before saving.
+              </p>
             )}
             {blocked && !stale && (
               <div className={styles.editorNotice} role="status">
@@ -364,10 +395,17 @@ export function ActionEditor({
               </p>
             )}
             <div className={styles.formButtons}>
-              <button type="submit" disabled={saving || blocked || stale}>
+              <button
+                type="submit"
+                disabled={saving || blocked || stale || (passive && factsStale)}
+              >
                 Save changes
               </button>
-              <button type="button" disabled={saving} onClick={requestClose}>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => requestClose()}
+              >
                 Cancel
               </button>
             </div>

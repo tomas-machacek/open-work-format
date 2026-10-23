@@ -1,5 +1,7 @@
 import {
   boardResponse,
+  viewsResponse,
+  viewResponse,
   ownersResponse,
   createActionResponse,
   type CreateActionRequest,
@@ -12,6 +14,29 @@ import {
   editActionResponse,
   type EditActionRequest,
 } from '../contracts/index.js';
+
+async function readViewResource(path: string): Promise<unknown> {
+  const response = await fetch(path, { cache: 'no-store' });
+  const body: unknown = await response.json();
+  if (!response.ok) {
+    const parsed = boardError.safeParse(body);
+    throw new Error(
+      parsed.success ? parsed.data.error.message : 'Unable to read Views.',
+    );
+  }
+  return body;
+}
+export async function fetchViews() {
+  return viewsResponse.parse(await readViewResource('/api/views')).views;
+}
+export async function fetchView(id: string) {
+  const result = viewResponse.parse(
+    await readViewResource(`/api/views/${encodeURIComponent(id)}`),
+  );
+  if (result.view.id !== id)
+    throw new Error('The server returned a different View instance.');
+  return result;
+}
 export async function fetchOwners() {
   const response = await fetch('/api/owners', { cache: 'no-store' });
   const body: unknown = await response.json();

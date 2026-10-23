@@ -8,6 +8,8 @@ import { fetchBoard } from './client.js';
 
 export function useBoard(
   load: (query: BoardQuery) => Promise<BoardResponse> = fetchBoard,
+  active = true,
+  onRefresh?: () => void,
 ) {
   const [query, setQuery] = useState<BoardQuery>({});
   const scope = useRef<BoardQuery>({});
@@ -68,6 +70,7 @@ export function useBoard(
       const selection = scope.current;
       inFlight.current = true;
       setLoading(true);
+      onRefresh?.();
       try {
         const next = await load(selection);
         if (request !== generation.current || pendingReturn.current)
@@ -151,7 +154,7 @@ export function useBoard(
         }
       }
     },
-    [load],
+    [load, onRefresh],
   );
   const apply = (next: BoardQuery) => {
     scope.current = next;
@@ -159,6 +162,7 @@ export function useBoard(
     void refresh();
   };
   useEffect(() => {
+    if (!active) return;
     void refresh();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const onReturn = () => {
@@ -178,7 +182,7 @@ export function useBoard(
       window.removeEventListener('focus', onReturn);
       document.removeEventListener('visibilitychange', onReturn);
     };
-  }, [refresh]);
+  }, [refresh, active]);
   return {
     data,
     error,

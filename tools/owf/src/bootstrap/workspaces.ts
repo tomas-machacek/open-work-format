@@ -7,6 +7,7 @@ import {
   getView as getViewUseCase,
   listViews as listViewsUseCase,
   showView as showViewUseCase,
+  displayView as displayViewUseCase,
   type CreateViewInput,
 } from '../application/views/index.js';
 import { viewRepository } from '../infrastructure/sqlite/index.js';
@@ -65,6 +66,8 @@ export const getView = (root: string, id: string) =>
 export const listViews = (root: string) => listViewsUseCase(root, viewPorts);
 export const showView = (root: string, id: string) =>
   showViewUseCase(root, id, { ...viewPorts, actions: actionRepository });
+export const displayView = (root: string, id: string) =>
+  displayViewUseCase(root, id, { ...viewPorts, actions: actionRepository });
 export const contextPorts: ContextPorts = {
   ...workspacePorts,
   contexts: contextFiles,

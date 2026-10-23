@@ -136,6 +136,27 @@ export const boardError = z.object({
 export type BoardResponse = z.infer<typeof boardResponse>;
 export type BoardAction = z.infer<typeof boardAction>;
 
+const viewInstance = z.object({
+  id: z.string(),
+  title: z.string(),
+  definition: z.object({ url: z.string(), id: z.string().optional() }),
+  created_at: z.string(),
+});
+export const viewsResponse = z.object({ views: z.array(viewInstance) });
+export type StoredView = z.infer<typeof viewInstance>;
+export const viewResponse = z.object({
+  workspace: z.object({ root: z.string() }),
+  view: viewInstance,
+  columns: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string(),
+      members: z.array(boardAction),
+    }),
+  ),
+});
+export type ViewResponse = z.infer<typeof viewResponse>;
+
 export const createActionRequest = z
   .object({
     title: z.string(),

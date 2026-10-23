@@ -8,7 +8,7 @@
 
 A user can inspect the actual current content of a stored View instance through
 the CLI. Increment 0020 returns validated configuration; this increment evaluates
-non-archived Workspace Actions into that configuration's columns.
+supported Workspace Actions into that configuration's columns.
 
 The authority is the [Views profile](../../../../docs/design/views-profile-notes.md),
 especially eligibility and unique placement in Section 4, together with
@@ -158,7 +158,7 @@ Reads must not change Actions, instance metadata, timestamps, Markdown, placemen
 ranks, schema or event logs. Do not initialize, repair or upgrade a store.
 
 Reuse existing corruption and missing-dependency handling. Membership exclusion
-must not conceal malformed candidate Action data: validate non-archived
+must not conceal malformed candidate Action data: validate all supported
 candidates before routing, including candidates whose states have no columns.
 This does not introduce a Workspace-wide Markdown conformance scan.
 
@@ -223,7 +223,7 @@ claims accurate: this proposal alone delivers no command.
 - **AC7 — Purity and failure:** Successful, repeated, empty and failed reads leave
   semantic store data, schema, events and Markdown unchanged. Unknown instances,
   broken definitions/references and unavailable/unsupported stores fail explicitly
-  without partial success. Malformed non-archived candidates cannot be hidden by
+  without partial success. Malformed candidates cannot be hidden by
   routing exclusion.
 - **AC8 — Usable documentation and compatibility:** Help, README and newly generated
   guidance describe the implemented contract and limitations. Schema 6 remains
