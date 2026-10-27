@@ -42,7 +42,7 @@ link and a one-line description; keep its status in sync.
 | [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md) | Create, list and get instances using validated shared Markdown definitions.      | completed   |
 | [0021 — Read-only View evaluation through CLI](0021-view-evaluation-cli.md) | Show current Actions in View columns without changing persistent data.           | completed   |
 | [0022 — Display Views in the web interface](0022-web-view-display.md)       | Select existing Views, inspect/edit Action details and return to Default Kanban. | completed    |
-| [0023 — Move Actions between View columns through CLI](0023-view-move-cli.md) | Atomically move Actions and persist independent instance-local placement. | draft |
+| [0023 — Move Actions between View columns through CLI](0023-view-move-cli.md) | Atomically move Actions and persist independent instance-local placement. | reviewed |
 
 0022 depends on completed [0021](0021-view-evaluation-cli.md), merged through [PR #27](https://github.com/tomas-machacek/open-work-format/pull/27).
 
