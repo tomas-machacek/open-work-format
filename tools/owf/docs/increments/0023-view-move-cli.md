@@ -344,16 +344,38 @@ AGENTS.md template describe delivered behavior. Existing user-edited guides rema
 preserved. The generated guide includes a Waiting column for its copyable example;
 the smaller standalone example can be extended with the README snippet.
 
-Verification platform: Windows NT 10.0.26300.0 x64, Node 24.21.0, npm 11.4.1,
-Chromium through Playwright. Focused domain/SQLite/HTTP cases, the two new Cucumber
-scenarios (12 steps), and the browser journey passed. Full `npm run verify` is
-being finalized; the final revision and results will be recorded before handoff.
+Verified implementation revision:
+[`b9b54460188729bb91d194916895534f9b998610`](https://github.com/tomas-machacek/open-work-format/commit/b9b54460188729bb91d194916895534f9b998610),
+2026-10-27. The subsequent evidence-only documentation commit does not change
+implementation or tests. Platform: Windows NT 10.0.26300.0 x64, Node 24.21.0,
+npm 11.4.1, Chromium through Playwright.
+
+Final `npm run verify`: **passed, exit 0**. This included:
+
+| Check                         | Actual result                                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Typecheck, ESLint, Prettier   | Passed, including tests/configuration                                                                 |
+| Architecture                  | Passed: 59 modules, 190 dependencies, no violations                                                   |
+| Production build              | TypeScript and Vite passed                                                                            |
+| Unit/component tests          | 174 passed in 12 files                                                                                |
+| SQLite/HTTP/other integration | 231 passed in 15 files                                                                                |
+| Cucumber                      | 34 scenarios and 193 steps passed, including both new move journeys                                   |
+| Built CLI E2E                 | 26 passed in 3 files, including all generated guide examples                                          |
+| Chromium E2E                  | 10 passed, including CLI placement/Waiting refresh, detail blocking and desktop/mobile existing flows |
+
+Focused domain/SQLite/HTTP cases, the two new Cucumber scenarios (12 steps), and
+the new browser journey also passed during development.
 Initial sandboxed Vite/Cucumber/Playwright execution encountered `spawn EPERM`;
 reruns outside the sandbox succeeded. An initial CLI journey exceeded Vitest's
 default 5-second timeout; it uses the existing CLI suite's 30-second Windows
 process-startup allowance, with all assertions retained. Existing tests were
 updated to assert real state transitions separately from reason-only events and
-the new placement-aware guide wording.
+the new placement-aware guide wording. Executing every generated example caught
+new placeholder spelling inconsistent with the existing guide runner; the guide
+now consistently uses its established `{id}` / `{view-id}` placeholders. Earlier
+verification attempts stopped on those stale expectations/example issues; the
+final complete command above passed after the fixes. No check was disabled,
+skipped or relaxed.
 
 Limitations follow the approved scope: schema 6 has no migration path; fresh
 schema 7 Workspaces are required. Reads do not durably record temporary external
