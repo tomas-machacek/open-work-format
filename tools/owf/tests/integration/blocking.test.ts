@@ -222,21 +222,27 @@ test('source and target facts come from one read snapshot and write validation e
       ...actionPorts,
       actions: {
         ...actionPorts.actions,
-        update(path, id, change) {
-          return actionPorts.actions.update(path, id, (current, lookup) => {
-            const competing = new DatabaseSync(path);
-            try {
-              competing.exec('PRAGMA busy_timeout = 0');
-              expect(() =>
-                competing
-                  .prepare('UPDATE actions SET state = ? WHERE id = ?')
-                  .run('open', target.id),
-              ).toThrow(/locked/);
-            } finally {
-              competing.close();
-            }
-            return change(current, lookup);
-          });
+        update(path, id, change, placements, time) {
+          return actionPorts.actions.update(
+            path,
+            id,
+            (current, lookup, snapshot) => {
+              const competing = new DatabaseSync(path);
+              try {
+                competing.exec('PRAGMA busy_timeout = 0');
+                expect(() =>
+                  competing
+                    .prepare('UPDATE actions SET state = ? WHERE id = ?')
+                    .run('open', target.id),
+                ).toThrow(/locked/);
+              } finally {
+                competing.close();
+              }
+              return change(current, lookup, snapshot);
+            },
+            placements,
+            time,
+          );
         },
       },
     },

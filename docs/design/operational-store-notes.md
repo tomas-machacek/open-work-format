@@ -306,11 +306,19 @@ duplicate cards: retain an eligible placement, otherwise use the Blocked
 column or eligible state default as specified in the profile.
 No separate membership copies, capability parameters, or earlier organizational
 placements are retained. Departure discards the former column position too.
-External changes can leave physical residue that write-side reconciliation
-must invalidate; after departure is detected it cannot restore an old placement
-or position. Reads do not save routing results or perform cleanup.
-Implementation must specify this reconciliation without reconstructing
-unobserved history. All ordering is manual; automatic arrivals go to the end.
+Supported Action writes reconcile affected placements and positions across
+instances against pre-change and post-change facts, atomically with Action
+changes and events. This also covers affected dependents. Eligible placements
+survive; invalid ones are discarded and cannot later restore an old column or
+position. A required broken definition rejects the operation without partial
+changes; unrelated broken Views without affected placements do not block it.
+
+Clarified on 2026-10-27: reads do not save routing results, cleanup or observation
+markers. External invalidity is reconciled on the next relevant successful write.
+An external definition edit reverted before that write may make a stored
+placement eligible again, even if a read observed temporary ineligibility.
+No durable history of read-only observations or unobserved edits is implied.
+All ordering is manual; automatic arrivals go to the end.
 
 No separate planning-selection relation is part of this View model. Meaning
 comes from the column configuration and fixed movement rules. Snapshot scope is

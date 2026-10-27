@@ -250,21 +250,27 @@ test('the write transaction excludes a competing writer after the Action is read
       ...actionPorts,
       actions: {
         ...actionPorts.actions,
-        update(path, id, change) {
-          return actionPorts.actions.update(path, id, (current, target) => {
-            const writer = new DatabaseSync(path);
-            try {
-              writer.exec('PRAGMA busy_timeout = 0');
-              expect(() =>
-                writer
-                  .prepare('UPDATE actions SET state = ? WHERE id = ?')
-                  .run('cancelled', id),
-              ).toThrow(/locked/);
-            } finally {
-              writer.close();
-            }
-            return change(current, target);
-          });
+        update(path, id, change, placements, time) {
+          return actionPorts.actions.update(
+            path,
+            id,
+            (current, target, snapshot) => {
+              const writer = new DatabaseSync(path);
+              try {
+                writer.exec('PRAGMA busy_timeout = 0');
+                expect(() =>
+                  writer
+                    .prepare('UPDATE actions SET state = ? WHERE id = ?')
+                    .run('cancelled', id),
+                ).toThrow(/locked/);
+              } finally {
+                writer.close();
+              }
+              return change(current, target, snapshot);
+            },
+            placements,
+            time,
+          );
         },
       },
     },

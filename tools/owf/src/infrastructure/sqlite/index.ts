@@ -12,13 +12,20 @@ const eventTableSchema = `CREATE TABLE action_events (
         )`;
 
 const viewEventTableSchema = `CREATE TABLE view_events (
-          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind = 'view.created'),
-          view_id TEXT NOT NULL REFERENCES views(id), created_at TEXT NOT NULL
+          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('view.created','view.placement_changed')),
+          view_id TEXT NOT NULL REFERENCES views(id), created_at TEXT NOT NULL,
+          action_id TEXT REFERENCES actions(id), old_column_id TEXT, new_column_id TEXT
         )`;
 
 const viewTableSchema = `CREATE TABLE views (
           id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
           definition_url TEXT NOT NULL, definition_id TEXT, created_at TEXT NOT NULL
+        )`;
+
+const placementTableSchema = `CREATE TABLE view_placements (
+          view_id TEXT NOT NULL REFERENCES views(id), action_id TEXT NOT NULL REFERENCES actions(id),
+          column_id TEXT NOT NULL CHECK(length(trim(column_id)) > 0),
+          PRIMARY KEY (view_id, action_id)
         )`;
 
 export const workspaceStore: WorkspaceStore = {
@@ -35,7 +42,7 @@ export const workspaceStore: WorkspaceStore = {
         'INSERT INTO owf_metadata (key, value) VALUES (?, ?)',
       );
       insert.run('format', 'owf-tool-operational');
-      insert.run('schema_version', '6');
+      insert.run('schema_version', '7');
       db.exec(`
         CREATE TABLE actions (
           id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
@@ -48,6 +55,7 @@ export const workspaceStore: WorkspaceStore = {
         ${eventTableSchema} STRICT;
         ${viewTableSchema} STRICT;
         ${viewEventTableSchema} STRICT;
+        ${placementTableSchema} STRICT;
       `);
       db.exec('COMMIT');
     } finally {
@@ -83,7 +91,7 @@ export const workspaceStore: WorkspaceStore = {
           'INVALID_STORE',
           `Unrecognized store: ${path}`,
         );
-      if (version !== '6')
+      if (version !== '7')
         throw new WorkspaceError(
           'UNSUPPORTED_STORE_VERSION',
           `Unsupported store schema ${version}: ${path}`,
@@ -128,6 +136,17 @@ export const workspaceStore: WorkspaceStore = {
       )
         throw new Error('Invalid View event table');
       const integrity = db.prepare('PRAGMA quick_check').get();
+      const placements = db
+        .prepare(
+          "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'view_placements'",
+        )
+        .get()?.sql;
+      if (
+        typeof placements !== 'string' ||
+        placements.replace(/\s+/gu, ' ').trim() !==
+          `${placementTableSchema} STRICT`.replace(/\s+/gu, ' ').trim()
+      )
+        throw new Error('Invalid View placement table');
       if (integrity?.quick_check !== 'ok') throw new Error('Corrupt store');
     } catch (error) {
       if (error instanceof WorkspaceError) throw error;

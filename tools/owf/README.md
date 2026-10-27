@@ -11,7 +11,8 @@ operations are not yet implemented.
 
 The CLI creates, lists and retrieves independent View instances backed by
 validated shared Markdown definitions, and evaluates current Actions into their
-columns with read-only `show view`.
+columns with read-only `show view`. `move action` atomically applies column effects
+and saves instance-local placement.
 
 ## Views in the web interface
 
@@ -46,17 +47,17 @@ The same navigation restrictions apply in the header and Action detail.
 
 Views have no creation controls, dragging, drop targets or manual ordering.
 Create instances and edit definitions through the CLI/Markdown workflow below.
-Moves and manual ordering require a later CLI-first increment; placements,
-ranks, View editing in the browser, selection persistence, Windows, Snapshots
-and Action archiving are not implemented. Same-definition instances currently
-have distinct identities but identical content. In the shipped example, unblocked
-Open Actions enter **New to organize**, **Todo** stays empty, **Active** combines
+Manual ordering, ranks, View editing in the browser, selection persistence,
+windows, Snapshots and Action archiving remain deferred. Use CLI moves to organize
+the same Actions independently in different instances. In the shipped example,
+unplaced unblocked Open Actions enter **New to organize**; move them to **Todo**
+without changing state. **Active** combines
 In Progress and Waiting, and **Blocked** and **Done** complete the board. Sprint
 backlog and Backlog belong only to the broader design example.
 
 ## View instances
 
-Use a fresh Workspace initialized by this version (Operational Store schema 6).
+Use a fresh Workspace initialized by this version (Operational Store schema 7).
 Prepare `_views/` manually with a navigation `index.md`, for example:
 
 ```markdown
@@ -110,17 +111,19 @@ derived `blocked` boolean. Human output shows the same order and content and
 marks empty columns. Get returns configuration only; list inventories instances.
 
 All current Actions across the Workspace are evaluated, even when invoked from a
-Project/Outcome directory. Every Action is currently **unplaced**. A blocked
-non-terminal Action prefers the special Blocked column; otherwise the effective
+Project/Outcome directory. An eligible stored placement takes precedence, including
+an ordinary `include_blocked` column. Otherwise a blocked non-terminal Action
+prefers the special Blocked column; otherwise the effective
 per-state default wins if eligible, then the first eligible ordinary column in
 definition order. Ordinary columns accept blocked Actions only with
 `include_blocked: true`. Waiting alone is not blocking. A column's `default_status`
 does not change a member's actual state. Ineligible Actions are omitted.
 All columns remain visible, including empty columns, and members use ascending
-Action ID with a fixed, locale-independent comparison. No placement or manual
-order is persisted. Two instances of the same definition therefore show the same
-Workspace content with their own identities and titles. With the supplied
-example all unblocked Open Actions go to New to organize and Todo stays empty.
+Action ID with a fixed, locale-independent comparison. Current placement is stored
+per instance and Action, without ranks or previous-column history. Manual order
+is deferred: a moved Action is not promised to appear at the bottom. Same-definition
+instances can organize the same Action differently. Unplaced Open Actions in the
+example route to New to organize.
 
 After copying the example above, try this flow. Replace `VIEW_ID` and `ACTION_ID`
 with the IDs returned by create:
@@ -143,7 +146,7 @@ Change `owf.defaults.open` in the shared definition to `todo` and show again to
 see live routing without refresh/rebuild. Current dependency facts are reused
 even when prerequisites are outside the View. Missing prerequisites and malformed
 Actions fail the entire read, including Actions that routing would otherwise omit.
-Schema 6 supports five execution states; Action archival and archived prerequisite
+Schema 7 supports five execution states; Action archival and archived prerequisite
 dispositions are not supported by this version. Externally injected `archived`
 records are invalid store data and fail explicitly.
 
@@ -156,14 +159,90 @@ ID, while list still returns the stored instances. Definition errors use
 JSON errors use `{ ok: false, error: { code, message } }`; human errors go to
 stderr. Invalid arguments/titles exit 2 and operational failures exit 1.
 
-Persisted placements, manual ordering, moves, windows, View editing,
-deletion and HTTP/GUI View operations remain deferred. The existing five-state
+Manual ordering, windows, View editing, deletion and HTTP/GUI View movement
+remain deferred. The existing five-state
 board retains its behavior. Reads do not change definitions, instances, Actions
 or events. Action candidates and prerequisite facts are read from one coherent
 SQLite statement. Editable Markdown and SQLite do not provide a
 cross-representation atomic snapshot; show returns current content, not an
 immutable Snapshot. Empty Workspaces, no eligible members and zero-column
 definitions are successful evaluations.
+
+## Moving Actions through CLI
+
+After creating instances and an Action above, replace `ACTION_ID` and `VIEW_ID`
+with their returned IDs. Titles are not selectors; column IDs come from the definition:
+
+```sh
+owf move action ACTION_ID --view VIEW_ID --column todo --json
+owf move action ACTION_ID --view VIEW_ID --column blocked --reason "Missing access"
+owf move action ACTION_ID --view VIEW_ID --column todo
+```
+
+The first command changes only the selected instance's organization, with no Action
+timestamp or state event. Other instances retain eligible choices. Cross-column
+ordinary moves apply `default_status` (or the first listed state), even if the
+previous state was supported too. Actions outside the View may enter a valid target.
+Moving to the already evaluated column is a successful, completely write-free no-op:
+no default-state reset, placement pinning, timestamp, event or reordering.
+
+Entering Blocked preserves state and requires a nonblank manual `--reason`, or
+reuses an existing valid manual reason. Dependency blocking alone is insufficient.
+Terminal Actions cannot enter Blocked. Leaving evaluated Blocked requires all
+prerequisites completed, clears the manual reason and applies the ordinary default.
+This also applies to `include_blocked` and Cancelled destinations. Moves between
+ordinary columns retain manual blocking; completion and terminal rules still apply.
+`--reason` is rejected for ordinary targets, same-column requests, blank input or
+when combined with `--waiting-for`.
+
+For a Waiting destination, add this ordinary column under `owf.columns` in the
+example definition (its ID is deliberately distinct from Active):
+
+```yaml
+- id: waiting-for
+  title: Waiting for
+  status: waiting
+```
+
+```sh
+owf move action ACTION_ID --view VIEW_ID --column waiting-for --waiting-for "Odpoveď dodávateľa"
+owf get action ACTION_ID --json
+```
+
+Optional `--waiting-for` preserves nonblank supplied text verbatim. Entering Waiting
+without it starts without a reason. Between distinct Waiting columns, omission
+preserves the saved reason and supplied text replaces it; leaving Waiting clears
+it atomically. Clearing while staying Waiting uses existing `set action` editing.
+The move option is rejected for same-column requests, Blocked entry, blank text,
+and any effective default other than Waiting, including Active which supports
+Waiting but defaults to In Progress. A valid Blocked exit to Waiting may supply it.
+
+Human and JSON move results identify the Action and View, evaluated source
+(`null` outside the View), destination, `changed`, resulting state, blocking and
+waiting reason when present. JSON uses `result.type: "view-move"` and status
+`moved` or `unchanged`. Success is returned only after commit.
+
+Supported CLI and HTTP Action edits, Default Kanban state moves and prerequisite
+changes reconcile affected placements across all instances, including direct
+dependents. Both pre-change and post-change invalidity discard placements in the
+same transaction as Action data and events. Returning to an earlier state or
+clearing a later block uses fallback routing, without restoring the old Todo.
+Eligible placements survive. Placement events use `view.placement_changed` with
+Action ID and old/new column IDs; current placements are authority.
+
+Reads remain pure: temporarily incompatible external definition edits only hide
+ineligible placements logically. Restoring the definition before a relevant
+successful write can restore eligibility, even after a read. A relevant successful
+write while invalid removes the placement permanently. No read creates cleanup
+markers. Renaming titles or defaults preserves eligible placements; removing a
+referenced column is an `INVALID_VIEW_PLACEMENT` error. Restore its stable ID to
+repair it. Missing/broken definitions required by affected placements reject the
+entire write with instance/definition context; unrelated broken Views without
+affected placements do not block it. `list views` stays available for diagnosis.
+
+Use browser Refresh after CLI moves to see placement and saved reasons without
+restarting the server. View cards remain passive. No ordering, web move endpoint,
+creation in a column, state-choice option, arbitrary filters or migration is added.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
 deferred features, and acceptance scenarios.
@@ -339,15 +418,16 @@ State accepts `open`, `in_progress`, `waiting`, `completed`, `cancelled`.
 `--waiting-for` needs a resulting waiting state and nonblank text; omission
 preserves a reason while staying waiting. `--clear-waiting-for` removes it while
 waiting; leaving waiting clears it automatically. Repeated scalar or
-contradictory options fail. An identical request returns `unchanged` without a
-write. A real update preserves ID and `created_at`, updates `updated_at` once,
-and commits exactly one event: `action.state_changed` for state/reason-only
-edits, `action.updated` for content, owner, manual block or dependency edits. A failed
+contradictory options fail. An identical request preserves Action data and events;
+it can still reconcile invalid View placements. A real Action update preserves ID and `created_at`, updates `updated_at` once,
+and commits exactly one event: `action.state_changed` for state changes without
+content/block/dependency edits; `action.updated` for reason-only, content, owner,
+manual block or dependency edits. A failed
 transaction saves neither change nor event. `ACTION_NOT_FOUND` means the ID is
 absent; `ACTION_CONFLICT` reports a rejected conditional write;
 `ACTION_UPDATE_FAILED` reports a write failure or clock rollback. The browser preserves blocking data and enforces shared completion rules.
 
-Fresh PoC Workspaces use schema 6. Older stores (including schema 5) are refused with
+Fresh PoC Workspaces use schema 7. Older stores (including schema 6) are refused with
 `UNSUPPORTED_STORE_VERSION` without migration or mutation;
 create a new disposable Workspace with `owf init` to try this increment. Never
 reset or overwrite an existing store.
@@ -430,7 +510,7 @@ existing `AGENTS.md` in a fresh directory prevents initialization.
 The tool refuses target collisions and unavailable/unsupported stores. It does
 not rename, repair, overwrite, or create nested Workspaces. Fresh initialization
 creates `owf_metadata`, Actions, View instances, and the Operational Event Log with format
-`owf-tool-operational` and schema version `6`; profile version `0.1` and package
+`owf-tool-operational` and schema version `7`; profile version `0.1` and package
 version `0.0.0` are independent. Older and unknown schema versions are rejected
 without upgrade. Use a fresh disposable directory to try this version; do not
 overwrite an existing Workspace. This is
@@ -557,7 +637,7 @@ Confirmed writes refresh dependents, including after target title edits. Target-
 refresh updates derived facts while preserving source drafts; source changes
 require explicit reload. Stale/unavailable facts are labeled. A successful save
 followed by refresh failure remains a successful save; do not repeat it. The
-board requires schema 6, with no migration or implicit store replacement.
+board requires schema 7, with no migration or implicit store replacement.
 
 The editor uses the same owner picker. An unavailable stored owner stays visible;
 editing other fields retains it without requiring its Markdown context. Selecting

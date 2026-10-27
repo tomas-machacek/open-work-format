@@ -4,6 +4,7 @@
 > View architecture direction simplified 2026-10-11; definition validation and
 > CLI instance create/list/get implemented in 0020; read-only evaluation in 0021.
 > Web View inventory, passive display and shared Action editing delivered in 0022.
+> CLI View moves, instance placement and write reconciliation delivered in 0023.
 
 ## Purpose and authority
 
@@ -29,33 +30,33 @@ Separate packages are deferred until distribution or reuse needs justify them.
 
 Planned layout; directories and abstractions are created only when needed:
 
-| Path                              | Responsibility                                                                  |
-| --------------------------------- | ------------------------------------------------------------------------------- |
-| src/domain/workspaces/            | Workspace metadata/name rules; no filesystem access                             |
-| src/application/workspaces/       | Workspace initialization and discovery use cases                                |
-| src/domain/actions/               | Action aggregate, value objects and domain rules                                |
-| src/domain/inbox/                 | Inbox Item aggregate and rules                                                  |
-| src/domain/references/            | Shared domain identifiers and references                                        |
-| src/application/actions/          | Action use cases                                                                |
-| src/application/inbox/            | Inbox use cases                                                                 |
-| src/domain/views/                 | View validation and unplaced routing with deterministic Action ID order         |
-| src/application/views/            | View instance create/list/get and read-only show evaluation                     |
-| src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces |
-| src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations             |
-| src/infrastructure/markdown/      | Reading Markdown objects and metadata                                           |
-| src/infrastructure/configuration/ | Workspace configuration and registration storage                                |
-| src/interfaces/cli/               | Argument parsing, use-case invocation and output                                |
-| src/interfaces/http/              | HTTP requests, use-case invocation and responses                                |
-| src/interfaces/uri/               | Incoming OWF URI handling and navigation coordination                           |
-| src/contracts/                    | Transport schemas and types, without domain rules                               |
-| src/bootstrap/                    | Entry points and concrete dependency wiring                                     |
-| src/web/                          | Browser UI and API client                                                       |
-| tests/acceptance/features/        | Gherkin acceptance scenarios                                                    |
-| tests/acceptance/steps/           | Scenario bindings to application operations                                     |
-| tests/integration/                | Technical integration tests                                                     |
-| tests/e2e/                        | CLI process and browser journeys                                                |
-| tests/support/                    | Small genuinely shared test fixtures                                            |
-| scripts/                          | Portable development/release support when needed                                |
+| Path                              | Responsibility                                                                       |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| src/domain/workspaces/            | Workspace metadata/name rules; no filesystem access                                  |
+| src/application/workspaces/       | Workspace initialization and discovery use cases                                     |
+| src/domain/actions/               | Action aggregate, value objects and domain rules                                     |
+| src/domain/inbox/                 | Inbox Item aggregate and rules                                                       |
+| src/domain/references/            | Shared domain identifiers and references                                             |
+| src/application/actions/          | Action use cases                                                                     |
+| src/application/inbox/            | Inbox use cases                                                                      |
+| src/domain/views/                 | View validation, placement eligibility, routing and move effects with fixed ID order |
+| src/application/views/            | View instance reads/creation, moves and affected-placement reconciliation            |
+| src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces      |
+| src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations                  |
+| src/infrastructure/markdown/      | Reading Markdown objects and metadata                                                |
+| src/infrastructure/configuration/ | Workspace configuration and registration storage                                     |
+| src/interfaces/cli/               | Argument parsing, use-case invocation and output                                     |
+| src/interfaces/http/              | HTTP requests, use-case invocation and responses                                     |
+| src/interfaces/uri/               | Incoming OWF URI handling and navigation coordination                                |
+| src/contracts/                    | Transport schemas and types, without domain rules                                    |
+| src/bootstrap/                    | Entry points and concrete dependency wiring                                          |
+| src/web/                          | Browser UI and API client                                                            |
+| tests/acceptance/features/        | Gherkin acceptance scenarios                                                         |
+| tests/acceptance/steps/           | Scenario bindings to application operations                                          |
+| tests/integration/                | Technical integration tests                                                          |
+| tests/e2e/                        | CLI process and browser journeys                                                     |
+| tests/support/                    | Small genuinely shared test fixtures                                                 |
+| scripts/                          | Portable development/release support when needed                                     |
 
 Unit tests live beside the code as *.test.ts. Other tests live under tests/.
 Organize by domain responsibility within layers, not global entities/services
@@ -152,7 +153,7 @@ authoritative in the same Workspace Operational Store.
 An unavailable store must be reported, never treated as empty or silently replaced.
 Retain the paused-write backup/restore requirement in the MVP scope.
 
-## View evaluation and planned write command boundary
+## View evaluation and write command boundary
 
 Delivered in 0021: CLI `show view VIEW_ID [--json]` coordinates instance and
 current definition reads with the existing Action repository through ports.
@@ -166,8 +167,8 @@ show the same content and retain distinct identities. Schema 6 and its five
 Action states are unchanged; archival is not available in this tool version.
 Effective state defaults win when eligible, otherwise the first eligible ordinary
 column in definition order; Blocked takes precedence for blocked non-terminals.
-The fallback member order is not persisted manual order. The remaining movement,
-placement retention, ordering and reconciliation design below is deferred.
+The fallback member order is not persisted manual order. These were the 0021
+read-only capabilities; 0023 extends them with current placement below.
 
 Delivered in 0022: `displayView` shares the evaluation read with `showView`,
 joining evaluated member IDs to complete existing Action projections from that
@@ -187,6 +188,46 @@ selection. Manual and coalesced tab-return refreshes also refresh inventory.
 Confirmed edits trigger evaluation without speculative placement. Retained View
 content after read failure is stale with saves disabled; draft protection applies
 to navigation, including selection from the modal editor. Schema 6 is unchanged.
+
+Delivered in 0023: noninteractive `move action ACTION_ID --view VIEW_ID --column
+COLUMN_ID [--reason TEXT] [--waiting-for TEXT] [--json]` works without a server.
+Domain movement reuses Action editing/completion rules and the shared column
+eligibility/evaluator. The application determines evaluated source from current
+transaction facts, validates all destination effects and requests explicit placement
+only in the selected instance. Same-column requests are entirely write-free,
+preserve actual state and reject either reason option. Cross-column ordinary
+moves use the effective destination default. Blocked entry preserves state and
+requires/reuses a manual reason; Blocked exit requires no unresolved dependencies
+and explicitly clears manual blocking. Ordinary-to-ordinary movement retains it.
+Optional waiting text is literal and nonblank and applies only to an ordinary
+Waiting default: preserve/replace between Waiting columns and clear on departure.
+Reason-only edits emit `action.updated`, without a fictitious state transition.
+
+Schema 7 adds `view_placements`, unique by instance and Action, storing only a
+column ID, and `view.placement_changed` events with Action and old/new columns.
+New Workspaces use schema 7; schema 6 and all other versions fail without mutation
+or implicit migration. The SQLite Action update transaction supplies coherent
+before/after Action projections, instances and placements through its application
+port. Application reconciliation loads definitions only for affected placements
+and uses the domain eligibility implementation against both fact sets, including
+direct dependents across instances. Action updates, placement changes and both
+event streams commit atomically. Placement-only movement never updates Action
+timestamps or emits Action events. Existing HTTP stale-edit checks remain in force.
+
+CLI show and passive web display retain eligible stored placement before normal
+routing, including blocked Actions placed in ordinary include_blocked columns.
+They keep ascending Action ID order and perform no semantic writes. Known
+ineligibility falls back on reads; a relevant successful write removes it.
+Temporary external incompatibility reverted before such a write can restore
+eligibility even after a read; there are no durable read observations or cached
+definitions. Removed referenced column IDs fail explicitly and require restoring
+the stable ID. A broken required definition rejects the whole write with context;
+unrelated broken Views without affected placements do not block writes. Inventory
+remains definition-independent. Browser Refresh sees CLI moves without restart.
+Manual ordering, append-on-arrival, View move endpoints/controls, creation in a
+column and non-default destination state selection remain deferred. The following
+full-profile design also describes those future capabilities; it does not claim
+their delivery in 0023.
 
 Definitions are data: state mappings, per-state default columns, target default
 states, and blocking inclusion. Domain rules determine eligibility and unique

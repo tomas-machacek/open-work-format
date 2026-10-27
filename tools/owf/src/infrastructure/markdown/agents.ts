@@ -43,6 +43,9 @@ owf:
       title: Active
       status: [in_progress, waiting]
       include_blocked: true
+    - id: waiting-for
+      title: Waiting for
+      status: waiting
     - id: done
       title: Done
       status: completed
@@ -91,25 +94,79 @@ Show returns result.view and ordered result.columns with id, title and members.
 Members have id, title, actual state and derived blocked boolean; human output
 shows the same content and visibly empty columns. Get returns configuration only.
 Show evaluates the entire Workspace, regardless of current Project/Outcome.
-All Actions are currently unplaced. Blocked non-terminal Actions prefer Blocked;
+Eligible stored placements are retained. Otherwise blocked non-terminal Actions prefer Blocked;
 otherwise use the effective state default when eligible, then the first eligible
 ordinary column in definition order. Ordinary columns require include_blocked:
 true to accept blocked Actions. Waiting alone is not blocking; default_status
 does not reinterpret current states. Ineligible Actions are omitted.
 Members use ascending Action ID with a fixed locale-independent comparison.
-There are no persisted placements or manual ordering. Same-definition instances
-show the same Workspace content while retaining different identities and titles.
-Unblocked Open Actions go only to New to organize; Todo stays empty. Change
+Placement belongs to one instance and Action; state and content remain shared.
+Members always use ascending Action ID order; manual ordering and append-on-arrival
+are deferred. Unplaced Open Actions go to New to organize. Change
 owf.defaults.open to todo and show again to see the new routing immediately.
 Prerequisites outside the View still affect blocking. Malformed Actions and
 missing prerequisites fail the whole read, even for otherwise omitted Actions.
-Schema 6 has five states and no Action archival support; externally injected
+Schema 7 has five states and no Action archival support; externally injected
 archived data is rejected. Empty membership and zero columns are successful.
-These commands do not move Actions, edit/delete instances, or change the browser board.
+Get/list/show do not move Actions or edit/delete instances. The browser Display
+selector shows the same placement-aware evaluation with passive cards and shared
+detail editing. Refresh after CLI changes; no server restart is required.
 Create saves instance metadata and one view.created event atomically; reads
 change no instance, Action, Markdown or event. Markdown validation and SQLite
 reads are not a cross-representation atomic snapshot. Action and prerequisite
 facts use one coherent SQLite read; show does not create an immutable Snapshot.
+
+Move an existing Action by its ID into a stable definition-local column ID.
+Replace {id} and {view-id} with the IDs returned by create:
+
+\`\`\`sh
+owf move action {id} --view {view-id} --column todo --json
+owf move action {id} --view {view-id} --column blocked --reason "Missing access"
+owf move action {id} --view {view-id} --column waiting-for --waiting-for "Odpoveď dodávateľa"
+owf show view {view-id} --json
+owf get action {id} --json
+\`\`\`
+
+Moves need no server and work from descendants without owner narrowing. Same-state
+organization changes only selected-instance placement, with no Action timestamp
+or state event. Other instances retain eligible placements. Ordinary cross-column
+moves set default_status (or first status); an outside-View Action may enter.
+An already displayed target is a write-free no-op: preserve actual state, block,
+timestamp and events, without pinning inferred membership or reordering.
+
+Entering Blocked preserves execution state and requires a nonblank --reason or
+reuses an existing valid manual reason; dependencies alone do not supply one.
+Terminal entry fails. Leaving evaluated Blocked requires no unresolved prerequisite,
+clears manual blocking and applies the ordinary default, including for targets
+with include_blocked or Cancelled defaults. Between ordinary columns manual blocks
+remain; shared completion/terminal rules still apply. Reject --reason for ordinary
+destinations, same-column requests, blank text or together with --waiting-for.
+
+Optional --waiting-for applies only to a cross-column ordinary target whose
+effective default is waiting. Preserve supplied nonblank text verbatim. Entry
+without it starts without a reason; between Waiting columns omission preserves
+the saved reason and supplied text replaces it. Leaving Waiting clears it.
+Same-column requests, Blocked entry and non-Waiting defaults reject the option,
+even when Waiting is supported among other states. Active in this example defaults
+to in_progress. A valid Blocked exit to waiting-for may supply the reason.
+Use set action for reason-only editing or clearing while remaining Waiting.
+
+Human/JSON move results identify Action, View, evaluated source (nullable outside
+the View), destination, changed, resulting state/blocking and waiting reason.
+Action changes, placement and events commit together; failure saves none.
+Supported CLI/HTTP edits and Default Kanban transitions reconcile invalid placements
+across affected instances and direct dependents against pre-change and post-change
+facts. Later state return or block clearing never restores departed Todo choices.
+Eligible placements survive. Renamed titles/defaults do not displace them.
+
+Reads never clean up. A temporary incompatible external definition reverted before
+a relevant successful write may make a stored choice eligible again. A relevant
+successful write while invalid removes it permanently. Removed referenced column
+IDs are configuration errors: restore the stable ID in Markdown. A required broken
+definition rejects the whole write with instance/definition context; unrelated
+broken Views without affected placements do not. list views remains available.
+No manual ranks, View drag/drop, column creation, arbitrary filters or state-choice
+option are implemented.
 
 This guide is installed only during fresh initialization. Existing user-edited
 guides are preserved; there is no automatic refresh or backfill.
@@ -205,8 +262,10 @@ completed and cancelled, including reopening terminal Actions. --waiting-for
 requires the resulting waiting state; --clear-waiting-for removes the reason
 while staying waiting. Leaving waiting clears the reason automatically.
 Contradictory and repeated scalar options are rejected. An identical request
-returns unchanged without a timestamp or event; one real update commits one
-Action and event together. State/reason-only edits emit action.state_changed;
+preserves Action timestamp/events; it may still reconcile invalid View placements.
+One real update commits one Action and event together. State changes without
+content/block/dependency edits emit action.state_changed;
+waiting-reason-only edits emit action.updated with old/new reasons;
 content, owner, manual block or dependency edits emit action.updated. Clock rollback rejects real edits.
 
 Repeat --state on list actions to match any listed state without duplicates,
@@ -269,7 +328,7 @@ retrying a terminal move. Refresh the board after CLI edits to see current facts
 
 
 
-This tool requires schema 6. Older stores are refused without migration or
+This tool requires schema 7. Older stores, including schema 6, are refused without migration or
 mutation. For this PoC, initialize a fresh disposable directory with owf init;
 never reset or replace an existing store. Existing user guidance stays untouched.
 

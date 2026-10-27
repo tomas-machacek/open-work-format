@@ -167,7 +167,8 @@ test('show View has matching ordered human/JSON content from root and Project co
   const { store } = initialize(root, 'Show views');
   const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
   expect(guide).toContain('owf show view {view-id} --json');
-  expect(guide).toContain('unplaced');
+  expect(guide).toContain('Eligible stored placements are retained.');
+  expect(guide).toContain('Unplaced Open Actions go to New to organize.');
   mkdirSync(join(root, '_views'));
   const definition = join(root, '_views', 'work-board.md');
   copyFileSync(

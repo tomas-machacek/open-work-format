@@ -834,10 +834,39 @@ test('PATCH checks the observed snapshot in the transaction and emits only real 
       expect(
         db
           .prepare(
-            "SELECT kind FROM action_events WHERE kind = 'action.state_changed'",
+            'SELECT kind, old_state, new_state, old_waiting_for, new_waiting_for FROM action_events ORDER BY event_id',
           )
           .all(),
-      ).toHaveLength(3);
+      ).toEqual([
+        {
+          kind: 'action.created',
+          old_state: null,
+          new_state: 'open',
+          old_waiting_for: null,
+          new_waiting_for: null,
+        },
+        {
+          kind: 'action.state_changed',
+          old_state: 'open',
+          new_state: 'waiting',
+          old_waiting_for: null,
+          new_waiting_for: null,
+        },
+        {
+          kind: 'action.updated',
+          old_state: 'waiting',
+          new_state: 'waiting',
+          old_waiting_for: null,
+          new_waiting_for: 'CLI reply',
+        },
+        {
+          kind: 'action.state_changed',
+          old_state: 'waiting',
+          new_state: 'completed',
+          old_waiting_for: 'CLI reply',
+          new_waiting_for: null,
+        },
+      ]);
     } finally {
       db.close();
     }

@@ -6,6 +6,7 @@ import {
   listActionsOptions,
   setActionOptions,
   createViewOptions,
+  moveActionOptions,
 } from '../../contracts/index.js';
 import type {
   ContextInput,
@@ -29,6 +30,8 @@ import type {
   ListViewsResult,
   ViewInstance,
   ShowViewResult,
+  MoveActionInput,
+  MoveActionResult,
 } from '../../application/views/index.js';
 
 function once(label: string) {
@@ -68,6 +71,7 @@ export async function runCli(
     get(id: string): ViewResult;
     list(): ListViewsResult;
     show(id: string): ShowViewResult;
+    move(id: string, input: MoveActionInput): MoveActionResult;
   },
 ): Promise<void> {
   let json = false;
@@ -123,7 +127,7 @@ export async function runCli(
     .description('Evaluate current Workspace content')
     .command('view')
     .description(
-      'Show current Actions in View columns; get view returns configuration only. All Actions are unplaced; eligible defaults then definition order determine columns, with Action ID order inside each column. No placements are saved.',
+      'Show current Actions in View columns; get view returns configuration only. Eligible stored placements are retained, then blocking/default routing applies. Members use ascending Action ID order. Reads save no changes.',
     )
     .argument('<view-id>', 'Stored instance UUID')
     .option(
@@ -137,6 +141,64 @@ export async function runCli(
         json
           ? JSON.stringify({ ok: true, ...result })
           : renderShownView(result),
+      );
+    });
+  program
+    .command('move')
+    .description('Move operational objects')
+    .command('action')
+    .description(
+      'Move an existing Action into a View column atomically; same-column requests are write-free no-ops; no manual ordering',
+    )
+    .argument('<action-id>', 'Action UUID or owf:action:UUID')
+    .requiredOption(
+      '--view <view-id>',
+      'Stored View instance UUID',
+      once('--view'),
+    )
+    .requiredOption(
+      '--column <column-id>',
+      'Stable definition-local column ID',
+      once('--column'),
+    )
+    .option(
+      '--reason <text>',
+      'Nonblank manual-block reason only when entering Blocked; otherwise reuse an existing reason',
+      once('--reason'),
+    )
+    .option(
+      '--waiting-for <text>',
+      'Optional literal nonblank reason only for a cross-column ordinary destination defaulting to waiting; omission preserves a current Waiting reason',
+      once('--waiting-for'),
+    )
+    .option(
+      '--json',
+      'Emit evaluated source (nullable), destination, changed and resulting Action including blocking and waiting reason',
+    )
+    .addHelpText(
+      'after',
+      `
+Only the selected instance receives the destination placement. Action state and
+reasons are shared across all Views. Ordinary destinations set their default state.
+Blocked preserves state and requires a manual reason; leaving requires all
+prerequisites resolved and clears manual blocking. Leaving Waiting clears its reason.
+Same-column requests preserve actual state and reject either reason option.
+
+Examples (replace IDs with real UUIDs; columns must exist in your definition):
+  owf move action ACTION_ID --view VIEW_ID --column todo
+  owf move action ACTION_ID --view VIEW_ID --column blocked --reason "Missing access"
+  owf move action ACTION_ID --view VIEW_ID --column waiting-for --waiting-for "Odpoveď dodávateľa"
+`,
+    )
+    .action((id: string, options: unknown) => {
+      const parsed = moveActionOptions.parse(options);
+      json = parsed.json ?? false;
+      const result = views.move(id, parsed);
+      const moved = result.result;
+      console.log(
+        json
+          ? JSON.stringify({ ok: true, ...result })
+          : `${moved.status} action\nID: ${moved.action.id}\nView: ${moved.view.id}\nSource: ${moved.source ?? '(outside View)'}\nDestination: ${moved.destination}\nChanged: ${String(moved.changed)}\nState: ${moved.action.state}\n${renderBlocking(moved.action)}${moved.action.waiting_for === undefined ? '' : `\nWaiting for: ${moved.action.waiting_for}`}`,
       );
     });
   const creation = program
@@ -454,6 +516,9 @@ unresolved_dependencies, dependencies [{ uri, title, state, satisfied }].
       [
         '--title',
         '--definition',
+        '--view',
+        '--column',
+        '--reason',
         '--slug',
         '--owner',
         '--expected-result',

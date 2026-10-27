@@ -19,6 +19,7 @@ import {
   setAction,
   viewPorts,
   actionPorts,
+  moveAction,
 } from '../../src/bootstrap/workspaces.js';
 import { displayView } from '../../src/application/views/index.js';
 import { viewResponse, viewsResponse } from '../../src/contracts/index.js';
@@ -50,6 +51,109 @@ async function setup() {
   const read = () => server.inject(`/api/views/${view.id}`);
   return { root, store, file, view, server, read };
 }
+
+test('HTTP detail and Default state writes reconcile placements across instances and direct dependents; stale and broken writes roll back', async () => {
+  const { root, store, file, view, server } = await setup();
+  const second = createView(root, {
+    title: 'Second',
+    definition: '/_views/board.md',
+  }).result.view;
+  const action = createAction(root, { title: 'Source' }).result.action;
+  const target = createAction(root, {
+    title: 'Prerequisite',
+    state: 'completed',
+  }).result.action;
+  const address = server.server.address();
+  if (!address || typeof address === 'string') throw new Error('Missing port');
+  const headers = {
+    host: `127.0.0.1:${address.port}`,
+    origin: `http://127.0.0.1:${address.port}`,
+    'content-type': 'application/json',
+  };
+  const edit = (changes: Record<string, unknown>) => {
+    const current = getAction(root, action.id).result.action;
+    return server.inject({
+      method: 'PATCH',
+      url: `/api/actions/${action.id}`,
+      headers,
+      payload: {
+        expected: {
+          title: current.title,
+          owner: current.owner,
+          state: current.state,
+          updated_at: current.updated_at,
+        },
+        ...changes,
+      },
+    });
+  };
+  const state = (
+    id: string,
+    state: string,
+    expected = getAction(root, id).result.action,
+  ) =>
+    server.inject({
+      method: 'PATCH',
+      url: `/api/actions/${id}/state`,
+      headers,
+      payload: {
+        state,
+        expected: { state: expected.state, updated_at: expected.updated_at },
+      },
+    });
+  const column = (viewId: string) =>
+    showView(root, viewId).result.columns.find((column) =>
+      column.members.some((member) => member.id === action.id),
+    )?.id;
+  for (const instance of [view, second])
+    moveAction(root, action.id, { view: instance.id, column: 'todo' });
+  expect((await edit({ manualBlock: 'Access' })).statusCode).toBe(200);
+  expect((await edit({ clearManualBlock: true })).statusCode).toBe(200);
+  expect([column(view.id), column(second.id)]).toEqual([
+    'new-actions',
+    'new-actions',
+  ]);
+  for (const instance of [view, second])
+    moveAction(root, action.id, { view: instance.id, column: 'todo' });
+  expect((await edit({ addDependency: [target.id] })).statusCode).toBe(200);
+  expect((await state(target.id, 'open')).statusCode).toBe(200);
+  expect((await state(target.id, 'completed')).statusCode).toBe(200);
+  expect([column(view.id), column(second.id)]).toEqual([
+    'new-actions',
+    'new-actions',
+  ]);
+  for (const instance of [view, second])
+    moveAction(root, action.id, { view: instance.id, column: 'todo' });
+  expect((await state(action.id, 'in_progress')).statusCode).toBe(200);
+  expect((await state(action.id, 'open')).statusCode).toBe(200);
+  expect([column(view.id), column(second.id)]).toEqual([
+    'new-actions',
+    'new-actions',
+  ]);
+  // Dependency addition itself invalidates placements; removal must not revive them.
+  setAction(root, target.id, { state: 'open' });
+  setAction(root, action.id, { removeDependency: [target.id] });
+  moveAction(root, action.id, { view: view.id, column: 'todo' });
+  expect((await edit({ addDependency: [target.id] })).statusCode).toBe(200);
+  expect((await edit({ removeDependency: [target.id] })).statusCode).toBe(200);
+  expect(column(view.id)).toBe('new-actions');
+  const stale = getAction(root, action.id).result.action;
+  setAction(root, action.id, { title: 'New title' });
+  const before = semanticSnapshot(root, store);
+  expect((await state(action.id, 'waiting', stale)).statusCode).toBe(409);
+  expect(semanticSnapshot(root, store)).toEqual(before);
+  moveAction(root, action.id, { view: view.id, column: 'todo' });
+  writeFileSync(file, 'Broken definition');
+  const broken = semanticSnapshot(root, store);
+  for (const response of [
+    await state(action.id, 'waiting'),
+    await edit({ manualBlock: 'Access' }),
+  ]) {
+    expect(response.statusCode).toBe(503);
+    expect(response.body).toContain(view.id);
+    expect(semanticSnapshot(root, store)).toEqual(broken);
+  }
+});
 
 test('HTTP uses the CLI evaluator order and complete facts from one repository read; reads preserve all semantic data', async () => {
   const { root, store, view, server, read } = await setup();

@@ -1,4 +1,11 @@
 import { z } from 'zod';
+export const moveActionOptions = z.object({
+  view: z.string(),
+  column: z.string(),
+  reason: z.string().optional(),
+  waitingFor: z.string().optional(),
+  json: z.boolean().optional(),
+});
 export const createViewOptions = z.object({
   title: z.string(),
   definition: z.string(),
