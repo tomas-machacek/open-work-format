@@ -1,6 +1,6 @@
 # 0023 — Move Actions between View columns through CLI
 
-> Status: in_progress
+> Status: completed
 > Description: Move an existing Action into a View column, atomically applying column effects and storing instance-local placement.
 > Depends on: [0020](0020-view-instance-cli-foundation.md), [0021](0021-view-evaluation-cli.md), [0022](0022-web-view-display.md), and existing Action state/block/dependency operations.
 
@@ -324,8 +324,8 @@ the full increment for implementation on 2026-10-27.
 Implemented the approved CLI/application move, schema 7 placements and placement
 events, shared placement-aware evaluation, and transactional reconciliation for
 existing CLI/HTTP Action mutations and direct dependents. No deferred 0024 behavior
-was added. Status remains `in_progress`; independent review and its correction
-are recorded below.
+was added. Implementation, independent review and the correction are complete;
+verification evidence is recorded below.
 
 Domain cases cover defaults, outside-View entry, same-column no-op, Blocked and
 Waiting options. SQLite/HTTP tests cover independent instances, retained and
@@ -461,3 +461,8 @@ saved reason in Action detail after refresh.
 
 - 2026-10-27: Implemented the approved scope; status is `in_progress`. Independent
   code review follows in a separate session; completion and release remain separate.
+
+- 2026-10-27: User confirmed completion after independent review and correction,
+  and authorized merging PR #29 into main. Increment and index marked completed.
+  The final correction is included in revision `3cc70f16b17004f1664628ea6581df52fe9e222b`;
+  this closure changes documentation only and reuses the recorded verification.
