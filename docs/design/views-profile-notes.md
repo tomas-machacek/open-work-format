@@ -122,10 +122,20 @@ chooses the new destination. If it is unblocked elsewhere, normal default
 routing applies; the View does not restore its former Todo placement.
 
 Reads evaluate routing without writing. Supported write paths must reconcile
-invalid placements and departed positions. Physical residue from an external
-change must not be reused as old placement or rank after departure is detected.
-Implementation must specify this reconciliation without inventing unobserved
-membership history or writes on reads.
+invalid placements and departed positions against pre-change and post-change
+facts, atomically with Action changes and events. This includes Action operations
+outside a View and affected dependent Actions across instances. Eligible
+placements survive; discarded placements are not restored by later state changes.
+A required broken definition or removed referenced column rejects the operation;
+an unrelated broken View without affected placement does not.
+
+Clarified on 2026-10-27: durable departure tracking applies to supported writes,
+not read-only observations of external edits. A temporarily incompatible
+definition reverted before a relevant successful write may make the stored
+placement eligible again, even if a read observed the intermediate definition.
+Current invalidity is reconciled on the next relevant successful write.
+Reads never repair definitions or persist cleanup/observation markers; no
+unobserved membership history is reconstructed.
 
 ## 5. Fixed movement and creation rules
 
