@@ -117,14 +117,14 @@ reads are not a cross-representation atomic snapshot. Action and prerequisite
 facts use one coherent SQLite read; show does not create an immutable Snapshot.
 
 Move an existing Action by its ID into a stable definition-local column ID.
-Replace ACTION_ID and VIEW_ID with the IDs returned by create:
+Replace {id} and {view-id} with the IDs returned by create:
 
 \`\`\`sh
-owf move action ACTION_ID --view VIEW_ID --column todo --json
-owf move action ACTION_ID --view VIEW_ID --column blocked --reason "Missing access"
-owf move action ACTION_ID --view VIEW_ID --column waiting-for --waiting-for "Odpoveď dodávateľa"
-owf show view VIEW_ID --json
-owf get action ACTION_ID --json
+owf move action {id} --view {view-id} --column todo --json
+owf move action {id} --view {view-id} --column blocked --reason "Missing access"
+owf move action {id} --view {view-id} --column waiting-for --waiting-for "Odpoveď dodávateľa"
+owf show view {view-id} --json
+owf get action {id} --json
 \`\`\`
 
 Moves need no server and work from descendants without owner narrowing. Same-state
