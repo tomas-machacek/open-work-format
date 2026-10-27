@@ -206,20 +206,22 @@ events or persistent "observed departure" markers. On a read, an ineligible
 placement is ignored logically. The next relevant successful write reconciles
 the current pre-change and post-change facts.
 
-There is a boundary requiring explicit clarification before implementation:
-a definition can be edited so that a placement becomes ineligible, observed by
-a read, then restored before any write. A fresh CLI process cannot remember that
-observation without durable writes or additional history. The existing profile
-says residue must not be reused "after departure is detected" while also requiring
-pure reads and forbidding reconstruction of unobserved history.
+Clarification agreed on 2026-10-27: durable departure tracking is guaranteed for
+supported writes; read-only observations of external edits are not durable
+history. Current external invalidity is reconciled on the next relevant
+successful write. If an external definition edit makes a placement ineligible
+and is then reverted before such a write, the stored placement may become valid
+again, even if a read observed the intermediate definition. Do not add hidden
+writes, process-local membership caches or copied definitions to imply a
+stronger guarantee. The tool does not repair user-edited definitions on reads.
 
-Proposed clarification: durable departure tracking is guaranteed for supported
-writes; read-only observations of external edits are not durable history.
-Current external invalidity is reconciled on the next relevant successful write.
-External changes reverted before that write cannot be reconstructed. Do not add
-hidden writes, process-local membership caches or copied definitions to imply a
-stronger guarantee. Record the agreed clarification in shared design documents
-before marking the detailed design ready for implementation.
+The user also confirmed that Action state/block/dependency operations reconcile
+affected placements across View instances atomically, including when invoked
+outside a View. For example, changing an Action from Open to In Progress removes
+its placement in an Open-only Todo column; later returning to Open uses default
+routing, not the old Todo placement. A placement in a column accepting both states
+survives. A broken definition required for this reconciliation rejects the whole
+operation, as specified above.
 
 ### Schema, boundaries and documentation
 
@@ -268,9 +270,10 @@ and rejection for inapplicable destinations or same-column requests.
 - **AC8 — Compatibility and scope:** New schema rejects unsupported stores without
   mutation; documentation and generated guide match behavior. No View drag/drop,
   ordering, creation, arbitrary filters or state-choice capability is added.
-- **AC9 — External-edit boundary:** Tests and documentation match the explicit
-  resolution of the clarification above; no durable observation guarantee is
-  claimed unless the design actually provides it.
+- **AC9 — External-edit boundary:** Reading a temporarily incompatible definition
+  leaves stored placement unchanged. Restoring that definition before a relevant
+  write may restore eligibility. A successful relevant write while the placement
+  is ineligible removes it permanently; subsequent restoration does not revive it.
 
 - **AC10 — Waiting reason:** A cross-column move whose effective target state is
   Waiting accepts optional nonblank --waiting-for, preserving supplied text
@@ -309,14 +312,16 @@ platform and results. This document-only proposal does not claim runtime tests.
 
 ## Open questions
 
-- Confirm the proposed external-edit/read-purity clarification before implementation.
-  The detailed design remains draft until this is resolved and reviewed.
+No blocking product questions remain. The user resolved the external-edit and
+cross-View reconciliation questions on 2026-10-27. This document remains a draft
+pending approval of the full increment for implementation.
+
 - SQL layout, result field names and narrow module extraction are implementation
   choices within this contract.
 
 ## Implementation and review outcome
 
-Not implemented. This PR prepares the increment document and index only.
+Not implemented. This PR prepares the increment document, index and shared design clarifications.
 No implementation tests or independent code review have been performed.
 
 ## Decision changes and follow-up
@@ -330,3 +335,7 @@ No implementation tests or independent code review have been performed.
 - 2026-10-27: User requested optional waiting reason during a move to Waiting.
   Added --waiting-for using existing Action reason semantics; same-column moves
   remain no-ops without semantic options, and invalid options fail explicitly.
+
+- 2026-10-27: User accepted pure reads with no durable tracking of temporary
+  external definition changes, and atomic cross-View placement reconciliation
+  on Action writes, including failure for a required broken definition.
