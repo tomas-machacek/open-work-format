@@ -43,7 +43,7 @@ link and a one-line description; keep its status in sync.
 | [0021 — Read-only View evaluation through CLI](0021-view-evaluation-cli.md)   | Show current Actions in View columns without changing persistent data.           | completed   |
 | [0022 — Display Views in the web interface](0022-web-view-display.md)         | Select existing Views, inspect/edit Action details and return to Default Kanban. | completed   |
 | [0023 — Move Actions between View columns through CLI](0023-view-move-cli.md) | Atomically move Actions and persist independent instance-local placement.        | completed   |
-| [0024 — Persist and change View column order through CLI](0024-view-order-cli.md) | Reorder Actions and persist insertion positions independently per View instance. | draft |
+| [0024 — Persist and change View column order through CLI](0024-view-order-cli.md) | Reorder Actions and persist insertion positions independently per View instance. | reviewed |
 
 0022 depends on completed [0021](0021-view-evaluation-cli.md), merged through [PR #27](https://github.com/tomas-machacek/open-work-format/pull/27).
 

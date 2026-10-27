@@ -1,6 +1,6 @@
 # 0024 — Persist and change View column order through CLI
 
-> Status: draft
+> Status: reviewed
 > Description: Reorder Actions within a View column and choose a persistent insertion position on cross-column moves.
 > Depends on: [0023](0023-view-move-cli.md), including its agreed reconciliation contract.
 
@@ -278,15 +278,16 @@ platform and results. No runtime verification is claimed by this proposal.
 
 - The external-edit/read-purity decision was resolved and implemented in 0023;
   this increment inherits that decision for ordering.
-- Review the proposed rejection of membership-changing writes when a required
-  instance definition is broken, now that arrival order extends affected data
-  beyond explicit placements.
+- The user approved rejection of membership-changing writes when a required
+  instance definition is broken, including the wider affected-data scope needed
+  to preserve arrival order. No blocking product questions remain.
 - SQL layout and internal rank allocation are implementation choices.
 
 ## Implementation and review outcome
 
-Not implemented. This change prepares a draft increment and index entry only.
-No runtime tests or independent implementation review have been performed.
+The user reviewed and approved this increment for implementation on 2026-10-27.
+Not implemented. No runtime tests or independent implementation review have been
+performed.
 
 ## Decision changes and follow-up
 
@@ -298,3 +299,6 @@ No runtime tests or independent implementation review have been performed.
 - Same-column omission retains 0023's no-op for compatibility; cross-column omission
   implements the profile's append default. Departure never retains a dormant rank.
 - Web movement and reordering remain a later increment after CLI delivery.
+
+- 2026-10-27: User approved the full design for implementation; document and index
+  marked reviewed, including the stated broken-definition behavior for arrivals.
