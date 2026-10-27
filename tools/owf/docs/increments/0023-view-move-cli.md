@@ -324,7 +324,8 @@ the full increment for implementation on 2026-10-27.
 Implemented the approved CLI/application move, schema 7 placements and placement
 events, shared placement-aware evaluation, and transactional reconciliation for
 existing CLI/HTTP Action mutations and direct dependents. No deferred 0024 behavior
-was added. Status remains `in_progress` pending the separate independent code review.
+was added. Status remains `in_progress`; independent review and its correction
+are recorded below.
 
 Domain cases cover defaults, outside-View entry, same-column no-op, Blocked and
 Waiting options. SQLite/HTTP tests cover independent instances, retained and
@@ -350,7 +351,7 @@ Verified implementation revision:
 implementation or tests. Platform: Windows NT 10.0.26300.0 x64, Node 24.21.0,
 npm 11.4.1, Chromium through Playwright.
 
-Final `npm run verify`: **passed, exit 0**. This included:
+Implementation handoff `npm run verify`: **passed, exit 0**. This included:
 
 | Check                         | Actual result                                                                                         |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -377,12 +378,41 @@ verification attempts stopped on those stale expectations/example issues; the
 final complete command above passed after the fixes. No check was disabled,
 skipped or relaxed.
 
+Independent review on 2026-10-27 inspected the diff against main, the agreed
+criteria, domain/application/SQLite paths and tests. It found one P2 issue:
+an Action depending on itself could enter Completed through an ordinary View
+move because the proposed Completed state satisfied its own prerequisite during
+validation. Existing Action editing correctly rejected the same transition.
+
+The correction validates completion against current prerequisite facts, matching
+Action editing, before projecting the resulting Action for destination eligibility.
+A focused real-SQLite regression covers both entry points from an include_blocked
+ordinary column and verifies that rejection preserves the Action, Waiting reason,
+placement, timestamps and both event streams. The new test failed on the original
+implementation because the move succeeded, then passed after the correction.
+The focused domain/move integration run passed all 31 tests. No additional general
+guideline was needed: the agreed requirement to reuse existing transition rules
+already covers this failure.
+
+Correction verification on 2026-10-27 used the uncommitted working tree based on
+`7c327cb141c120823579db1219019edd3734640e`, with the domain correction and
+regression test above. Platform: Windows, Node 24.21.0, npm 11.4.1 and Chromium
+through Playwright. The final complete `npm run verify` passed with exit 0:
+typecheck, ESLint, Prettier, architecture (59 modules, 190 dependencies, no
+violations), production build, 174 unit/component tests, 232 integration tests,
+34 Cucumber scenarios / 193 steps, 26 built-CLI tests and 10 browser tests.
+The first complete attempt stopped at Prettier; the source was formatted and the
+entire command rerun successfully. Only this verification record was added after
+that successful run; its formatting and `git diff --check` were checked separately.
+The review finding is resolved; no additional unresolved finding was identified.
+
 Limitations follow the approved scope: schema 6 has no migration path; fresh
 schema 7 Workspaces are required. Reads do not durably record temporary external
 incompatibility; filesystem definitions and SQLite are not one atomic snapshot.
 Manual ordering, append-on-arrival, View movement in the web, creation in a column
-and destination state choice remain deferred. Linux verification and independent
-code review have not been performed. No merge or release is part of this handoff.
+and destination state choice remain deferred. Linux verification has not been
+performed. No merge, release or increment status change is part of this
+correction.
 
 Manual try-out (use `node <absolute-tools/owf>/dist/bootstrap/cli.js` for `owf`
 when it is not installed on PATH): initialize a fresh disposable directory with

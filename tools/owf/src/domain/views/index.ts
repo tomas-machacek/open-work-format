@@ -227,12 +227,19 @@ export function moveViewAction(
       time,
     );
   }
+  // Completion uses current prerequisite facts, including an unresolved self-edge.
+  // The proposed state cannot satisfy its own prerequisite to authorize entry.
+  validateCompletion(
+    current,
+    projectAction(action, (id) =>
+      actions.find((candidate) => candidate.id === id),
+    ),
+  );
   const projected = projectAction(action, (id) =>
     id === action.id
       ? action
       : actions.find((candidate) => candidate.id === id),
   );
-  validateCompletion(current, projected);
   const candidatePlacements = placements
     .filter((placement) => placement.action_id !== action.id)
     .concat({

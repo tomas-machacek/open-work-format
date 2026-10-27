@@ -345,6 +345,25 @@ test('completion prerequisites reject an ordinary-to-ordinary move before Waitin
   expect(semanticSnapshot(root, store)).toEqual(before);
 });
 
+test('a self-dependency prevents completion through both Action editing and a View move without changing stored data', () => {
+  const { root, store, action, move } = workspace();
+  move('active');
+  setAction(root, action.id, {
+    state: 'waiting',
+    waitingFor: 'Keep this reason',
+    addDependency: [action.id],
+  });
+  const before = semanticSnapshot(root, store);
+  expect(() => setAction(root, action.id, { state: 'completed' })).toThrow(
+    expect.objectContaining({ code: 'ACTION_BLOCKED' }),
+  );
+  expect(semanticSnapshot(root, store)).toEqual(before);
+  expect(() => move('done')).toThrow(
+    expect.objectContaining({ code: 'ACTION_BLOCKED' }),
+  );
+  expect(semanticSnapshot(root, store)).toEqual(before);
+});
+
 test('a broken definition needed by a dependent rejects prerequisite state changes; unrelated content edits still work', () => {
   const { root, store, file, action, move, views } = workspace();
   const target = createAction(root, {
