@@ -1,6 +1,6 @@
 # 0023 — Move Actions between View columns through CLI
 
-> Status: draft
+> Status: reviewed
 > Description: Move an existing Action into a View column, atomically applying column effects and storing instance-local placement.
 > Depends on: [0020](0020-view-instance-cli-foundation.md), [0021](0021-view-evaluation-cli.md), [0022](0022-web-view-display.md), and existing Action state/block/dependency operations.
 
@@ -313,8 +313,8 @@ platform and results. This document-only proposal does not claim runtime tests.
 ## Open questions
 
 No blocking product questions remain. The user resolved the external-edit and
-cross-View reconciliation questions on 2026-10-27. This document remains a draft
-pending approval of the full increment for implementation.
+cross-View reconciliation questions on 2026-10-27. The user reviewed and approved
+the full increment for implementation on 2026-10-27.
 
 - SQL layout, result field names and narrow module extraction are implementation
   choices within this contract.
@@ -339,3 +339,6 @@ No implementation tests or independent code review have been performed.
 - 2026-10-27: User accepted pure reads with no durable tracking of temporary
   external definition changes, and atomic cross-View placement reconciliation
   on Action writes, including failure for a required broken definition.
+
+- 2026-10-27: User reviewed and approved the full increment for implementation;
+  status changed to reviewed. Implementation and independent code review remain pending.
