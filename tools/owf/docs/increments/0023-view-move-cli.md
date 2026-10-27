@@ -43,7 +43,7 @@ CLI increment. This is an explicit partial delivery of the full profile.
 Proposed command:
 
 ```text
-owf move action ACTION_ID --view VIEW_ID --column COLUMN_ID [--reason TEXT] [--json]
+owf move action ACTION_ID --view VIEW_ID --column COLUMN_ID [--reason TEXT] [--waiting-for TEXT] [--json]
 ```
 
 IDs identify the existing Action, stored View instance and definition-local
@@ -63,8 +63,37 @@ unavailable/unsupported stores and rejected moves fail explicitly.
 
 The reason option supplies a manual-block reason only when entering Blocked.
 Reject it for ordinary destinations and same-column no-ops; never ignore an
-option that suggests a semantic change. Waiting keeps the existing optional
-waiting-reason contract; this command adds no waiting-reason option.
+option that suggests a semantic change.
+
+The optional `--waiting-for TEXT` supplies the Action's shared `waiting_for`
+reason during a move to an ordinary column whose effective destination state is
+`waiting`. Eligibility depends on `default_status` (or the first listed state),
+not the column title or merely having `waiting` among its supported states.
+For example, with a column ID `waiting-for` whose default state is `waiting`:
+
+```text
+owf move action ACTION_ID --view VIEW_ID --column waiting-for --waiting-for "Odpoveď dodávateľa"
+```
+
+Reuse the existing [0005 waiting-reason contract](0005-action-state.md):
+supplied text must contain a non-whitespace character and is preserved verbatim.
+Entering `waiting` without the option starts without a reason. When moving an
+already Waiting Action to another column with default `waiting`, omission
+preserves its reason and supplied text replaces it. Leaving `waiting` clears
+the reason. Clearing it while remaining Waiting is not added here.
+
+Reject `--waiting-for` for a different effective destination state, entry into
+Blocked (even if the preserved state is Waiting), and same-column requests.
+Those requests must not silently discard the input or become reason-only edits;
+existing Action editing remains available for that purpose. A valid move from
+Blocked to an ordinary Waiting column may supply the option, subject to the
+usual dependency checks. Manual-block `--reason` and `--waiting-for` have
+distinct purposes and cannot be combined in this command.
+
+State, waiting reason, placement and their events commit atomically. Failed
+input validation or a rejected move preserves the previous reason as well as
+all other data. Human and JSON move results include the resulting waiting reason
+when present.
 
 ### Move effects
 
@@ -149,8 +178,11 @@ Cover existing CLI and HTTP Action state, block and dependency writes, including
 shared detail editing and Default Kanban transitions. A prerequisite's state
 change can affect placements of its direct dependents; reconcile those as well.
 Re-evaluate affected Actions in every instance with their stored placements.
-A same-state organizational move must not change the Action's updated_at or
-produce a fake Action state-change event.
+A same-state organizational move that changes no Action fields must not change
+its updated_at or produce a fake Action state-change event. If --waiting-for
+changes the reason during a cross-column move while remaining Waiting, update
+Action metadata and record the actual reason change using existing conventions;
+do not report a state change that did not occur.
 
 Missing/invalid definitions or removed column references needed to reconcile an
 affected stored placement reject the write with instance/definition context.
@@ -206,7 +238,9 @@ During implementation update help, README, architecture's delivered capabilities
 and the single-source generated Workspace AGENTS.md template. Preserve existing
 user-edited guides. Explain instance-local placement versus shared Action state,
 same-column no-op, Blocked rules, schema compatibility and deferred manual order.
-Provide copyable same-state and Blocked examples using real command syntax.
+Provide copyable same-state, Blocked and Waiting-with-reason examples using real
+command syntax. Explain optional --waiting-for, preservation/replacement/cleanup,
+and rejection for inapplicable destinations or same-column requests.
 
 ## Acceptance criteria
 
@@ -238,6 +272,15 @@ Provide copyable same-state and Blocked examples using real command syntax.
   resolution of the clarification above; no durable observation guarantee is
   claimed unless the design actually provides it.
 
+- **AC10 — Waiting reason:** A cross-column move whose effective target state is
+  Waiting accepts optional nonblank --waiting-for, preserving supplied text
+  verbatim. Test entry with/without a reason, replacement/preservation between
+  two Waiting columns, and cleanup on leaving Waiting. Invalid, blank,
+  same-column and non-Waiting-target input fails without writes; a multi-state
+  target supporting Waiting but defaulting elsewhere also rejects the option.
+  Blocked exit to Waiting accepts it only if the entire move is valid. Results
+  expose the saved reason; rollback preserves the previous reason and placement.
+
 ## Verification plan
 
 Use focused cases with distinct failure reasons, not the full matrix at every
@@ -247,7 +290,8 @@ layer.
 | --- | --- |
 | Move effects, eligibility, no-op (AC3–AC4) | Focused domain cases for ordinary/multi-state/Blocked columns and outside-View source. |
 | Persistence and isolation (AC2, AC6) | Real SQLite integration with two instances, process reopen, state/block changes and direct dependents. |
-| Atomicity (AC5) | Inject failure after Action write and during event write; compare semantic data before/after. |
+| Atomicity (AC5, AC10) | Inject failure after Action/waiting-reason write and during event write; compare semantic data before/after. |
+| Waiting context (AC10) | Focused domain cases for optional/literal text, preservation/replacement/cleanup and invalid destinations; built-CLI example plus persisted reason in existing Action detail after refresh. |
 | External edits and errors (AC7, AC9) | Definition default/title/support changes, removed column, broken affected/unrelated definition, pre-change residue and pure reads. |
 | User contract (AC1, AC8) | Built-CLI flow, JSON/human output, descendant invocation, errors, unsupported schema and generated guide examples. |
 | Passive web integration (AC6–AC8) | Small existing-style browser journey: CLI placement → refresh View → detail block edit → refresh; retain passive controls and Default behavior. |
@@ -282,3 +326,7 @@ No implementation tests or independent code review have been performed.
 - Manual ordering is a separate future CLI increment; web movement follows CLI.
 - The initial conversation mentioned filters, but the agreed simplified profile
   has no arbitrary filters. This document follows its state/blocking eligibility.
+
+- 2026-10-27: User requested optional waiting reason during a move to Waiting.
+  Added --waiting-for using existing Action reason semantics; same-column moves
+  remain no-ops without semantic options, and invalid options fail explicitly.
