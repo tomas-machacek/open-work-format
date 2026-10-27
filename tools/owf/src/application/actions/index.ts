@@ -19,6 +19,7 @@ import {
 import type { ActionPorts } from '../ports/index.js';
 import { resolveContextOwner } from '../contexts/index.js';
 import { discoverWorkspace } from '../workspaces/index.js';
+import { reconcilePlacements } from '../views/index.js';
 
 export type {
   Action,
@@ -155,36 +156,44 @@ export function setAction(
     validateActionOwner(resolved.chain);
     owner = ports.contexts.url(resolved.segments);
   }
-  const saved = ports.actions.update(found.store, id, (current, target) => {
-    if (
-      expected &&
-      (current.state !== expected.state ||
-        current.updated_at !== expected.updated_at ||
-        current.waiting_for !== expected.waiting_for ||
-        ('title' in expected &&
-          (current.title !== expected.title ||
-            current.description !== expected.description ||
-            current.owner.url !== expected.owner?.url)))
-    )
-      throw new WorkspaceError(
-        'ACTION_CONFLICT',
-        'The Action changed since it was displayed. Refresh the board and inspect the current values.',
-      );
-    // Validate even idempotent supplied additions/removals within the write snapshot.
-    for (const value of [
-      ...(input.addDependency ?? []),
-      ...(input.removeDependency ?? []),
-    ]) {
-      if (!target(actionId(value)))
+  const time = ports.now();
+  const saved = ports.actions.update(
+    found.store,
+    id,
+    (current, target) => {
+      if (
+        expected &&
+        (current.state !== expected.state ||
+          current.updated_at !== expected.updated_at ||
+          current.waiting_for !== expected.waiting_for ||
+          ('title' in expected &&
+            (current.title !== expected.title ||
+              current.description !== expected.description ||
+              current.owner.url !== expected.owner?.url)))
+      )
         throw new WorkspaceError(
-          'ACTION_NOT_FOUND',
-          `No prerequisite ${value} exists in this Workspace.`,
+          'ACTION_CONFLICT',
+          'The Action changed since it was displayed. Refresh the board and inspect the current values.',
         );
-    }
-    const candidate = editAction(current, input, ports.now(), owner);
-    validateCompletion(current, projectAction(candidate, target));
-    return candidate;
-  });
+      // Validate even idempotent supplied additions/removals within the write snapshot.
+      for (const value of [
+        ...(input.addDependency ?? []),
+        ...(input.removeDependency ?? []),
+      ]) {
+        if (!target(actionId(value)))
+          throw new WorkspaceError(
+            'ACTION_NOT_FOUND',
+            `No prerequisite ${value} exists in this Workspace.`,
+          );
+      }
+      const candidate = editAction(current, input, time, owner);
+      validateCompletion(current, projectAction(candidate, target));
+      return candidate;
+    },
+    (snapshot, after) =>
+      reconcilePlacements(found.root, id, snapshot, after, ports.definitions),
+    time,
+  );
   return result(
     found.root,
     saved.action,

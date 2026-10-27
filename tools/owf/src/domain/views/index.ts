@@ -2,6 +2,10 @@ import {
   actionStates,
   type ActionState,
   type ActionProjection,
+  type Action,
+  editAction,
+  validateCompletion,
+  projectAction,
 } from '../actions/index.js';
 import { validateTitle, WorkspaceError } from '../workspaces/index.js';
 
@@ -47,11 +51,57 @@ export interface EvaluatedViewColumn {
   members: ViewMember[];
 }
 
-// All members are unplaced: no read persists a placement or a manual rank.
+export interface ViewPlacement {
+  view_id: string;
+  action_id: string;
+  column_id: string;
+}
+
+export function acceptsAction(
+  column: ViewColumn,
+  action: ActionProjection,
+): boolean {
+  return column.type === 'blocked'
+    ? action.blocking.blocked &&
+        !['completed', 'cancelled'].includes(action.state)
+    : column.status.includes(action.state) &&
+        (!action.blocking.blocked || column.include_blocked);
+}
+
+export function placementColumn(
+  definition: ViewDefinition,
+  placement: ViewPlacement,
+): ViewColumn {
+  const column = definition.columns.find(
+    (column) => column.id === placement.column_id,
+  );
+  if (!column)
+    throw new WorkspaceError(
+      'INVALID_VIEW_PLACEMENT',
+      `View instance ${placement.view_id}, Action ${placement.action_id}: referenced column ${placement.column_id} no longer exists. Restore its stable ID in the definition.`,
+    );
+  return column;
+}
+
+// Invalid known placements are ignored logically; reads never persist cleanup.
 export function evaluateView(
   definition: ViewDefinition,
   actions: readonly ActionProjection[],
+  placements: readonly ViewPlacement[] = [],
 ): EvaluatedViewColumn[] {
+  const byId = new Map(actions.map((action) => [action.id, action]));
+  const retained = new Map<string, ViewColumn>();
+  for (const placement of placements) {
+    const column = placementColumn(definition, placement);
+    const action = byId.get(placement.action_id);
+    if (!action || retained.has(placement.action_id))
+      throw new WorkspaceError(
+        'INVALID_VIEW_PLACEMENT',
+        `Invalid or duplicate placement for Action ${placement.action_id}.`,
+      );
+    // Remember ineligible placements too, so duplicates cannot escape validation.
+    retained.set(placement.action_id, column);
+  }
   const columns = definition.columns.map(({ id, title }) => ({
     id,
     title,
@@ -63,17 +113,19 @@ export function evaluateView(
   for (const action of actions) {
     const blocked = action.blocking.blocked;
     const eligible = definition.columns.filter(
-      (column) =>
-        column.type === 'status' &&
-        column.status.includes(action.state) &&
-        (!blocked || column.include_blocked),
+      (column) => column.type === 'status' && acceptsAction(column, action),
     );
+    const stored = retained.get(action.id);
     const target =
-      blocked && !['completed', 'cancelled'].includes(action.state) && special
-        ? special
-        : (eligible.find(
-            (column) => column.id === definition.defaults[action.state],
-          ) ?? eligible[0]);
+      stored && acceptsAction(stored, action)
+        ? stored
+        : blocked &&
+            !['completed', 'cancelled'].includes(action.state) &&
+            special
+          ? special
+          : (eligible.find(
+              (column) => column.id === definition.defaults[action.state],
+            ) ?? eligible[0]);
     if (target)
       columns
         .find((column) => column.id === target.id)!
@@ -87,6 +139,125 @@ export function evaluateView(
   for (const column of columns)
     column.members.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return columns;
+}
+
+export interface MoveActionInput {
+  view: string;
+  column: string;
+  reason?: string | undefined;
+  waitingFor?: string | undefined;
+}
+
+export function moveViewAction(
+  definition: ViewDefinition,
+  actions: readonly ActionProjection[],
+  placements: readonly ViewPlacement[],
+  current: ActionProjection,
+  input: MoveActionInput,
+  time: string,
+): { action: Action; source: string | null; changed: boolean } {
+  const destination = definition.columns.find(
+    (column) => column.id === input.column,
+  );
+  if (!destination)
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      `Unknown destination column: ${input.column}.`,
+    );
+  const source =
+    evaluateView(definition, actions, placements).find((column) =>
+      column.members.some((member) => member.id === current.id),
+    )?.id ?? null;
+  if (
+    input.reason !== undefined &&
+    (destination.type !== 'blocked' ||
+      !input.reason.trim() ||
+      input.waitingFor !== undefined)
+  )
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      '--reason requires entry into Blocked and nonblank text; it cannot be combined with --waiting-for.',
+    );
+  if (
+    input.waitingFor !== undefined &&
+    (destination.type !== 'status' ||
+      destination.default_status !== 'waiting' ||
+      !input.waitingFor.trim())
+  )
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      '--waiting-for requires an ordinary destination defaulting to waiting and nonblank text.',
+    );
+  if (source === destination.id) {
+    if (input.reason !== undefined || input.waitingFor !== undefined)
+      throw new WorkspaceError(
+        'INVALID_ARGUMENT',
+        'Same-column moves cannot edit reasons. Use set action.',
+      );
+    return { action: current, source, changed: false };
+  }
+  const sourceColumn = definition.columns.find(
+    (column) => column.id === source,
+  );
+  if (
+    sourceColumn?.type === 'blocked' &&
+    current.blocking.unresolved_dependencies.length
+  )
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Cannot leave Blocked while prerequisite Actions remain unresolved.',
+    );
+  let action: Action;
+  if (destination.type === 'blocked') {
+    const reason = input.reason ?? current.manual_block;
+    if (reason === undefined || !reason.trim())
+      throw new WorkspaceError(
+        'INVALID_ARGUMENT',
+        'Entering Blocked requires a nonblank --reason or an existing manual reason.',
+      );
+    action = editAction(current, { manualBlock: reason }, time);
+  } else {
+    action = editAction(
+      current,
+      {
+        state: destination.default_status,
+        waitingFor: input.waitingFor,
+        ...(sourceColumn?.type === 'blocked' ? { clearManualBlock: true } : {}),
+      },
+      time,
+    );
+  }
+  const projected = projectAction(action, (id) =>
+    id === action.id
+      ? action
+      : actions.find((candidate) => candidate.id === id),
+  );
+  validateCompletion(current, projected);
+  const candidatePlacements = placements
+    .filter((placement) => placement.action_id !== action.id)
+    .concat({
+      view_id: input.view,
+      action_id: action.id,
+      column_id: destination.id,
+    });
+  const final = evaluateView(
+    definition,
+    actions.map((candidate) =>
+      candidate.id === action.id ? projected : candidate,
+    ),
+    candidatePlacements,
+  );
+  if (
+    !acceptsAction(destination, projected) ||
+    !final
+      .find((column) => column.id === destination.id)
+      ?.members.some((member) => member.id === action.id)
+  )
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'The resulting Action is not eligible for the destination column.',
+    );
+  return { action, source, changed: true };
 }
 
 function invalid(field: string): never {

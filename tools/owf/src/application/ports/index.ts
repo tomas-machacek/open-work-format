@@ -3,12 +3,14 @@ import type {
   MarkdownObjectReference,
   ViewDefinition,
   ViewInstance,
+  ViewPlacement,
 } from '../../domain/views/index.js';
 
 export interface ViewRepository {
   create(path: string, view: ViewInstance): void;
   get(path: string, id: string): ViewInstance | undefined;
   list(path: string): ViewInstance[];
+  placements(path: string, viewId: string): ViewPlacement[];
 }
 export interface ViewPorts extends WorkspacePorts {
   views: ViewRepository;
@@ -38,7 +40,13 @@ export interface ActionRepository {
     change: (
       current: Action,
       target: (id: string) => Action | undefined,
+      snapshot: ViewWriteSnapshot,
     ) => Action,
+    placementChange?: (
+      snapshot: ViewWriteSnapshot,
+      after: ActionProjection[],
+    ) => ViewPlacement[],
+    eventTime?: string,
   ): { action: ActionProjection; changed: boolean };
 }
 export interface ViewEvaluationPorts extends ViewPorts {
@@ -46,8 +54,17 @@ export interface ViewEvaluationPorts extends ViewPorts {
 }
 export interface ActionPorts extends ContextPorts {
   actions: ActionRepository;
+  definitions: ViewPorts['definitions'];
   newId(): string;
   now(): string;
+}
+export interface ViewWriteSnapshot {
+  actions: ActionProjection[];
+  views: ViewInstance[];
+  placements: ViewPlacement[];
+}
+export interface ViewMovePorts extends ViewPorts {
+  actions: ActionRepository;
 }
 import type {
   ContextMetadata,

@@ -1,6 +1,6 @@
 # 0023 — Move Actions between View columns through CLI
 
-> Status: reviewed
+> Status: in_progress
 > Description: Move an existing Action into a View column, atomically applying column effects and storing instance-local placement.
 > Depends on: [0020](0020-view-instance-cli-foundation.md), [0021](0021-view-evaluation-cli.md), [0022](0022-web-view-display.md), and existing Action state/block/dependency operations.
 
@@ -97,12 +97,12 @@ when present.
 
 ### Move effects
 
-| Evaluated source and target | Result |
-| --- | --- |
-| Different column or outside View → ordinary column | Set target default_status (or first listed status) and persist target placement. |
-| Different column or outside View → Blocked | Preserve execution state, set the supplied manual reason or reuse an existing valid one, and persist placement. |
-| Blocked → ordinary column | Require no unresolved dependency block, clear manual block, set target default state and persist placement. |
-| Already displayed in target column | Successful no-op; no default-state reset, block change, placement pinning, timestamp or event. |
+| Evaluated source and target                        | Result                                                                                                          |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Different column or outside View → ordinary column | Set target default_status (or first listed status) and persist target placement.                                |
+| Different column or outside View → Blocked         | Preserve execution state, set the supplied manual reason or reuse an existing valid one, and persist placement. |
+| Blocked → ordinary column                          | Require no unresolved dependency block, clear manual block, set target default state and persist placement.     |
+| Already displayed in target column                 | Successful no-op; no default-state reset, block change, placement pinning, timestamp or event.                  |
 
 A same-column request does not implement reordering. In particular, an Action
 in a multi-state column keeps its actual state on that request.
@@ -289,18 +289,18 @@ and rejection for inapplicable destinations or same-column requests.
 Use focused cases with distinct failure reasons, not the full matrix at every
 layer.
 
-| Risk | Verification |
-| --- | --- |
-| Move effects, eligibility, no-op (AC3–AC4) | Focused domain cases for ordinary/multi-state/Blocked columns and outside-View source. |
-| Persistence and isolation (AC2, AC6) | Real SQLite integration with two instances, process reopen, state/block changes and direct dependents. |
-| Atomicity (AC5, AC10) | Inject failure after Action/waiting-reason write and during event write; compare semantic data before/after. |
-| Waiting context (AC10) | Focused domain cases for optional/literal text, preservation/replacement/cleanup and invalid destinations; built-CLI example plus persisted reason in existing Action detail after refresh. |
-| External edits and errors (AC7, AC9) | Definition default/title/support changes, removed column, broken affected/unrelated definition, pre-change residue and pure reads. |
-| User contract (AC1, AC8) | Built-CLI flow, JSON/human output, descendant invocation, errors, unsupported schema and generated guide examples. |
-| Passive web integration (AC6–AC8) | Small existing-style browser journey: CLI placement → refresh View → detail block edit → refresh; retain passive controls and Default behavior. |
+| Risk                                       | Verification                                                                                                                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Move effects, eligibility, no-op (AC3–AC4) | Focused domain cases for ordinary/multi-state/Blocked columns and outside-View source.                                                                                                      |
+| Persistence and isolation (AC2, AC6)       | Real SQLite integration with two instances, process reopen, state/block changes and direct dependents.                                                                                      |
+| Atomicity (AC5, AC10)                      | Inject failure after Action/waiting-reason write and during event write; compare semantic data before/after.                                                                                |
+| Waiting context (AC10)                     | Focused domain cases for optional/literal text, preservation/replacement/cleanup and invalid destinations; built-CLI example plus persisted reason in existing Action detail after refresh. |
+| External edits and errors (AC7, AC9)       | Definition default/title/support changes, removed column, broken affected/unrelated definition, pre-change residue and pure reads.                                                          |
+| User contract (AC1, AC8)                   | Built-CLI flow, JSON/human output, descendant invocation, errors, unsupported schema and generated guide examples.                                                                          |
+| Passive web integration (AC6–AC8)          | Small existing-style browser journey: CLI placement → refresh View → detail block edit → refresh; retain passive controls and Default behavior.                                             |
 
-Add a small executable acceptance journey for independent organization and one
-for rejected Blocked exit. Link the canonical feature file at implementation.
+Canonical executable acceptance journeys for independent organization and rejected
+Blocked exit: [view-move.feature](../../tests/acceptance/features/view-move.feature).
 
 Human try-out: create a fresh Workspace, two instances and Open Actions; move one
 to Todo in only one instance; compare CLI and browser; move it to Blocked with a
@@ -308,7 +308,7 @@ reason; reject exit while a prerequisite remains unresolved; resolve that
 prerequisite, move out and verify state, placement and refresh.
 
 Run required npm run verify for implementation handoff and record actual revision,
-platform and results. This document-only proposal does not claim runtime tests.
+platform and results. Actual implementation verification is recorded below.
 
 ## Open questions
 
@@ -321,8 +321,72 @@ the full increment for implementation on 2026-10-27.
 
 ## Implementation and review outcome
 
-Not implemented. This PR prepares the increment document, index and shared design clarifications.
-No implementation tests or independent code review have been performed.
+Implemented the approved CLI/application move, schema 7 placements and placement
+events, shared placement-aware evaluation, and transactional reconciliation for
+existing CLI/HTTP Action mutations and direct dependents. No deferred 0024 behavior
+was added. Status remains `in_progress` pending the separate independent code review.
+
+Domain cases cover defaults, outside-View entry, same-column no-op, Blocked and
+Waiting options. SQLite/HTTP tests cover independent instances, retained and
+discarded placements, pre-change residue, external edits, broken affected versus
+unrelated definitions, completion guards, stale writes and semantic rollback after
+Action writes, Action/View events, placement writes and deferred commit failure.
+The built CLI exercises descendant discovery, human/JSON results, generated-guide
+examples and rejected options/schema 6. The browser journey covers CLI placement,
+refresh, shared detail blocking, Waiting reason persistence and Default Kanban
+transitions, while retaining passive View cards.
+
+Waiting-reason-only updates now use `action.updated` with actual changed fields
+and old/new reasons, including existing Action editing, so they do not claim a
+state transition. State changes retain the established event conventions.
+README, help, architecture, example prose and the single-source generated Workspace
+AGENTS.md template describe delivered behavior. Existing user-edited guides remain
+preserved. The generated guide includes a Waiting column for its copyable example;
+the smaller standalone example can be extended with the README snippet.
+
+Verification platform: Windows NT 10.0.26300.0 x64, Node 24.21.0, npm 11.4.1,
+Chromium through Playwright. Focused domain/SQLite/HTTP cases, the two new Cucumber
+scenarios (12 steps), and the browser journey passed. Full `npm run verify` is
+being finalized; the final revision and results will be recorded before handoff.
+Initial sandboxed Vite/Cucumber/Playwright execution encountered `spawn EPERM`;
+reruns outside the sandbox succeeded. An initial CLI journey exceeded Vitest's
+default 5-second timeout; it uses the existing CLI suite's 30-second Windows
+process-startup allowance, with all assertions retained. Existing tests were
+updated to assert real state transitions separately from reason-only events and
+the new placement-aware guide wording.
+
+Limitations follow the approved scope: schema 6 has no migration path; fresh
+schema 7 Workspaces are required. Reads do not durably record temporary external
+incompatibility; filesystem definitions and SQLite are not one atomic snapshot.
+Manual ordering, append-on-arrival, View movement in the web, creation in a column
+and destination state choice remain deferred. Linux verification and independent
+code review have not been performed. No merge or release is part of this handoff.
+
+Manual try-out (use `node <absolute-tools/owf>/dist/bootstrap/cli.js` for `owf`
+when it is not installed on PATH): initialize a fresh disposable directory with
+`owf init`, copy [work-board.md](../examples/work-board.md) into its `_views/`,
+and create two instances referencing `/_views/work-board.md`. Create an Open
+Action and a prerequisite with `owf create action --title "Work" --json` and
+`owf create action --title "Prerequisite" --json`; replace the IDs below:
+
+```sh
+owf move action ACTION_ID --view FIRST_VIEW_ID --column todo --json
+owf show view FIRST_VIEW_ID
+owf show view SECOND_VIEW_ID
+owf move action ACTION_ID --view FIRST_VIEW_ID --column blocked --reason "Missing access"
+owf set action ACTION_ID --add-dependency PREREQUISITE_ID
+owf move action ACTION_ID --view FIRST_VIEW_ID --column todo
+owf get action ACTION_ID --json
+owf set action PREREQUISITE_ID --state completed
+owf move action ACTION_ID --view FIRST_VIEW_ID --column todo
+owf serve
+```
+
+The unresolved exit must fail without losing its manual reason. In the browser,
+select each instance and use Refresh after further CLI changes; only the first
+keeps Todo. Add the README's Waiting column to try the documented
+`--column waiting-for --waiting-for "Odpoveď dodávateľa"` command and inspect the
+saved reason in Action detail after refresh.
 
 ## Decision changes and follow-up
 
@@ -342,3 +406,6 @@ No implementation tests or independent code review have been performed.
 
 - 2026-10-27: User reviewed and approved the full increment for implementation;
   status changed to reviewed. Implementation and independent code review remain pending.
+
+- 2026-10-27: Implemented the approved scope; status is `in_progress`. Independent
+  code review follows in a separate session; completion and release remain separate.

@@ -12,6 +12,7 @@ import {
   validateTitle,
   WorkspaceError,
 } from '../../domain/workspaces/index.js';
+import { readViews, readPlacements, writePlacements } from './views.js';
 
 const rowSchema = z
   .object({
@@ -124,7 +125,7 @@ function readActions(db: DatabaseSync): Map<string, Action> {
 }
 
 export const actionRepository: ActionRepository = {
-  update(path, id, change) {
+  update(path, id, change, placementChange, eventTime) {
     let db: DatabaseSync | undefined;
     try {
       if (!statSync(path).isFile()) throw new Error('Missing store');
@@ -133,6 +134,14 @@ export const actionRepository: ActionRepository = {
       db.exec(
         'PRAGMA busy_timeout = 1000; PRAGMA foreign_keys = ON; BEGIN IMMEDIATE',
       );
+      const version = db
+        .prepare("SELECT value FROM owf_metadata WHERE key = 'schema_version'")
+        .get()?.value;
+      if (version !== '7')
+        throw new WorkspaceError(
+          'UNSUPPORTED_STORE_VERSION',
+          `Unsupported store schema ${String(version)}: ${path}`,
+        );
       const byId = readActions(db);
       const current = byId.get(id);
       if (!current)
@@ -140,7 +149,18 @@ export const actionRepository: ActionRepository = {
           'ACTION_NOT_FOUND',
           'No Action with that ID exists in this Workspace.',
         );
-      const action = change(current, (targetId) => byId.get(targetId));
+      const snapshot = {
+        actions: [...byId.values()].map((action) =>
+          projectAction(action, (targetId) => byId.get(targetId)),
+        ),
+        views: readViews(db),
+        placements: readPlacements(db),
+      };
+      const action = change(
+        current,
+        (targetId) => byId.get(targetId),
+        snapshot,
+      );
       const fields = (
         [
           'title',
@@ -202,7 +222,9 @@ export const actionRepository: ActionRepository = {
             ].includes(field),
           )
             ? 'action.updated'
-            : 'action.state_changed',
+            : fields.includes('state')
+              ? 'action.state_changed'
+              : 'action.updated',
           id,
           action.updated_at,
           fields.includes('state') || fields.includes('waiting_for')
@@ -239,8 +261,22 @@ export const actionRepository: ActionRepository = {
       const projected = projectAction(changed ? action : current, (targetId) =>
         byId.get(targetId),
       );
+      const placementChanged =
+        placementChange === undefined
+          ? false
+          : writePlacements(
+              db,
+              snapshot.placements,
+              placementChange(
+                snapshot,
+                [...byId.values()].map((candidate) =>
+                  projectAction(candidate, (targetId) => byId.get(targetId)),
+                ),
+              ),
+              eventTime ?? action.updated_at,
+            );
       db.exec('COMMIT');
-      return { action: projected, changed };
+      return { action: projected, changed: changed || placementChanged };
     } catch (error) {
       if (error instanceof WorkspaceError) throw error;
       throw new WorkspaceError(

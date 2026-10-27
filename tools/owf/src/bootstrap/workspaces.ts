@@ -8,6 +8,8 @@ import {
   listViews as listViewsUseCase,
   showView as showViewUseCase,
   displayView as displayViewUseCase,
+  moveAction as moveActionUseCase,
+  type MoveActionInput,
   type CreateViewInput,
 } from '../application/views/index.js';
 import { viewRepository } from '../infrastructure/sqlite/index.js';
@@ -68,6 +70,11 @@ export const showView = (root: string, id: string) =>
   showViewUseCase(root, id, { ...viewPorts, actions: actionRepository });
 export const displayView = (root: string, id: string) =>
   displayViewUseCase(root, id, { ...viewPorts, actions: actionRepository });
+export const moveAction = (root: string, id: string, input: MoveActionInput) =>
+  moveActionUseCase(root, id, input, {
+    ...viewPorts,
+    actions: actionRepository,
+  });
 export const contextPorts: ContextPorts = {
   ...workspacePorts,
   contexts: contextFiles,
@@ -81,6 +88,7 @@ export const listOwners = (root: string) =>
 export const actionPorts: ActionPorts = {
   ...contextPorts,
   actions: actionRepository,
+  definitions: viewDefinitions,
   newId: newActionId,
   now: currentTimestamp,
 };

@@ -216,7 +216,14 @@ export function createBoardServer(
           error: {
             code,
             message:
-              status < 500 && error instanceof Error
+              (status < 500 ||
+                [
+                  'INVALID_VIEW_DEFINITION',
+                  'INVALID_VIEW_REFERENCE',
+                  'INVALID_VIEW_PLACEMENT',
+                  'VIEW_READ_FAILED',
+                ].includes(code)) &&
+              error instanceof Error
                 ? error.message
                 : 'Unable to update Action. Check the Workspace store and try again.',
           },
@@ -264,7 +271,14 @@ export function createBoardServer(
           error: {
             code,
             message:
-              status < 500 && error instanceof Error
+              (status < 500 ||
+                [
+                  'INVALID_VIEW_DEFINITION',
+                  'INVALID_VIEW_REFERENCE',
+                  'INVALID_VIEW_PLACEMENT',
+                  'VIEW_READ_FAILED',
+                ].includes(code)) &&
+              error instanceof Error
                 ? error.message
                 : 'Unable to update Action. Check the Workspace store and try again.',
           },

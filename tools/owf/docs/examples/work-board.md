@@ -29,6 +29,8 @@ owf:
 # Work board
 
 Reusable state and blocking configuration. `get view` validates configuration;
-`show view` evaluates current Actions without persisting placements. Unblocked
-Open Actions route to New to organize; Todo stays empty while all Actions are
-unplaced. Shared-definition instances show the same current Workspace content.
+`show view` evaluates current Actions without writing. Unplaced unblocked Open
+Actions route to New to organize. Use `owf move action ACTION_ID --view VIEW_ID
+--column todo` to organize one in Todo without changing state. Each instance keeps
+its own placement; Action state and content are shared. Members use ascending
+Action ID order; manual ordering is deferred. Refresh the browser to see CLI moves.
