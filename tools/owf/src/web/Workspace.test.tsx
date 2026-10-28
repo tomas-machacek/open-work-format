@@ -208,7 +208,7 @@ test('same-View refresh retains stale content, prevents saves, retries, and coal
   vi.mocked(fetchView).mockRejectedValueOnce(new Error('Definition broken'));
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
   await screen.findByText(/This View is stale/);
-  fireEvent.click(screen.getByRole('article'));
+  fireEvent.keyDown(screen.getByRole('article'), { key: 'Enter' });
   const detail = screen.getByRole('dialog');
   expect(
     within(detail).getByRole<HTMLButtonElement>('button', {

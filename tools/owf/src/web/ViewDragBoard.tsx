@@ -308,7 +308,6 @@ function ViewCard({
         if (
           event.target === event.currentTarget &&
           (event.key === 'Enter' || event.key === ' ') &&
-          !disabled &&
           !isDragging
         ) {
           event.preventDefault();
