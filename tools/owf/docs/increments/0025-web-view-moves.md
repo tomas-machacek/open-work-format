@@ -1,6 +1,6 @@
 # 0025 — Move and reorder Actions in web Views
 
-> Status: draft
+> Status: reviewed
 > Description: Move and reorder existing View cards through pointer, touch and keyboard drag and drop, using the shared CLI movement semantics.
 > Depends on: [0022](0022-web-view-display.md), [0023](0023-view-move-cli.md), and completed [0024](0024-view-order-cli.md).
 
@@ -293,8 +293,9 @@ detection would require a separately agreed extension.
 
 ## Implementation and review outcome
 
-Not implemented. This is a design draft for review; no runtime tests or independent
-implementation review have been performed. Preparation checked consistency with
+Design reviewed and approved for implementation by the user on 2026-10-28.
+Not implemented; no runtime tests or independent implementation review have
+been performed. Preparation checked consistency with
 completed 0022–0024, the template and current architecture/guidelines.
 
 ## Decision changes and follow-up
@@ -312,3 +313,7 @@ completed 0022–0024, the template and current architecture/guidelines.
   precise on-screen insertion, keyboard/touch dragging, Escape cancellation and
   the required Blocked-reason dialog. This removes numeric input in the browser,
   not precise placement; execute-time concurrency semantics remain unchanged.
+
+- 2026-10-28: User reviewed and approved the updated drag-and-drop-only design
+  for implementation. Increment and index marked `reviewed`; implementation and
+  independent code review remain pending.
