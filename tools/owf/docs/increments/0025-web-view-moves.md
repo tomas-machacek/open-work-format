@@ -351,8 +351,32 @@ client tests cover structured rejection and uncertain network/body/contract
 failures with exactly one mutation request. Development guidelines record the
 reactive-control and keyboard-visibility lessons.
 
-Post-correction verification is recorded below after execution. Status and index
-remain `in_progress`; human acceptance and completion are separate steps.
+Post-correction verification, 2026-10-28:
+
+- Verified revision: `75e146a9cfa78f721280017c8aa7836f34ef8766`. The subsequent
+  evidence commit changes this document only.
+- Platform: Windows NT 10.0.26300.0, PowerShell, Node.js 24.21.0, npm 11.4.1,
+  headless Chromium. Executable build/browser checks ran outside the sandbox
+  because of its known process restrictions.
+- Final standalone `npm run verify`: **passed, exit 0**. Typecheck, ESLint,
+  Prettier, architecture (61 modules / 201 dependencies), production build,
+  194 unit/component tests, 248 integration tests, 36 acceptance scenarios /
+  204 steps, 27 CLI E2E tests and 13 Chromium journeys passed.
+- Focused checks included the component/HTTP/client regressions and the original
+  View journey. All three new browser journeys also passed five consecutive
+  repetitions (15/15) before the final full verification.
+- Initial correction checks exposed lint issues in new test callbacks/matchers
+  and a keyboard pickup synchronization race in the new browser test. Keyboard
+  tests now wait for the initial insertion indicator, not only `aria-pressed`,
+  before navigation keys. The assertions, timeouts and lint rules were retained;
+  the complete verification was rerun after correction.
+- The three reported P2 findings are addressed with regression evidence. Linux,
+  physical touch hardware, manual long-column touch scrolling and an actual
+  screen reader remain unverified. Existing automated narrow touch coverage
+  passed in the final browser suite.
+
+Status and index remain `in_progress`; human acceptance and completion are
+separate steps. No merge or release is included.
 
 ## Decision changes and follow-up
 
