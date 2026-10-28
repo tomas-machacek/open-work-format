@@ -45,6 +45,8 @@ link and a one-line description; keep its status in sync.
 | [0023 — Move Actions between View columns through CLI](0023-view-move-cli.md)     | Atomically move Actions and persist independent instance-local placement.        | completed   |
 | [0024 — Persist and change View column order through CLI](0024-view-order-cli.md) | Reorder Actions and persist insertion positions independently per View instance. | completed |
 
+| [0025 — Move and reorder Actions in web Views](0025-web-view-moves.md) | Move and reorder existing View cards through shared CLI semantics and accessible web controls. | draft |
+
 0022 depends on completed [0021](0021-view-evaluation-cli.md), merged through [PR #27](https://github.com/tomas-machacek/open-work-format/pull/27).
 
 Statuses: `draft`, `agreed`, `reviewed`, `in_progress`, `completed`, `cancelled`.
