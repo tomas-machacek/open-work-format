@@ -1,0 +1,305 @@
+# 0025 — Move and reorder Actions in web Views
+
+> Status: draft
+> Description: Move and reorder existing View cards through drag and drop or an accessible move control, using the shared CLI movement semantics.
+> Depends on: [0022](0022-web-view-display.md), [0023](0023-view-move-cli.md), and completed [0024](0024-view-order-cli.md).
+
+## Goal and scope
+
+Make existing View instances usable for daily organization in the browser.
+The user can move a card between columns, choose its insertion position, and
+reorder it within a column. Browser refresh and CLI show reveal the same
+persistent result.
+
+Authority: [Views profile](../../../../docs/design/views-profile-notes.md),
+[Core](../../../../spec/core-v0.md#12-views),
+[Operational Store notes](../../../../docs/design/operational-store-notes.md),
+[architecture](../architecture.md), and
+[development guidelines](../development-guidelines.md).
+
+Included:
+
+- Drag and drop between and within columns of the selected View instance.
+- A keyboard- and touch-usable alternative for choosing column and position.
+- A thin HTTP adapter for the shared movement operation delivered in 0023/0024.
+- Required manual-block input, authoritative refresh, and explicit failure feedback.
+- Preservation of existing View detail editing and Default Kanban behavior.
+
+Deferred:
+
+- Creating Actions in a View column, importing outside-View Actions through UI,
+  moving between View instances, bulk moves, and undo/history.
+- View definition or instance editing, additional View filters, automatic sorting,
+  state-choice controls, Snapshots, archival and migrations.
+- New board revisions, neighbour-based positioning, polling, push synchronization,
+  and advanced concurrent-edit detection or merging.
+
+This increment extends 0022's passive View controls. It does not redefine the
+placement, ordering, reconciliation, no-op or event contracts of 0023/0024.
+
+## Proposed solution
+
+### Movement and position semantics
+
+Use the existing shared application move operation. Submit stable View instance,
+Action and destination column IDs plus an optional final one-based position.
+Titles, browser array indices and internal database ranks are not identifiers.
+
+For an explicit position, remove the moved card from the destination list before
+calculating the insertion index. Same-column positions are 1..K; cross-column
+positions are 1..K+1 for K destination members. An empty destination accepts 1.
+The server validates against resulting evaluated membership within the write
+transaction, including any membership effects on dependents, as in 0024.
+
+| Interaction | Requested behavior |
+| --- | --- |
+| Drop into a visible insertion slot | Send its final one-based position. |
+| Drop on an empty column | Insert at position 1. |
+| Drop on a column's append target | Omit position; cross-column arrival appends. |
+| Same-column drop at the current position | Successful no-op. |
+| Same-column move with position omitted | Successful no-op, preserving CLI compatibility. |
+| Cancel drag, Escape, or release outside a valid target | No request and no write. |
+
+Expose clear before/between/after insertion indicators, including a reachable
+last position in long columns. A whole-column append target must be visually
+distinct from an insertion slot. Use the existing dnd-kit integration; avoid a
+second drag library or a general board rewrite.
+
+Same-column reorder preserves Action state, owner, content, waiting reason,
+blocking, dependencies and updated_at, and preserves inferred versus explicit
+placement. Reorder within a multi-state column must not apply its default state.
+A dependency-only blocked card can reorder inside Blocked without a manual reason.
+
+Cross-column moves apply exactly 0023's defaults, eligibility, terminal/completion
+guards and blocking rules, then 0024's insertion and reconciliation. Shared Action
+effects can change other instances, but those instances never inherit the selected
+destination or requested position. No-op requests write no events or normalization.
+
+### Accessible move control and card interaction
+
+Provide a compact "Move..." action for each View card, usable without dragging.
+It opens a small form identifying the Action and selected View, with a destination
+column selector and optional numeric position. Distinguish duplicate column titles
+without making technical IDs prominent on normal cards.
+
+Prefill the current column and position. Changing the destination clears position:
+an empty field means append for another column and no change within the current
+column. Explain this beside the field. Show the currently known valid range,
+validate simple input locally, and treat server validation as authoritative.
+Users can explicitly enter first, middle or last position.
+
+Pointer dragging and the alternative form must reach the same persisted results.
+Keep ordinary card click/keyboard activation for the existing detail. Dragging
+must not accidentally open it; dragging a card or operating its move control must
+not trigger an underlying click. Preserve compact cards and actual-state labels.
+
+On narrow screens the alternative control remains usable without precision
+dragging. Keep controls labeled, dialogs keyboard navigable, errors announced,
+and restore focus to the card or an appropriate column/board control after
+completion or cancellation. Do not require a successful pointer drag for any
+supported move.
+
+### Blocked and Waiting input
+
+For cross-column entry into Blocked, reuse an existing valid manual reason when
+available. Otherwise collect a nonblank manual-block reason before submitting
+the move. A drag needing a reason opens the same small input flow; no preliminary
+state or placement write occurs. Cancel leaves everything unchanged.
+
+Whitespace-only supplied reasons fail. Dependency blocking alone does not
+supply a manual reason. Terminal entry and exit with unresolved prerequisites
+remain rejected by the shared operation. Show the actual rejection, preserving
+the card and reason. Do not implement an unblock-then-move sequence.
+
+Same-column moves never request or send manual-block or waiting reason options.
+Entering Waiting has no mandatory prompt and sends no waiting reason from this
+movement UI. Existing Waiting context is preserved between Waiting destinations,
+new Waiting entry starts without a reason, and leaving Waiting clears it under
+0023 rules. The existing Action detail remains the place to edit waiting context;
+this increment does not add a second waiting-reason editor.
+
+### HTTP and application boundary
+
+Add a narrow mutation route under the existing Workspace-bound View HTTP API.
+Exact route and DTO names are implementation choices. The request carries the
+IDs, optional position and manual reason needed by the flow above. Validate
+transport shapes with shared contracts and report existing structured errors.
+
+HTTP invokes the same application operation as CLI; it must not spawn CLI,
+access SQLite directly, independently route cards, or compose move and reorder
+as two commits. No new domain movement semantics or store schema is required:
+retain schema 8 and existing unsupported-version rejection without migration.
+
+Return success only after commit, with the shared result's source/destination,
+positions, changed flag and resulting Action information as appropriate.
+Action effects, placement, ordering, reconciliation and operational events remain
+one transaction. Required broken definitions and invalid references fail with
+context, including the broader affected-instance scope agreed in 0024.
+
+Reuse the corrected coherent read path: Actions/prerequisites, placements and
+order used for evaluation come from one read-only SQLite snapshot. Markdown
+definitions remain outside that snapshot. Reads, opening controls, drag previews
+and cancellation perform no semantic writes.
+
+### Concurrency, refresh and failure behavior
+
+Retain 0024's execute-time numeric-position contract. A drag translates the
+displayed slot into N; the server resolves N against current transaction facts.
+Concurrent CLI changes may therefore change which cards are adjacent to the
+result. There is no promise to remain before/after the card seen at drag start.
+Out-of-range positions fail rather than clamp or silently append. The current
+evaluated source and current definition determine effects, not cached UI data.
+
+Do not claim Action updated_at detects organization-only changes: 0024 reorders
+do not change it. Preserve existing HTTP stale-edit guards for existing Action
+operations; do not introduce a board revision or weaken those guards.
+
+Freeze the displayed drag layout during an active gesture or required-reason
+dialog, coalesce automatic refresh, and apply the queued refresh after completion
+or cancellation. Prevent simultaneous local moves, detail saves and mode switches
+while submitting. Navigation guards cover the top selector and modal selectors.
+Cancel active gestures before leaving the View; a hidden/unmounted board must not
+submit a late drop. Protect existing unsaved Action detail edits.
+
+After confirmed success, re-evaluate the selected View and render server-provided
+membership and order; never independently sort or guess affected dependent cards.
+A visual drag preview is temporary, not confirmation of persistence.
+
+- On a definitive rejection, discard the preview, explain the cause and refresh
+  current facts before another attempt. Do not save compensating reverse moves.
+- On confirmed commit followed by refresh failure, report that the move succeeded
+  but display could not be refreshed. Retained content is visibly stale and
+  movement/detail saves stay disabled until a successful refresh.
+- On transport failure where commit outcome is unknown, explain the uncertainty,
+  refresh before permitting another move, and do not automatically resend.
+- Ignore superseded reads and errors so they cannot replace newer content or
+  display another instance's result under the current heading.
+
+Loading, first-load errors and retained stale data offer no active movement
+controls. Refresh and safe navigation remain available. Preserve manual refresh
+and coalesced tab-return refresh; no polling or push channel is added.
+
+Default Kanban retains its existing creation, state moves, filters and detail
+editing. It does not gain View-local ordering or use View IDs. Returning to it
+restores its existing in-page filter state.
+
+### Documentation
+
+During implementation update README and the architecture's delivered-capability
+summary to explain web moves, insertion positions, required Blocked reasons,
+execute-time concurrency behavior and failure/refresh feedback. Replace current
+passive-View descriptions only where they describe current functionality;
+retain completed increment documents as history.
+
+No fundamental CLI command changes or generated Workspace guide changes are
+required. Preserve existing user-edited guides. This proposal itself changes only
+the increment document and index, not shipped-capability documentation or code.
+
+## Acceptance criteria
+
+- **AC1 — Same-column order:** Pointer and alternative controls reorder in both
+  directions, including first/last positions. State, Waiting/blocking metadata,
+  Action timestamps and inferred/explicit placement remain unchanged. Same-position
+  moves are write-free. Multi-state and dependency-only Blocked cards are covered.
+- **AC2 — Cross-column insertion:** Same-state and state-changing moves support
+  explicit insertion and append, including empty targets. Other continuing cards
+  retain relative order. CLI show and browser refresh/reselection agree.
+- **AC3 — Blocking and Waiting:** Blocked entry collects/reuses a valid manual
+  reason atomically; cancellation saves nothing. Terminal entry and unresolved
+  dependency exit fail without partial changes. Waiting requires no prompt and
+  preserves/clears its context exactly as specified.
+- **AC4 — Shared transaction:** HTTP uses the existing operation and enforces
+  position bounds, eligibility, completion and affected-definition checks.
+  Rejections and injected persistence/event failures preserve Action, placement,
+  order and events. Pure reorders affect only the selected instance.
+- **AC5 — Freshness and concurrency:** Numeric N uses current server facts;
+  concurrent reorder/arrival does not imply neighbour anchoring. Out-of-range
+  results fail explicitly. Active interactions are protected from layout refresh,
+  duplicate submission, navigation and hidden-board late drops.
+- **AC6 — Honest outcomes:** Rejection, confirmed save with failed refresh, and
+  uncertain transport outcome have distinct feedback. Stale data disables writes.
+  Superseded reads cannot replace a newer result; no automatic mutation retry.
+- **AC7 — Accessible interaction:** Every supported move is possible with the
+  alternative control using keyboard/touch. Card detail remains accessible without
+  accidental opening after a drag. Escape/cancel, focus restoration, insertion
+  indicators and wide/narrow layouts work.
+- **AC8 — Compatibility and purity:** Default Kanban and shared detail protections
+  remain intact. Refresh/reload and CLI process reopen preserve organization.
+  Reads/previews/cancellation are write-free, schema remains 8, and no deferred
+  creation, filtering, state-choice or View-authoring capability is introduced.
+
+Initial acceptance draft (reuse existing domain feature scenarios during
+implementation; link canonical scenarios instead of keeping duplicate scripts):
+
+```gherkin
+Scenario: Reorder without changing the Action
+  Given a View column contains Actions A, B, C, D in that order
+  When I move B to position 3 in that column
+  Then the column contains A, C, B, D
+  And B's Action data and placement semantics are unchanged
+  And another View instance retains its own order
+
+Scenario: Insert into another column
+  Given a destination column contains Actions A, B, C
+  And Action X is in another column
+  When I move X to position 2 in the destination
+  Then the destination contains A, X, B, C
+  And X has the destination's valid state and blocking effects
+
+Scenario: Reject an unresolved Blocked exit
+  Given an Action in Blocked has an unresolved prerequisite
+  When I move it to an ordinary column
+  Then the move is rejected
+  And the Action, manual reason, placements and order are unchanged
+```
+
+## Verification plan
+
+Reuse 0023/0024 domain and SQLite coverage; add tests for the new adapter and
+interaction risks rather than repeating the full domain matrix at every layer.
+
+| Risk / criteria | Verification |
+| --- | --- |
+| HTTP parity and atomicity (AC1–AC4) | Real HTTP/application/SQLite cases for positional move, required reason, invalid position, rejected exit, required broken definition and rollback; compare persisted results/events with shared-operation semantics. |
+| Execute-time positioning (AC5) | Commit a CLI reorder/arrival after the displayed read and before HTTP move; verify current-index behavior and a separate now-invalid bound. |
+| UI races and outcome reporting (AC5–AC6) | Focused component cases for queued refresh, navigation guards, duplicate submission, late responses, rejected move, committed move/read failure and unknown transport outcome without retry. |
+| Main user flow (AC1–AC3, AC7–AC8) | Small Playwright journey for pointer reorder/cross-column insertion, keyboard alternative, Blocked reason cancellation/submission and rejected exit; inspect CLI order after browser operations. |
+| Compatibility and persistence (AC8) | Refresh/reselect/reload, second-instance independence and return to Default Kanban with existing operations; reuse existing snapshot/purity tests and add new read/preview boundaries where needed. |
+| Interaction quality (AC7) | Inspect wide/narrow boards, empty and long columns, final insertion slot, scrolling, card/detail separation, keyboard focus and error announcements. |
+
+Human try-out:
+
+1. Use a schema 8 Workspace with two existing View instances and several Actions.
+2. Select the first View; reorder a middle card and insert it into another column.
+3. Compare with CLI show, refresh and reselect after page reload.
+4. Repeat using Move..., including first/last positions and an empty target.
+5. Enter Blocked without an existing manual reason: cancel once, then submit.
+6. Reject exit with an unresolved prerequisite; resolve it through existing
+   controls and retry.
+7. Inspect the second instance and return to Default Kanban.
+
+Run required npm run verify before implementation handoff. Record actual revision,
+platform and results; design-only preparation does not claim runtime verification.
+
+## Open questions
+
+No blocking product question is identified in this proposal. Route/DTO names,
+component extraction and drag geometry are implementation choices within the
+contract. The execute-time positioning limitation is explicit; stronger stale-board
+detection would require a separately agreed extension.
+
+## Implementation and review outcome
+
+Not implemented. This is a design draft for review; no runtime tests or independent
+implementation review have been performed. Preparation checked consistency with
+completed 0022–0024, the template and current architecture/guidelines.
+
+## Decision changes and follow-up
+
+- 2026-10-28: User requested the next increment document for web View movement.
+  Confirmed completed 0024 already includes same-column reorder and cross-column
+  positional insertion; both are included in 0025.
+- Keep Waiting moves free of mandatory prompts; collect input only when Blocked
+  entry requires a manual reason. Existing detail editing handles waiting context.
+- Preserve 0024's execute-time numeric positions instead of introducing a new
+  board revision or before/after contract in the web adapter.
