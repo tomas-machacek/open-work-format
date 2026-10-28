@@ -6,7 +6,7 @@ lists Actions and changes their execution state in the Workspace Operational Sto
 The local web interface offers Default Kanban and stored Views. Default Kanban
 supports Action creation, editing, state moves, filtering, manual blocking and
 Action prerequisites through the same operations. Views display evaluated columns
-and reuse shared Action detail editing. Inbox
+and support View-local drag and drop alongside shared Action detail editing. Inbox
 operations are not yet implemented.
 
 The CLI creates, lists and retrieves independent View instances backed by
@@ -46,10 +46,26 @@ the in-page filters and existing creation, drag/state changes and detail editing
 Finish or cancel an open default creation form or drag before switching modes.
 The same navigation restrictions apply in the header and Action detail.
 
-Views have no browser creation, dragging, drop targets or reorder controls.
+Use each card's **Move card** handle to drag with a mouse or touch (hold briefly).
+Drop into a labelled insertion gap for that exact final position, or into the
+separate **Append to column** target. For keyboard dragging, focus the handle,
+press Space, use left/right for columns and up/down for positions, then Space
+to drop or Escape to cancel. Home/End select first/last; Down past last selects
+append. Ordinary card activation still opens detail.
+
+Entry into Blocked asks for a manual reason only when none exists; cancel writes
+nothing. Waiting never prompts. Moves use the shared CLI operation and schema 8.
+Positions resolve against server facts at execution time, so concurrent CLI changes
+can change neighbours; an invalid position fails rather than being clamped.
+During dragging and required-reason input, refresh is queued and navigation is
+locked. A rejection, uncertain transport outcome, and confirmed move with failed
+refresh have separate feedback. No mutation is retried automatically. A successful
+refresh is required before moving or saving retained stale content.
+
+Views have no browser creation controls.
 Create instances and edit definitions through the CLI/Markdown workflow below.
 View editing in the browser, selection persistence,
-windows, Snapshots and Action archiving remain deferred. Use CLI moves to organize
+windows, Snapshots and Action archiving remain deferred. Use web or CLI moves to organize
 the same Actions independently in different instances. In the shipped example,
 unplaced unblocked Open Actions enter **New to organize**; move them to **Todo**
 without changing state. **Active** combines
@@ -163,7 +179,7 @@ ID, while list still returns the stored instances. Definition errors use
 JSON errors use `{ ok: false, error: { code, message } }`; human errors go to
 stderr. Invalid arguments/titles exit 2 and operational failures exit 1.
 
-Windows, View editing, deletion and HTTP/GUI View movement
+Windows, View editing and deletion
 remain deferred. The existing five-state
 board retains its behavior. Reads do not change definitions, instances, Actions
 or events. Action candidates, prerequisite facts, placements and order are read
@@ -273,8 +289,9 @@ definition rejects the entire write with instance/definition context. Content-on
 edits can skip an instance proven unaffected by its placement/order references. `list views` stays available for diagnosis.
 
 Use browser Refresh after CLI moves to see placement and saved reasons without
-restarting the server. View cards remain passive and render shared order without sorting. No web move endpoint,
-creation in a column, state-choice option, arbitrary filters or migration is added.
+restarting the server. View cards render shared order without sorting; web moves
+use `POST /api/views/:id/moves`. Creation in a column, state-choice options,
+arbitrary filters and migrations remain deferred.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
 deferred features, and acceptance scenarios.

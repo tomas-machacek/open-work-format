@@ -7,6 +7,7 @@ import staticFiles from '@fastify/static';
 import type { AvailableOwner } from '../../application/owners/index.js';
 import type {
   DisplayViewResult,
+  MoveActionResult,
   ListViewsResult,
 } from '../../application/views/index.js';
 import type {
@@ -15,6 +16,9 @@ import type {
 } from '../../application/actions/index.js';
 import { WorkspaceError } from '../../application/workspaces/index.js';
 import {
+  viewMoveRequest,
+  viewMoveResponse,
+  type ViewMoveRequest,
   boardResponse,
   viewsResponse,
   viewResponse,
@@ -40,6 +44,7 @@ export function createBoardServer(
   edit?: (id: string, input: EditActionRequest) => ActionResult,
   owners?: () => { owners: AvailableOwner[] },
   views?: {
+    move?: (id: string, input: ViewMoveRequest) => MoveActionResult;
     list: () => ListViewsResult;
     display: (id: string) => DisplayViewResult;
   },
@@ -56,8 +61,15 @@ export function createBoardServer(
   server.get<{ Params: { id: string } }>('/api/views/:id', (request, reply) => {
     try {
       if (!views) throw new Error('View evaluation is unavailable.');
-      const { root, view, columns } = views.display(request.params.id);
-      return viewResponse.parse({ workspace: { root }, view, columns });
+      const { root, view, columns, blocked_column } = views.display(
+        request.params.id,
+      );
+      return viewResponse.parse({
+        workspace: { root },
+        view,
+        columns,
+        blocked_column,
+      });
     } catch (error) {
       return viewError(error, reply);
     }
@@ -145,6 +157,49 @@ export function createBoardServer(
     }
     return Promise.resolve();
   }
+  server.post<{ Params: { id: string } }>(
+    '/api/views/:id/moves',
+    { onRequest: trustedWrite },
+    (request, reply) => {
+      const parsed = viewMoveRequest.safeParse(request.body);
+      if (!parsed.success)
+        return reply.code(400).send({
+          error: {
+            code: 'INVALID_REQUEST',
+            message:
+              'Supply Action, column, optional positive position and nonblank reason only.',
+          },
+        });
+      try {
+        if (!views?.move) throw new Error('View movement is unavailable.');
+        return viewMoveResponse.parse(
+          views.move(request.params.id, parsed.data).result,
+        );
+      } catch (error) {
+        const code =
+          error instanceof WorkspaceError ? error.code : 'VIEW_MOVE_FAILED';
+        return reply
+          .code(
+            code.endsWith('_NOT_FOUND')
+              ? 404
+              : code === 'INVALID_ARGUMENT'
+                ? 400
+                : code === 'ACTION_BLOCKED'
+                  ? 409
+                  : 503,
+          )
+          .send({
+            error: {
+              code,
+              message:
+                error instanceof Error
+                  ? error.message
+                  : 'Unable to move Action.',
+            },
+          });
+      }
+    },
+  );
   server.post('/api/actions', { onRequest: trustedWrite }, (request, reply) => {
     const parsed = createActionRequest.safeParse(request.body);
     if (!parsed.success)

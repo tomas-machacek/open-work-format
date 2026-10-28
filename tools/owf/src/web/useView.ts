@@ -1,8 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from 'react';
 import type { ViewResponse } from '../contracts/index.js';
 import { fetchView } from './client.js';
 
-export function useView(id: string, onRefresh: () => void, load = fetchView) {
+export function useView(
+  id: string,
+  onRefresh: () => void,
+  load = fetchView,
+  frozen?: RefObject<boolean>,
+) {
   const [data, setData] = useState<ViewResponse>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
@@ -11,6 +22,10 @@ export function useView(id: string, onRefresh: () => void, load = fetchView) {
   const pendingReturn = useRef(false);
   const refresh = useCallback(
     async function refresh(automatic = false): Promise<boolean> {
+      if (frozen?.current) {
+        pendingReturn.current = true;
+        return false;
+      }
       if (automatic && inFlight.current) {
         pendingReturn.current = true;
         return false;
@@ -44,7 +59,7 @@ export function useView(id: string, onRefresh: () => void, load = fetchView) {
         }
       }
     },
-    [id, onRefresh, load],
+    [id, onRefresh, load, frozen],
   );
   useEffect(() => {
     void refresh();

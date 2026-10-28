@@ -66,6 +66,7 @@ export function showView(
 }
 
 export interface DisplayViewResult {
+  blocked_column?: string | undefined;
   root: string;
   view: ViewInstance;
   columns: { id: string; title: string; members: ActionProjection[] }[];
@@ -76,11 +77,18 @@ export function displayView(
   id: string,
   ports: ViewPorts,
 ): DisplayViewResult {
-  const { root, view, columns, actions } = readEvaluation(start, id, ports);
+  const { root, view, columns, actions, definition } = readEvaluation(
+    start,
+    id,
+    ports,
+  );
   const byId = new Map(actions.map((action) => [action.id, action]));
   return {
     root,
     view,
+    blocked_column: definition.columns.find(
+      (column) => column.type === 'blocked',
+    )?.id,
     columns: columns.map((column) => ({
       ...column,
       members: column.members.map((member) => byId.get(member.id)!),
@@ -111,6 +119,7 @@ function readEvaluation(start: string, id: string, ports: ViewPorts) {
       view,
       columns: evaluateView(definition, actions, placements, order),
       actions,
+      definition,
     };
   } catch (error) {
     throw new WorkspaceError(

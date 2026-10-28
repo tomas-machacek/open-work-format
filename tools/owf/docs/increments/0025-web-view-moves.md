@@ -1,6 +1,6 @@
 # 0025 — Move and reorder Actions in web Views
 
-> Status: reviewed
+> Status: in_progress
 > Description: Move and reorder existing View cards through pointer, touch and keyboard drag and drop, using the shared CLI movement semantics.
 > Depends on: [0022](0022-web-view-display.md), [0023](0023-view-move-cli.md), and completed [0024](0024-view-order-cli.md).
 
@@ -51,14 +51,14 @@ positions are 1..K+1 for K destination members. An empty destination accepts 1.
 The server validates against resulting evaluated membership within the write
 transaction, including any membership effects on dependents, as in 0024.
 
-| Interaction | Requested behavior |
-| --- | --- |
-| Drop into a visible insertion slot | Send its final one-based position. |
-| Drop on an empty column | Insert at position 1. |
-| Drop on a column's append target | Omit position; cross-column arrival appends. |
-| Same-column drop at the current position | Successful no-op. |
-| Same-column move with position omitted | Successful no-op, preserving CLI compatibility. |
-| Cancel drag, Escape, or release outside a valid target | No request and no write. |
+| Interaction                                            | Requested behavior                              |
+| ------------------------------------------------------ | ----------------------------------------------- |
+| Drop into a visible insertion slot                     | Send its final one-based position.              |
+| Drop on an empty column                                | Insert at position 1.                           |
+| Drop on a column's append target                       | Omit position; cross-column arrival appends.    |
+| Same-column drop at the current position               | Successful no-op.                               |
+| Same-column move with position omitted                 | Successful no-op, preserving CLI compatibility. |
+| Cancel drag, Escape, or release outside a valid target | No request and no write.                        |
 
 Expose clear before/between/after insertion indicators, including a reachable
 last position in long columns. A whole-column append target must be visually
@@ -230,44 +230,24 @@ the increment document and index, not shipped-capability documentation or code.
   Reads/previews/cancellation are write-free, schema remains 8, and no deferred
   creation, filtering, state-choice or View-authoring capability is introduced.
 
-Initial acceptance draft (reuse existing domain feature scenarios during
-implementation; link canonical scenarios instead of keeping duplicate scripts):
-
-```gherkin
-Scenario: Reorder without changing the Action
-  Given a View column contains Actions A, B, C, D in that order
-  When I move B to position 3 in that column
-  Then the column contains A, C, B, D
-  And B's Action data and placement semantics are unchanged
-  And another View instance retains its own order
-
-Scenario: Insert into another column
-  Given a destination column contains Actions A, B, C
-  And Action X is in another column
-  When I move X to position 2 in the destination
-  Then the destination contains A, X, B, C
-  And X has the destination's valid state and blocking effects
-
-Scenario: Reject an unresolved Blocked exit
-  Given an Action in Blocked has an unresolved prerequisite
-  When I move it to an ordinary column
-  Then the move is rejected
-  And the Action, manual reason, placements and order are unchanged
-```
+Canonical shared-operation acceptance scenarios are retained in
+[view-order.feature](../../tests/acceptance/features/view-order.feature) and
+[view-move.feature](../../tests/acceptance/features/view-move.feature).
+HTTP and browser-specific risks are covered by the tests recorded below.
 
 ## Verification plan
 
 Reuse 0023/0024 domain and SQLite coverage; add tests for the new adapter and
 interaction risks rather than repeating the full domain matrix at every layer.
 
-| Risk / criteria | Verification |
-| --- | --- |
-| HTTP parity and atomicity (AC1–AC4) | Real HTTP/application/SQLite cases for positional move, required reason, invalid position, rejected exit, required broken definition and rollback; compare persisted results/events with shared-operation semantics. |
-| Execute-time positioning (AC5) | Commit a CLI reorder/arrival after the displayed read and before HTTP move; verify current-index behavior and a separate now-invalid bound. |
-| UI races and outcome reporting (AC5–AC6) | Focused component cases for queued refresh, navigation guards, duplicate submission, late responses, rejected move, committed move/read failure and unknown transport outcome without retry. |
-| Main user flow (AC1–AC3, AC7–AC8) | Small Playwright journey for pointer reorder/cross-column insertion, keyboard dragging, Blocked reason cancellation/submission and rejected exit; inspect CLI order after browser operations. |
-| Compatibility and persistence (AC8) | Refresh/reselect/reload, second-instance independence and return to Default Kanban with existing operations; reuse existing snapshot/purity tests and add new read/preview boundaries where needed. |
-| Interaction quality (AC7) | Inspect wide/narrow boards, empty and long columns, precise first/middle/last insertion slots, touch dragging alongside scrolling, card/detail separation, keyboard focus and error announcements. |
+| Risk / criteria                          | Verification                                                                                                                                                                                                         |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP parity and atomicity (AC1–AC4)      | Real HTTP/application/SQLite cases for positional move, required reason, invalid position, rejected exit, required broken definition and rollback; compare persisted results/events with shared-operation semantics. |
+| Execute-time positioning (AC5)           | Commit a CLI reorder/arrival after the displayed read and before HTTP move; verify current-index behavior and a separate now-invalid bound.                                                                          |
+| UI races and outcome reporting (AC5–AC6) | Focused component cases for queued refresh, navigation guards, duplicate submission, late responses, rejected move, committed move/read failure and unknown transport outcome without retry.                         |
+| Main user flow (AC1–AC3, AC7–AC8)        | Small Playwright journey for pointer reorder/cross-column insertion, keyboard dragging, Blocked reason cancellation/submission and rejected exit; inspect CLI order after browser operations.                        |
+| Compatibility and persistence (AC8)      | Refresh/reselect/reload, second-instance independence and return to Default Kanban with existing operations; reuse existing snapshot/purity tests and add new read/preview boundaries where needed.                  |
+| Interaction quality (AC7)                | Inspect wide/narrow boards, empty and long columns, precise first/middle/last insertion slots, touch dragging alongside scrolling, card/detail separation, keyboard focus and error announcements.                   |
 
 Human try-out:
 
@@ -294,9 +274,27 @@ detection would require a separately agreed extension.
 ## Implementation and review outcome
 
 Design reviewed and approved for implementation by the user on 2026-10-28.
-Not implemented; no runtime tests or independent implementation review have
-been performed. Preparation checked consistency with
-completed 0022–0024, the template and current architecture/guidelines.
+Implemented the narrow Workspace-bound `POST /api/views/:id/moves` contract and
+shared-operation adapter. Evaluation exposes the configured Blocked column ID;
+CLI output, domain movement rules, SQLite schema 8 and coherent reads are unchanged.
+
+View cards have separate drag handles, precise insertion gaps, append targets,
+mouse/touch/keyboard sensors, destination announcements and a temporary overlay.
+Keyboard arrows select columns/positions; Home/End reach first/last and Down past
+last reaches append. Only required Blocked entry opens a reason-only dialog;
+Waiting sends no extra context. Gesture/reason input queues refresh and guards
+navigation. Completion refreshes authoritative data with distinct rejection,
+unknown-outcome and confirmed-save/read-failure feedback. No automatic retry is
+introduced. Detail and Default Kanban remain available through existing controls.
+
+Added HTTP/SQLite rollback and execute-time ordering coverage, focused component
+lifecycle/outcome tests and a browser journey for keyboard, pointer, required
+reason cancellation/submission, dependency rejection, persistence and narrow touch.
+Existing 0023/0024 acceptance, snapshot and transaction tests remain canonical.
+
+Verification is running on Windows; final evidence will be appended after all
+required checks finish. Independent implementation review remains pending in a
+separate session. Status deliberately remains `in_progress`; no merge or release.
 
 ## Decision changes and follow-up
 

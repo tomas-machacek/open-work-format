@@ -7,10 +7,11 @@ import { z } from 'zod';
 import { boardAction } from '../../src/contracts/index.js';
 import { cleanup, temporaryDirectory } from '../support/workspace.js';
 
-test('CLI placement and Waiting reason refresh into passive Views; detail blocks reconcile organization', async ({
+test('CLI and web View organization persist; pointer, keyboard and Blocked reason flow', async ({
   page,
 }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1440, height: 1200 });
   const root = temporaryDirectory();
   const cli = resolve('dist/bootstrap/cli.js');
   const run = (...args: string[]) => {
@@ -226,12 +227,142 @@ test('CLI placement and Waiting reason refresh into passive Views; detail blocks
     await expect(
       region('Active').getByRole('article').first(),
     ).not.toHaveAttribute('aria-roledescription', 'draggable card');
+
+    // Keyboard precise reorder to last, then pointer cross-column insertion.
+    const handle = page.getByRole('button', {
+      name: `Drag ${last.title}`,
+      exact: true,
+    });
+    await handle.focus();
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+    await page.keyboard.press('End');
+    await page.waitForTimeout(100);
+    await page.keyboard.press('Space');
+    await expect(
+      region('Active').getByRole('heading', { level: 3 }),
+    ).toHaveText([peer.title, action.title, last.title]);
+    const dragTo = async (title: string, column: string, position: number) => {
+      const from = page.getByRole('button', {
+        name: `Drag ${title}`,
+        exact: true,
+      });
+      const to = region(column).getByLabel(`${column}: position ${position}`, {
+        exact: true,
+      });
+      await from.scrollIntoViewIfNeeded();
+      await to.scrollIntoViewIfNeeded();
+      const a = await from.boundingBox();
+      const b = await to.boundingBox();
+      if (!a || !b) throw new Error('Missing drag geometry');
+      await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, {
+        steps: 15,
+      });
+      await page.mouse.up();
+    };
+    await dragTo(last.title, 'Todo', 1);
+    await expect(region('Todo').getByRole('article')).toContainText(last.title);
+    await dragTo(last.title, 'Blocked', 1);
+    const reasonDialog = page.getByRole('dialog', { name: 'Blocked reason' });
+    // dnd-kit removes its drag-ending click suppression after 50ms.
+    await page.waitForTimeout(100);
+    await reasonDialog
+      .getByRole('button', { name: 'Cancel', exact: true })
+      .click();
+    await expect(region('Todo').getByRole('article')).toContainText(last.title);
+    await expect(
+      page.getByRole('button', { name: 'Refresh', exact: true }),
+    ).toBeEnabled();
+    await dragTo(last.title, 'Blocked', 1);
+    await reasonDialog
+      .getByLabel('Reason', { exact: true })
+      .fill('Access needed');
+    await reasonDialog.getByRole('button', { name: 'Confirm move' }).click();
+    await expect(region('Blocked').getByRole('article')).toContainText(
+      last.title,
+    );
+    expect(
+      parseAction(run('get', 'action', last.id, '--json')).manual_block,
+    ).toBe('Access needed');
+    await page.reload();
+    await page
+      .getByRole('combobox', { name: 'Display' })
+      .selectOption(views[0]!);
+    await expect(region('Blocked').getByRole('article')).toContainText(
+      last.title,
+    );
+    run('set', 'action', last.id, '--add-dependency', peer.id);
+    await refresh();
+    const blockedHandle = page.getByRole('button', {
+      name: `Drag ${last.title}`,
+      exact: true,
+    });
+    await blockedHandle.focus();
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('Space');
+    await expect(
+      page.getByRole('status').filter({ hasText: /unresolved/i }),
+    ).toBeVisible();
+    await expect(region('Blocked').getByRole('article')).toContainText(
+      last.title,
+    );
+    run('set', 'action', last.id, '--remove-dependency', peer.id);
+    // Clear shared blocking before checking the independently organized second instance.
+    run('set', 'action', last.id, '--clear-manual-block');
     await page
       .getByRole('combobox', { name: 'Display' })
       .selectOption(views[1]!);
     await expect(
       region('Active').getByRole('heading', { level: 3 }),
-    ).toHaveText([action.title, last.title, peer.title]);
+    ).toHaveText([action.title, peer.title]);
+    await expect(region('New to organize').getByRole('article')).toContainText(
+      last.title,
+    );
+    // Narrow, horizontally scrolled board: emulate a held touch drag to first.
+    await page.setViewportSize({ width: 390, height: 1000 });
+    const touchHandle = page.getByRole('button', {
+      name: `Drag ${peer.title}`,
+      exact: true,
+    });
+    await touchHandle.scrollIntoViewIfNeeded();
+    const firstSlot = region('Active').getByLabel('Active: position 1', {
+      exact: true,
+    });
+    const fromTouch = await touchHandle.boundingBox();
+    const toTouch = await firstSlot.boundingBox();
+    if (!fromTouch || !toTouch) throw new Error('Missing touch geometry');
+    const cdp = await page.context().newCDPSession(page);
+    const touch = async (
+      type: 'touchStart' | 'touchMove' | 'touchEnd',
+      x = 0,
+      y = 0,
+    ) =>
+      cdp.send('Input.dispatchTouchEvent', {
+        type,
+        touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }],
+      });
+    const x = fromTouch.x + fromTouch.width / 2,
+      y = fromTouch.y + fromTouch.height / 2;
+    await touch('touchStart', x, y);
+    await page.waitForTimeout(250);
+    for (let step = 1; step <= 10; step++)
+      await touch(
+        'touchMove',
+        x + ((toTouch.x + toTouch.width / 2 - x) * step) / 10,
+        y + ((toTouch.y + toTouch.height / 2 - y) * step) / 10,
+      );
+    await touch('touchEnd');
+    await expect(
+      region('Active').getByRole('heading', { level: 3 }),
+    ).toHaveText([peer.title, action.title]);
+    await page.screenshot({
+      path: test.info().outputPath('narrow-touch-view.png'),
+      fullPage: true,
+    });
   } finally {
     if (server.exitCode === null) {
       const exited = once(server, 'exit');

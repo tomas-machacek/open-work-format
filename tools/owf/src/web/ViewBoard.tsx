@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { BoardAction, StoredView } from '../contracts/index.js';
+import type {
+  BoardAction,
+  StoredView,
+  ViewMoveRequest,
+} from '../contracts/index.js';
 import { ActionEditor, type EditorNavigation } from './ActionEditor.js';
-import { CardContent } from './CardContent.js';
-import { editBoardAction } from './client.js';
+import { ViewDragBoard } from './ViewDragBoard.js';
+import { editBoardAction, moveViewAction } from './client.js';
 import { useView } from './useView.js';
 import type { BoardNavigation } from './ViewSelector.js';
 import styles from './Board.module.css';
@@ -16,7 +20,90 @@ export function ViewBoard({
   navigation: BoardNavigation;
   onRefresh: () => void;
 }) {
-  const { data, loading, error, refresh } = useView(selected.id, onRefresh);
+  const frozen = useRef(false);
+  const alive = useRef(true);
+  const submitting = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [reasonMove, setReasonMove] = useState<ViewMoveRequest>();
+  const [reason, setReason] = useState('');
+  const reasonAction = useRef<string | undefined>(undefined);
+  const [moveNotice, setMoveNotice] = useState<string>();
+  const { data, loading, error, refresh } = useView(
+    selected.id,
+    onRefresh,
+    undefined,
+    frozen,
+  );
+  useEffect(
+    () => () => {
+      alive.current = false;
+    },
+    [],
+  );
+  function lock(id?: string) {
+    if (id) focused.current = id;
+    frozen.current = true;
+    setBusy(true);
+  }
+  function focusCard(id?: string) {
+    requestAnimationFrame(() => {
+      const card = [
+        ...document.querySelectorAll<HTMLElement>('[data-action-id]'),
+      ].find((element) => element.dataset['actionId'] === id);
+      (
+        card?.querySelector<HTMLElement>('button') ?? refreshButton.current
+      )?.focus();
+    });
+  }
+  function cancel() {
+    setReasonMove(undefined);
+    frozen.current = false;
+    setBusy(false);
+    void refresh();
+    focusCard(focused.current);
+  }
+  async function submit(input: ViewMoveRequest) {
+    if (!alive.current || submitting.current) return;
+    submitting.current = true;
+    lock();
+    let notice: string;
+    try {
+      await moveViewAction(selected.id, input);
+      notice = 'Move succeeded.';
+      setReasonMove(undefined);
+    } catch (failure) {
+      notice = failure instanceof Error ? failure.message : 'Move failed.';
+      setReasonMove(undefined);
+    }
+    frozen.current = false;
+    const fresh = await refresh();
+    if (!alive.current) return;
+    setMoveNotice(
+      `${notice}${fresh ? '' : ' Display could not be refreshed; movement and saves are disabled until refresh succeeds.'}`,
+    );
+    submitting.current = false;
+    setBusy(false);
+    focusCard(input.action);
+  }
+  function drop(input: ViewMoveRequest) {
+    if (!alive.current || submitting.current) return;
+    const source = data?.columns.find((column) =>
+      column.members.some((action) => action.id === input.action),
+    );
+    const action = source?.members.find((action) => action.id === input.action);
+    if (
+      source?.id !== input.column &&
+      input.column === data?.blocked_column &&
+      !action?.manual_block
+    ) {
+      if (reasonAction.current !== input.action) setReason('');
+      reasonAction.current = input.action;
+      setMoveNotice(undefined);
+      setReasonMove(input);
+      return;
+    }
+    void submit(input);
+  }
   const [detail, setDetail] = useState<BoardAction>();
   const [saved, setSaved] = useState<BoardAction>();
   const editorNavigation = useRef<EditorNavigation>(null);
@@ -52,7 +139,7 @@ export function ViewBoard({
         <span className={styles.brand}>
           owf <span>/ workspace</span>
         </span>
-        {navigation(editorNavigation)}
+        {navigation(editorNavigation, busy)}
       </header>
       <section
         className={`${styles.intro} ${styles.viewIntro}`}
@@ -66,6 +153,7 @@ export function ViewBoard({
           </p>
         </div>
         <button
+          disabled={busy}
           ref={refreshButton}
           onClick={() => {
             void refresh();
@@ -111,49 +199,87 @@ export function ViewBoard({
             : 'No Actions are eligible for this View.'}
         </p>
       )}
+      {moveNotice && <p role="status">{moveNotice}</p>}
       {data && (
-        <div ref={board} className={styles.viewBoard} aria-label="View board">
-          {data.columns.map((column) => (
-            <section
-              key={column.id}
-              className={styles.column}
-              aria-label={column.title}
+        <div ref={board}>
+          <ViewDragBoard
+            data={data}
+            disabled={
+              !!error ||
+              loading ||
+              !!detail ||
+              !!reasonMove ||
+              submitting.current
+            }
+            onOpen={(action) => {
+              if (!busy) setDetail(action);
+            }}
+            onStart={lock}
+            onCancel={cancel}
+            onDrop={drop}
+          />
+        </div>
+      )}
+      {reasonMove && (
+        <div className={styles.reasonBackdrop}>
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Blocked reason"
+            className={styles.editorCard}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && !submitting.current) {
+                event.preventDefault();
+                cancel();
+              }
+              if (event.key === 'Tab') {
+                const controls = [
+                  ...event.currentTarget.querySelectorAll<HTMLElement>(
+                    'textarea, button:not(:disabled)',
+                  ),
+                ];
+                if (event.shiftKey && document.activeElement === controls[0]) {
+                  event.preventDefault();
+                  controls.at(-1)?.focus();
+                } else if (
+                  !event.shiftKey &&
+                  document.activeElement === controls.at(-1)
+                ) {
+                  event.preventDefault();
+                  controls[0]?.focus();
+                }
+              }
+            }}
+          >
+            <h2>Manual blocking reason</h2>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (reason.trim()) void submit({ ...reasonMove, reason });
+              }}
             >
-              <h2>
-                {column.title}
-                <span className={styles.count}>{column.members.length}</span>
-              </h2>
-              <div className={styles.cards}>
-                {column.members.map((action) => (
-                  <article
-                    key={action.id}
-                    className={`${styles.card} ${styles.passiveCard}`}
-                    tabIndex={0}
-                    aria-label={`${action.title}. Press Enter to edit`}
-                    data-action-id={action.id}
-                    onFocus={() => {
-                      focused.current = action.id;
-                    }}
-                    onClick={() => setDetail(action)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        setDetail(action);
-                      }
-                    }}
-                  >
-                    <CardContent action={action} />
-                    <p className={styles.executionState}>
-                      State · {action.state.replace('_', ' ')}
-                    </p>
-                  </article>
-                ))}
-                {column.members.length === 0 && (
-                  <p className={styles.empty}>No Actions</p>
-                )}
-              </div>
-            </section>
-          ))}
+              <label>
+                Reason
+                <textarea
+                  autoFocus
+                  value={reason}
+                  disabled={submitting.current}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+              </label>
+              <button disabled={!reason.trim() || submitting.current}>
+                Confirm move
+              </button>
+              <button
+                type="button"
+                disabled={submitting.current}
+                onClick={cancel}
+              >
+                Cancel
+              </button>
+            </form>
+            {moveNotice && <p role="alert">{moveNotice}</p>}
+          </section>
         </div>
       )}
       {detail && (
@@ -161,11 +287,11 @@ export function ViewBoard({
           action={detail}
           current={members.find((action) => action.id === detail.id)}
           passive
-          factsStale={!!error || loading}
+          factsStale={!!error || loading || busy}
           save={editBoardAction}
           refresh={() => refresh()}
           navigationRef={editorNavigation}
-          navigation={navigation(editorNavigation)}
+          navigation={navigation(editorNavigation, busy)}
           onSaved={(action) => {
             setSaved(action);
             void refresh();
