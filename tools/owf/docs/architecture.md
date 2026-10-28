@@ -261,8 +261,11 @@ Pure reorder examines only its selected instance. Existing HTTP stale-edit
 protections and bounded SQLite concurrency remain unchanged.
 
 One shared ordered evaluator serves CLI show, HTTP and passive web cards; React
-preserves received order. CLI members expose numeric positions restarting per
-column, and move results expose nullable `source_position` and committed
+preserves received order. Its Action projections, placements and order come from
+one short read-only SQLite transaction, so concurrent commits cannot mix older
+Action facts with newer organization data. Markdown remains outside this snapshot.
+CLI members expose numeric positions restarting per column, and move results
+expose nullable `source_position` and committed
 `destination_position`. Reads never write: logically invalid order is ignored,
 continuing entries retained and unrecorded members appended by ID. The next
 relevant write records evaluated order. External arrivals between writes have no

@@ -166,9 +166,9 @@ stderr. Invalid arguments/titles exit 2 and operational failures exit 1.
 Windows, View editing, deletion and HTTP/GUI View movement
 remain deferred. The existing five-state
 board retains its behavior. Reads do not change definitions, instances, Actions
-or events. Action candidates and prerequisite facts are read from one coherent
-SQLite statement. Editable Markdown and SQLite do not provide a
-cross-representation atomic snapshot; show returns current content, not an
+or events. Action candidates, prerequisite facts, placements and order are read
+within one short read-only SQLite transaction. Editable Markdown and SQLite do
+not provide a cross-representation atomic snapshot; show returns current content, not an
 immutable Snapshot. Empty Workspaces, no eligible members and zero-column
 definitions are successful evaluations.
 

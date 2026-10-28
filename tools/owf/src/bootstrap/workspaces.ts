@@ -67,9 +67,9 @@ export const getView = (root: string, id: string) =>
   getViewUseCase(root, id, viewPorts);
 export const listViews = (root: string) => listViewsUseCase(root, viewPorts);
 export const showView = (root: string, id: string) =>
-  showViewUseCase(root, id, { ...viewPorts, actions: actionRepository });
+  showViewUseCase(root, id, viewPorts);
 export const displayView = (root: string, id: string) =>
-  displayViewUseCase(root, id, { ...viewPorts, actions: actionRepository });
+  displayViewUseCase(root, id, viewPorts);
 export const moveAction = (root: string, id: string, input: MoveActionInput) =>
   moveActionUseCase(root, id, input, {
     ...viewPorts,

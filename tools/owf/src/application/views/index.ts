@@ -11,11 +11,7 @@ import {
   type ViewDefinition,
   type ViewInstance,
 } from '../../domain/views/index.js';
-import type {
-  ViewPorts,
-  ViewEvaluationPorts,
-  ViewMovePorts,
-} from '../ports/index.js';
+import type { ViewPorts, ViewMovePorts } from '../ports/index.js';
 import { actionId, type ActionProjection } from '../../domain/actions/index.js';
 import { reconcilePlacements } from './reconciliation.js';
 export { reconcilePlacements } from './reconciliation.js';
@@ -60,7 +56,7 @@ export interface ShowViewResult {
 export function showView(
   start: string,
   id: string,
-  ports: ViewEvaluationPorts,
+  ports: ViewPorts,
 ): ShowViewResult {
   const { root, view, columns } = readEvaluation(start, id, ports);
   return {
@@ -78,7 +74,7 @@ export interface DisplayViewResult {
 export function displayView(
   start: string,
   id: string,
-  ports: ViewEvaluationPorts,
+  ports: ViewPorts,
 ): DisplayViewResult {
   const { root, view, columns, actions } = readEvaluation(start, id, ports);
   const byId = new Map(actions.map((action) => [action.id, action]));
@@ -92,7 +88,7 @@ export function displayView(
   };
 }
 
-function readEvaluation(start: string, id: string, ports: ViewEvaluationPorts) {
+function readEvaluation(start: string, id: string, ports: ViewPorts) {
   let reference: string | undefined;
   try {
     const found = workspace(start, ports);
@@ -104,19 +100,16 @@ function readEvaluation(start: string, id: string, ports: ViewEvaluationPorts) {
       );
     reference = view.definition.url;
     const definition = ports.definitions.load(found.root, view.definition);
-    // The repository reads candidates and prerequisite facts in one SQLite statement.
-    const actions = ports.actions.list(found.store);
+    const { actions, placements, order } = ports.views.evaluation(
+      found.store,
+      id,
+    );
     return {
       status: 'evaluated' as const,
       type: 'view' as const,
       root: found.root,
       view,
-      columns: evaluateView(
-        definition,
-        actions,
-        ports.views.placements(found.store, id),
-        ports.views.order(found.store, id),
-      ),
+      columns: evaluateView(definition, actions, placements, order),
       actions,
     };
   } catch (error) {

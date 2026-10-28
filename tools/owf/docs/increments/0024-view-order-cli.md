@@ -288,8 +288,8 @@ platform and results. Actual implementation evidence is recorded below.
 ## Implementation and review outcome
 
 Implemented the approved scope on top of delivered 0023. Status remains
-`in_progress` pending independent code review; no independent review is claimed.
-No product-scope or behavioral deviations were needed.
+`in_progress` as requested. Independent review and its correction are recorded
+below. No product-scope or behavioral deviations were needed.
 
 CLI `move action --position N` uses final one-based destination indices, supports
 same-column reorder and cross-column insertion, and retains the omitted-position
@@ -340,7 +340,7 @@ Verified revision:
 npm 11.4.1, Chromium through Playwright. The subsequent evidence-only documentation
 commit changes no implementation, tests or configuration.
 
-Final complete `npm run verify`: **passed, exit 0**.
+Implementation `npm run verify` before independent review: **passed, exit 0**.
 
 | Check                         | Actual result                                                                               |
 | ----------------------------- | ------------------------------------------------------------------------------------------- |
@@ -370,15 +370,62 @@ limits. The E2E script now runs CLI files sequentially using
 `--no-file-parallelism`; test assertions and time limits are unchanged. The entire
 verify command was rerun successfully, including the subsequent browser suite.
 This is a test scheduling adjustment, not a product behavior deviation. No check
-was disabled or skipped. Independent code review is still pending; no unresolved
-implementation finding was identified during implementation checks.
+was disabled or skipped. No unresolved implementation finding was identified
+during those implementation checks; independent review subsequently found the
+read-snapshot issue recorded below.
 
 Limitations follow the approved scope: older Workspaces (including schema 7)
 cannot be opened without a separately designed migration; none is provided.
 External Markdown and SQLite are not a single snapshot, and external arrival
 chronology between supported writes cannot be recovered. View web movement,
 creation in a chosen column and state-choice controls remain deferred. Linux
-verification and independent code review have not been performed.
+verification has not been performed.
+
+### Independent review and correction, 2026-10-28
+
+Independent review inspected revision
+`e5ea1f1663f3ba6cd6f61f63a85d30ba918ede70` against local `main` at
+`04fc8e1167006b785c727bedb62ca8a48abe80eb`, including the actual diff,
+acceptance criteria, 0023 compatibility and test quality. Review checks passed:
+56 focused domain/SQLite/HTTP tests, two built-CLI tests, architecture and
+`git diff --check`. The implementation's complete verification above was reused;
+the reviewer did not repeat the full suite before changing code.
+
+One P2 finding was reproduced: View evaluation read Actions, placements and order
+through separate SQLite connections. An Action creation committed after the
+Action query could introduce an order entry absent from that earlier Action
+snapshot, causing a false `INVALID_VIEW_ORDER` in CLI show and HTTP evaluation.
+
+The correction replaces the separate evaluation reads with a purpose-specific
+repository snapshot containing Action/prerequisite projections, placements and
+order from one short read-only SQLite transaction. CLI and HTTP still share the
+domain evaluator. Real orphaned/contradictory order remains an error; Markdown
+remains outside the database snapshot. README, architecture and generated guide
+describe the corrected boundary. Development guidelines now require coherent
+snapshots for evaluations combining mutable query results.
+
+A deterministic SQLite regression test commits an Action arrival and an existing
+card's placement change through another connection after the Action query. WAL
+is enabled only in that fixture to permit the writer to commit while the reader
+retains its snapshot. The test failed on the reviewed code with
+`INVALID_VIEW_ORDER`; after the correction the active read returns the complete
+earlier result, the next read sees both commits, and semantic snapshots confirm
+that the read itself saved nothing. The old single-`actions.list` call assertion
+was removed because it did not establish cross-query consistency. Focused
+post-correction checks passed: 40 integration tests and typecheck.
+
+Complete post-correction `npm run verify`: **passed, exit 0**, on Windows x64,
+Node 24.21.0 and npm 11.4.1. This run verified the source and tests committed with
+the read-snapshot correction: typecheck, ESLint, Prettier, architecture
+(60 modules/196 dependencies), production build, 181 unit/component tests,
+247 integration tests, 36 Cucumber scenarios/204 steps, 27 built-CLI tests and
+10 Chromium tests. The first follow-up run stopped at lint on the test's captured
+native `prepare` method; its narrow exception documents that the spy supplies
+the connection explicitly through `.call()`. The complete command was rerun
+successfully after that correction. Subsequent changes only record this evidence
+and wrap documentation text; they change no source, tests or configuration.
+The reported P2 finding is addressed. Status remains `in_progress`; no merge or
+release is included.
 
 Human try-out: use a fresh disposable schema 8 Workspace with `owf init`, copy
 [work-board.md](../examples/work-board.md) into `_views/`, and create two instances
@@ -423,4 +470,5 @@ selection of that instance again.
   marked reviewed, including the stated broken-definition behavior for arrivals.
 
 - 2026-10-28: Implemented approved 0024 scope and marked increment/index
-  `in_progress`. Independent review is pending; no merge or release is included.
+  `in_progress`. Independent review found the P2 read-snapshot issue above;
+  its correction retains `in_progress`. No merge or release is included.

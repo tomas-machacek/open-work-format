@@ -116,7 +116,8 @@ detail editing. Refresh after CLI changes; no server restart is required.
 Create saves instance metadata, initial order and one view.created event atomically; reads
 change no instance, Action, Markdown or event. Markdown validation and SQLite
 reads are not a cross-representation atomic snapshot. Action and prerequisite
-facts use one coherent SQLite read; show does not create an immutable Snapshot.
+facts, placements and order share one short read-only SQLite transaction;
+show does not create an immutable Snapshot.
 
 Move an existing Action by its ID into a stable definition-local column ID.
 Replace {id} and {view-id} with the IDs returned by create:

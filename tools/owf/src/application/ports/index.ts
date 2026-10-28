@@ -15,8 +15,8 @@ export interface ViewRepository {
   ): void;
   get(path: string, id: string): ViewInstance | undefined;
   list(path: string): ViewInstance[];
-  placements(path: string, viewId: string): ViewPlacement[];
-  order(path: string, viewId: string): ViewOrder[];
+  // Actions, prerequisite projections, placements and order share one read snapshot.
+  evaluation(path: string, viewId: string): ViewEvaluationSnapshot;
 }
 export interface ViewPorts extends WorkspacePorts {
   views: ViewRepository;
@@ -56,9 +56,6 @@ export interface ActionRepository {
     eventTime?: string,
   ): { action: ActionProjection; changed: boolean };
 }
-export interface ViewEvaluationPorts extends ViewPorts {
-  actions: Pick<ActionRepository, 'list'>;
-}
 export interface ActionPorts extends ContextPorts {
   actions: ActionRepository;
   definitions: ViewPorts['definitions'];
@@ -68,6 +65,9 @@ export interface ActionPorts extends ContextPorts {
 export interface ViewOrganization {
   placements: ViewPlacement[];
   order: ViewOrder[];
+}
+export interface ViewEvaluationSnapshot extends ViewOrganization {
+  actions: ActionProjection[];
 }
 export type ViewOrganizationChange = (
   snapshot: ViewWriteSnapshot,

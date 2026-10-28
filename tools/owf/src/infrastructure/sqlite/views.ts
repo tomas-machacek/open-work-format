@@ -210,11 +210,22 @@ export function writeOrder(
 }
 
 export const viewRepository: ViewRepository = {
-  placements(path, viewId) {
-    return read(path, (db) => readPlacements(db, viewId));
-  },
-  order(path, viewId) {
-    return read(path, (db) => readOrder(db, viewId));
+  evaluation(path, viewId) {
+    return read(path, (db) => {
+      // Keep all mutable evaluation facts coherent across concurrent writer commits.
+      // The connection is read-only; closing also ends the transaction on failure.
+      db.exec('BEGIN');
+      const byId = readActions(db);
+      const snapshot = {
+        actions: [...byId.values()].map((action) =>
+          projectAction(action, (id) => byId.get(id)),
+        ),
+        placements: readPlacements(db, viewId),
+        order: readOrder(db, viewId),
+      };
+      db.exec('COMMIT');
+      return snapshot;
+    });
   },
   create(path, view, initialOrder) {
     let db: DatabaseSync | undefined;

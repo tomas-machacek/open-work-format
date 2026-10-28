@@ -162,6 +162,11 @@ Convert explicitly at adapter boundaries using standard conversion APIs; do not
 pass an encoded URL directly to filesystem operations. Test representative
 encoding cases where these boundaries are crossed.
 
+When an evaluation combines mutable store data from multiple queries, read those
+facts from one database snapshot. A shared evaluator or a single Action query
+alone does not ensure consistency with separately read placement/order data.
+Test a committed write between the relevant reads when changing this boundary.
+
 When replacing existing text, validate lossless decoding before writing and test
 preservation of malformed input bytes. When recognizing required Markdown
 structure, use parsed Markdown blocks and inline content rather than line-pattern
