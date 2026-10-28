@@ -1,6 +1,6 @@
 # 0024 — Persist and change View column order through CLI
 
-> Status: in_progress
+> Status: completed
 > Description: Reorder Actions within a View column and choose a persistent insertion position on cross-column moves.
 > Depends on: [0023](0023-view-move-cli.md), including its agreed reconciliation contract.
 
@@ -287,9 +287,11 @@ platform and results. Actual implementation evidence is recorded below.
 
 ## Implementation and review outcome
 
-Implemented the approved scope on top of delivered 0023. Status remains
-`in_progress` as requested. Independent review and its correction are recorded
-below. No product-scope or behavioral deviations were needed.
+Implemented the approved scope on top of delivered 0023. Implementation,
+independent review, correction and required verification are complete. The user
+confirmed completion and authorized merging on 2026-10-28. Independent review
+and its correction are recorded below. No product-scope or behavioral deviations
+were needed.
 
 CLI `move action --position N` uses final one-based destination indices, supports
 same-column reorder and cross-column insertion, and retains the omitted-position
@@ -472,3 +474,8 @@ selection of that instance again.
 - 2026-10-28: Implemented approved 0024 scope and marked increment/index
   `in_progress`. Independent review found the P2 read-snapshot issue above;
   its correction retains `in_progress`. No merge or release is included.
+
+- 2026-10-28: User confirmed completion after independent review and correction,
+  and authorized merging PR #30 into main. Increment and index marked completed.
+  Final reviewed correction and verification evidence are recorded at revision
+  `bffd14469d1c3a5151114ec2657d80b01bfa0bce`; closure changes documentation only.
