@@ -299,6 +299,7 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
       name: `Drag ${last.title}`,
       exact: true,
     });
+    await expect(blockedHandle).toBeEnabled();
     await blockedHandle.focus();
     await page.keyboard.press('Space');
     await page.waitForTimeout(100);

@@ -201,7 +201,15 @@ export function ViewBoard({
       )}
       {moveNotice && <p role="status">{moveNotice}</p>}
       {data && (
-        <div ref={board}>
+        <div
+          ref={board}
+          onFocusCapture={(event) => {
+            focused.current =
+              (event.target as HTMLElement)
+                .closest('[data-action-id]')
+                ?.getAttribute('data-action-id') ?? focused.current;
+          }}
+        >
           <ViewDragBoard
             data={data}
             disabled={

@@ -36,6 +36,7 @@ export function ViewDragBoard({
   onDrop: (input: ViewMoveRequest) => void;
 }) {
   const active = useRef<string | undefined>(undefined);
+  const keyboardActive = useRef(false);
   const cursor = useRef<{ column: string; position: number } | undefined>(
     undefined,
   );
@@ -141,7 +142,8 @@ export function ViewDragBoard({
           onDragCancel: () => 'Drag cancelled.',
         },
       }}
-      onDragStart={({ active: card }) => {
+      onDragStart={({ active: card, activatorEvent }) => {
+        keyboardActive.current = activatorEvent.type === 'keydown';
         active.current = String(card.id);
         const source = data.columns.find((c) =>
           c.members.some((a) => a.id === active.current),
@@ -162,11 +164,24 @@ export function ViewDragBoard({
       onDragEnd={({ over }) => {
         const action = active.current;
         active.current = undefined;
-        if (!action || !over) {
+        if (!action || (!over && !keyboardActive.current)) {
           onCancel();
           return;
         }
-        const target = over.data.current;
+        // Keyboard drops use the chosen slot even when Space follows an arrow
+        // before dnd-kit's next collision-measurement frame.
+        const chosen = cursor.current;
+        const column = data.columns.find((c) => c.id === chosen?.column);
+        const maximum =
+          (column?.members.filter((a) => a.id !== action).length ?? 0) + 1;
+        const target =
+          keyboardActive.current && chosen
+            ? {
+                column: chosen.column,
+                position:
+                  chosen.position > maximum ? undefined : chosen.position,
+              }
+            : over?.data.current;
         onDrop({
           action,
           column: String(target?.['column']),
