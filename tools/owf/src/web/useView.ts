@@ -37,12 +37,20 @@ export function useView(
       onRefresh();
       try {
         const next = await load(id);
+        if (frozen?.current) {
+          pendingReturn.current = true;
+          return false;
+        }
         if (request !== generation.current || pendingReturn.current)
           return false;
         setData(next);
         setError(undefined);
         return true;
       } catch (failure) {
+        if (frozen?.current) {
+          pendingReturn.current = true;
+          return false;
+        }
         if (request !== generation.current || pendingReturn.current)
           return false;
         setError(

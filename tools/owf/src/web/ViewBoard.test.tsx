@@ -4,11 +4,13 @@ import {
   cleanup,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
 } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { ViewBoard } from './ViewBoard.js';
+import { useView } from './useView.js';
 import { fetchView, moveViewAction } from './client.js';
 import type { ViewResponse, ViewMoveRequest } from '../contracts/index.js';
 vi.mock('./client.js', async (original) => ({
@@ -156,4 +158,42 @@ for (const message of [
     expect(screen.getByLabelText<HTMLSelectElement>('Display').disabled).toBe(
       false,
     );
+  });
+
+for (const fails of [false, true])
+  test(`read already in flight is deferred when touch activation freezes layout (failure=${fails})`, async () => {
+    let finish!: (value: ViewResponse) => void;
+    let fail!: (error: Error) => void;
+    const pending = new Promise<ViewResponse>((resolve, reject) => {
+      finish = resolve;
+      fail = reject;
+    });
+    const load = vi
+      .fn()
+      .mockResolvedValueOnce(data)
+      .mockReturnValueOnce(pending)
+      .mockResolvedValue(data);
+    const frozen = { current: false };
+    const inventory = vi.fn();
+    const { result } = renderHook(() => useView('v', inventory, load, frozen));
+    await waitFor(() => expect(result.current.data).toEqual(data));
+    let reading!: Promise<boolean>;
+    act(() => {
+      reading = result.current.refresh();
+    });
+    frozen.current = true;
+    await act(async () => {
+      if (fails) fail(new Error('Superseded failure'));
+      else finish({ ...data, columns: [] });
+      await reading;
+    });
+    expect(result.current.data).toEqual(data);
+    expect(result.current.error).toBeUndefined();
+    expect(load).toHaveBeenCalledTimes(2);
+    frozen.current = false;
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(load).toHaveBeenCalledTimes(3);
+    expect(result.current.loading).toBe(false);
   });
