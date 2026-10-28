@@ -17,6 +17,8 @@ const moveResult = z.object({
     status: z.enum(['moved', 'unchanged']),
     type: z.literal('view-move'),
     source: z.string().nullable(),
+    source_position: z.number().nullable(),
+    destination_position: z.number(),
     destination: z.string(),
     changed: z.boolean(),
     view: z.object({ id: z.string() }),
@@ -94,15 +96,17 @@ test('built move CLI works from descendants without a server; generated examples
   ).result;
   expect(parsed).toMatchObject({
     source: 'new-actions',
+    source_position: 1,
+    destination_position: 1,
     destination: 'todo',
     changed: true,
     action,
   });
   expect(success('show', 'view', view)).toContain(
-    `Todo (todo)\n    ${action.id}`,
+    `Todo (todo)\n    1. ${action.id}`,
   );
   expect(success('show', 'view', second)).toContain(
-    `New to organize (new-actions)\n    ${action.id}`,
+    `New to organize (new-actions)\n    1. ${action.id}`,
   );
   const noOp = semanticSnapshot(root, store);
   expect(success(...moveArgs, '--column', 'todo')).toContain('Changed: false');
@@ -149,6 +153,7 @@ test('built move CLI works from descendants without a server; generated examples
     expect(guide).toContain(example);
   const help = success('move', 'action', '--help');
   expect(help).toContain('--waiting-for');
+  expect(help).toContain('--position');
   expect(help).toContain('same-column');
   for (const args of [
     [...moveArgs, '--column', 'waiting-for', '--waiting-for', 'New'],
@@ -157,6 +162,10 @@ test('built move CLI works from descendants without a server; generated examples
     [...moveArgs, '--column', 'waiting-for', '--waiting-for', '\t'],
     [...moveArgs, '--column', 'todo', '--column', 'todo'],
     [...moveArgs, '--column', 'todo', '--before', action.id],
+    ...['0', '-1', '1.5', 'abc', '1e0', '9007199254740992', '2'].map(
+      (position) => [...moveArgs, '--column', 'todo', '--position', position],
+    ),
+    [...moveArgs, '--column', 'todo', '--position', '1', '--position', '1'],
     [...moveArgs, '--column', 'missing'],
     [...moveArgs],
     ['move', 'action', 'bad-id', '--view', view, '--column', 'todo'],
@@ -176,11 +185,113 @@ test('built move CLI works from descendants without a server; generated examples
     expect(semanticSnapshot(root, store)).toEqual(before);
   }
   const db = new DatabaseSync(store);
-  db.exec("UPDATE owf_metadata SET value = '6' WHERE key = 'schema_version'");
+  db.exec("UPDATE owf_metadata SET value = '7' WHERE key = 'schema_version'");
   db.close();
   const before = semanticSnapshot(root, store);
   expect(run(...moveArgs, '--column', 'todo', '--json').stdout).toContain(
     'UNSUPPORTED_STORE_VERSION',
   );
   expect(semanticSnapshot(root, store)).toEqual(before);
+}, 30_000);
+
+test('built CLI persists final positions across processes, cross-column insertion and return', () => {
+  const root = temporaryDirectory();
+  roots.push(root);
+  initialize(root);
+  mkdirSync(join(root, '_views'));
+  copyFileSync(
+    new URL('../../docs/examples/work-board.md', import.meta.url),
+    join(root, '_views', 'board.md'),
+  );
+  const run = (...args: string[]) => {
+    const result = spawnSync(process.execPath, [cli, ...args], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    return result.stdout;
+  };
+  const idEnvelope = z.object({
+    result: z.object({ view: z.object({ id: z.string() }) }),
+  });
+  const view = idEnvelope.parse(
+    JSON.parse(
+      run(
+        'create',
+        'view',
+        '--title',
+        'Order',
+        '--definition',
+        '/_views/board.md',
+        '--json',
+      ),
+    ),
+  ).result.view.id;
+  const actions = ['A', 'B', 'C', 'D'].map(
+    (title) =>
+      z
+        .object({ result: z.object({ action: boardAction }) })
+        .parse(JSON.parse(run('create', 'action', '--title', title, '--json')))
+        .result.action,
+  );
+  const move = (title: string, column: string, position?: string) =>
+    moveResult.parse(
+      JSON.parse(
+        run(
+          'move',
+          'action',
+          actions.find((action) => action.title === title)!.id,
+          '--view',
+          view,
+          '--column',
+          column,
+          ...(position ? ['--position', position] : []),
+          '--json',
+        ),
+      ),
+    ).result;
+  expect(move('D', 'new-actions', '3')).toMatchObject({
+    source_position: 4,
+    destination_position: 3,
+  });
+  expect(move('B', 'new-actions', '3')).toMatchObject({
+    source_position: 2,
+    destination_position: 3,
+  });
+  const shown = () =>
+    z
+      .object({
+        result: z.object({
+          columns: z.array(
+            z.object({
+              id: z.string(),
+              members: z.array(
+                z.object({ title: z.string(), position: z.number() }),
+              ),
+            }),
+          ),
+        }),
+      })
+      .parse(JSON.parse(run('show', 'view', view, '--json'))).result.columns;
+  expect(shown()[0]!.members).toEqual(
+    ['A', 'D', 'B', 'C'].map((title, index) => ({
+      title,
+      position: index + 1,
+    })),
+  );
+  expect(move('B', 'todo', '1')).toMatchObject({
+    source_position: 3,
+    destination_position: 1,
+  });
+  expect(move('B', 'new-actions')).toMatchObject({
+    source_position: 1,
+    destination_position: 4,
+  });
+  expect(shown()[0]!.members.map((member) => member.title)).toEqual([
+    'A',
+    'D',
+    'C',
+    'B',
+  ]);
+  expect(run('show', 'view', view)).toContain('4. ' + actions[1]!.id);
 }, 30_000);

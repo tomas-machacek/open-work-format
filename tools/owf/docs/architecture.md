@@ -5,6 +5,7 @@
 > CLI instance create/list/get implemented in 0020; read-only evaluation in 0021.
 > Web View inventory, passive display and shared Action editing delivered in 0022.
 > CLI View moves, instance placement and write reconciliation delivered in 0023.
+> Persistent instance-local column order and CLI positions delivered in 0024.
 
 ## Purpose and authority
 
@@ -30,33 +31,33 @@ Separate packages are deferred until distribution or reuse needs justify them.
 
 Planned layout; directories and abstractions are created only when needed:
 
-| Path                              | Responsibility                                                                       |
-| --------------------------------- | ------------------------------------------------------------------------------------ |
-| src/domain/workspaces/            | Workspace metadata/name rules; no filesystem access                                  |
-| src/application/workspaces/       | Workspace initialization and discovery use cases                                     |
-| src/domain/actions/               | Action aggregate, value objects and domain rules                                     |
-| src/domain/inbox/                 | Inbox Item aggregate and rules                                                       |
-| src/domain/references/            | Shared domain identifiers and references                                             |
-| src/application/actions/          | Action use cases                                                                     |
-| src/application/inbox/            | Inbox use cases                                                                      |
-| src/domain/views/                 | View validation, placement eligibility, routing and move effects with fixed ID order |
-| src/application/views/            | View instance reads/creation, moves and affected-placement reconciliation            |
-| src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces      |
-| src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations                  |
-| src/infrastructure/markdown/      | Reading Markdown objects and metadata                                                |
-| src/infrastructure/configuration/ | Workspace configuration and registration storage                                     |
-| src/interfaces/cli/               | Argument parsing, use-case invocation and output                                     |
-| src/interfaces/http/              | HTTP requests, use-case invocation and responses                                     |
-| src/interfaces/uri/               | Incoming OWF URI handling and navigation coordination                                |
-| src/contracts/                    | Transport schemas and types, without domain rules                                    |
-| src/bootstrap/                    | Entry points and concrete dependency wiring                                          |
-| src/web/                          | Browser UI and API client                                                            |
-| tests/acceptance/features/        | Gherkin acceptance scenarios                                                         |
-| tests/acceptance/steps/           | Scenario bindings to application operations                                          |
-| tests/integration/                | Technical integration tests                                                          |
-| tests/e2e/                        | CLI process and browser journeys                                                     |
-| tests/support/                    | Small genuinely shared test fixtures                                                 |
-| scripts/                          | Portable development/release support when needed                                     |
+| Path                              | Responsibility                                                                               |
+| --------------------------------- | -------------------------------------------------------------------------------------------- |
+| src/domain/workspaces/            | Workspace metadata/name rules; no filesystem access                                          |
+| src/application/workspaces/       | Workspace initialization and discovery use cases                                             |
+| src/domain/actions/               | Action aggregate, value objects and domain rules                                             |
+| src/domain/inbox/                 | Inbox Item aggregate and rules                                                               |
+| src/domain/references/            | Shared domain identifiers and references                                                     |
+| src/application/actions/          | Action use cases                                                                             |
+| src/application/inbox/            | Inbox use cases                                                                              |
+| src/domain/views/                 | View validation, placement eligibility, routing, move effects and persistent column ordering |
+| src/application/views/            | View instance reads/creation, moves and transactional placement/order reconciliation         |
+| src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces              |
+| src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations                          |
+| src/infrastructure/markdown/      | Reading Markdown objects and metadata                                                        |
+| src/infrastructure/configuration/ | Workspace configuration and registration storage                                             |
+| src/interfaces/cli/               | Argument parsing, use-case invocation and output                                             |
+| src/interfaces/http/              | HTTP requests, use-case invocation and responses                                             |
+| src/interfaces/uri/               | Incoming OWF URI handling and navigation coordination                                        |
+| src/contracts/                    | Transport schemas and types, without domain rules                                            |
+| src/bootstrap/                    | Entry points and concrete dependency wiring                                                  |
+| src/web/                          | Browser UI and API client                                                                    |
+| tests/acceptance/features/        | Gherkin acceptance scenarios                                                                 |
+| tests/acceptance/steps/           | Scenario bindings to application operations                                                  |
+| tests/integration/                | Technical integration tests                                                                  |
+| tests/e2e/                        | CLI process and browser journeys                                                             |
+| tests/support/                    | Small genuinely shared test fixtures                                                         |
+| scripts/                          | Portable development/release support when needed                                             |
 
 Unit tests live beside the code as *.test.ts. Other tests live under tests/.
 Organize by domain responsibility within layers, not global entities/services
@@ -228,6 +229,47 @@ Manual ordering, append-on-arrival, View move endpoints/controls, creation in a
 column and non-default destination state selection remain deferred. The following
 full-profile design also describes those future capabilities; it does not claim
 their delivery in 0023.
+
+Delivered in 0024: `move action` accepts optional `--position N`, a positive safe
+decimal integer denoting the final one-based destination index after removal.
+Same-column bounds are 1..K including the moved card; cross-column entry to K
+cards allows 1..K+1. Omission preserves same-column no-op compatibility and appends
+on entry. Same-column reorder preserves all Action data and inferred/explicit
+placement, including non-default state and dependency-only blocking; reason
+options remain forbidden. Same-position requests write nothing, including no
+normalization. Only the selected instance receives a requested order.
+
+Schema 8 adds `view_order`, unique by instance/Action and instance/column/rank,
+with current dense internal ranks independent from `view_placements`. Contradictory
+order fails explicitly. No state copies, dormant ranks or previous-column history
+are stored. New instances record initial ascending Action ID order within creation.
+Supported CLI/HTTP Action creation and edits reconcile pre/post routing inside the
+same transaction as Action data, placements, order and events. Continuing members
+retain order; departures discard it and arrivals append. Simultaneous arrivals use
+ascending ID; successive commits retain arrival order regardless of ID. One
+`view.order_changed` event per changed instance records organization; normalization
+never pretends each shifted rank was a user move. Order-only changes produce no
+Action update timestamp/event. Schema 7 and all other versions are rejected without
+mutation; older Workspaces need a separately designed migration, not supplied here.
+
+Affected-data analysis now includes order-only instances and potential arrivals.
+Membership-changing writes, including creation, load all potentially affected
+instance definitions, even without placement references; a required broken
+definition rejects the whole transaction with instance/definition context. Content
+changes can skip an instance proven unrelated by placement/order references.
+Pure reorder examines only its selected instance. Existing HTTP stale-edit
+protections and bounded SQLite concurrency remain unchanged.
+
+One shared ordered evaluator serves CLI show, HTTP and passive web cards; React
+preserves received order. CLI members expose numeric positions restarting per
+column, and move results expose nullable `source_position` and committed
+`destination_position`. Reads never write: logically invalid order is ignored,
+continuing entries retained and unrecorded members appended by ID. The next
+relevant write records evaluated order. External arrivals between writes have no
+recoverable chronology; changes reverted before a relevant write can restore
+stored eligibility/order even after observation. Removed column IDs referenced
+by order remain configuration errors. Default Kanban retains its own behavior;
+View web movement, creation in a chosen column and state choice remain deferred.
 
 Definitions are data: state mappings, per-state default columns, target default
 states, and blocking inclusion. Domain rules determine eligibility and unique

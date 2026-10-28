@@ -153,6 +153,85 @@ test('CLI placement and Waiting reason refresh into passive Views; detail blocks
     await expect(region('Active').getByRole('article')).toContainText(
       action.title,
     );
+    const peer = parseAction(
+      run(
+        'create',
+        'action',
+        '--title',
+        'Peer Z',
+        '--state',
+        'in_progress',
+        '--json',
+      ),
+    );
+    const last = parseAction(
+      run(
+        'create',
+        'action',
+        '--title',
+        'Peer A',
+        '--state',
+        'in_progress',
+        '--json',
+      ),
+    );
+    run(
+      'move',
+      'action',
+      last.id,
+      '--view',
+      views[0]!,
+      '--column',
+      'active',
+      '--position',
+      '1',
+    );
+    await refresh();
+    await expect(
+      region('Active').getByRole('heading', { level: 3 }),
+    ).toHaveText([last.title, action.title, peer.title]);
+    run(
+      'move',
+      'action',
+      peer.id,
+      '--view',
+      views[0]!,
+      '--column',
+      'todo',
+      '--position',
+      '1',
+    );
+    run(
+      'move',
+      'action',
+      peer.id,
+      '--view',
+      views[0]!,
+      '--column',
+      'active',
+      '--position',
+      '2',
+    );
+    await refresh();
+    await expect(
+      region('Active').getByRole('heading', { level: 3 }),
+    ).toHaveText([last.title, peer.title, action.title]);
+    await page.reload();
+    await page
+      .getByRole('combobox', { name: 'Display' })
+      .selectOption(views[0]!);
+    await expect(
+      region('Active').getByRole('heading', { level: 3 }),
+    ).toHaveText([last.title, peer.title, action.title]);
+    await expect(
+      region('Active').getByRole('article').first(),
+    ).not.toHaveAttribute('aria-roledescription', 'draggable card');
+    await page
+      .getByRole('combobox', { name: 'Display' })
+      .selectOption(views[1]!);
+    await expect(
+      region('Active').getByRole('heading', { level: 3 }),
+    ).toHaveText([action.title, last.title, peer.title]);
   } finally {
     if (server.exitCode === null) {
       const exited = once(server, 'exit');

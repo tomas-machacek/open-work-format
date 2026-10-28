@@ -4,13 +4,19 @@ import type {
   ViewDefinition,
   ViewInstance,
   ViewPlacement,
+  ViewOrder,
 } from '../../domain/views/index.js';
 
 export interface ViewRepository {
-  create(path: string, view: ViewInstance): void;
+  create(
+    path: string,
+    view: ViewInstance,
+    initialOrder?: (actions: ActionProjection[]) => ViewOrder[],
+  ): void;
   get(path: string, id: string): ViewInstance | undefined;
   list(path: string): ViewInstance[];
   placements(path: string, viewId: string): ViewPlacement[];
+  order(path: string, viewId: string): ViewOrder[];
 }
 export interface ViewPorts extends WorkspacePorts {
   views: ViewRepository;
@@ -27,7 +33,11 @@ import type {
 } from '../../domain/actions/index.js';
 
 export interface ActionRepository {
-  create(path: string, action: Action): void;
+  create(
+    path: string,
+    action: Action,
+    organizationChange?: ViewOrganizationChange,
+  ): void;
   get(path: string, id: string): ActionProjection | undefined;
   list(
     path: string,
@@ -42,10 +52,7 @@ export interface ActionRepository {
       target: (id: string) => Action | undefined,
       snapshot: ViewWriteSnapshot,
     ) => Action,
-    placementChange?: (
-      snapshot: ViewWriteSnapshot,
-      after: ActionProjection[],
-    ) => ViewPlacement[],
+    organizationChange?: ViewOrganizationChange,
     eventTime?: string,
   ): { action: ActionProjection; changed: boolean };
 }
@@ -58,10 +65,17 @@ export interface ActionPorts extends ContextPorts {
   newId(): string;
   now(): string;
 }
-export interface ViewWriteSnapshot {
+export interface ViewOrganization {
+  placements: ViewPlacement[];
+  order: ViewOrder[];
+}
+export type ViewOrganizationChange = (
+  snapshot: ViewWriteSnapshot,
+  after: ActionProjection[],
+) => ViewOrganization;
+export interface ViewWriteSnapshot extends ViewOrganization {
   actions: ActionProjection[];
   views: ViewInstance[];
-  placements: ViewPlacement[];
 }
 export interface ViewMovePorts extends ViewPorts {
   actions: ActionRepository;

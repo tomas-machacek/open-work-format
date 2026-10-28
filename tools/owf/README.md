@@ -12,7 +12,8 @@ operations are not yet implemented.
 The CLI creates, lists and retrieves independent View instances backed by
 validated shared Markdown definitions, and evaluates current Actions into their
 columns with read-only `show view`. `move action` atomically applies column effects
-and saves instance-local placement.
+and saves instance-local placement and order, with optional final one-based
+`--position N` for insertion or same-column reordering.
 
 ## Views in the web interface
 
@@ -24,7 +25,7 @@ the explicit **View** label. Default Kanban is always available, including when
 a View definition is broken. A full page reload returns to Default Kanban.
 
 Views show all configured columns and counts, including empty columns, in
-definition order. Members retain the evaluator's ascending Action ID order.
+definition order. Members retain the evaluator's persistent instance/column order.
 Cards include owner, waiting reason, compact blocking information and the actual
 execution state, even when a column combines states. Click a card or focus it
 and press Enter to open the existing detail editor. Edits change the shared
@@ -45,9 +46,9 @@ the in-page filters and existing creation, drag/state changes and detail editing
 Finish or cancel an open default creation form or drag before switching modes.
 The same navigation restrictions apply in the header and Action detail.
 
-Views have no creation controls, dragging, drop targets or manual ordering.
+Views have no browser creation, dragging, drop targets or reorder controls.
 Create instances and edit definitions through the CLI/Markdown workflow below.
-Manual ordering, ranks, View editing in the browser, selection persistence,
+View editing in the browser, selection persistence,
 windows, Snapshots and Action archiving remain deferred. Use CLI moves to organize
 the same Actions independently in different instances. In the shipped example,
 unplaced unblocked Open Actions enter **New to organize**; move them to **Todo**
@@ -57,7 +58,7 @@ backlog and Backlog belong only to the broader design example.
 
 ## View instances
 
-Use a fresh Workspace initialized by this version (Operational Store schema 7).
+Use a fresh Workspace initialized by this version (Operational Store schema 8).
 Prepare `_views/` manually with a navigation `index.md`, for example:
 
 ```markdown
@@ -107,7 +108,7 @@ definitions. It includes broken references and returns `[]` for an empty store.
 Show returns `result.status: "evaluated"`, `result.type: "view"`, `result.root`,
 the stored `result.view`, and ordered `result.columns`. Each column has `id`,
 `title` and `members`; each member has `id`, `title`, its actual `state`, and a
-derived `blocked` boolean. Human output shows the same order and content and
+derived `blocked` boolean and numeric one-based `position`. Human output shows the same order and content and
 marks empty columns. Get returns configuration only; list inventories instances.
 
 All current Actions across the Workspace are evaluated, even when invoked from a
@@ -118,12 +119,15 @@ per-state default wins if eligible, then the first eligible ordinary column in
 definition order. Ordinary columns accept blocked Actions only with
 `include_blocked: true`. Waiting alone is not blocking. A column's `default_status`
 does not change a member's actual state. Ineligible Actions are omitted.
-All columns remain visible, including empty columns, and members use ascending
-Action ID with a fixed, locale-independent comparison. Current placement is stored
-per instance and Action, without ranks or previous-column history. Manual order
-is deferred: a moved Action is not promised to appear at the bottom. Same-definition
-instances can organize the same Action differently. Unplaced Open Actions in the
-example route to New to organize.
+All columns remain visible, including empty columns. Members follow persistent
+instance/column-local order, with positions restarting at 1 in each column.
+Order is separate from explicit placement: ordering an inferred card never pins it.
+New instances record initial ascending Action ID order in their creation transaction.
+Later arrivals append, preserving continuing members; simultaneous arrivals use
+ascending ID, successive writes use commit order. New Action IDs never jump ahead
+of existing cards. Departure discards position; return is a new arrival. Instances
+can organize the same Actions independently. Unplaced Open Actions in the example
+route to New to organize.
 
 After copying the example above, try this flow. Replace `VIEW_ID` and `ACTION_ID`
 with the IDs returned by create:
@@ -146,7 +150,7 @@ Change `owf.defaults.open` in the shared definition to `todo` and show again to
 see live routing without refresh/rebuild. Current dependency facts are reused
 even when prerequisites are outside the View. Missing prerequisites and malformed
 Actions fail the entire read, including Actions that routing would otherwise omit.
-Schema 7 supports five execution states; Action archival and archived prerequisite
+Schema 8 supports five execution states; Action archival and archived prerequisite
 dispositions are not supported by this version. Externally injected `archived`
 records are invalid store data and fail explicitly.
 
@@ -159,7 +163,7 @@ ID, while list still returns the stored instances. Definition errors use
 JSON errors use `{ ok: false, error: { code, message } }`; human errors go to
 stderr. Invalid arguments/titles exit 2 and operational failures exit 1.
 
-Manual ordering, windows, View editing, deletion and HTTP/GUI View movement
+Windows, View editing, deletion and HTTP/GUI View movement
 remain deferred. The existing five-state
 board retains its behavior. Reads do not change definitions, instances, Actions
 or events. Action candidates and prerequisite facts are read from one coherent
@@ -174,7 +178,7 @@ After creating instances and an Action above, replace `ACTION_ID` and `VIEW_ID`
 with their returned IDs. Titles are not selectors; column IDs come from the definition:
 
 ```sh
-owf move action ACTION_ID --view VIEW_ID --column todo --json
+owf move action ACTION_ID --view VIEW_ID --column todo --position 1 --json
 owf move action ACTION_ID --view VIEW_ID --column blocked --reason "Missing access"
 owf move action ACTION_ID --view VIEW_ID --column todo
 ```
@@ -183,8 +187,24 @@ The first command changes only the selected instance's organization, with no Act
 timestamp or state event. Other instances retain eligible choices. Cross-column
 ordinary moves apply `default_status` (or the first listed state), even if the
 previous state was supported too. Actions outside the View may enter a valid target.
-Moving to the already evaluated column is a successful, completely write-free no-op:
-no default-state reset, placement pinning, timestamp, event or reordering.
+Use `--position N` for a final one-based index after removing the moved card.
+For K cards including the moved card, same-column bounds are 1..K; entry to a
+column with K other cards permits 1..K+1 (an empty target permits only 1).
+Accept positive safe decimal integers only; invalid positions fail without writes,
+clamping or appending. Omission appends on entry and is a same-column no-op.
+An explicit current position is also a write-free no-op, without normalization.
+Same-column reorder preserves all Action data, actual multi-state column state,
+Waiting/manual reasons, dependencies, timestamps and inferred/explicit placement.
+It needs no reason even for dependency-only Blocked cards. Both reason options
+remain forbidden on any same-column request. Only the selected instance reorders.
+
+```sh
+owf move action ACTION_ID --view VIEW_ID --column todo --position 1
+owf show view VIEW_ID --json
+```
+
+Other cards keep relative order. Position resolves from current transaction facts,
+not a saved screen revision. Existing bounded SQLite writer locking still applies.
 
 Entering Blocked preserves state and requires a nonblank manual `--reason`, or
 reuses an existing valid manual reason. Dependency blocking alone is insufficient.
@@ -218,17 +238,21 @@ and any effective default other than Waiting, including Active which supports
 Waiting but defaults to In Progress. A valid Blocked exit to Waiting may supply it.
 
 Human and JSON move results identify the Action and View, evaluated source
-(`null` outside the View), destination, `changed`, resulting state, blocking and
+(`null` outside the View), `source_position` (also nullable), destination,
+`destination_position`, `changed`, resulting state, blocking and
 waiting reason when present. JSON uses `result.type: "view-move"` and status
 `moved` or `unchanged`. Success is returned only after commit.
 
 Supported CLI and HTTP Action edits, Default Kanban state moves and prerequisite
-changes reconcile affected placements across all instances, including direct
+changes and normal Action creation reconcile placements and order across potentially
+affected instances, including instances with only order data and direct
 dependents. Both pre-change and post-change invalidity discard placements in the
-same transaction as Action data and events. Returning to an earlier state or
+same transaction as Action data, order and events. Returning to an earlier state or
 clearing a later block uses fallback routing, without restoring the old Todo.
 Eligible placements survive. Placement events use `view.placement_changed` with
-Action ID and old/new column IDs; current placements are authority.
+Action ID and old/new column IDs. Ordering changes use one `view.order_changed`
+event per changed instance, including a pure reorder; internal renumbering does
+not produce individual card moves. Current placement/order data are authority.
 
 Reads remain pure: temporarily incompatible external definition edits only hide
 ineligible placements logically. Restoring the definition before a relevant
@@ -236,12 +260,20 @@ successful write can restore eligibility, even after a read. A relevant successf
 write while invalid removes the placement permanently. No read creates cleanup
 markers. Renaming titles or defaults preserves eligible placements; removing a
 referenced column is an `INVALID_VIEW_PLACEMENT` error. Restore its stable ID to
-repair it. Missing/broken definitions required by affected placements reject the
-entire write with instance/definition context; unrelated broken Views without
-affected placements do not block it. `list views` stays available for diagnosis.
+repair it. This also applies to columns referenced only by order data.
+Pure reads retain valid order entries and append currently unrecorded members in
+ascending ID order. The next relevant successful write records that evaluated
+order and reconciles departures. Reads cannot recover external arrival chronology
+or permanently discard positions; external changes reverted before a supported
+write cannot be reconstructed.
+
+Membership-changing writes (including CLI/HTTP creation) must evaluate every
+potentially affected instance, even without explicit placements. A required broken
+definition rejects the entire write with instance/definition context. Content-only
+edits can skip an instance proven unaffected by its placement/order references. `list views` stays available for diagnosis.
 
 Use browser Refresh after CLI moves to see placement and saved reasons without
-restarting the server. View cards remain passive. No ordering, web move endpoint,
+restarting the server. View cards remain passive and render shared order without sorting. No web move endpoint,
 creation in a column, state-choice option, arbitrary filters or migration is added.
 
 See the [MVP scope](../../docs/design/mvp-scope.md) for included capabilities,
@@ -427,7 +459,7 @@ transaction saves neither change nor event. `ACTION_NOT_FOUND` means the ID is
 absent; `ACTION_CONFLICT` reports a rejected conditional write;
 `ACTION_UPDATE_FAILED` reports a write failure or clock rollback. The browser preserves blocking data and enforces shared completion rules.
 
-Fresh PoC Workspaces use schema 7. Older stores (including schema 6) are refused with
+Fresh PoC Workspaces use schema 8. Older stores (including schemas 6 and 7) are refused with
 `UNSUPPORTED_STORE_VERSION` without migration or mutation;
 create a new disposable Workspace with `owf init` to try this increment. Never
 reset or overwrite an existing store.
@@ -637,7 +669,7 @@ Confirmed writes refresh dependents, including after target title edits. Target-
 refresh updates derived facts while preserving source drafts; source changes
 require explicit reload. Stale/unavailable facts are labeled. A successful save
 followed by refresh failure remains a successful save; do not repeat it. The
-board requires schema 7, with no migration or implicit store replacement.
+board requires schema 8, with no migration or implicit store replacement.
 
 The editor uses the same owner picker. An unavailable stored owner stays visible;
 editing other fields retains it without requiring its Markdown context. Selecting

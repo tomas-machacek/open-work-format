@@ -99,6 +99,6 @@ When(
 Then('both Actions appear only in New', function (this: EvaluationWorld) {
   assert.deepEqual(
     this.evaluated.map((column) => column.members.map((member) => member.id)),
-    [[...this.viewActions].sort(), [], []],
+    [[...this.viewActions], [], []],
   );
 });

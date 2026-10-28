@@ -1,5 +1,14 @@
 import { z } from 'zod';
 export const moveActionOptions = z.object({
+  position: z
+    .string()
+    .regex(/^[0-9]+$/u)
+    .transform(Number)
+    .refine(
+      (value) => Number.isSafeInteger(value) && value > 0,
+      'Position must be a positive safe decimal integer.',
+    )
+    .optional(),
   view: z.string(),
   column: z.string(),
   reason: z.string().optional(),

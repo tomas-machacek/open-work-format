@@ -175,9 +175,19 @@ export function createBoardServer(
             error instanceof WorkspaceError
               ? error.code
               : 'ACTION_CREATE_FAILED',
-          message: clientError
-            ? error.message
-            : 'Unable to save Action. Check the Workspace store and try again.',
+          message:
+            (clientError ||
+              (error instanceof WorkspaceError &&
+                [
+                  'INVALID_VIEW_DEFINITION',
+                  'INVALID_VIEW_REFERENCE',
+                  'INVALID_VIEW_PLACEMENT',
+                  'INVALID_VIEW_ORDER',
+                  'VIEW_READ_FAILED',
+                ].includes(error.code))) &&
+            error instanceof Error
+              ? error.message
+              : 'Unable to save Action. Check the Workspace store and try again.',
         },
       });
     }
@@ -221,6 +231,7 @@ export function createBoardServer(
                   'INVALID_VIEW_DEFINITION',
                   'INVALID_VIEW_REFERENCE',
                   'INVALID_VIEW_PLACEMENT',
+                  'INVALID_VIEW_ORDER',
                   'VIEW_READ_FAILED',
                 ].includes(code)) &&
               error instanceof Error
@@ -276,6 +287,7 @@ export function createBoardServer(
                   'INVALID_VIEW_DEFINITION',
                   'INVALID_VIEW_REFERENCE',
                   'INVALID_VIEW_PLACEMENT',
+                  'INVALID_VIEW_ORDER',
                   'VIEW_READ_FAILED',
                 ].includes(code)) &&
               error instanceof Error

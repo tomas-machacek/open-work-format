@@ -226,6 +226,7 @@ test('show View has matching ordered human/JSON content from root and Project co
                 'cancelled',
               ]),
               blocked: z.boolean(),
+              position: z.number().int().positive(),
             }),
           ),
         }),
@@ -267,7 +268,7 @@ test('show View has matching ordered human/JSON content from root and Project co
             ? ['    (empty)']
             : column.members.map(
                 (member) =>
-                  `    ${member.id} | ${member.title} | ${member.state} | blocked: ${String(member.blocked)}`,
+                  `    ${member.position}. ${member.id} | ${member.title} | ${member.state} | blocked: ${String(member.blocked)}`,
               )),
         ].join('\n'),
       ),
@@ -282,9 +283,7 @@ test('show View has matching ordered human/JSON content from root and Project co
   expect(cleared.status).toBe(0);
   const clearedColumns = showEnvelope.parse(JSON.parse(cleared.stdout)).result
     .columns;
-  expect(clearedColumns[0]!.members.map((member) => member.id)).toEqual(
-    [...ids].sort(),
-  );
+  expect(clearedColumns[0]!.members.map((member) => member.id)).toEqual(ids);
   const clearedHuman = run(child, ['show', 'view', view.id]);
   expect(clearedHuman.status).toBe(0);
   expectHumanColumns(clearedHuman.stdout, clearedColumns);

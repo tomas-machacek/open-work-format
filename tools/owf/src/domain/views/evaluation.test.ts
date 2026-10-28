@@ -47,7 +47,8 @@ test('effective defaults uniquely route overlapping states; actual states ignore
     {
       id: 'alternate',
       title: 'Alternate',
-      members: ['Z', 'a', 'b', 'c'].map((id) => ({
+      members: ['Z', 'a', 'b', 'c'].map((id, index) => ({
+        position: index + 1,
         id,
         title: `Action ${id}`,
         state: id === 'c' ? 'in_progress' : 'open',
@@ -118,7 +119,8 @@ test('terminal dependency blocking keeps its derived value and never enters spec
     ),
   ).toEqual([
     [],
-    ['cancelled', 'completed'].map((state) => ({
+    ['cancelled', 'completed'].map((state, index) => ({
+      position: index + 1,
       id: state,
       title: `Action ${state}`,
       state,

@@ -1,6 +1,6 @@
 # 0024 — Persist and change View column order through CLI
 
-> Status: reviewed
+> Status: in_progress
 > Description: Reorder Actions within a View column and choose a persistent insertion position on cross-column moves.
 > Depends on: [0023](0023-view-move-cli.md), including its agreed reconciliation contract.
 
@@ -40,9 +40,9 @@ its state, blocking and validation rules otherwise remain applicable.
 
 Extend the command delivered in 0023:
 
-~~~text
+```text
 owf move action ACTION_ID --view VIEW_ID --column COLUMN_ID [--position N] [--reason TEXT] [--waiting-for TEXT] [--json]
-~~~
+```
 
 Keep the column required, including same-column reordering. No separate reorder
 command or interactive prompt is needed. IDs retain 0023 selection semantics.
@@ -57,34 +57,34 @@ To calculate the insertion, remove the moved Action from the destination list
 if already present, then insert it at N. If that remaining list has M members,
 the allowed range is 1 through M + 1.
 
-| Situation | Allowed position |
-| --- | --- |
-| Same column with K cards, including the moved card | 1 through K |
-| Different column or outside View; target has K cards | 1 through K + 1 |
-| Empty destination | 1 |
+| Situation                                            | Allowed position |
+| ---------------------------------------------------- | ---------------- |
+| Same column with K cards, including the moved card   | 1 through K      |
+| Different column or outside View; target has K cards | 1 through K + 1  |
+| Empty destination                                    | 1                |
 
 Examples, with letters denoting distinct Action IDs:
 
-| Before | Request | After |
-| --- | --- | --- |
-| A, B, C, D | D to position 3 | A, B, D, C |
-| A, B, C, D | B to position 3 | A, C, B, D |
-| A, B, C, D | D to position 1 | D, A, B, C |
-| A, B, C, D | C to position 3 | Unchanged; successful no-op |
-| Target A, B, C, D; X elsewhere | X to position 3 | A, B, X, C, D |
+| Before                         | Request         | After                       |
+| ------------------------------ | --------------- | --------------------------- |
+| A, B, C, D                     | D to position 3 | A, B, D, C                  |
+| A, B, C, D                     | B to position 3 | A, C, B, D                  |
+| A, B, C, D                     | D to position 1 | D, A, B, C                  |
+| A, B, C, D                     | C to position 3 | Unchanged; successful no-op |
+| Target A, B, C, D; X elsewhere | X to position 3 | A, B, X, C, D               |
 
 These examples specify the observable behavior, not a requirement to persist
 dense numeric indices or rewrite every subsequent database row.
 
 ### Omitted position and move effects
 
-| Request | Behavior |
-| --- | --- |
-| Same evaluated column, explicit different position | Reorder only. |
-| Same evaluated column, same position | Successful no-op. |
-| Same evaluated column, position omitted | Successful no-op, preserving 0023 compatibility. |
-| Different column or outside View, explicit position | Apply 0023 move effects and insert at N. |
-| Different column or outside View, position omitted | Apply 0023 move effects and append after all current destination cards. |
+| Request                                             | Behavior                                                                |
+| --------------------------------------------------- | ----------------------------------------------------------------------- |
+| Same evaluated column, explicit different position  | Reorder only.                                                           |
+| Same evaluated column, same position                | Successful no-op.                                                       |
+| Same evaluated column, position omitted             | Successful no-op, preserving 0023 compatibility.                        |
+| Different column or outside View, explicit position | Apply 0023 move effects and insert at N.                                |
+| Different column or outside View, position omitted  | Apply 0023 move effects and append after all current destination cards. |
 
 Same-column reorder preserves actual state (including non-default state in a
 multi-state column), owner, content, waiting metadata, manual reason, dependencies
@@ -253,18 +253,20 @@ instances, pure reads and the wider definition-validation impact on writes.
 
 Use focused tests for distinct risks, not a full matrix duplicated at every layer.
 
-| Risk | Verification |
-| --- | --- |
-| Final-index insertion and bounds (AC1–AC3) | Domain cases for both directions, first/last/empty, no-op and rejected inputs. |
-| Persistent ordering and independent instances (AC4–AC5) | Real SQLite integration with reopen, two instances, inferred membership and arrivals whose IDs sort before existing members. |
-| Reconciliation and pure reads (AC5–AC6) | Supported CLI/HTTP writes, dependent changes, departure/return, definition edits and broken required references. |
-| Atomicity and events (AC7) | Inject failures after Action/order writes and at event insertion; compare semantic data before/after. |
-| User contract (AC1, AC6, AC8) | Built CLI show/move flow, human/JSON positions, invalid options, descendant invocation, schema rejection and guide examples. |
-| Passive browser order (AC4, AC6, AC8) | One focused journey: CLI reorder and cross-column insertion, refresh and inspect order without introducing View drag controls. |
+| Risk                                                    | Verification                                                                                                                   |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Final-index insertion and bounds (AC1–AC3)              | Domain cases for both directions, first/last/empty, no-op and rejected inputs.                                                 |
+| Persistent ordering and independent instances (AC4–AC5) | Real SQLite integration with reopen, two instances, inferred membership and arrivals whose IDs sort before existing members.   |
+| Reconciliation and pure reads (AC5–AC6)                 | Supported CLI/HTTP writes, dependent changes, departure/return, definition edits and broken required references.               |
+| Atomicity and events (AC7)                              | Inject failures after Action/order writes and at event insertion; compare semantic data before/after.                          |
+| User contract (AC1, AC6, AC8)                           | Built CLI show/move flow, human/JSON positions, invalid options, descendant invocation, schema rejection and guide examples.   |
+| Passive browser order (AC4, AC6, AC8)                   | One focused journey: CLI reorder and cross-column insertion, refresh and inspect order without introducing View drag controls. |
 
-Add executable acceptance scenarios for persistent same-column reordering and
-cross-column insertion with departure/return; link the canonical feature files
-at implementation instead of duplicating all technical cases.
+Canonical executable acceptance journeys for persistent same-column reorder and
+cross-column insertion with departure/return:
+[view-order.feature](../../tests/acceptance/features/view-order.feature).
+The existing [view-move.feature](../../tests/acceptance/features/view-move.feature)
+retains the 0023 placement and Blocked-exit journeys.
 
 Human try-out: start with A, B, C, D in one column; move D to position 3,
 then B to position 3. Verify A, D, B, C; move B to another column at position 1,
@@ -272,7 +274,7 @@ return without a position and verify A, D, C, B. Reopen CLI and refresh the web
 View. Compare a second instance and verify it retained its own organization.
 
 Run npm run verify for implementation handoff and record actual revision,
-platform and results. No runtime verification is claimed by this proposal.
+platform and results. Actual implementation evidence is recorded below.
 
 ## Open questions
 
@@ -285,9 +287,92 @@ platform and results. No runtime verification is claimed by this proposal.
 
 ## Implementation and review outcome
 
-The user reviewed and approved this increment for implementation on 2026-10-27.
-Not implemented. No runtime tests or independent implementation review have been
-performed.
+Implemented the approved scope on top of delivered 0023. Status remains
+`in_progress` pending independent code review; no independent review is claimed.
+No product-scope or behavioral deviations were needed.
+
+CLI `move action --position N` uses final one-based destination indices, supports
+same-column reorder and cross-column insertion, and retains the omitted-position
+compatibility/append rules. Show exposes numeric member positions; move reports
+`source_position` (nullable) and committed `destination_position`. All 0023 state,
+completion, blocking and Waiting validation remains in effect.
+
+Confirmed the predecessor was schema 7. Schema 8 stores current dense internal
+ranks in `view_order`, separate from explicit `view_placements`, with unique
+instance/Action and instance/column/rank constraints. A changed instance order is
+persisted transactionally with one `view.order_changed` event, not individual
+moves for renumbered cards. Initial instance creation records evaluated ID order
+alongside its metadata and `view.created` event. No-op moves bypass reconciliation
+and rank normalization entirely; reorder leaves Action data/events/timestamps and
+inferred versus explicit placement untouched.
+
+The ordered domain evaluator is shared by CLI, HTTP and existing passive React
+cards; the web already preserves received member order and needed no renderer
+change. The SQLite Action reader was extracted into an internal adapter module so
+instance creation can read transaction-local Action facts without a module cycle.
+
+Reconciliation retains continuing order, removes departures and appends arrivals,
+including directly affected dependents and normal CLI/HTTP Action creation.
+Multiple arrivals use ID order; successive writes retain commit order even for
+lower new IDs. Bounds are validated after all resulting blocking projections,
+including dependent arrivals into the destination. Order-only instances and empty
+instances are included in affected-data analysis. Membership-changing writes
+validate all potentially affected definitions, not only placement references;
+a broken required definition rejects the full write with context (also through
+HTTP creation). Content-only writes can skip instances proven unrelated by their
+placement/order references. Pure reorder reconciles only its selected instance.
+
+Reads remain pure and retain valid order ahead of ID-sorted unrecorded members.
+Removed referenced columns and contradictory/orphaned order fail explicitly.
+Temporary external edits reverted before a relevant supported write can restore
+order; a read creates no arrival/departure history. The next relevant successful
+write records evaluated order. Existing HTTP stale-edit guards and bounded SQLite
+writer locking remain unchanged.
+
+README, architecture, CLI help, the standalone definition example and single-source
+generated Workspace AGENTS.md describe delivered behavior and schema 8. Existing
+user-edited guides remain preserved. The generated examples include --position
+and are exercised by the existing built-CLI guide runner.
+
+Verification evidence will be finalized after the complete `npm run verify` run.
+Focused domain/SQLite tests, the full integration suite, all 36 Cucumber scenarios,
+built CLI position journeys and the browser order/refresh journey were exercised
+during development. Final revision, totals and platform are recorded at handoff.
+
+Limitations follow the approved scope: older Workspaces (including schema 7)
+cannot be opened without a separately designed migration; none is provided.
+External Markdown and SQLite are not a single snapshot, and external arrival
+chronology between supported writes cannot be recovered. View web movement,
+creation in a chosen column and state-choice controls remain deferred. Linux
+verification and independent code review have not been performed.
+
+Human try-out: use a fresh disposable schema 8 Workspace with `owf init`, copy
+[work-board.md](../examples/work-board.md) into `_views/`, and create two instances
+before creating Actions A, B, C and D in that order. Replace IDs in these commands
+with returned UUIDs (or use `node <absolute-tools/owf>/dist/bootstrap/cli.js` in
+place of `owf` when the CLI is not installed on PATH):
+
+```sh
+owf create view --title "First" --definition /_views/work-board.md --json
+owf create view --title "Second" --definition /_views/work-board.md --json
+owf create action --title A --json
+owf create action --title B --json
+owf create action --title C --json
+owf create action --title D --json
+owf move action D_ID --view FIRST_VIEW_ID --column new-actions --position 3
+owf move action B_ID --view FIRST_VIEW_ID --column new-actions --position 3
+owf show view FIRST_VIEW_ID --json
+owf move action B_ID --view FIRST_VIEW_ID --column todo --position 1
+owf move action B_ID --view FIRST_VIEW_ID --column new-actions
+owf show view FIRST_VIEW_ID
+owf show view SECOND_VIEW_ID
+owf serve
+```
+
+The first intermediate order is A, D, B, C; after departure/return it is A, D, C, B.
+The second instance retains A, B, C, D. Select each instance in the browser and
+Refresh after further CLI ordering changes; order survives a page reload and
+selection of that instance again.
 
 ## Decision changes and follow-up
 
@@ -302,3 +387,6 @@ performed.
 
 - 2026-10-27: User approved the full design for implementation; document and index
   marked reviewed, including the stated broken-definition behavior for arrivals.
+
+- 2026-10-28: Implemented approved 0024 scope and marked increment/index
+  `in_progress`. Independent review is pending; no merge or release is included.

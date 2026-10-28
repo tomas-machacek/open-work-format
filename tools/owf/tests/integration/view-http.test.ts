@@ -150,7 +150,7 @@ test('HTTP detail and Default state writes reconcile placements across instances
     await edit({ manualBlock: 'Access' }),
   ]) {
     expect(response.statusCode).toBe(503);
-    expect(response.body).toContain(view.id);
+    expect(response.body).toContain(listViews(root).result.views[0]!.id);
     expect(semanticSnapshot(root, store)).toEqual(broken);
   }
 });
@@ -183,7 +183,8 @@ test('HTTP uses the CLI evaluator order and complete facts from one repository r
   expect(
     web.columns.map((column) => ({
       ...column,
-      members: column.members.map((member) => ({
+      members: column.members.map((member, index) => ({
+        position: index + 1,
         id: member.id,
         title: member.title,
         state: member.state,
@@ -272,11 +273,11 @@ test('existing HTTP edits reroute blocks, can exclude an Action and never apply 
   ).toBe('waiting');
   writeFileSync(
     file,
-    '---\ntype: OWF View Definition\ntitle: Only blocked\nowf:\n  renderer: kanban\n  columns:\n    - id: blocked\n      title: Blocked\n      type: blocked\n---\n# Only blocked\n',
+    '---\ntype: OWF View Definition\ntitle: Only blocked\nowf:\n  renderer: kanban\n  columns:\n    - id: active\n      title: Active\n      status: in_progress\n    - id: new-actions\n      title: New\n      status: open\n    - id: todo\n      title: Todo\n      status: open\n    - id: done\n      title: Done\n      status: completed\n    - id: blocked\n      title: Blocked\n      type: blocked\n---\n# Only blocked\n',
   );
   await edit({ manualBlock: 'Again' });
   web = await edit({ clearManualBlock: true });
-  expect(web.columns[0]?.members).toEqual([]);
+  expect(web.columns.flatMap((column) => column.members)).toEqual([]);
   expect(getAction(root, action.id).result.action.state).toBe('waiting');
   writeFileSync(
     file,
