@@ -292,9 +292,37 @@ lifecycle/outcome tests and a browser journey for keyboard, pointer, required
 reason cancellation/submission, dependency rejection, persistence and narrow touch.
 Existing 0023/0024 acceptance, snapshot and transaction tests remain canonical.
 
-Verification is running on Windows; final evidence will be appended after all
-required checks finish. Independent implementation review remains pending in a
-separate session. Status deliberately remains `in_progress`; no merge or release.
+Verification on 2026-10-28:
+
+- Verified implementation revision: `4bd5a2219fe263dcfc24cc5d98031c1559bab4fe`.
+  The subsequent handoff commit changes this record only.
+- Platform: Windows NT 10.0.26300.0, PowerShell, Node.js 24.21.0, npm 11.4.1;
+  browser tests use headless Chromium.
+- Final standalone `npm run verify`: **passed**, exit 0. Typecheck, ESLint,
+  Prettier, architecture checks and production build passed; 187 unit tests,
+  248 integration tests, 36 acceptance scenarios / 204 steps, 27 CLI E2E tests
+  and 10 browser journeys passed.
+- Browser evidence includes pointer insertion, keyboard first/last ordering and
+  immediate drop, Blocked reason cancel/submit, dependency-blocked rejection,
+  CLI persistence/reload, independent instance organization, Default Kanban and
+  detail compatibility, plus CDP-emulated held touch reorder on a horizontally
+  scrolled 390px board. Inspected the narrow-board screenshot.
+- Verification found and corrected keyboard sensor membership/measurement timing,
+  detail focus restoration and stale-detail keyboard access. Regression tests also
+  cover success/error from reads already in flight when touch activation freezes
+  layout. Initial rollback test fixtures were corrected to snapshot their own
+  deliberate trigger/Markdown changes before the rejected write.
+- Sandbox process restrictions initially produced `spawn EPERM`; executable
+  suites ran with approved escalation. One overlapping verification attempt hit
+  two existing 5000ms CLI timeouts. The final standalone run passed unchanged
+  timeouts; no checks were weakened or skipped.
+- Limitations: Linux, physical touch hardware, manual long-column scrolling and
+  an actual screen reader were not verified. Touch is automated Chromium
+  emulation; these human interaction checks remain useful during review.
+
+Independent implementation review remains pending in a separate session. Status
+and index deliberately remain `in_progress`; no merge or release. No known
+unresolved implementation finding is claimed as reviewed or approved.
 
 ## Decision changes and follow-up
 
