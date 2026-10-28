@@ -320,9 +320,39 @@ Verification on 2026-10-28:
   an actual screen reader were not verified. Touch is automated Chromium
   emulation; these human interaction checks remain useful during review.
 
-Independent implementation review remains pending in a separate session. Status
-and index deliberately remain `in_progress`; no merge or release. No known
-unresolved implementation finding is claimed as reviewed or approved.
+### Independent review and corrections
+
+Independent review inspected PR #31 at
+`29027cf3b7fd4e96e41a9b2d092e7e769350285b` against main at
+`dbb72a9bf901b9dd68740ceba67001b02522f19b`. It identified three P2 findings:
+
+- A ref-only submission flag did not render disabled controls. A reason-dialog
+  Cancel or cancellation of a second drag could unlock navigation while the first
+  POST was still pending. Chromium reproduced a move committing after Cancel and
+  navigation away. Submission now has reactive control state plus synchronous
+  guards; cancellation and late callbacks cannot unlock a pending write. The
+  disabled reason dialog retains focus and traps Tab while submitting.
+- A superseded post-move read was treated as a failed refresh, and the resulting
+  static warning survived successful queued or manual refreshes. Mutation outcome
+  is now stored separately from refresh feedback; current loading/error state
+  determines the display notice and a successful refresh removes stale warnings.
+- Home/End changed the selected slot without scrolling it into view in long
+  columns. These jumps now scroll to the destination and use its updated viewport
+  geometry. Arrow scrolling and immediate keyboard drops retain their behavior.
+
+The user authorized these corrections, commit and push, without authorizing
+completion, merge or release. Component regressions first reproduced the pending
+control and superseded-read failures. New Chromium tests hold mutation responses
+unfinished, check navigation/detail/gesture guards and dialog focus, then verify
+the persisted result. A long-column journey checks both target visibility and
+saved positions for End and Home. The existing browser journey remains intact.
+HTTP rejection tests now assert exact statuses/codes alongside rollback snapshots;
+client tests cover structured rejection and uncertain network/body/contract
+failures with exactly one mutation request. Development guidelines record the
+reactive-control and keyboard-visibility lessons.
+
+Post-correction verification is recorded below after execution. Status and index
+remain `in_progress`; human acceptance and completion are separate steps.
 
 ## Decision changes and follow-up
 

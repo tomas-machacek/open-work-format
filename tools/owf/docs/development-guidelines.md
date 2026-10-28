@@ -127,6 +127,10 @@ matches a filter. Controlled query results should describe a plausible external
 change when membership changes without a corresponding local edit.
 Navigation guards must cover every entry point, including modal controls, and
 account for ongoing gestures as well as pending writes.
+Pending-write state used to disable controls must trigger a render; an imperative
+duplicate-submit guard alone is insufficient. Test cancellation and a second
+gesture while the write is deliberately unfinished. For keyboard drag jumps,
+verify that the selected insertion target is visible as well as correctly saved.
 
 Write Gherkin in English, matching project terminology. Scenarios describe
 domain behavior, not selectors, CLI flags or SQL. Bind them to the real

@@ -23,6 +23,7 @@ export function ViewBoard({
   const frozen = useRef(false);
   const alive = useRef(true);
   const submitting = useRef(false);
+  const [pendingMove, setPendingMove] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reasonMove, setReasonMove] = useState<ViewMoveRequest>();
   const [reason, setReason] = useState('');
@@ -56,6 +57,7 @@ export function ViewBoard({
     });
   }
   function cancel() {
+    if (!alive.current || submitting.current) return;
     setReasonMove(undefined);
     frozen.current = false;
     setBusy(false);
@@ -65,23 +67,23 @@ export function ViewBoard({
   async function submit(input: ViewMoveRequest) {
     if (!alive.current || submitting.current) return;
     submitting.current = true;
+    setPendingMove(true);
     lock();
     let notice: string;
     try {
       await moveViewAction(selected.id, input);
       notice = 'Move succeeded.';
-      setReasonMove(undefined);
     } catch (failure) {
       notice = failure instanceof Error ? failure.message : 'Move failed.';
-      setReasonMove(undefined);
     }
-    frozen.current = false;
-    const fresh = await refresh();
     if (!alive.current) return;
-    setMoveNotice(
-      `${notice}${fresh ? '' : ' Display could not be refreshed; movement and saves are disabled until refresh succeeds.'}`,
-    );
+    setReasonMove(undefined);
+    setMoveNotice(notice);
+    frozen.current = false;
+    await refresh();
+    if (!alive.current) return;
     submitting.current = false;
+    setPendingMove(false);
     setBusy(false);
     focusCard(input.action);
   }
@@ -108,9 +110,13 @@ export function ViewBoard({
   const [saved, setSaved] = useState<BoardAction>();
   const editorNavigation = useRef<EditorNavigation>(null);
   const refreshButton = useRef<HTMLButtonElement>(null);
+  const reasonDialog = useRef<HTMLElement>(null);
   const board = useRef<HTMLDivElement>(null);
   const focused = useRef<string | undefined>(undefined);
   const members = data?.columns.flatMap((column) => column.members) ?? [];
+  useEffect(() => {
+    if (pendingMove) reasonDialog.current?.focus();
+  }, [pendingMove]);
   useEffect(() => {
     if (focused.current && document.activeElement === document.body) {
       const card = [
@@ -199,7 +205,16 @@ export function ViewBoard({
             : 'No Actions are eligible for this View.'}
         </p>
       )}
-      {moveNotice && <p role="status">{moveNotice}</p>}
+      {moveNotice && (
+        <p role="status">
+          {moveNotice}
+          {loading
+            ? ' Checking current View membership…'
+            : error
+              ? ' Display could not be refreshed; movement and saves are disabled until refresh succeeds.'
+              : ''}
+        </p>
+      )}
       {data && (
         <div
           ref={board}
@@ -213,16 +228,14 @@ export function ViewBoard({
           <ViewDragBoard
             data={data}
             disabled={
-              !!error ||
-              loading ||
-              !!detail ||
-              !!reasonMove ||
-              submitting.current
+              !!error || loading || !!detail || !!reasonMove || pendingMove
             }
             onOpen={(action) => {
-              if (!busy) setDetail(action);
+              if (!busy && !submitting.current) setDetail(action);
             }}
-            onStart={lock}
+            onStart={(id) => {
+              if (alive.current && !submitting.current) lock(id);
+            }}
             onCancel={cancel}
             onDrop={drop}
           />
@@ -231,6 +244,8 @@ export function ViewBoard({
       {reasonMove && (
         <div className={styles.reasonBackdrop}>
           <section
+            ref={reasonDialog}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label="Blocked reason"
@@ -243,10 +258,16 @@ export function ViewBoard({
               if (event.key === 'Tab') {
                 const controls = [
                   ...event.currentTarget.querySelectorAll<HTMLElement>(
-                    'textarea, button:not(:disabled)',
+                    'textarea:not(:disabled), button:not(:disabled)',
                   ),
                 ];
-                if (event.shiftKey && document.activeElement === controls[0]) {
+                if (controls.length === 0) {
+                  event.preventDefault();
+                  event.currentTarget.focus();
+                } else if (
+                  event.shiftKey &&
+                  document.activeElement === controls[0]
+                ) {
                   event.preventDefault();
                   controls.at(-1)?.focus();
                 } else if (
@@ -260,6 +281,7 @@ export function ViewBoard({
             }}
           >
             <h2>Manual blocking reason</h2>
+            {pendingMove && <p role="status">Submitting move…</p>}
             <form
               onSubmit={(event) => {
                 event.preventDefault();
@@ -271,18 +293,14 @@ export function ViewBoard({
                 <textarea
                   autoFocus
                   value={reason}
-                  disabled={submitting.current}
+                  disabled={pendingMove}
                   onChange={(event) => setReason(event.target.value)}
                 />
               </label>
-              <button disabled={!reason.trim() || submitting.current}>
+              <button disabled={!reason.trim() || pendingMove}>
                 Confirm move
               </button>
-              <button
-                type="button"
-                disabled={submitting.current}
-                onClick={cancel}
-              >
+              <button type="button" disabled={pendingMove} onClick={cancel}>
                 Cancel
               </button>
             </form>

@@ -366,11 +366,17 @@ test('HTTP positional moves use current transaction facts, enforce reason and ro
   );
   expect(order()).toEqual([ids[2], ids[1], ids[0]]);
   const before = semanticSnapshot(root, store);
-  expect((await move(ids[1]!, 'new-actions', { position: 4 })).statusCode).toBe(
-    400,
-  );
+  const outOfRange = await move(ids[1]!, 'new-actions', { position: 4 });
+  expect(outOfRange.statusCode).toBe(400);
+  expect(outOfRange.json()).toMatchObject({
+    error: { code: 'INVALID_ARGUMENT' },
+  });
   expect(semanticSnapshot(root, store)).toEqual(before);
-  expect((await move(ids[1]!, 'blocked')).statusCode).not.toBe(200);
+  const missingReason = await move(ids[1]!, 'blocked');
+  expect(missingReason.statusCode).toBe(400);
+  expect(missingReason.json()).toMatchObject({
+    error: { code: 'INVALID_ARGUMENT' },
+  });
   expect(semanticSnapshot(root, store)).toEqual(before);
   expect(
     (await move(ids[1]!, 'blocked', { reason: 'Access', position: 1 }))
@@ -378,7 +384,11 @@ test('HTTP positional moves use current transaction facts, enforce reason and ro
   ).toBe(200);
   setAction(root, ids[1]!, { addDependency: [ids[0]!] });
   const blocked = semanticSnapshot(root, store);
-  expect((await move(ids[1]!, 'todo')).statusCode).not.toBe(200);
+  const unresolvedExit = await move(ids[1]!, 'todo');
+  expect(unresolvedExit.statusCode).toBe(400);
+  expect(unresolvedExit.json()).toMatchObject({
+    error: { code: 'INVALID_ARGUMENT' },
+  });
   expect(semanticSnapshot(root, store)).toEqual(blocked);
   const db = new DatabaseSync(store);
   try {
@@ -389,9 +399,11 @@ test('HTTP positional moves use current transaction facts, enforce reason and ro
     db.close();
   }
   const withTrigger = semanticSnapshot(root, store);
-  expect((await move(ids[0]!, 'todo', { position: 1 })).statusCode).not.toBe(
-    200,
-  );
+  const persistenceFailure = await move(ids[0]!, 'todo', { position: 1 });
+  expect(persistenceFailure.statusCode).toBe(503);
+  expect(persistenceFailure.json()).toMatchObject({
+    error: { code: 'ACTION_UPDATE_FAILED' },
+  });
   expect(semanticSnapshot(root, store)).toEqual(withTrigger);
   const removeTrigger = new DatabaseSync(store);
   try {
@@ -402,7 +414,10 @@ test('HTTP positional moves use current transaction facts, enforce reason and ro
   writeFileSync(file, 'Broken definition');
   const brokenDefinition = semanticSnapshot(root, store);
   const response = await move(ids[0]!, 'todo');
-  expect(response.statusCode).not.toBe(200);
+  expect(response.statusCode).toBe(503);
+  expect(response.json()).toMatchObject({
+    error: { code: 'INVALID_VIEW_DEFINITION' },
+  });
   expect(response.body).toContain(view.id);
   expect(semanticSnapshot(root, store)).toEqual(brokenDefinition);
 });

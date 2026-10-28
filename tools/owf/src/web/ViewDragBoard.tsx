@@ -83,11 +83,24 @@ export function ViewDragBoard({
     if (event.code === 'End') pos = target.members.length + 1;
     pos = Math.max(1, Math.min(target.members.length + 2, pos));
     cursor.current = { column: target.column.id, position: pos };
-    const rect = context.droppableRects.get(
+    const targetId =
       pos === target.members.length + 2
         ? JSON.stringify([target.column.id, 'append'])
-        : slotId(target.column.id, pos),
-    );
+        : slotId(target.column.id, pos);
+    const node = context.droppableContainers.get(targetId)?.node.current;
+    // KeyboardSensor scrolls for arrows, but Home/End jumps need an explicit
+    // scroll. Read the destination's viewport geometry after that scroll.
+    const jumps = event.code === 'Home' || event.code === 'End';
+    if (jumps)
+      node?.scrollIntoView({
+        block: 'center',
+        inline: 'nearest',
+        behavior: 'instant',
+      });
+    const rect =
+      jumps && node
+        ? node.getBoundingClientRect()
+        : context.droppableRects.get(targetId);
     const collision = context.collisionRect;
     return rect && collision
       ? {
