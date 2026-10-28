@@ -1,7 +1,7 @@
 # 0025 — Move and reorder Actions in web Views
 
 > Status: draft
-> Description: Move and reorder existing View cards through drag and drop or an accessible move control, using the shared CLI movement semantics.
+> Description: Move and reorder existing View cards through pointer, touch and keyboard drag and drop, using the shared CLI movement semantics.
 > Depends on: [0022](0022-web-view-display.md), [0023](0023-view-move-cli.md), and completed [0024](0024-view-order-cli.md).
 
 ## Goal and scope
@@ -20,7 +20,7 @@ Authority: [Views profile](../../../../docs/design/views-profile-notes.md),
 Included:
 
 - Drag and drop between and within columns of the selected View instance.
-- A keyboard- and touch-usable alternative for choosing column and position.
+- Keyboard and touch support for the same drag-and-drop interaction.
 - A thin HTTP adapter for the shared movement operation delivered in 0023/0024.
 - Required manual-block input, authoritative refresh, and explicit failure feedback.
 - Preservation of existing View detail editing and Default Kanban behavior.
@@ -75,35 +75,36 @@ guards and blocking rules, then 0024's insertion and reconciliation. Shared Acti
 effects can change other instances, but those instances never inherit the selected
 destination or requested position. No-op requests write no events or normalization.
 
-### Accessible move control and card interaction
+### Drag-and-drop access and card interaction
 
-Provide a compact "Move..." action for each View card, usable without dragging.
-It opens a small form identifying the Action and selected View, with a destination
-column selector and optional numeric position. Distinguish duplicate column titles
-without making technical IDs prominent on normal cards.
+Use drag and drop as the only web movement interaction. Do not add a separate
+"Move..." action, destination selector or numeric-position form. Precise placement
+remains available: dropping into the visible gap before, between or after cards
+selects that exact insertion position, both within and across columns. The UI
+translates the chosen slot into the final one-based position specified above.
+Numeric position entry remains available through CLI.
 
-Prefill the current column and position. Changing the destination clears position:
-an empty field means append for another column and no change within the current
-column. Explain this beside the field. Show the currently known valid range,
-validate simple input locally, and treat server validation as authoritative.
-Users can explicitly enter first, middle or last position.
+Support pointer, touch and keyboard dragging through the existing dnd-kit
+integration. Keyboard users must be able to pick up a card, select a destination
+column and insertion slot, drop, or cancel with Escape. All supported positions,
+including first/last and empty-column insertion, must be reachable without a mouse.
+Provide concise instructions and announce the current destination and position.
 
-Pointer dragging and the alternative form must reach the same persisted results.
-Keep ordinary card click/keyboard activation for the existing detail. Dragging
-must not accidentally open it; dragging a card or operating its move control must
-not trigger an underlying click. Preserve compact cards and actual-state labels.
+Keep ordinary card click/keyboard activation for the existing detail distinct from
+drag activation. Completing or cancelling a drag must not accidentally open the
+detail. Preserve compact cards and actual-state labels.
 
-On narrow screens the alternative control remains usable without precision
-dragging. Keep controls labeled, dialogs keyboard navigable, errors announced,
-and restore focus to the card or an appropriate column/board control after
-completion or cancellation. Do not require a successful pointer drag for any
-supported move.
+On narrow screens, touch dragging must coexist with normal board/page scrolling;
+verify reachable targets in long columns and horizontally scrolled boards.
+Keep the required Blocked-reason dialog keyboard navigable and errors announced.
+Restore focus to the card or an appropriate column/board control after completion
+or cancellation.
 
 ### Blocked and Waiting input
 
 For cross-column entry into Blocked, reuse an existing valid manual reason when
 available. Otherwise collect a nonblank manual-block reason before submitting
-the move. A drag needing a reason opens the same small input flow; no preliminary
+the move. A drag needing a reason opens a small reason-only dialog; no preliminary
 state or placement write occurs. Cancel leaves everything unchanged.
 
 Whitespace-only supplied reasons fail. Dependency blocking alone does not
@@ -197,7 +198,7 @@ the increment document and index, not shipped-capability documentation or code.
 
 ## Acceptance criteria
 
-- **AC1 — Same-column order:** Pointer and alternative controls reorder in both
+- **AC1 — Same-column order:** Pointer, touch and keyboard dragging reorder in both
   directions, including first/last positions. State, Waiting/blocking metadata,
   Action timestamps and inferred/explicit placement remain unchanged. Same-position
   moves are write-free. Multi-state and dependency-only Blocked cards are covered.
@@ -219,10 +220,11 @@ the increment document and index, not shipped-capability documentation or code.
 - **AC6 — Honest outcomes:** Rejection, confirmed save with failed refresh, and
   uncertain transport outcome have distinct feedback. Stale data disables writes.
   Superseded reads cannot replace a newer result; no automatic mutation retry.
-- **AC7 — Accessible interaction:** Every supported move is possible with the
-  alternative control using keyboard/touch. Card detail remains accessible without
-  accidental opening after a drag. Escape/cancel, focus restoration, insertion
-  indicators and wide/narrow layouts work.
+- **AC7 — Accessible interaction:** Every supported move and precise insertion
+  position is reachable through keyboard drag and drop as well as pointer/touch.
+  No separate Move form or numeric-position input is added. Card detail remains
+  accessible without accidental opening after a drag. Escape/cancel, focus
+  restoration, insertion indicators and wide/narrow layouts work.
 - **AC8 — Compatibility and purity:** Default Kanban and shared detail protections
   remain intact. Refresh/reload and CLI process reopen preserve organization.
   Reads/previews/cancellation are write-free, schema remains 8, and no deferred
@@ -263,16 +265,17 @@ interaction risks rather than repeating the full domain matrix at every layer.
 | HTTP parity and atomicity (AC1–AC4) | Real HTTP/application/SQLite cases for positional move, required reason, invalid position, rejected exit, required broken definition and rollback; compare persisted results/events with shared-operation semantics. |
 | Execute-time positioning (AC5) | Commit a CLI reorder/arrival after the displayed read and before HTTP move; verify current-index behavior and a separate now-invalid bound. |
 | UI races and outcome reporting (AC5–AC6) | Focused component cases for queued refresh, navigation guards, duplicate submission, late responses, rejected move, committed move/read failure and unknown transport outcome without retry. |
-| Main user flow (AC1–AC3, AC7–AC8) | Small Playwright journey for pointer reorder/cross-column insertion, keyboard alternative, Blocked reason cancellation/submission and rejected exit; inspect CLI order after browser operations. |
+| Main user flow (AC1–AC3, AC7–AC8) | Small Playwright journey for pointer reorder/cross-column insertion, keyboard dragging, Blocked reason cancellation/submission and rejected exit; inspect CLI order after browser operations. |
 | Compatibility and persistence (AC8) | Refresh/reselect/reload, second-instance independence and return to Default Kanban with existing operations; reuse existing snapshot/purity tests and add new read/preview boundaries where needed. |
-| Interaction quality (AC7) | Inspect wide/narrow boards, empty and long columns, final insertion slot, scrolling, card/detail separation, keyboard focus and error announcements. |
+| Interaction quality (AC7) | Inspect wide/narrow boards, empty and long columns, precise first/middle/last insertion slots, touch dragging alongside scrolling, card/detail separation, keyboard focus and error announcements. |
 
 Human try-out:
 
 1. Use a schema 8 Workspace with two existing View instances and several Actions.
 2. Select the first View; reorder a middle card and insert it into another column.
 3. Compare with CLI show, refresh and reselect after page reload.
-4. Repeat using Move..., including first/last positions and an empty target.
+4. Repeat with keyboard dragging, including first/last positions and an empty
+   target; verify touch dragging and scrolling on a narrow screen.
 5. Enter Blocked without an existing manual reason: cancel once, then submit.
 6. Reject exit with an unresolved prerequisite; resolve it through existing
    controls and retry.
@@ -303,3 +306,9 @@ completed 0022–0024, the template and current architecture/guidelines.
   entry requires a manual reason. Existing detail editing handles waiting context.
 - Preserve 0024's execute-time numeric positions instead of introducing a new
   board revision or before/after contract in the web adapter.
+
+- 2026-10-28: User simplified web movement to drag and drop only, removing the
+  separate Move form to reduce interaction and implementation complexity. Retain
+  precise on-screen insertion, keyboard/touch dragging, Escape cancellation and
+  the required Blocked-reason dialog. This removes numeric input in the browser,
+  not precise placement; execute-time concurrency semantics remain unchanged.
