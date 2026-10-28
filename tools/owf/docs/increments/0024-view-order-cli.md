@@ -334,10 +334,44 @@ generated Workspace AGENTS.md describe delivered behavior and schema 8. Existing
 user-edited guides remain preserved. The generated examples include --position
 and are exercised by the existing built-CLI guide runner.
 
-Verification evidence will be finalized after the complete `npm run verify` run.
-Focused domain/SQLite tests, the full integration suite, all 36 Cucumber scenarios,
-built CLI position journeys and the browser order/refresh journey were exercised
-during development. Final revision, totals and platform are recorded at handoff.
+Verified revision:
+[`2ffad8c9953264aafcd3aff9495aea24a643a9da`](https://github.com/tomas-machacek/open-work-format/commit/2ffad8c9953264aafcd3aff9495aea24a643a9da),
+2026-10-28. Platform: Microsoft Windows NT 10.0.26300.0 x64, Node 24.21.0,
+npm 11.4.1, Chromium through Playwright. The subsequent evidence-only documentation
+commit changes no implementation, tests or configuration.
+
+Final complete `npm run verify`: **passed, exit 0**.
+
+| Check                         | Actual result                                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------- |
+| Typecheck, ESLint, Prettier   | Passed, including tests/configuration                                                       |
+| Architecture                  | Passed: 60 modules, 196 dependencies, no violations                                         |
+| Production build              | TypeScript and Vite passed                                                                  |
+| Unit/component tests          | 181 passed in 13 files                                                                      |
+| SQLite/HTTP/other integration | 246 passed in 16 files                                                                      |
+| Cucumber                      | 36 scenarios and 204 steps passed                                                           |
+| Built CLI E2E                 | 27 passed in 3 files, including generated guide examples                                    |
+| Chromium E2E                  | 10 passed, including reorder/insertion, refresh, full page reload and independent instances |
+
+Focused checks during development covered final-index domain cases, real SQLite
+ordering/reconciliation/rollback, CLI positions and the extended passive browser
+journey. The dedicated ordering integration file passed all 14 tests. Existing
+0023 rollback snapshots now include order data. Initial checks exposed obsolete
+ascending-ID/output and placement-only affected-definition expectations; those
+were updated to the approved 0024 contract. The external-definition fixture was
+normalized to LF so its deliberate multiline edits actually execute. A corruption
+probe explicitly disables foreign keys before inserting its invalid reference.
+
+Sandboxed Vite/Playwright attempts failed with `spawn EPERM`; execution outside
+the sandbox succeeded. The first complete verify run reached CLI E2E but four
+existing process-heavy scenarios exceeded their original time limits under file
+parallelism. All 23 original CLI tests then passed independently with the same
+limits. The E2E script now runs CLI files sequentially using
+`--no-file-parallelism`; test assertions and time limits are unchanged. The entire
+verify command was rerun successfully, including the subsequent browser suite.
+This is a test scheduling adjustment, not a product behavior deviation. No check
+was disabled or skipped. Independent code review is still pending; no unresolved
+implementation finding was identified during implementation checks.
 
 Limitations follow the approved scope: older Workspaces (including schema 7)
 cannot be opened without a separately designed migration; none is provided.
