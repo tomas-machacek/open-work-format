@@ -223,7 +223,15 @@ export function createAction(
     ports.now(),
     ports.contexts.url(owner.segments),
   );
-  ports.actions.create(found.store, action);
+  ports.actions.create(found.store, action, (snapshot, after) =>
+    reconcilePlacements(
+      found.root,
+      action.id,
+      snapshot,
+      after,
+      ports.definitions,
+    ),
+  );
   return result(
     found.root,
     projectAction(action, () => undefined),

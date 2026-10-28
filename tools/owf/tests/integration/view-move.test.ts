@@ -78,7 +78,11 @@ test('same-state choices persist independently across reopened connections witho
   expect(getAction(root, action.id).result.action).toEqual(action);
   expect(rows(store, 'action_events')).toHaveLength(1);
   expect(rows(store, 'view_placements')).toHaveLength(1);
-  expect(rows(store, 'view_events').at(-1)).toMatchObject({
+  expect(
+    rows(store, 'view_events')
+      .filter((row) => row.kind === 'view.placement_changed')
+      .at(-1),
+  ).toMatchObject({
     kind: 'view.placement_changed',
     view_id: views[0]!.id,
     action_id: action.id,
@@ -88,7 +92,11 @@ test('same-state choices persist independently across reopened connections witho
   // Every application call closes and reopens SQLite; choices survive that boundary.
   move('todo', views[1]!.id);
   move('new-actions');
-  expect(rows(store, 'view_events').at(-1)).toMatchObject({
+  expect(
+    rows(store, 'view_events')
+      .filter((row) => row.kind === 'view.placement_changed')
+      .at(-1),
+  ).toMatchObject({
     old_column_id: 'todo',
     new_column_id: 'new-actions',
   });
@@ -208,15 +216,13 @@ test('titles and defaults preserve eligible identity; removed references and aff
         state: 'waiting',
         waitingFor: 'New reason',
       }),
-    ).toThrow(views[0]!.id);
+    ).toThrow(/View instance .*definition \/_views\/board\.md/u);
     expect(() => move('active')).toThrow();
     expect(semanticSnapshot(root, store)).toEqual(before);
     expect(listViews(root).result.views).toHaveLength(2);
-    // No affected placement: an unrelated Action still works despite this definition.
-    const unrelated = createAction(root, { title: 'Unrelated' }).result.action;
-    expect(
-      setAction(root, unrelated.id, { state: 'waiting' }).result.action.state,
-    ).toBe('waiting');
+    // Arrival order now requires validating all potentially affected instances.
+    expect(() => createAction(root, { title: 'Arrival' })).toThrow();
+    expect(semanticSnapshot(root, store)).toEqual(before);
   }
 });
 
@@ -370,18 +376,20 @@ test('a broken definition needed by a dependent rejects prerequisite state chang
     title: 'Prerequisite',
     state: 'completed',
   }).result.action;
+  const outside = createAction(root, { title: 'Outside', state: 'cancelled' })
+    .result.action;
   setAction(root, action.id, { addDependency: [target.id] });
   move('todo');
   writeFileSync(file, 'Broken definition');
   const before = semanticSnapshot(root, store);
   expect(() => setAction(root, target.id, { state: 'open' })).toThrow(
-    views[0]!.id,
+    [...views].sort((a, b) => a.id.localeCompare(b.id))[0]!.id,
   );
   expect(semanticSnapshot(root, store)).toEqual(before);
   expect(
-    setAction(root, target.id, { title: 'Renamed prerequisite' }).result.action
-      .state,
-  ).toBe('completed');
+    setAction(root, outside.id, { title: 'Renamed outside Action' }).result
+      .action.state,
+  ).toBe('cancelled');
 });
 
 test('inferred same-column no-op leaves even externally invalid other-instance placement untouched', () => {

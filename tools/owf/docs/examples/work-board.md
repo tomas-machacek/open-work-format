@@ -32,5 +32,8 @@ Reusable state and blocking configuration. `get view` validates configuration;
 `show view` evaluates current Actions without writing. Unplaced unblocked Open
 Actions route to New to organize. Use `owf move action ACTION_ID --view VIEW_ID
 --column todo` to organize one in Todo without changing state. Each instance keeps
-its own placement; Action state and content are shared. Members use ascending
-Action ID order; manual ordering is deferred. Refresh the browser to see CLI moves.
+its own placement and column order; Action state and content are shared. Add
+`--position 1` to insert or reorder at the first position. Omission appends on
+cross-column entry or preserves same-column order. Refresh the browser to see
+CLI ordering changes. New instances start in ascending Action ID order; later
+arrivals append and departures discard their old position.

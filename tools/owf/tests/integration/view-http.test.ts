@@ -18,7 +18,6 @@ import {
   getAction,
   setAction,
   viewPorts,
-  actionPorts,
   moveAction,
 } from '../../src/bootstrap/workspaces.js';
 import { displayView } from '../../src/application/views/index.js';
@@ -150,12 +149,12 @@ test('HTTP detail and Default state writes reconcile placements across instances
     await edit({ manualBlock: 'Access' }),
   ]) {
     expect(response.statusCode).toBe(503);
-    expect(response.body).toContain(view.id);
+    expect(response.body).toContain(listViews(root).result.views[0]!.id);
     expect(semanticSnapshot(root, store)).toEqual(broken);
   }
 });
 
-test('HTTP uses the CLI evaluator order and complete facts from one repository read; reads preserve all semantic data', async () => {
+test('HTTP uses the CLI evaluator order and complete facts; reads preserve all semantic data', async () => {
   const { root, store, view, server, read } = await setup();
   const a = createAction(root, {
     title: 'Z first',
@@ -168,12 +167,7 @@ test('HTTP uses the CLI evaluator order and complete facts from one repository r
   createAction(root, { title: 'Omitted', state: 'cancelled' });
   createView(root, { title: view.title, definition: '/_views/board.md' });
   const before = semanticSnapshot(root, store);
-  const list = vi.fn(actionPorts.actions.list.bind(actionPorts.actions));
-  const projection = displayView(root, view.id, {
-    ...viewPorts,
-    actions: { ...actionPorts.actions, list },
-  });
-  expect(list).toHaveBeenCalledTimes(1);
+  const projection = displayView(root, view.id, viewPorts);
   const response = await read();
   expect(response.statusCode).toBe(200);
   expect(response.headers['cache-control']).toBe('no-store');
@@ -183,7 +177,8 @@ test('HTTP uses the CLI evaluator order and complete facts from one repository r
   expect(
     web.columns.map((column) => ({
       ...column,
-      members: column.members.map((member) => ({
+      members: column.members.map((member, index) => ({
+        position: index + 1,
         id: member.id,
         title: member.title,
         state: member.state,
@@ -200,6 +195,58 @@ test('HTTP uses the CLI evaluator order and complete facts from one repository r
     viewsResponse.parse((await server.inject('/api/views')).json()).views,
   ).toEqual(listViews(root).result.views);
   expect(semanticSnapshot(root, store)).toEqual(before);
+});
+
+test('View evaluation keeps one SQLite snapshot across concurrent committed arrivals and placement changes', async () => {
+  const { root, store, view } = await setup();
+  createAction(root, { title: 'First' });
+  const second = createAction(root, { title: 'Second' }).result.action;
+  const before = showView(root, view.id);
+  // WAL allows a writer to commit while the reader retains its earlier snapshot.
+  const db = new DatabaseSync(store);
+  try {
+    db.exec('PRAGMA journal_mode = WAL');
+  } finally {
+    db.close();
+  }
+  let committed = false;
+  let afterWrite: ReturnType<typeof semanticSnapshot> | undefined;
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- The spy calls it with the intercepted SQLite connection via .call().
+  const prepare = DatabaseSync.prototype.prepare;
+  const intercept = vi
+    .spyOn(DatabaseSync.prototype, 'prepare')
+    .mockImplementation(function (this: DatabaseSync, sql) {
+      const statement = prepare.call(this, sql);
+      if (!committed && sql.includes('FROM actions ORDER BY')) {
+        const all = statement.all.bind(statement);
+        vi.spyOn(statement, 'all').mockImplementation((...parameters) => {
+          const rows = all(...parameters);
+          committed = true;
+          createAction(root, { title: 'Concurrent arrival' });
+          moveAction(root, second.id, { view: view.id, column: 'todo' });
+          afterWrite = semanticSnapshot(root, store);
+          return rows;
+        });
+      }
+      return statement;
+    });
+  try {
+    expect(showView(root, view.id)).toEqual(before);
+    expect(committed).toBe(true);
+  } finally {
+    intercept.mockRestore();
+  }
+  expect(semanticSnapshot(root, store)).toEqual(afterWrite);
+  const current = showView(root, view.id).result.columns;
+  expect(current[0]!.members.map((member) => member.title)).toEqual([
+    'First',
+    'Concurrent arrival',
+  ]);
+  expect(
+    current
+      .find((column) => column.id === 'todo')!
+      .members.map((member) => member.title),
+  ).toEqual(['Second']);
 });
 
 test('HTTP distinguishes broken/missing definitions, unknown instances and malformed omitted Actions from empty success without writes', async () => {
@@ -272,11 +319,11 @@ test('existing HTTP edits reroute blocks, can exclude an Action and never apply 
   ).toBe('waiting');
   writeFileSync(
     file,
-    '---\ntype: OWF View Definition\ntitle: Only blocked\nowf:\n  renderer: kanban\n  columns:\n    - id: blocked\n      title: Blocked\n      type: blocked\n---\n# Only blocked\n',
+    '---\ntype: OWF View Definition\ntitle: Only blocked\nowf:\n  renderer: kanban\n  columns:\n    - id: active\n      title: Active\n      status: in_progress\n    - id: new-actions\n      title: New\n      status: open\n    - id: todo\n      title: Todo\n      status: open\n    - id: done\n      title: Done\n      status: completed\n    - id: blocked\n      title: Blocked\n      type: blocked\n---\n# Only blocked\n',
   );
   await edit({ manualBlock: 'Again' });
   web = await edit({ clearManualBlock: true });
-  expect(web.columns[0]?.members).toEqual([]);
+  expect(web.columns.flatMap((column) => column.members)).toEqual([]);
   expect(getAction(root, action.id).result.action.state).toBe('waiting');
   writeFileSync(
     file,

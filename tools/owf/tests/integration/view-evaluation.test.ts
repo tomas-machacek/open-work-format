@@ -82,7 +82,13 @@ test('live Workspace membership and prerequisite facts ignore current context an
       .members.map((member) => member.id),
   ).toEqual([unblocked.id]);
   expect(columns.find((column) => column.id === 'blocked')!.members).toEqual([
-    { id: dependent.id, title: 'Dependent', state: 'open', blocked: true },
+    {
+      id: dependent.id,
+      title: 'Dependent',
+      state: 'open',
+      blocked: true,
+      position: 1,
+    },
   ]);
   expect(
     columns
@@ -98,7 +104,7 @@ test('live Workspace membership and prerequisite facts ignore current context an
     columns
       .find((column) => column.id === 'new-actions')!
       .members.map((member) => member.id),
-  ).toEqual([unblocked.id, dependent.id].sort());
+  ).toEqual([unblocked.id, dependent.id]);
   setAction(root, dependent.id, {
     state: 'waiting',
     manualBlock: 'External reason',

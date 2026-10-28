@@ -127,7 +127,7 @@ export async function runCli(
     .description('Evaluate current Workspace content')
     .command('view')
     .description(
-      'Show current Actions in View columns; get view returns configuration only. Eligible stored placements are retained, then blocking/default routing applies. Members use ascending Action ID order. Reads save no changes.',
+      'Show current Actions in persistent View order with one-based positions per column; get view returns configuration only. Reads save no changes.',
     )
     .argument('<view-id>', 'Stored instance UUID')
     .option(
@@ -148,7 +148,7 @@ export async function runCli(
     .description('Move operational objects')
     .command('action')
     .description(
-      'Move an existing Action into a View column atomically; same-column requests are write-free no-ops; no manual ordering',
+      'Move or reorder an Action in a View column atomically; omitted position preserves same-column order or appends on entry',
     )
     .argument('<action-id>', 'Action UUID or owf:action:UUID')
     .requiredOption(
@@ -162,6 +162,11 @@ export async function runCli(
       once('--column'),
     )
     .option(
+      '--position <n>',
+      'Final one-based destination position; positive safe decimal integer within the complete column list',
+      once('--position'),
+    )
+    .option(
       '--reason <text>',
       'Nonblank manual-block reason only when entering Blocked; otherwise reuse an existing reason',
       once('--reason'),
@@ -173,7 +178,7 @@ export async function runCli(
     )
     .option(
       '--json',
-      'Emit evaluated source (nullable), destination, changed and resulting Action including blocking and waiting reason',
+      'Emit evaluated source/position (nullable), destination/position, changed and resulting Action including blocking and waiting reason',
     )
     .addHelpText(
       'after',
@@ -183,9 +188,14 @@ reasons are shared across all Views. Ordinary destinations set their default sta
 Blocked preserves state and requires a manual reason; leaving requires all
 prerequisites resolved and clears manual blocking. Leaving Waiting clears its reason.
 Same-column requests preserve actual state and reject either reason option.
+Position N is the final index after removing the moved card: 1..K in the same
+column, 1..K+1 on entry to K cards. Omission is a same-column no-op or appends
+on entry. Other instances keep independent order. Reads never write arrival history.
+Membership-changing writes validate potentially affected instance definitions;
+a required broken definition rejects the whole write, including Action creation.
 
 Examples (replace IDs with real UUIDs; columns must exist in your definition):
-  owf move action ACTION_ID --view VIEW_ID --column todo
+  owf move action ACTION_ID --view VIEW_ID --column todo --position 1
   owf move action ACTION_ID --view VIEW_ID --column blocked --reason "Missing access"
   owf move action ACTION_ID --view VIEW_ID --column waiting-for --waiting-for "Odpoveď dodávateľa"
 `,
@@ -198,7 +208,7 @@ Examples (replace IDs with real UUIDs; columns must exist in your definition):
       console.log(
         json
           ? JSON.stringify({ ok: true, ...result })
-          : `${moved.status} action\nID: ${moved.action.id}\nView: ${moved.view.id}\nSource: ${moved.source ?? '(outside View)'}\nDestination: ${moved.destination}\nChanged: ${String(moved.changed)}\nState: ${moved.action.state}\n${renderBlocking(moved.action)}${moved.action.waiting_for === undefined ? '' : `\nWaiting for: ${moved.action.waiting_for}`}`,
+          : `${moved.status} action\nID: ${moved.action.id}\nView: ${moved.view.id}\nSource: ${moved.source ?? '(outside View)'}\nSource position: ${moved.source_position ?? '(outside View)'}\nDestination: ${moved.destination}\nDestination position: ${moved.destination_position}\nChanged: ${String(moved.changed)}\nState: ${moved.action.state}\n${renderBlocking(moved.action)}${moved.action.waiting_for === undefined ? '' : `\nWaiting for: ${moved.action.waiting_for}`}`,
       );
     });
   const creation = program
@@ -207,7 +217,7 @@ Examples (replace IDs with real UUIDs; columns must exist in your definition):
   creation
     .command('view')
     .description(
-      'Create an independent View instance from a current Markdown definition; does not evaluate Actions',
+      'Create an independent View instance and record initial ascending Action ID order from its current definition',
     )
     .requiredOption(
       '--title <title>',
@@ -587,7 +597,7 @@ function renderShownView({ result }: ShowViewResult): string {
                   : column.members
                       .map(
                         (member) =>
-                          `    ${member.id} | ${member.title} | ${member.state} | blocked: ${String(member.blocked)}`,
+                          `    ${member.position}. ${member.id} | ${member.title} | ${member.state} | blocked: ${String(member.blocked)}`,
                       )
                       .join('\n')
               }`,

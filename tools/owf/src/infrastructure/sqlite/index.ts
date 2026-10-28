@@ -12,7 +12,7 @@ const eventTableSchema = `CREATE TABLE action_events (
         )`;
 
 const viewEventTableSchema = `CREATE TABLE view_events (
-          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('view.created','view.placement_changed')),
+          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('view.created','view.placement_changed','view.order_changed')),
           view_id TEXT NOT NULL REFERENCES views(id), created_at TEXT NOT NULL,
           action_id TEXT REFERENCES actions(id), old_column_id TEXT, new_column_id TEXT
         )`;
@@ -26,6 +26,13 @@ const placementTableSchema = `CREATE TABLE view_placements (
           view_id TEXT NOT NULL REFERENCES views(id), action_id TEXT NOT NULL REFERENCES actions(id),
           column_id TEXT NOT NULL CHECK(length(trim(column_id)) > 0),
           PRIMARY KEY (view_id, action_id)
+        )`;
+
+const orderTableSchema = `CREATE TABLE view_order (
+          view_id TEXT NOT NULL REFERENCES views(id), action_id TEXT NOT NULL REFERENCES actions(id),
+          column_id TEXT NOT NULL CHECK(length(trim(column_id)) > 0),
+          rank INTEGER NOT NULL CHECK(rank > 0 AND rank <= 9007199254740991),
+          PRIMARY KEY (view_id, action_id), UNIQUE (view_id, column_id, rank)
         )`;
 
 export const workspaceStore: WorkspaceStore = {
@@ -42,7 +49,7 @@ export const workspaceStore: WorkspaceStore = {
         'INSERT INTO owf_metadata (key, value) VALUES (?, ?)',
       );
       insert.run('format', 'owf-tool-operational');
-      insert.run('schema_version', '7');
+      insert.run('schema_version', '8');
       db.exec(`
         CREATE TABLE actions (
           id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
@@ -56,6 +63,7 @@ export const workspaceStore: WorkspaceStore = {
         ${viewTableSchema} STRICT;
         ${viewEventTableSchema} STRICT;
         ${placementTableSchema} STRICT;
+        ${orderTableSchema} STRICT;
       `);
       db.exec('COMMIT');
     } finally {
@@ -91,7 +99,7 @@ export const workspaceStore: WorkspaceStore = {
           'INVALID_STORE',
           `Unrecognized store: ${path}`,
         );
-      if (version !== '7')
+      if (version !== '8')
         throw new WorkspaceError(
           'UNSUPPORTED_STORE_VERSION',
           `Unsupported store schema ${version}: ${path}`,
@@ -147,6 +155,17 @@ export const workspaceStore: WorkspaceStore = {
           `${placementTableSchema} STRICT`.replace(/\s+/gu, ' ').trim()
       )
         throw new Error('Invalid View placement table');
+      const orderTable = db
+        .prepare(
+          "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'view_order'",
+        )
+        .get()?.sql;
+      if (
+        typeof orderTable !== 'string' ||
+        orderTable.replace(/\s+/gu, ' ').trim() !==
+          `${orderTableSchema} STRICT`.replace(/\s+/gu, ' ').trim()
+      )
+        throw new Error('Invalid View order table');
       if (integrity?.quick_check !== 'ok') throw new Error('Corrupt store');
     } catch (error) {
       if (error instanceof WorkspaceError) throw error;

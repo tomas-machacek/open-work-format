@@ -29,6 +29,7 @@ export function semanticSnapshot(root: string, store: string) {
           'views',
           'view_events',
           'view_placements',
+          'view_order',
         ].map((table) => ({
           table,
           rows: db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),

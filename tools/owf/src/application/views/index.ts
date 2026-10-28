@@ -4,17 +4,14 @@ import {
 } from '../../domain/workspaces/index.js';
 import {
   evaluateView,
+  recordViewOrder,
   moveViewAction,
   type MoveActionInput,
   type EvaluatedViewColumn,
   type ViewDefinition,
   type ViewInstance,
 } from '../../domain/views/index.js';
-import type {
-  ViewPorts,
-  ViewEvaluationPorts,
-  ViewMovePorts,
-} from '../ports/index.js';
+import type { ViewPorts, ViewMovePorts } from '../ports/index.js';
 import { actionId, type ActionProjection } from '../../domain/actions/index.js';
 import { reconcilePlacements } from './reconciliation.js';
 export { reconcilePlacements } from './reconciliation.js';
@@ -59,7 +56,7 @@ export interface ShowViewResult {
 export function showView(
   start: string,
   id: string,
-  ports: ViewEvaluationPorts,
+  ports: ViewPorts,
 ): ShowViewResult {
   const { root, view, columns } = readEvaluation(start, id, ports);
   return {
@@ -77,7 +74,7 @@ export interface DisplayViewResult {
 export function displayView(
   start: string,
   id: string,
-  ports: ViewEvaluationPorts,
+  ports: ViewPorts,
 ): DisplayViewResult {
   const { root, view, columns, actions } = readEvaluation(start, id, ports);
   const byId = new Map(actions.map((action) => [action.id, action]));
@@ -91,7 +88,7 @@ export function displayView(
   };
 }
 
-function readEvaluation(start: string, id: string, ports: ViewEvaluationPorts) {
+function readEvaluation(start: string, id: string, ports: ViewPorts) {
   let reference: string | undefined;
   try {
     const found = workspace(start, ports);
@@ -103,18 +100,16 @@ function readEvaluation(start: string, id: string, ports: ViewEvaluationPorts) {
       );
     reference = view.definition.url;
     const definition = ports.definitions.load(found.root, view.definition);
-    // The repository reads candidates and prerequisite facts in one SQLite statement.
-    const actions = ports.actions.list(found.store);
+    const { actions, placements, order } = ports.views.evaluation(
+      found.store,
+      id,
+    );
     return {
       status: 'evaluated' as const,
       type: 'view' as const,
       root: found.root,
       view,
-      columns: evaluateView(
-        definition,
-        actions,
-        ports.views.placements(found.store, id),
-      ),
+      columns: evaluateView(definition, actions, placements, order),
       actions,
     };
   } catch (error) {
@@ -132,6 +127,8 @@ export interface MoveActionResult {
     root: string;
     view: ViewInstance;
     source: string | null;
+    source_position: number | null;
+    destination_position: number;
     destination: string;
     changed: boolean;
     action: ActionProjection;
@@ -149,6 +146,7 @@ export function moveAction(
   const found = workspace(start, ports);
   let moved: ReturnType<typeof moveViewAction> | undefined;
   let view: ViewInstance | undefined;
+  let destinationPosition: number | undefined;
   const time = ports.now();
   const saved = ports.actions.update(
     found.store,
@@ -171,6 +169,7 @@ export function moveAction(
           snapshot.actions.find((action) => action.id === current.id)!,
           input,
           time,
+          snapshot.order.filter((row) => row.view_id === view!.id),
         );
         return moved.action;
       } catch (error) {
@@ -181,24 +180,24 @@ export function moveAction(
       }
     },
     (snapshot, after) => {
-      // A same-column request must be entirely write-free, including reconciliation.
-      if (!moved!.changed) return snapshot.placements;
-      return reconcilePlacements(
+      // No-op bypasses reconciliation, normalization and events completely.
+      if (!moved!.changed) {
+        destinationPosition = moved!.sourcePosition!;
+        return snapshot;
+      }
+      const organization = reconcilePlacements(
         found.root,
         id,
         snapshot,
         after,
         ports.definitions,
-      )
-        .filter(
-          (placement) =>
-            placement.view_id !== input.view || placement.action_id !== id,
-        )
-        .concat({
-          view_id: input.view,
-          action_id: id,
-          column_id: input.column,
-        });
+        input,
+        moved!.source === input.column,
+      );
+      destinationPosition = organization.order.find(
+        (row) => row.view_id === input.view && row.action_id === id,
+      )!.rank;
+      return organization;
     },
     time,
   );
@@ -209,6 +208,8 @@ export function moveAction(
       root: found.root,
       view: view!,
       source: moved!.source,
+      source_position: moved!.sourcePosition,
+      destination_position: destinationPosition!,
       destination: input.column,
       changed: moved!.changed,
       action: saved.action,
@@ -244,7 +245,9 @@ export function createView(
     },
     created_at: ports.now(),
   };
-  ports.views.create(found.store, view);
+  ports.views.create(found.store, view, (actions) =>
+    recordViewOrder(view.id, evaluateView(definition, actions)),
+  );
   return {
     result: { status: 'created', type: 'view', root: found.root, view },
     warnings: [],

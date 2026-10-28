@@ -44,6 +44,7 @@ export interface ViewMember {
   title: string;
   state: ActionState;
   blocked: boolean;
+  position: number;
 }
 export interface EvaluatedViewColumn {
   id: string;
@@ -55,6 +56,55 @@ export interface ViewPlacement {
   view_id: string;
   action_id: string;
   column_id: string;
+}
+
+export interface ViewOrder extends ViewPlacement {
+  rank: number;
+}
+
+export function validatePosition(position: number, maximum: number): number {
+  if (!Number.isSafeInteger(position) || position < 1 || position > maximum)
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      `Position must be an integer from 1 through ${maximum}.`,
+    );
+  return position;
+}
+
+// Dense ranks are internal current order, never historical placement or Action data.
+export function recordViewOrder(
+  viewId: string,
+  columns: readonly EvaluatedViewColumn[],
+): ViewOrder[] {
+  return columns.flatMap((column) =>
+    column.members.map((member, index) => ({
+      view_id: viewId,
+      column_id: column.id,
+      action_id: member.id,
+      rank: index + 1,
+    })),
+  );
+}
+
+export function insertViewMember(
+  columns: EvaluatedViewColumn[],
+  actionId: string,
+  columnId: string,
+  position?: number,
+): number {
+  const target = columns.find((column) => column.id === columnId)!;
+  const member = target.members.find((member) => member.id === actionId)!;
+  const remaining = target.members.filter((member) => member.id !== actionId);
+  const resolved = validatePosition(
+    position ?? remaining.length + 1,
+    remaining.length + 1,
+  );
+  remaining.splice(resolved - 1, 0, member);
+  target.members = remaining.map((member, index) => ({
+    ...member,
+    position: index + 1,
+  }));
+  return resolved;
 }
 
 export function acceptsAction(
@@ -88,6 +138,7 @@ export function evaluateView(
   definition: ViewDefinition,
   actions: readonly ActionProjection[],
   placements: readonly ViewPlacement[] = [],
+  order: readonly ViewOrder[] = [],
 ): EvaluatedViewColumn[] {
   const byId = new Map(actions.map((action) => [action.id, action]));
   const retained = new Map<string, ViewColumn>();
@@ -101,6 +152,25 @@ export function evaluateView(
       );
     // Remember ineligible placements too, so duplicates cannot escape validation.
     retained.set(placement.action_id, column);
+  }
+  const ordered = new Map<string, ViewOrder>();
+  const ranks = new Set<string>();
+  for (const entry of order) {
+    placementColumn(definition, entry);
+    const key = JSON.stringify([entry.column_id, entry.rank]);
+    if (
+      !byId.has(entry.action_id) ||
+      ordered.has(entry.action_id) ||
+      ranks.has(key) ||
+      !Number.isSafeInteger(entry.rank) ||
+      entry.rank < 1
+    )
+      throw new WorkspaceError(
+        'INVALID_VIEW_ORDER',
+        `Invalid or contradictory order for Action ${entry.action_id}.`,
+      );
+    ordered.set(entry.action_id, entry);
+    ranks.add(key);
   }
   const columns = definition.columns.map(({ id, title }) => ({
     id,
@@ -134,16 +204,29 @@ export function evaluateView(
           title: action.title,
           state: action.state,
           blocked,
+          position: 0,
         });
   }
-  for (const column of columns)
-    column.members.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const column of columns) {
+    const rank = (id: string) => {
+      const entry = ordered.get(id);
+      return entry?.column_id === column.id ? entry.rank : Infinity;
+    };
+    column.members.sort(
+      (a, b) =>
+        rank(a.id) - rank(b.id) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+    );
+    column.members.forEach((member, index) => {
+      member.position = index + 1;
+    });
+  }
   return columns;
 }
 
 export interface MoveActionInput {
   view: string;
   column: string;
+  position?: number | undefined;
   reason?: string | undefined;
   waitingFor?: string | undefined;
 }
@@ -155,7 +238,13 @@ export function moveViewAction(
   current: ActionProjection,
   input: MoveActionInput,
   time: string,
-): { action: Action; source: string | null; changed: boolean } {
+  order: readonly ViewOrder[] = [],
+): {
+  action: Action;
+  source: string | null;
+  sourcePosition: number | null;
+  changed: boolean;
+} {
   const destination = definition.columns.find(
     (column) => column.id === input.column,
   );
@@ -164,8 +253,13 @@ export function moveViewAction(
       'INVALID_ARGUMENT',
       `Unknown destination column: ${input.column}.`,
     );
+  const evaluated = evaluateView(definition, actions, placements, order);
+  const sourcePosition =
+    evaluated
+      .flatMap((column) => column.members)
+      .find((member) => member.id === current.id)?.position ?? null;
   const source =
-    evaluateView(definition, actions, placements).find((column) =>
+    evaluated.find((column) =>
       column.members.some((member) => member.id === current.id),
     )?.id ?? null;
   if (
@@ -194,7 +288,19 @@ export function moveViewAction(
         'INVALID_ARGUMENT',
         'Same-column moves cannot edit reasons. Use set action.',
       );
-    return { action: current, source, changed: false };
+    const position =
+      input.position === undefined
+        ? sourcePosition!
+        : validatePosition(
+            input.position,
+            evaluated.find((column) => column.id === source)!.members.length,
+          );
+    return {
+      action: current,
+      source,
+      sourcePosition,
+      changed: position !== sourcePosition,
+    };
   }
   const sourceColumn = definition.columns.find(
     (column) => column.id === source,
@@ -264,7 +370,11 @@ export function moveViewAction(
       'INVALID_ARGUMENT',
       'The resulting Action is not eligible for the destination column.',
     );
-  return { action, source, changed: true };
+  // Dependent membership may also change. Resolve the final upper bound during
+  // reconciliation, after every Action has its resulting blocking projection.
+  if (input.position !== undefined)
+    validatePosition(input.position, Number.MAX_SAFE_INTEGER);
+  return { action, source, sourcePosition, changed: true };
 }
 
 function invalid(field: string): never {

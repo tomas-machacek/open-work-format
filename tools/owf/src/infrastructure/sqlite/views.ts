@@ -5,7 +5,10 @@ import {
   validateViewInstance,
   type ViewInstance,
   type ViewPlacement,
+  type ViewOrder,
 } from '../../domain/views/index.js';
+import { readActions } from './actions-read.js';
+import { projectAction } from '../../domain/actions/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
 
 const columns = 'id, title, definition_url, definition_id, created_at';
@@ -132,11 +135,99 @@ export function writePlacements(
   return changed;
 }
 
+export function readOrder(db: DatabaseSync, viewId?: string): ViewOrder[] {
+  return db
+    .prepare(
+      `SELECT view_id, action_id, column_id, rank,
+        EXISTS(SELECT 1 FROM views WHERE id = view_id) AS known_view,
+        EXISTS(SELECT 1 FROM actions WHERE id = action_id) AS known_action
+        FROM view_order${viewId === undefined ? '' : ' WHERE view_id = ?'} ORDER BY view_id, column_id, rank`,
+    )
+    .all(...(viewId === undefined ? [] : [viewId]))
+    .map((row) => {
+      if (
+        typeof row.view_id !== 'string' ||
+        typeof row.action_id !== 'string' ||
+        typeof row.column_id !== 'string' ||
+        !row.column_id.trim() ||
+        typeof row.rank !== 'number' ||
+        !Number.isSafeInteger(row.rank) ||
+        row.rank < 1 ||
+        row.known_view !== 1 ||
+        row.known_action !== 1
+      )
+        throw new WorkspaceError(
+          'INVALID_VIEW_ORDER',
+          `Invalid stored View order for instance ${String(row.view_id)}, Action ${String(row.action_id)}.`,
+        );
+      return {
+        view_id: row.view_id,
+        action_id: row.action_id,
+        column_id: row.column_id,
+        rank: row.rank,
+      };
+    });
+}
+
+export function writeOrder(
+  db: DatabaseSync,
+  before: ViewOrder[],
+  after: ViewOrder[],
+  time: string,
+  emit = true,
+): boolean {
+  let changed = false;
+  for (const viewId of new Set(
+    [...before, ...after].map((row) => row.view_id),
+  )) {
+    const old = before.filter((row) => row.view_id === viewId);
+    const next = after.filter((row) => row.view_id === viewId);
+    if (
+      old.length === next.length &&
+      old.every((row) =>
+        next.some(
+          (other) =>
+            other.action_id === row.action_id &&
+            other.column_id === row.column_id &&
+            other.rank === row.rank,
+        ),
+      )
+    )
+      continue;
+    changed = true;
+    db.prepare('DELETE FROM view_order WHERE view_id = ?').run(viewId);
+    for (const row of next)
+      db.prepare(
+        'INSERT INTO view_order (view_id, action_id, column_id, rank) VALUES (?, ?, ?, ?)',
+      ).run(row.view_id, row.action_id, row.column_id, row.rank);
+    // Rank normalization is one organization change, never a series of card moves.
+    if (emit)
+      db.prepare(
+        'INSERT INTO view_events (kind, view_id, created_at) VALUES (?, ?, ?)',
+      ).run('view.order_changed', viewId, time);
+  }
+  return changed;
+}
+
 export const viewRepository: ViewRepository = {
-  placements(path, viewId) {
-    return read(path, (db) => readPlacements(db, viewId));
+  evaluation(path, viewId) {
+    return read(path, (db) => {
+      // Keep all mutable evaluation facts coherent across concurrent writer commits.
+      // The connection is read-only; closing also ends the transaction on failure.
+      db.exec('BEGIN');
+      const byId = readActions(db);
+      const snapshot = {
+        actions: [...byId.values()].map((action) =>
+          projectAction(action, (id) => byId.get(id)),
+        ),
+        placements: readPlacements(db, viewId),
+        order: readOrder(db, viewId),
+      };
+      db.exec('COMMIT');
+      return snapshot;
+    });
   },
-  create(path, view) {
+  create(path, view, initialOrder) {
     let db: DatabaseSync | undefined;
     try {
       validateViewInstance(view);
@@ -153,6 +244,20 @@ export const viewRepository: ViewRepository = {
         view.definition.id ?? null,
         view.created_at,
       );
+      if (initialOrder) {
+        const actions = readActions(db);
+        writeOrder(
+          db,
+          [],
+          initialOrder(
+            [...actions.values()].map((action) =>
+              projectAction(action, (id) => actions.get(id)),
+            ),
+          ),
+          view.created_at,
+          false,
+        );
+      }
       db.prepare(
         'INSERT INTO view_events (kind, view_id, created_at) VALUES (?, ?, ?)',
       ).run('view.created', view.id, view.created_at);
