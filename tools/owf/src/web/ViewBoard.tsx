@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type {
   BoardAction,
   StoredView,
@@ -25,6 +25,7 @@ export function ViewBoard({
   const alive = useRef(true);
   const submitting = useRef(false);
   const [creating, setCreating] = useState<string>();
+  const creationFocus = useRef<string | undefined>(undefined);
   const addButtons = useRef(new Map<string, HTMLButtonElement>());
   const [pendingMove, setPendingMove] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -117,6 +118,15 @@ export function ViewBoard({
   const board = useRef<HTMLDivElement>(null);
   const focused = useRef<string | undefined>(undefined);
   const members = data?.columns.flatMap((column) => column.members) ?? [];
+  useLayoutEffect(() => {
+    if (creating || !creationFocus.current) return;
+    const add = addButtons.current.get(creationFocus.current);
+    const target = add && !add.disabled ? add : refreshButton.current;
+    if (target && !target.disabled) {
+      creationFocus.current = undefined;
+      target.focus();
+    }
+  }, [creating]);
   useEffect(() => {
     if (pendingMove) reasonDialog.current?.focus();
   }, [pendingMove]);
@@ -275,14 +285,8 @@ export function ViewBoard({
                       }}
                       onClose={() => {
                         frozen.current = false;
+                        creationFocus.current = column.id;
                         setCreating(undefined);
-                        requestAnimationFrame(() => {
-                          const add = addButtons.current.get(column.id);
-                          (add?.disabled
-                            ? refreshButton.current
-                            : add
-                          )?.focus();
-                        });
                       }}
                     />
                   )}

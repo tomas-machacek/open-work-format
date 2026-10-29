@@ -9,13 +9,25 @@ import {
   waitFor,
 } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
+import type { ReactNode } from 'react';
 import { ViewBoard } from './ViewBoard.js';
 import { useView } from './useView.js';
-import { fetchView, moveViewAction } from './client.js';
-import type { ViewResponse, ViewMoveRequest } from '../contracts/index.js';
+import {
+  createViewAction,
+  fetchOwners,
+  fetchView,
+  moveViewAction,
+} from './client.js';
+import type {
+  BoardAction,
+  ViewResponse,
+  ViewMoveRequest,
+} from '../contracts/index.js';
 vi.mock('./client.js', async (original) => ({
   ...(await original<typeof import('./client.js')>()),
   fetchView: vi.fn(),
+  createViewAction: vi.fn(),
+  fetchOwners: vi.fn(),
   moveViewAction: vi.fn(),
 }));
 vi.mock('./ViewDragBoard.js', () => ({
@@ -24,13 +36,20 @@ vi.mock('./ViewDragBoard.js', () => ({
     onCancel,
     onDrop,
     disabled,
+    data,
+    creation,
   }: {
+    data: ViewResponse;
+    creation?: (column: ViewResponse['columns'][number]) => ReactNode;
     onStart: (id: string) => void;
     onCancel: () => void;
     onDrop: (input: ViewMoveRequest) => void;
     disabled: boolean;
   }) => (
     <div>
+      {data.columns.map((column) => (
+        <section key={column.id}>{creation?.(column)}</section>
+      ))}
       <button disabled={disabled} onClick={() => onStart('a')}>
         Pick up
       </button>
@@ -102,6 +121,7 @@ const inNext: ViewResponse = {
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  vi.unstubAllGlobals();
 });
 async function setup() {
   vi.mocked(fetchView).mockResolvedValue(data);
@@ -116,6 +136,73 @@ async function setup() {
   );
   await screen.findByText('1 Actions · up to date');
 }
+
+test('creation closes onto an enabled focus target even when a frame runs before React commits', async () => {
+  // A frame can run before the state update enables the controls. Do not let
+  // jsdom's scheduling accidentally guarantee that React always commits first.
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    callback(0);
+    return 0;
+  });
+  const initial: ViewResponse = {
+    ...data,
+    creation_definition: 'definition',
+    columns: [{ ...data.columns[0]!, default_status: 'open' }],
+  };
+  let rejectRead!: (error: Error) => void;
+  vi.mocked(fetchView)
+    .mockResolvedValueOnce(initial)
+    .mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectRead = reject;
+      }),
+    );
+  vi.mocked(fetchOwners).mockResolvedValue([]);
+  let finish!: (action: BoardAction) => void;
+  vi.mocked(createViewAction).mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  render(
+    <ViewBoard
+      selected={data.view}
+      navigation={() => null}
+      onRefresh={() => {}}
+    />,
+  );
+  const add = await screen.findByRole<HTMLButtonElement>('button', {
+    name: '+ Add Action',
+  });
+  await waitFor(() => expect(add.disabled).toBe(false));
+  fireEvent.click(add);
+  fireEvent.change(screen.getByLabelText('Title'), {
+    target: { value: 'Created' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+  await act(async () => {
+    finish({
+      ...data.columns[0]!.members[0]!,
+      id: 'created',
+      title: 'Created',
+    });
+    await Promise.resolve();
+  });
+  expect(
+    screen.queryByRole('form', { name: 'Add Action to Source' }),
+  ).toBeNull();
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: /Refresh/ }),
+  );
+  await act(async () => {
+    rejectRead(new Error('Read unavailable'));
+    await Promise.resolve();
+  });
+  expect(screen.getByRole('alert').textContent).toContain('Read unavailable');
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: /Retry/ }),
+  );
+});
 test('drag freezes tab refresh and navigation; reason cancellation never writes', async () => {
   await setup();
   fireEvent.click(screen.getByText('Pick up'));

@@ -10,6 +10,51 @@ import {
 } from './client.js';
 import { boardAction } from '../contracts/index.js';
 afterEach(() => vi.unstubAllGlobals());
+test.each(['confirmed', 'rejected', 'malformed'])(
+  'deletion notifies retained boards only after a confirmed response: %s',
+  async (outcome) => {
+    const events = new EventTarget();
+    const deleted = vi.fn();
+    events.addEventListener('owf-action-deleted', deleted);
+    vi.stubGlobal('window', events);
+    let finish!: (response: Response) => void;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            finish = resolve;
+          }),
+      ),
+    );
+    const deleting = deleteBoardAction('action');
+    expect(deleted).not.toHaveBeenCalled();
+    finish(
+      new Response(
+        JSON.stringify(
+          outcome === 'confirmed'
+            ? { id: 'action', status: 'deleted' }
+            : outcome === 'rejected'
+              ? {
+                  error: { code: 'ACTION_IN_USE', message: 'Still referenced' },
+                }
+              : {},
+        ),
+        { status: outcome === 'rejected' ? 409 : 200 },
+      ),
+    );
+    if (outcome === 'confirmed') {
+      await deleting;
+      expect(deleted).toHaveBeenCalledOnce();
+      expect(deleted.mock.calls[0]![0]).toMatchObject({ detail: 'action' });
+    } else {
+      await expect(deleting).rejects.toMatchObject({
+        code: outcome === 'rejected' ? 'ACTION_IN_USE' : 'UNCERTAIN',
+      });
+      expect(deleted).not.toHaveBeenCalled();
+    }
+  },
+);
 test.each(['rejection', 'network', 'body', 'contract'])(
   'View move classifies %s without retrying the mutation',
   async (failure) => {

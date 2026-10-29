@@ -134,6 +134,9 @@ verify that the selected insertion target is visible as well as correctly saved.
 When a gesture opens a modal, verify focus after the drag library's cleanup and
 before clicking or filling any modal control. Restore focus within the active
 surface, including when hidden boards retain duplicate objects or refresh fails.
+Restore focus after the render that enables its target, rather than assuming an
+animation frame runs after React commits. Test retained boards across mode switches
+with the next read failing, so a successful refresh cannot hide missed write notifications.
 Deferred interaction callbacks must yield to newer gestures on other objects;
 test native selection across objects as well as isolated clicks and selections.
 

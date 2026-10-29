@@ -245,4 +245,5 @@ export async function deleteBoardAction(id: string): Promise<void> {
     {},
     true,
   );
+  window.dispatchEvent(new CustomEvent('owf-action-deleted', { detail: id }));
 }
