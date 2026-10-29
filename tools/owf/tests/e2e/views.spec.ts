@@ -108,14 +108,17 @@ for (const width of [1440, 390]) {
       );
       await expect(page.getByText('View', { exact: true })).toBeVisible();
       await expect(page.getByRole('article')).toHaveCount(9);
-      await expect(
-        page.getByRole('button', { name: 'Add Action' }),
-      ).toHaveCount(0);
       const board = page.locator('[aria-label="View board"]');
       const read = viewResponse.parse(
         await (
           await page.request.get(`http://127.0.0.1:14324/api/views/${first.id}`)
         ).json(),
+      );
+      await expect(
+        page.getByRole('button', { name: '+ Add Action', exact: true }),
+      ).toHaveCount(
+        read.columns.filter((column) => column.default_status !== undefined)
+          .length,
       );
       const displayed: (string | null)[][] = [];
       for (const column of await board.locator('section').all()) {

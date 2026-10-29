@@ -142,6 +142,9 @@ for (const viewport of [
         const controlsVisible = async () => {
           await expect(save).toBeInViewport({ ratio: 1 });
           await expect(cancel).toBeInViewport({ ratio: 1 });
+          await expect(
+            detail.getByRole('button', { name: 'Delete action', exact: true }),
+          ).toBeInViewport({ ratio: 1 });
           const content = await box(scroll);
           expect(content.y + content.height).toBeLessThanOrEqual(
             (await box(save)).y,

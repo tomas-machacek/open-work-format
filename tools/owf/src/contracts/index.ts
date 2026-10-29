@@ -163,11 +163,13 @@ export type StoredView = z.infer<typeof viewInstance>;
 export const viewResponse = z.object({
   workspace: z.object({ root: z.string() }),
   view: viewInstance,
+  creation_definition: z.string().optional(),
   blocked_column: z.string().optional(),
   columns: z.array(
     z.object({
       id: z.string(),
       title: z.string(),
+      default_status: actionRecord.shape.state.optional(),
       members: z.array(boardAction),
     }),
   ),
@@ -281,4 +283,13 @@ export const viewMoveResponse = z.object({
   destination_position: z.number(),
   changed: z.boolean(),
   action: boardAction,
+});
+
+export const viewCreateRequest = createActionRequest
+  .extend({ column: z.string(), expected_definition: z.string() })
+  .strict();
+export type ViewCreateRequest = z.infer<typeof viewCreateRequest>;
+export const deleteActionResponse = z.object({
+  id: z.string(),
+  status: z.literal('deleted'),
 });

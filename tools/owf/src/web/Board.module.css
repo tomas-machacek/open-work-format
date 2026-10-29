@@ -1106,3 +1106,13 @@
 .reasonBackdrop form {
   margin-top: 20px;
 }
+
+.danger {
+  background: #a51d27 !important;
+  color: #fff !important;
+  border-color: #a51d27 !important;
+}
+.danger:focus-visible {
+  outline: 3px solid #54202a;
+  outline-offset: 3px;
+}

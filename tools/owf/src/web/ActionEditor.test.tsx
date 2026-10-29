@@ -1013,3 +1013,56 @@ test('terminal source shows satisfied and unresolved targets while manual editin
     }),
   ).toBeTruthy();
 });
+
+test('delete confirmation preserves invalid drafts on cancel/rejection and holds conflicting controls during deletion', async () => {
+  let reject!: (error: Error) => void;
+  const remove = vi.fn(
+    () =>
+      new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      }),
+  );
+  const save = vi.fn();
+  const onClose = vi.fn();
+  render(
+    <ActionEditor
+      action={action}
+      current={action}
+      save={save}
+      refresh={() => Promise.resolve(true)}
+      onSaved={vi.fn()}
+      onClose={onClose}
+      remove={remove}
+    />,
+  );
+  change('Title', '');
+  fireEvent.click(screen.getByRole('button', { name: 'Delete action' }));
+  expect(
+    screen.getByRole('heading', { name: 'Delete action permanently?' }),
+  ).toBeTruthy();
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'Cancel deletion' }),
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel deletion' }));
+  expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe('');
+  expect(remove).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Delete action' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Permanently delete' }));
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: 'Save changes' })
+      .disabled,
+  ).toBe(true);
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: 'Deleting…' })
+      .disabled,
+  ).toBe(true);
+  expect(save).not.toHaveBeenCalled();
+  expect(remove).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    reject(new Error('ACTION_IN_USE: referring Action'));
+    await Promise.resolve();
+  });
+  expect(screen.getByRole('alert').textContent).toContain('ACTION_IN_USE');
+  expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe('');
+  expect(onClose).not.toHaveBeenCalled();
+});

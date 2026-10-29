@@ -4,6 +4,8 @@ import { copyFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   initialize,
+  createActionInView,
+  displayView,
   createAction,
   createView,
   showView,
@@ -89,5 +91,37 @@ Then(
     );
     for (const action of this.orderActions)
       assert.deepEqual(getAction(this.root, action.id).result.action, action);
+  },
+);
+
+When(
+  'I create a new Action directly in Todo of the first ordering View',
+  function (this: OrderWorld) {
+    const view = this.orderViews[0]!;
+    createActionInView(
+      this.root,
+      { title: 'New chosen Action' },
+      {
+        view,
+        column: 'todo',
+        expected_definition: displayView(this.root, view).creation_definition!,
+      },
+    );
+  },
+);
+Then(
+  'the new Action is in Todo only in the chosen View and Open in the Workspace',
+  function (this: OrderWorld) {
+    const first = showView(this.root, this.orderViews[0]!).result.columns;
+    const second = showView(this.root, this.orderViews[1]!).result.columns;
+    const member = first.find((c) => c.id === 'todo')!.members[0]!;
+    assert.equal(member.title, 'New chosen Action');
+    assert.equal(getAction(this.root, member.id).result.action.state, 'open');
+    assert.equal(second.find((c) => c.id === 'todo')!.members.length, 0);
+    assert(
+      second
+        .find((c) => c.id === 'new-actions')!
+        .members.some((a) => a.id === member.id),
+    );
   },
 );

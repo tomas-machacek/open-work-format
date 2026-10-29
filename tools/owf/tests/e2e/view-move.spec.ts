@@ -92,9 +92,15 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
       'aria-roledescription',
       'draggable card',
     );
-    await expect(page.getByRole('button', { name: 'Add Action' })).toHaveCount(
-      0,
-    );
+    await expect(
+      region('Todo').getByRole('button', { name: '+ Add Action', exact: true }),
+    ).toBeVisible();
+    await expect(
+      region('Blocked').getByRole('button', {
+        name: '+ Add Action',
+        exact: true,
+      }),
+    ).toHaveCount(0);
     await selector.selectOption(views[1]!);
     await expect(region('New to organize').getByRole('article')).toContainText(
       action.title,

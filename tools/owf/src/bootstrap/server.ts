@@ -3,6 +3,8 @@ import { createBoardServer } from '../interfaces/http/index.js';
 import {
   listActions,
   createAction,
+  createActionInView,
+  deleteAction,
   setAction,
   listOwners,
   listViews,
@@ -43,6 +45,16 @@ export async function serve(start: string, port = 4317) {
       return current;
     },
     {
+      create: (id, input) => {
+        if (listActions(result.root).result.root !== result.root)
+          throw new Error('The original Workspace is no longer available.');
+        const { column, expected_definition, ...fields } = input;
+        return createActionInView(result.root, fields, {
+          view: id,
+          column,
+          expected_definition,
+        });
+      },
       move: (id, input) => {
         if (listActions(result.root).result.root !== result.root)
           throw new Error('The original Workspace is no longer available.');
@@ -61,6 +73,11 @@ export async function serve(start: string, port = 4317) {
           throw new Error('The original Workspace is no longer available.');
         return current;
       },
+    },
+    (id) => {
+      if (listActions(result.root).result.root !== result.root)
+        throw new Error('The original Workspace is no longer available.');
+      return deleteAction(result.root, id);
     },
   );
   try {

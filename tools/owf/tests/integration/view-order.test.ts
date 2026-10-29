@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, expect, test } from 'vitest';
 import {
   initialize,
+  createActionInView,
   createView,
   showView,
   displayView,
@@ -380,4 +381,77 @@ test('orphaned stored order fails explicitly without read repair or partial writ
   );
   expect(semanticSnapshot(root, store)).toEqual(before);
   expect(listViews(root).result.views).toHaveLength(1);
+});
+
+test('column creation appends after implicit members, uses destination default, isolates placement and rolls back event failure', () => {
+  const { root, store, create, view, titles, sql, file, valid } = setup();
+  const first = view();
+  const second = view();
+  create('Implicit A', 1);
+  create('Implicit B', 2);
+  // Simulate unrecorded members without changing their evaluated ID order.
+  sql('DELETE FROM view_order');
+  const expected_definition = displayView(root, first).creation_definition!;
+  const add = (column: string, title: string) =>
+    createActionInView(
+      root,
+      { title, state: 'cancelled' },
+      { view: first, column, expected_definition },
+    );
+  const created = add('new-actions', 'Append').result.action;
+  expect(created.state).toBe('open');
+  expect(titles(first)).toEqual(['Implicit A', 'Implicit B', 'Append']);
+  const chosen = add('todo', 'Chosen').result.action;
+  expect(titles(first, 'todo')).toEqual(['Chosen']);
+  expect(titles(second, 'todo')).toEqual([]);
+  expect(titles(second)).toContain('Chosen');
+  const before = semanticSnapshot(root, store);
+  expect(() => add('blocked', 'No')).toThrow(/ordinary/);
+  expect(() => add('removed', 'No')).toThrow(/ordinary/);
+  expect(() =>
+    createActionInView(
+      root,
+      { title: 'No', owner: '/missing/' },
+      { view: first, column: 'todo', expected_definition },
+    ),
+  ).toThrow();
+  expect(semanticSnapshot(root, store)).toEqual(before);
+  writeFileSync(file, valid.replace('title: Todo', 'title: Changed Todo'));
+  const stale = semanticSnapshot(root, store);
+  expect(() => add('todo', 'Stale')).toThrow(/changed/);
+  expect(semanticSnapshot(root, store)).toEqual(stale);
+  writeFileSync(file, valid);
+  writeFileSync(
+    file,
+    valid.replace(
+      'status: [in_progress, waiting]',
+      'status: [in_progress, waiting]\n      default_status: waiting',
+    ),
+  );
+  const waitingTarget = {
+    view: first,
+    column: 'active',
+    expected_definition: displayView(root, first).creation_definition!,
+  };
+  const waiting = createActionInView(
+    root,
+    { title: 'Waiting without reason' },
+    waitingTarget,
+  ).result.action;
+  expect(waiting.state).toBe('waiting');
+  expect(waiting.waiting_for).toBeUndefined();
+  const reason = createActionInView(
+    root,
+    { title: 'Waiting with reason', waitingFor: '  literal reply  ' },
+    waitingTarget,
+  ).result.action;
+  expect(reason.waiting_for).toBe('  literal reply  ');
+  writeFileSync(file, valid);
+  sql(
+    "CREATE TRIGGER reject_create_event BEFORE INSERT ON view_events BEGIN SELECT RAISE(ABORT, 'event failure'); END",
+  );
+  const atomic = semanticSnapshot(root, store);
+  expect(() => add('todo', 'Rollback')).toThrow();
+  expect(semanticSnapshot(root, store)).toEqual(atomic);
+  expect(getAction(root, chosen.id).result.action.title).toBe('Chosen');
 });

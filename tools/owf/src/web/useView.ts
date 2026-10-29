@@ -90,5 +90,9 @@ export function useView(
       document.removeEventListener('visibilitychange', onReturn);
     };
   }, [refresh]);
-  return { data, error, loading, refresh };
+  function accept(change: (data: ViewResponse) => ViewResponse) {
+    ++generation.current;
+    setData((current) => current && change(current));
+  }
+  return { data, error, loading, refresh, accept };
 }
