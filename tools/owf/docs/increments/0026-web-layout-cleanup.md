@@ -5,8 +5,10 @@
 > Depends on: [0025 — Move and reorder Actions in web Views](0025-web-view-moves.md).
 
 Scope and direction agreed on 2026-10-29. The user reviewed and approved this
-document for implementation on 2026-10-29. Implementation started on 2026-10-29;
-independent code review remains pending.
+document for implementation on 2026-10-29. Implementation started on 2026-10-29.
+Independent code review on 2026-10-29 found one P2 validation-visibility issue;
+the review and correction are recorded below. Status remains in_progress at the
+user's request.
 
 ## Goal and scope
 
@@ -155,9 +157,8 @@ implementation choices within the behavior described above.
 
 ## Implementation and review outcome
 
-Implemented on 2026-10-29. Status remains **in_progress** pending independent
-code review; this implementation session does not claim that review, completion,
-merge or a release.
+Implemented and independently reviewed on 2026-10-29. Status remains
+**in_progress** at the user's request; no merge or release is claimed.
 
 Delivered behavior:
 
@@ -218,7 +219,7 @@ Verification evidence:
   **153.0.8010.12**. Its screenshot and script are retained locally under
   `tools/owf/.test-artifacts/increment-0026/`.
 
-Final verification on 2026-10-29: **`npm run verify` passed** on
+Pre-review verification on 2026-10-29: **`npm run verify` passed** on
 `1216ada136baa3191c9e310890c32e382cd0dcdb`. This includes TypeScript, ESLint,
 Prettier, dependency-cruiser (61 modules, no violations), production build,
 **194 unit/component tests**, **248 integration tests**, **36 acceptance
@@ -233,9 +234,9 @@ run are retained locally under `tools/owf/.test-artifacts/increment-0026/`, in
 viewport-specific `layout-board-*` directories. The separate Default touch
 screenshot is `default-touch-scroll.png` in that same evidence root.
 
-The following handoff-record commit changes documentation only; runtime, tests,
-dependencies and configuration remain identical to the verified revision. No
-unresolved implementation findings are recorded; independent review is pending.
+The original handoff-record commit `95cee7e` changed documentation only; runtime,
+tests, dependencies and configuration remained identical to that verified revision.
+The independent review and subsequent correction follow below.
 
 Historical verification: `npm run verify` passed on implementation revision
 `8677d23b51fd69688939f3720c8a6fdfa1d0f3e6` (194 unit/component tests, 248
@@ -250,7 +251,53 @@ test run. No checks were disabled.
 
 Limitations: Windows/Chromium only; Linux, macOS, Firefox and WebKit were not
 tested. Touch testing uses Chromium emulation; a physical phone and its virtual
-keyboard were not exercised. Independent review remains outstanding.
+keyboard were not exercised.
+
+### Independent review and correction
+
+Independent review compared `95cee7e144a36fa661f12347af8d059c25079bef` with
+the fetched `main` revision `4f94ae37a7b6c60b5c8d95ac0a5c8eb78b202e8f`.
+The actual nine-file diff stayed within the presentation-only scope. The reviewer
+reran the three layout journeys and visually inspected the real browser output
+at all three viewport sizes. Supplemental checks covered 25 owner choices,
+picker and identity keyboard access, cancellation/focus, pointer movement after
+horizontal scrolling, held writes and simulated save failure in both modes,
+and emulated horizontal touch scrolling without writes or opening detail.
+Existing unchanged validation/conflict/stale, creation, native-selection and
+touch-hold movement evidence was reused.
+
+One P2 issue was confirmed in both modes at all three sizes: after an initial
+empty manual-reason validation, returning to the reason field and entering only
+whitespace hid the existing error. A second Save rejected the draft correctly
+but did not reveal the unchanged error message. The scroll effect depended only
+on the error string, while the persistent Save bar no longer scrolled with it.
+
+Correction `426eeaf08d359972897ebb649b04de09ce66f730` explicitly scrolls an
+existing error into view on another local validation rejection. The existing
+effect still handles first-time and save errors. No extra state, save logic or
+write is introduced. The layout journey now reproduces the repeated rejection,
+checks visible feedback, retained whitespace draft, unchanged write count and
+visible controls in both modes at all three sizes. The new regression failed
+on the pre-fix production frontend at 1280 × 600, then all three layout journeys
+passed after rebuilding the correction. Their repeated-validation screenshots
+were also visually inspected at all three sizes.
+
+Post-review verification on 2026-10-29: **`npm run verify` passed** on
+`426eeaf08d359972897ebb649b04de09ce66f730`, on the Windows/Node/npm/Chromium
+platform recorded above. It covered TypeScript, ESLint, Prettier, dependency-cruiser
+(61 modules, no violations), production build, **194 unit/component tests**,
+**248 integration tests**, **36 acceptance scenarios / 204 steps**,
+**27 CLI E2E tests** and **24 Chromium browser tests**. `git diff --check` and
+the updated increment document's Prettier check also passed. The following
+review-record commit changes documentation only. The full verification log is
+retained locally as `tools/owf/.test-artifacts/review-0026/verify-fix.log`;
+the layout journeys regenerate `default-repeated-validation.png` and
+`view-repeated-validation.png` for each viewport under `tools/owf/test-results/`.
+
+Optional test-maintenance suggestions concerning exact gutter arithmetic and
+fixed keyboard-listener waits were non-blocking; the focused correction leaves
+them unchanged. No other correctness findings were identified. Status remains
+in_progress; no merge or release was performed.
 
 ## Decision changes and follow-up
 
