@@ -197,6 +197,13 @@ Verification evidence:
   journey now scrolls to the card and exposes the boundary between its source and
   destination before dispatching on-screen touch coordinates; its former
   stacked-column geometry no longer applies.
+- A supplemental pointer check reproduced an owner-list blur collapsing the
+  layout between mouse down/up on Add prerequisite, losing that click. The Add
+  button now defers focus transfer until click opens the search. The layout
+  journeys explicitly cover this handoff with the owner results still open;
+  all three passed after the fix. A separate repeated pointer check passed
+  three openings at each of the three viewport sizes. Keyboard activation and
+  Escape retain their existing behavior.
 - Visually inspected Chromium screenshots from all three viewport sizes,
   including both boards, long detail, the lower field, owner results,
   prerequisite identity and validation. Labels and feedback remain readable;
@@ -209,6 +216,12 @@ Verification evidence:
 
 Full verification results, verified revision and final visual evidence are
 recorded below after the required checks finish.
+
+Historical verification: `npm run verify` passed on implementation revision
+`8677d23b51fd69688939f3720c8a6fdfa1d0f3e6` (194 unit/component tests, 248
+integration tests, 36 acceptance scenarios / 204 steps, 27 CLI E2E tests and
+24 Chromium tests). The additional pointer check then identified the handoff
+problem above, so that pass alone is not claimed as final-fix verification.
 
 Platform: Microsoft Windows NT **10.0.26300.0**, Node **24.21.0**, npm **11.4.1**,
 Playwright **1.63.0**, Chromium. Vite/test/browser subprocesses required execution

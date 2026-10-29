@@ -216,8 +216,11 @@ for (const viewport of [
           name: '+ Add prerequisite',
           exact: true,
         });
-        await add.focus();
-        await page.keyboard.press('Enter');
+        // An open owner list must not collapse on mouse down and move the Add
+        // button away before mouse up, losing the click in this scroll area.
+        await owner.click();
+        await expect(owners).toBeVisible();
+        await add.click();
         await expect(
           detail.getByRole('list', { name: 'Prerequisite candidates' }),
         ).toBeVisible();
