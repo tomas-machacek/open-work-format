@@ -438,8 +438,44 @@ Ctrl+C/clipboard roundtrip, below-threshold click, Escape/outside/gutter cancell
 embedded controls, keyboard announcements/focus, touch horizontal/vertical scrolling
 and text holds, held touch reorder, plus long-column keyboard/pointer scrolling.
 
-Verification evidence follows the final checks. Historical results above describe
-their recorded revisions, not this refinement.
+Verification on 2026-10-29:
+
+- Verified implementation revision: `1b4c8351af98994902f4894228e0d98bab4f31d6`.
+  The following evidence commit changes documentation only. Historical results
+  above describe their recorded revisions, not this refinement.
+- Platform: Windows NT 10.0.26300.0 / PowerShell / Node.js 24.21.0 / npm 11.4.1;
+  real input dispatched in headless Chromium, including CDP touch emulation.
+- Final `npm run verify`: **passed, exit 0**. Typecheck, ESLint, Prettier,
+  architecture (61 modules / 201 dependencies), production build, 194 unit/component
+  tests, 248 integration tests, 36 acceptance scenarios / 204 steps, 27 CLI E2E
+  tests and **17 Chromium journeys** passed. The four added journeys extend the
+  original 13; existing functional checks were retained. A final format check,
+  focused lint of the updated View-display assertion and `git diff --check` passed.
+- The focused eight View/interaction browser journeys also passed before the final
+  full run. Browser tests assert persisted order through the real shared operation,
+  request position/omission semantics, native text/clipboard behavior and actual
+  viewport geometry, not just DOM control presence.
+- Visually inspected the final [resting board](evidence/0025-resting-board.png)
+  and [active drag](evidence/0025-active-drag.png), both at 1280×1200. Active capture
+  keeps the viewport fixed so screenshot resizing does not cancel the gesture.
+  Cards retain 12px gaps and identical rectangles; the sole active line is 2px high.
+- Initial checks exposed immediate-release collision timing, a synthesized click
+  after a touch text hold, and an overbroad disabled guard that blocked stale
+  read-only detail. These were corrected and regression-checked. Tests relying on
+  removed handles/old article semantics and browser geometry in jsdom were adapted
+  without removing their functional assertions. Sandbox `spawn EPERM` required
+  approved execution outside the sandbox for build/executable suites.
+- Self-review checked the diff against AC1–AC8 and AC7a–b, including cancellation,
+  clipped/outside targets, read-only detail, focus and unchanged domain/HTTP
+  boundaries. No additional independent review of this refinement was performed
+  in this session; the earlier independent review applies to its cited revision.
+- Limitations: physical touch hardware/native OS selection handles, an actual
+  screen reader and Linux were not verified. Touch evidence is Chromium emulation;
+  desktop selection/copy, live announcements, keyboard focus, long-column pointer
+  scrolling and touch vertical/horizontal scrolling were exercised in the browser.
+
+Status and index remain `in_progress`; human visual acceptance is pending. The PR
+stays draft. No merge, tag or release is included.
 
 ## Decision changes and follow-up
 
