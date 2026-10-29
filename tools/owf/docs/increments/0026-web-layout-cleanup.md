@@ -1,11 +1,12 @@
 # 0026 — Web layout cleanup
 
-> Status: agreed
+> Status: reviewed
 > Description: Keep Action editing controls visible, use the available View width and keep Default Kanban columns in one horizontal row.
 > Depends on: [0025 — Move and reorder Actions in web Views](0025-web-view-moves.md).
 
-Scope and direction agreed on 2026-10-29. This document records the proposal
-for detailed review; implementation and code review have not started.
+Scope and direction agreed on 2026-10-29. The user reviewed and approved this
+document for implementation on 2026-10-29. Implementation and code review
+have not started.
 
 ## Goal and scope
 
