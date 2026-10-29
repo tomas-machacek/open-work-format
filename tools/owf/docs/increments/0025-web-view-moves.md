@@ -511,8 +511,34 @@ a pending write, and cross-card selection with a real clipboard roundtrip. The
 existing interaction fixture now waits for Default Kanban cards to load before
 switching, retaining hidden duplicates during the tests. Typecheck, focused lint,
 build and all 11 interaction browser tests passed on the corrected working tree.
-Full verification is pending; its revision and results will be recorded before
-handoff.
+
+Post-correction verification, 2026-10-29:
+
+- Verified implementation revision: `9ac9ae5ccba919d0d369c7fcec9c017e3cbb5ddb`.
+  The following evidence commit changes documentation only.
+- Platform: Windows NT 10.0.26300.0 / PowerShell / Node.js 24.21.0 / npm 11.4.1;
+  browser execution uses headless Chromium and CDP touch emulation.
+- Final standalone `npm run verify`: **passed, exit 0**. Typecheck, ESLint,
+  Prettier, architecture (61 modules / 201 dependencies), production build,
+  194 unit/component tests, 248 integration tests, 36 acceptance scenarios /
+  204 steps, 27 CLI E2E tests and **21 Chromium journeys** passed.
+- All four new browser regressions failed on the reviewed frontend before the
+  corrected build, then passed in the focused 11-test run and final full suite.
+  The assertions check modal focus after drag cleanup, Tab/Escape, no-write
+  cancellation, active-surface focus with hidden duplicates, persisted ordering,
+  and native cross-card selection/clipboard behavior.
+- An initial full verification stopped at the proxy integration test because an
+  existing OWF server occupied port 4317. The server exited before the guarded
+  stop command could act; no existing server was stopped by this task. The final
+  standalone run passed after the port became free. No checks, assertions or
+  timeouts were weakened. Build/browser execution used approved escalation after
+  sandbox `spawn EPERM`.
+- The three P2 findings are addressed. Physical touch hardware/native OS selection
+  handles, an actual screen reader, non-Chromium browsers and Linux remain
+  unverified; the browser evidence covers emulated touch and actual desktop input.
+
+Status and index remain `in_progress`; PR #31 remains draft. No merge, tag or
+release is included.
 
 ## Decision changes and follow-up
 
