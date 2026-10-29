@@ -51,19 +51,24 @@ positions are 1..K+1 for K destination members. An empty destination accepts 1.
 The server validates against resulting evaluated membership within the write
 transaction, including any membership effects on dependents, as in 0024.
 
-| Interaction                                            | Requested behavior                              |
-| ------------------------------------------------------ | ----------------------------------------------- |
-| Drop into a visible insertion slot                     | Send its final one-based position.              |
-| Drop on an empty column                                | Insert at position 1.                           |
-| Drop on a column's append target                       | Omit position; cross-column arrival appends.    |
-| Same-column drop at the current position               | Successful no-op.                               |
-| Same-column move with position omitted                 | Successful no-op, preserving CLI compatibility. |
-| Cancel drag, Escape, or release outside a valid target | No request and no write.                        |
+| Interaction                                             | Requested behavior                              |
+| ------------------------------------------------------- | ----------------------------------------------- |
+| Drop at the indicated insertion boundary                | Send its final one-based position.              |
+| Drop on an empty column                                 | Insert at position 1.                           |
+| Drop in free content below the final insertion boundary | Omit position; cross-column arrival appends.    |
+| Same-column drop at the current position                | Successful no-op.                               |
+| Same-column move with position omitted                  | Successful no-op, preserving CLI compatibility. |
+| Cancel drag, Escape, or release outside a valid target  | No request and no write.                        |
 
-Expose clear before/between/after insertion indicators, including a reachable
-last position in long columns. A whole-column append target must be visually
-distinct from an insertion slot. Use the existing dnd-kit integration; avoid a
-second drag library or a general board rewrite.
+Keep the resting board compact with ordinary small card gaps and no visible
+insertion/append boxes or labels. During a gesture show only the selected boundary
+as a thin line; larger invisible activation areas must not shift card geometry
+or make the target oscillate. Support before-first, middle and explicit last
+positions within/across columns. The natural empty-column content accepts position
+1 with a subtle highlight; free content below the last boundary accepts append
+without a separate box/button. Distinguish explicit last insertion from append by
+indicator location and accessible announcements, retaining their different request
+semantics. Use the existing dnd-kit integration.
 
 Same-column reorder preserves Action state, owner, content, waiting reason,
 blocking, dependencies and updated_at, and preserves inferred versus explicit
@@ -79,7 +84,7 @@ destination or requested position. No-op requests write no events or normalizati
 
 Use drag and drop as the only web movement interaction. Do not add a separate
 "Move..." action, destination selector or numeric-position form. Precise placement
-remains available: dropping into the visible gap before, between or after cards
+remains available: dropping at a boundary before, between or after cards
 selects that exact insertion position, both within and across columns. The UI
 translates the chosen slot into the final one-based position specified above.
 Numeric position entry remains available through CLI.
@@ -90,9 +95,15 @@ column and insertion slot, drop, or cancel with Escape. All supported positions,
 including first/last and empty-column insertion, must be reachable without a mouse.
 Provide concise instructions and announce the current destination and position.
 
-Keep ordinary card click/keyboard activation for the existing detail distinct from
-drag activation. Completing or cancelling a drag must not accidentally open the
-detail. Preserve compact cards and actual-state labels.
+Remove the visible Move card button. Drag from any nontext, noninteractive card
+background/padding with a reasonable activation threshold; no mandatory small
+handle replaces it. Text remains natively selectable/copyable and gestures begun
+on text or interactive controls never activate dragging. Do not apply blanket
+user-select suppression or intercept normal copying. Ordinary click still opens
+detail; selection completion, drop and cancellation must never open it. Focus the
+card directly: Enter opens detail, Space picks up/drops, arrows select destinations,
+Home/End choose first/last, Down past last chooses append, Escape cancels. Preserve
+focus restoration, reader instructions/announcements and actual-state labels.
 
 On narrow screens, touch dragging must coexist with normal board/page scrolling;
 verify reachable targets in long columns and horizontally scrolled boards.
@@ -225,6 +236,17 @@ the increment document and index, not shipped-capability documentation or code.
   No separate Move form or numeric-position input is added. Card detail remains
   accessible without accidental opening after a drag. Escape/cancel, focus
   restoration, insertion indicators and wide/narrow layouts work.
+- **AC7a — Compact and stable geometry:** No visible Insert at N, Append to column
+  or Move card controls in the resting board; ordinary compact gaps. Only the
+  current destination is indicated during dragging, with generous invisible hit
+  areas and no layout shift/target oscillation. Empty content accepts explicit 1;
+  explicit last and free-area append keep their distinct semantics.
+- **AC7b — Gesture intent:** Background/padding starts a drag after the activation
+  threshold. Text gestures select/copy normally without moving or opening detail;
+  controls never start drag. Click opens detail, Enter opens detail, Space moves.
+  Dropping, Escape, outside release and finishing selection do not open detail.
+  Touch hold-to-drag coexists with scrolling and native text selection; keyboard
+  destinations, focus and announcements remain available without a visible handle.
 - **AC8 — Compatibility and purity:** Default Kanban and shared detail protections
   remain intact. Refresh/reload and CLI process reopen preserve organization.
   Reads/previews/cancellation are write-free, schema remains 8, and no deferred
@@ -240,14 +262,14 @@ HTTP and browser-specific risks are covered by the tests recorded below.
 Reuse 0023/0024 domain and SQLite coverage; add tests for the new adapter and
 interaction risks rather than repeating the full domain matrix at every layer.
 
-| Risk / criteria                          | Verification                                                                                                                                                                                                         |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| HTTP parity and atomicity (AC1–AC4)      | Real HTTP/application/SQLite cases for positional move, required reason, invalid position, rejected exit, required broken definition and rollback; compare persisted results/events with shared-operation semantics. |
-| Execute-time positioning (AC5)           | Commit a CLI reorder/arrival after the displayed read and before HTTP move; verify current-index behavior and a separate now-invalid bound.                                                                          |
-| UI races and outcome reporting (AC5–AC6) | Focused component cases for queued refresh, navigation guards, duplicate submission, late responses, rejected move, committed move/read failure and unknown transport outcome without retry.                         |
-| Main user flow (AC1–AC3, AC7–AC8)        | Small Playwright journey for pointer reorder/cross-column insertion, keyboard dragging, Blocked reason cancellation/submission and rejected exit; inspect CLI order after browser operations.                        |
-| Compatibility and persistence (AC8)      | Refresh/reselect/reload, second-instance independence and return to Default Kanban with existing operations; reuse existing snapshot/purity tests and add new read/preview boundaries where needed.                  |
-| Interaction quality (AC7)                | Inspect wide/narrow boards, empty and long columns, precise first/middle/last insertion slots, touch dragging alongside scrolling, card/detail separation, keyboard focus and error announcements.                   |
+| Risk / criteria                          | Verification                                                                                                                                                                                                                                                                  |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP parity and atomicity (AC1–AC4)      | Real HTTP/application/SQLite cases for positional move, required reason, invalid position, rejected exit, required broken definition and rollback; compare persisted results/events with shared-operation semantics.                                                          |
+| Execute-time positioning (AC5)           | Commit a CLI reorder/arrival after the displayed read and before HTTP move; verify current-index behavior and a separate now-invalid bound.                                                                                                                                   |
+| UI races and outcome reporting (AC5–AC6) | Focused component cases for queued refresh, navigation guards, duplicate submission, late responses, rejected move, committed move/read failure and unknown transport outcome without retry.                                                                                  |
+| Main user flow (AC1–AC3, AC7–AC8)        | Small Playwright journey for pointer reorder/cross-column insertion, keyboard dragging, Blocked reason cancellation/submission and rejected exit; inspect CLI order after browser operations.                                                                                 |
+| Compatibility and persistence (AC8)      | Refresh/reselect/reload, second-instance independence and return to Default Kanban with existing operations; reuse existing snapshot/purity tests and add new read/preview boundaries where needed.                                                                           |
+| Interaction quality (AC7, AC7a–b)        | Real Chromium gestures for wide/narrow boards, empty/long columns, first/middle/last and append, background vs text selection/copy, click/detail/cancel separation, keyboard focus/announcements and touch scrolling. Inspect resting/active screenshots and stable geometry. |
 
 Human try-out:
 
@@ -278,7 +300,7 @@ Implemented the narrow Workspace-bound `POST /api/views/:id/moves` contract and
 shared-operation adapter. Evaluation exposes the configured Blocked column ID;
 CLI output, domain movement rules, SQLite schema 8 and coherent reads are unchanged.
 
-View cards have separate drag handles, precise insertion gaps, append targets,
+The initial implementation used separate drag handles, labelled insertion gaps and append targets,
 mouse/touch/keyboard sensors, destination announcements and a temporary overlay.
 Keyboard arrows select columns/positions; Home/End reach first/last and Down past
 last reaches append. Only required Blocked entry opens a reason-only dialog;
@@ -378,7 +400,55 @@ Post-correction verification, 2026-10-28:
 Status and index remain `in_progress`; human acceptance and completion are
 separate steps. No merge or release is included.
 
+### Approved compact-card UX refinement, 2026-10-29
+
+The user approved this refinement within 0025 and explicitly retained `in_progress`.
+It replaces visible movement controls with background/padding activation and
+invisible insertion regions. Only the selected thin boundary or empty-content
+highlight appears while dragging. Natural free content supports append; explicit
+last insertion remains a different request. Card dimensions and target geometry
+stay fixed during a gesture. Native text selection/copy, ordinary click detail,
+keyboard movement, cancellation, focus and announcements remain required.
+
+Delivered behavior:
+
+- Cards retain their normal dimensions and 12px gaps throughout a gesture. The
+  source stays in place as a faded placeholder; the overlay includes the same
+  content. A 2px line marks explicit insertion, with half-card activation areas;
+  empty content highlights gently and free content below the final boundary uses
+  append. Indicators and hit testing share stable viewport geometry, including
+  scrolling and immediate release. Header/gutters outside the board reject drops.
+- Mouse activation uses 6px movement; touch uses a 200ms hold with 8px tolerance.
+  Text-range hit testing excludes native text and controls without suppressing
+  selection or copying. Text clicks wait 400ms to permit double-click word
+  selection. Long text holds, selection completion, drag/cancel and embedded
+  controls cannot open detail. Background click and Enter retain detail access,
+  including stale read-only detail; pending operations keep navigation locked.
+- The card itself receives keyboard focus and screen-reader instructions. Space
+  starts/drops, Enter opens detail, arrows/Home/End/Escape retain precise movement
+  and cancellation. Focus returns to the card. No visible movement button, new
+  movement form, backend/domain operation, schema or dependency is introduced.
+
+The existing lifecycle tests and original CLI/browser journey are retained and
+adapted to card activation. Additional real Chromium journeys cover pointer
+first/middle/last insertion in both directions, empty-column and cross-column
+moves, explicit-last versus append request/persistence semantics, unchanged card
+rectangles and a single stable indicator, native drag-selection/double-click and
+Ctrl+C/clipboard roundtrip, below-threshold click, Escape/outside/gutter cancellation,
+embedded controls, keyboard announcements/focus, touch horizontal/vertical scrolling
+and text holds, held touch reorder, plus long-column keyboard/pointer scrolling.
+
+Verification evidence follows the final checks. Historical results above describe
+their recorded revisions, not this refinement.
+
 ## Decision changes and follow-up
+
+- 2026-10-29: User approved compact resting cards, invisible generous drop regions,
+  one stable insertion indicator, natural empty/append content and background drag
+  without visible handles. Text selection/copy and interactive controls are
+  excluded from activation. Enter opens detail, Space moves; touch scrolling,
+  cancellation, focus and announcements remain required. AC7a–b record this
+  refinement; movement semantics and all earlier acceptance criteria remain intact.
 
 - 2026-10-28: User requested the next increment document for web View movement.
   Confirmed completed 0024 already includes same-column reorder and cross-column

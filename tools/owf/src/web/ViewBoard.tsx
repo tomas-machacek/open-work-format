@@ -51,9 +51,7 @@ export function ViewBoard({
       const card = [
         ...document.querySelectorAll<HTMLElement>('[data-action-id]'),
       ].find((element) => element.dataset['actionId'] === id);
-      (
-        card?.querySelector<HTMLElement>('button') ?? refreshButton.current
-      )?.focus();
+      (card ?? refreshButton.current)?.focus();
     });
   }
   function cancel() {
@@ -231,7 +229,8 @@ export function ViewBoard({
               !!error || loading || !!detail || !!reasonMove || pendingMove
             }
             onOpen={(action) => {
-              if (!busy && !submitting.current) setDetail(action);
+              if (!busy && !frozen.current && !submitting.current)
+                setDetail(action);
             }}
             onStart={(id) => {
               if (alive.current && !submitting.current) lock(id);

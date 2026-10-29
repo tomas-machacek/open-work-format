@@ -137,7 +137,7 @@ for (const width of [1440, 390]) {
       const card = blocked.getByRole('article');
       await expect(card).toContainText('State · waiting');
       await expect(card).toContainText('Blocked · manual');
-      await expect(card).not.toHaveAttribute(
+      await expect(card).toHaveAttribute(
         'aria-roledescription',
         'draggable card',
       );

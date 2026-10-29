@@ -88,7 +88,7 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
     await refresh();
     const card = region('Todo').getByRole('article');
     await expect(card).toContainText(action.title);
-    await expect(card).not.toHaveAttribute(
+    await expect(card).toHaveAttribute(
       'aria-roledescription',
       'draggable card',
     );
@@ -224,13 +224,14 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
     await expect(
       region('Active').getByRole('heading', { level: 3 }),
     ).toHaveText([last.title, peer.title, action.title]);
-    await expect(
-      region('Active').getByRole('article').first(),
-    ).not.toHaveAttribute('aria-roledescription', 'draggable card');
+    await expect(region('Active').getByRole('article').first()).toHaveAttribute(
+      'aria-roledescription',
+      'draggable card',
+    );
 
     // Keyboard precise reorder to last, then pointer cross-column insertion.
-    const handle = page.getByRole('button', {
-      name: `Drag ${last.title}`,
+    const handle = page.getByRole('article', {
+      name: `${last.title}. Press Enter to edit or Space to move`,
       exact: true,
     });
     await handle.focus();
@@ -243,8 +244,8 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
       region('Active').getByRole('heading', { level: 3 }),
     ).toHaveText([peer.title, action.title, last.title]);
     const dragTo = async (title: string, column: string, position: number) => {
-      const from = page.getByRole('button', {
-        name: `Drag ${title}`,
+      const from = page.getByRole('article', {
+        name: `${title}. Press Enter to edit or Space to move`,
         exact: true,
       });
       const to = region(column).getByLabel(`${column}: position ${position}`, {
@@ -255,7 +256,7 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
       const a = await from.boundingBox();
       const b = await to.boundingBox();
       if (!a || !b) throw new Error('Missing drag geometry');
-      await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+      await page.mouse.move(a.x + 5, a.y + 5);
       await page.mouse.down();
       await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, {
         steps: 15,
@@ -295,11 +296,11 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
     );
     run('set', 'action', last.id, '--add-dependency', peer.id);
     await refresh();
-    const blockedHandle = page.getByRole('button', {
-      name: `Drag ${last.title}`,
+    const blockedHandle = page.getByRole('article', {
+      name: `${last.title}. Press Enter to edit or Space to move`,
       exact: true,
     });
-    await expect(blockedHandle).toBeEnabled();
+    await expect(blockedHandle).toHaveAttribute('aria-disabled', 'false');
     await blockedHandle.focus();
     await page.keyboard.press('Space');
     await page.waitForTimeout(100);
@@ -325,8 +326,8 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
     );
     // Narrow, horizontally scrolled board: emulate a held touch drag to first.
     await page.setViewportSize({ width: 390, height: 1000 });
-    const touchHandle = page.getByRole('button', {
-      name: `Drag ${peer.title}`,
+    const touchHandle = page.getByRole('article', {
+      name: `${peer.title}. Press Enter to edit or Space to move`,
       exact: true,
     });
     await touchHandle.scrollIntoViewIfNeeded();
@@ -346,8 +347,8 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
         type,
         touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }],
       });
-    const x = fromTouch.x + fromTouch.width / 2,
-      y = fromTouch.y + fromTouch.height / 2;
+    const x = fromTouch.x + 5,
+      y = fromTouch.y + 5;
     await touch('touchStart', x, y);
     await page.waitForTimeout(250);
     for (let step = 1; step <= 10; step++)

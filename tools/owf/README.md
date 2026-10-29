@@ -46,12 +46,19 @@ the in-page filters and existing creation, drag/state changes and detail editing
 Finish or cancel an open default creation form or drag before switching modes.
 The same navigation restrictions apply in the header and Action detail.
 
-Use each card's **Move card** handle to drag with a mouse or touch (hold briefly).
-Drop into a labelled insertion gap for that exact final position, or into the
-separate **Append to column** target. For keyboard dragging, focus the handle,
+Drag a card from its background or padding with a mouse, or hold briefly on touch.
+Text remains selectable and copyable; gestures on text or controls never move the
+card. Cards have ordinary compact gaps. During dragging, a thin line marks the
+current exact insertion position; its invisible activation area is larger than
+the line. Empty columns accept a drop throughout their content area and highlight
+gently. Free content below the last insertion boundary appends without a separate
+box or button. Same-column append preserves order, as in CLI.
+For keyboard dragging, focus the card,
 press Space, use left/right for columns and up/down for positions, then Space
 to drop or Escape to cancel. Home/End select first/last; Down past last selects
-append. Ordinary card activation still opens detail.
+append. Enter and an ordinary click open detail; finishing selection, dropping or
+cancelling does not. A text click waits briefly to allow native double-click word
+selection. Normal touch swipes scroll; hold on background to begin dragging.
 
 Entry into Blocked asks for a manual reason only when none exists; cancel writes
 nothing. Waiting never prompts. Moves use the shared CLI operation and schema 8.

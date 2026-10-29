@@ -132,7 +132,7 @@ test('default filters are restored, never passed to View evaluation; duplicate i
   expect(screen.queryByRole('form', { name: 'Board filters' })).toBeNull();
   expect(screen.queryByRole('button', { name: /Add Action/ })).toBeNull();
   const card = screen.getByRole('article');
-  expect(card.getAttribute('aria-roledescription')).toBeNull();
+  expect(card.getAttribute('aria-roledescription')).toBe('draggable card');
   expect(card.textContent).toContain('Reply');
   fireEvent.keyDown(card, { key: 'Enter' });
   const detail = screen.getByRole('dialog');

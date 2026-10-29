@@ -1,4 +1,4 @@
-import { Fragment, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -9,8 +9,8 @@ import {
   useSensor,
   useDraggable,
   useDroppable,
-  pointerWithin,
   closestCenter,
+  type CollisionDetection,
   type KeyboardCoordinateGetter,
 } from '@dnd-kit/core';
 import type {
@@ -37,6 +37,29 @@ export function ViewDragBoard({
 }) {
   const active = useRef<string | undefined>(undefined);
   const keyboardActive = useRef(false);
+  const collisionArgs = useRef<Parameters<CollisionDetection>[0] | undefined>(
+    undefined,
+  );
+  const pointer = useRef<{ x: number; y: number } | undefined>(undefined);
+  useEffect(() => {
+    const mouse = (event: MouseEvent) => {
+      pointer.current = { x: event.clientX, y: event.clientY };
+    };
+    const touch = (event: TouchEvent) => {
+      const point = event.changedTouches[0];
+      if (point) pointer.current = { x: point.clientX, y: point.clientY };
+    };
+    document.addEventListener('mousemove', mouse, true);
+    document.addEventListener('mouseup', mouse, true);
+    document.addEventListener('touchmove', touch, true);
+    document.addEventListener('touchend', touch, true);
+    return () => {
+      document.removeEventListener('mousemove', mouse, true);
+      document.removeEventListener('mouseup', mouse, true);
+      document.removeEventListener('touchmove', touch, true);
+      document.removeEventListener('touchend', touch, true);
+    };
+  }, []);
   const cursor = useRef<{ column: string; position: number } | undefined>(
     undefined,
   );
@@ -44,6 +67,9 @@ export function ViewDragBoard({
     column,
     members: column.members.filter((a) => a.id !== active.current),
   }));
+  const draggedAction = data.columns
+    .flatMap((column) => column.members)
+    .find((action) => action.id === active.current);
   const keyboard: KeyboardCoordinateGetter = (event, { context }) => {
     if (
       ![
@@ -114,36 +140,39 @@ export function ViewDragBoard({
     useSensor(TouchSensor, {
       activationConstraint: { delay: 200, tolerance: 8 },
     }),
-    useSensor(KeyboardSensor, { coordinateGetter: keyboard }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: keyboard,
+      keyboardCodes: { start: ['Space'], end: ['Space'], cancel: ['Escape'] },
+    }),
   );
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={(args) =>
-        args.pointerCoordinates
-          ? pointerWithin(args)
-          : closestCenter({
-              ...args,
-              droppableContainers: args.droppableContainers.filter(
-                (container) => {
-                  if (!cursor.current) return true;
-                  const target = targets.find(
-                    (t) => t.column.id === cursor.current?.column,
-                  );
-                  const id =
-                    target &&
-                    cursor.current.position === target.members.length + 2
-                      ? JSON.stringify([target.column.id, 'append'])
-                      : slotId(cursor.current.column, cursor.current.position);
-                  return container.id === id;
-                },
-              ),
-            })
-      }
+      collisionDetection={(args) => {
+        collisionArgs.current = args;
+        if (args.pointerCoordinates) {
+          const target = pointerTarget(args, args.pointerCoordinates);
+          return target ? [{ id: target.id }] : [];
+        }
+        return closestCenter({
+          ...args,
+          droppableContainers: args.droppableContainers.filter((container) => {
+            if (!cursor.current) return true;
+            const target = targets.find(
+              (t) => t.column.id === cursor.current?.column,
+            );
+            const id =
+              target && cursor.current.position === target.members.length + 2
+                ? JSON.stringify([target.column.id, 'append'])
+                : slotId(cursor.current.column, cursor.current.position);
+            return container.id === id;
+          }),
+        });
+      }}
       accessibility={{
         screenReaderInstructions: {
           draggable:
-            'Space picks up and drops. Left/right choose column; up/down choose position. Home/End choose first/last. Escape cancels.',
+            'Enter opens detail. Space picks up and drops. Left/right choose column; up/down choose position. Home/End choose first/last; Down past last chooses append. Escape cancels. Drag from card background; text can be selected and copied.',
         },
         announcements: {
           onDragStart: () => 'Card picked up.',
@@ -156,6 +185,7 @@ export function ViewDragBoard({
         },
       }}
       onDragStart={({ active: card, activatorEvent }) => {
+        collisionArgs.current = undefined;
         keyboardActive.current = activatorEvent.type === 'keydown';
         active.current = String(card.id);
         const source = data.columns.find((c) =>
@@ -174,10 +204,16 @@ export function ViewDragBoard({
         active.current = undefined;
         onCancel();
       }}
-      onDragEnd={({ over }) => {
+      onDragEnd={() => {
         const action = active.current;
         active.current = undefined;
-        if (!action || (!over && !keyboardActive.current)) {
+        // Release can arrive before the final collision render. Resolve the
+        // actual release point against the same stable geometry as the indicator.
+        const pointerDrop =
+          collisionArgs.current && pointer.current
+            ? pointerTarget(collisionArgs.current, pointer.current)
+            : undefined;
+        if (!action || (!pointerDrop && !keyboardActive.current)) {
           onCancel();
           return;
         }
@@ -194,7 +230,7 @@ export function ViewDragBoard({
                 position:
                   chosen.position > maximum ? undefined : chosen.position,
               }
-            : over?.data.current;
+            : pointerDrop?.data.current;
         onDrop({
           action,
           column: String(target?.['column']),
@@ -204,7 +240,11 @@ export function ViewDragBoard({
         });
       }}
     >
-      <div className={styles.viewBoard} aria-label="View board">
+      <div
+        className={styles.viewBoard}
+        aria-label="View board"
+        data-view-board=""
+      >
         {targets.map(({ column, members }) => (
           <section
             key={column.id}
@@ -215,9 +255,14 @@ export function ViewDragBoard({
               {column.title}
               <span className={styles.count}>{column.members.length}</span>
             </h2>
-            <div className={styles.cards}>
+            <ColumnContent
+              column={column.id}
+              title={column.title}
+              empty={members.length === 0}
+              disabled={disabled}
+            >
               {column.members.map((action) => (
-                <Fragment key={action.id}>
+                <div className={styles.viewCardRow} key={action.id}>
                   {action.id !== active.current && (
                     <Slot
                       column={column.id}
@@ -233,31 +278,27 @@ export function ViewDragBoard({
                     disabled={disabled}
                     onOpen={onOpen}
                   />
-                </Fragment>
+                </div>
               ))}
-              <Slot
-                column={column.id}
-                title={column.title}
-                position={members.length + 1}
-                disabled={disabled}
-              />
-              <Slot
-                column={column.id}
-                title={column.title}
-                disabled={disabled}
-              />
-            </div>
+              <div className={styles.lastSlot}>
+                <Slot
+                  column={column.id}
+                  title={column.title}
+                  position={members.length + 1}
+                  disabled={disabled}
+                />
+              </div>
+            </ColumnContent>
           </section>
         ))}
       </div>
-      <DragOverlay dropAnimation={null}>
-        {active.current && (
-          <div className={styles.card}>
-            <CardContent
-              action={data.columns
-                .flatMap((c) => c.members)
-                .find((a) => a.id === active.current)!}
-            />
+      <DragOverlay dropAnimation={null} style={{ pointerEvents: 'none' }}>
+        {draggedAction && (
+          <div className={styles.card} aria-hidden="true">
+            <CardContent action={draggedAction} />
+            <p className={styles.executionState}>
+              State · {draggedAction.state.replace('_', ' ')}
+            </p>
           </div>
         )}
       </DragOverlay>
@@ -267,6 +308,85 @@ export function ViewDragBoard({
 function slotId(column: string, position: number) {
   return JSON.stringify([column, position]);
 }
+function pointerTarget(
+  args: Parameters<CollisionDetection>[0],
+  { x, y }: { x: number; y: number },
+) {
+  // The line never participates in layout. Use current viewport rectangles so
+  // scrolling and an immediate release see the same generous activation areas.
+  const board = document.elementFromPoint(x, y)?.closest('[data-view-board]');
+  if (!board) return;
+  const column = args.droppableContainers.find((container) => {
+    if (container.data.current?.['append'] !== true) return false;
+    if (!container.node.current || !board.contains(container.node.current))
+      return false;
+    const rect = container.node.current?.getBoundingClientRect();
+    return (
+      rect &&
+      x >= rect.left &&
+      x <= rect.right &&
+      y >= rect.top - 2 &&
+      y <= rect.bottom
+    );
+  });
+  if (!column) return;
+  const slots = args.droppableContainers
+    .filter(
+      (container) =>
+        container.data.current?.['column'] ===
+          column.data.current?.['column'] &&
+        container.data.current?.['append'] !== true,
+    )
+    .sort(
+      (a, b) =>
+        Number(a.data.current?.['position']) -
+        Number(b.data.current?.['position']),
+    );
+  const last = slots.at(-1);
+  const lastRect = last?.node.current?.getBoundingClientRect();
+  if (
+    column.data.current?.['empty'] !== true &&
+    lastRect &&
+    y > lastRect.top + 24
+  )
+    return column;
+  return slots.reduce((best, slot) => {
+    const rect = slot.node.current?.getBoundingClientRect();
+    const bestRect = best?.node.current?.getBoundingClientRect();
+    return rect &&
+      (!bestRect || Math.abs(rect.top - y) < Math.abs(bestRect.top - y))
+      ? slot
+      : best;
+  }, slots[0]);
+}
+function ColumnContent({
+  column,
+  title,
+  empty,
+  disabled,
+  children,
+}: {
+  column: string;
+  title: string;
+  empty: boolean;
+  disabled: boolean;
+  children: ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: JSON.stringify([column, 'append']),
+    disabled,
+    data: { column, title, append: true, empty },
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`${styles.viewCards} ${empty ? styles.emptyColumn : ''} ${isOver ? styles.appendOver : ''}`}
+      aria-label={`${title}: append`}
+    >
+      {children}
+    </div>
+  );
+}
 function Slot({
   column,
   title,
@@ -275,25 +395,20 @@ function Slot({
 }: {
   column: string;
   title: string;
-  position?: number;
+  position: number;
   disabled: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
-    id:
-      position === undefined
-        ? JSON.stringify([column, 'append'])
-        : slotId(column, position),
+    id: slotId(column, position),
     disabled,
     data: { column, title, position },
   });
   return (
     <div
       ref={setNodeRef}
-      className={`${styles.insertionSlot} ${position === undefined ? styles.appendTarget : ''} ${isOver ? styles.activeSlot : ''}`}
-      aria-label={`${title}: ${position === undefined ? 'append' : `position ${position}`}`}
-    >
-      {position === undefined ? 'Append to column' : `Insert at ${position}`}
-    </div>
+      className={`${styles.insertionSlot} ${isOver ? styles.activeSlot : ''}`}
+      aria-label={`${title}: position ${position}`}
+    />
   );
 }
 function ViewCard({
@@ -306,46 +421,173 @@ function ViewCard({
   onOpen: (action: BoardAction) => void;
 }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, isDragging } =
-    useDraggable({ id: action.id, disabled });
+    useDraggable({
+      id: action.id,
+      disabled,
+      attributes: { role: 'article', roleDescription: 'draggable card' },
+    });
+  const gesture = useRef({ x: 0, y: 0, suppressClick: false, dragged: false });
+  const textTouchStart = useRef<number | undefined>(undefined);
+  const textClick = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  useEffect(() => () => clearTimeout(textClick.current), []);
+  useEffect(() => {
+    if (disabled) clearTimeout(textClick.current);
+  }, [disabled]);
+  useEffect(() => {
+    if (isDragging) {
+      gesture.current.dragged = true;
+      clearTimeout(textClick.current);
+    }
+  }, [isDragging]);
   return (
     <article
-      ref={setNodeRef}
-      className={`${styles.card} ${isDragging ? styles.dragging : ''}`}
-      data-action-id={action.id}
-      tabIndex={0}
-      aria-label={`${action.title}. Press Enter to edit`}
-      onClick={() => {
-        if (!isDragging) onOpen(action);
+      ref={(node) => {
+        setNodeRef(node);
+        setActivatorNodeRef(node);
       }}
-      onKeyDown={(event) => {
+      {...attributes}
+      className={`${styles.card} ${styles.viewCard} ${isDragging ? styles.viewDragging : ''}`}
+      data-action-id={action.id}
+      data-dragging={isDragging}
+      tabIndex={0}
+      aria-label={`${action.title}. Press Enter to edit or Space to move`}
+      onPointerDown={(event) => {
+        clearTimeout(textClick.current);
+        gesture.current = {
+          x: event.clientX,
+          y: event.clientY,
+          suppressClick: false,
+          dragged: false,
+        };
+      }}
+      onPointerMove={(event) => {
         if (
-          event.target === event.currentTarget &&
-          (event.key === 'Enter' || event.key === ' ') &&
-          !isDragging
+          Math.hypot(
+            event.clientX - gesture.current.x,
+            event.clientY - gesture.current.y,
+          ) >= 6
+        )
+          gesture.current.suppressClick = true;
+      }}
+      onMouseDown={(event) => {
+        if (
+          !isTextOrControl(
+            event.currentTarget,
+            event.target,
+            event.clientX,
+            event.clientY,
+          )
+        )
+          listeners?.onMouseDown?.(event);
+      }}
+      onTouchStart={(event) => {
+        const touch = event.touches[0];
+        const textOrControl =
+          touch &&
+          isTextOrControl(
+            event.currentTarget,
+            event.target,
+            touch.clientX,
+            touch.clientY,
+          );
+        textTouchStart.current = textOrControl ? event.timeStamp : undefined;
+        if (touch && !textOrControl) listeners?.onTouchStart?.(event);
+      }}
+      onTouchEnd={(event) => {
+        // Some touch browsers synthesize a click after a text long press even
+        // when native selection/context-menu UI has consumed the gesture.
+        if (
+          textTouchStart.current !== undefined &&
+          event.timeStamp - textTouchStart.current >= 200
+        )
+          gesture.current.suppressClick = true;
+        textTouchStart.current = undefined;
+      }}
+      onTouchCancel={() => {
+        gesture.current.suppressClick = true;
+      }}
+      onContextMenu={() => {
+        gesture.current.suppressClick = true;
+        clearTimeout(textClick.current);
+      }}
+      onClick={(event) => {
+        if (
+          isDragging ||
+          gesture.current.dragged ||
+          gesture.current.suppressClick ||
+          window.getSelection()?.isCollapsed === false ||
+          isControl(event.target, event.currentTarget)
+        )
+          return;
+        if (
+          event.detail > 0 &&
+          isTextOrControl(
+            event.currentTarget,
+            event.target,
+            event.clientX,
+            event.clientY,
+          )
         ) {
+          // Allow the second press of native double-click selection before opening.
+          textClick.current = setTimeout(() => {
+            if (window.getSelection()?.isCollapsed !== false) onOpen(action);
+          }, 400);
+        } else onOpen(action);
+      }}
+      onDoubleClick={() => clearTimeout(textClick.current)}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        clearTimeout(textClick.current);
+        if (event.code === 'Space' && !disabled) listeners?.onKeyDown?.(event);
+        if (event.key === 'Enter' && !isDragging) {
           event.preventDefault();
           onOpen(action);
         }
       }}
     >
-      <button
-        type="button"
-        onClick={(event) => event.stopPropagation()}
-        ref={setActivatorNodeRef}
-        {...attributes}
-        {...listeners}
-        disabled={disabled}
-        className={styles.dragHandle}
-        aria-label={`Drag ${action.title}`}
-      >
-        Move card
-      </button>
-      <div>
-        <CardContent action={action} />
-        <p className={styles.executionState}>
-          State · {action.state.replace('_', ' ')}
-        </p>
-      </div>
+      <CardContent action={action} />
+      <p className={styles.executionState}>
+        State · {action.state.replace('_', ' ')}
+      </p>
     </article>
   );
+}
+
+function isControl(target: EventTarget, card: HTMLElement) {
+  return (
+    target instanceof Element &&
+    target !== card &&
+    !!target.closest(
+      'a, button, input, textarea, select, summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="link"]',
+    )
+  );
+}
+
+function isTextOrControl(
+  card: HTMLElement,
+  target: EventTarget,
+  x: number,
+  y: number,
+) {
+  if (isControl(target, card)) return true;
+  // Element hit testing also includes empty space around text. Text ranges let
+  // that padding remain draggable without preventing native selection/copy.
+  const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  while (walker.nextNode()) {
+    if (!walker.currentNode.textContent?.trim()) continue;
+    range.selectNodeContents(walker.currentNode);
+    for (const rect of range.getClientRects()) {
+      if (
+        x >= rect.left &&
+        x <= rect.right &&
+        y >= rect.top &&
+        y <= rect.bottom
+      )
+        return true;
+    }
+  }
+  return false;
 }
