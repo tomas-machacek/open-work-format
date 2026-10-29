@@ -1,12 +1,13 @@
 # 0027 — Delete Actions and View instances through CLI
 
-> Status: in_progress
+> Status: completed
 > Description: Permanently delete Actions and View instances through CLI while preserving dependency integrity, unrelated work and historical events.
 > Depends on: [0017 — CLI Action blocking and dependencies](0017-action-blocking-cli.md), [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md) and [0024 — Persist and change View column order through CLI](0024-view-order-cli.md).
 
 Scope and behavior agreed on 2026-10-29. The user reviewed and approved this
 document for implementation on 2026-10-29. Implementation started on 2026-10-29;
-independent code review remains pending.
+The user confirmed successful independent code review and authorized completion
+and merge on 2026-10-29.
 
 ## Goal and scope
 
@@ -277,8 +278,11 @@ Implemented on 2026-10-29 in revision
 `fd07eb7ac76c7545238ace16b088e1ab09f5a9c2` on
 `increment-0027-delete-action-view-cli`, in existing [PR #33](https://github.com/tomas-machacek/open-work-format/pull/33).
 The branch was clean and `git pull --ff-only` reported it up to date before work.
-Increment and index remain `in_progress`: independent code review has not yet
-been performed. No merge, release or version/tag change is included.
+The user confirmed successful independent code review on 2026-10-29 and
+requested completion and merge of PR #33 at revision
+`dfc32e5aad02ebf6b926ca9be3b309772f32969d`. Increment and index are now
+`completed`. This completion update changes documentation only and reuses the
+recorded successful verification. No new runtime tests, release or tag are claimed.
 
 Delivered both noninteractive commands and human/JSON deletion receipts, shared
 application operations and domain rules. The Action reference guard runs inside
@@ -359,7 +363,23 @@ cleanup or browser deletion workflow. Automated Windows checks and existing
 browser journeys were run; Linux and a separate manual human try-out were not.
 Use the [walkthrough](../examples/deletion.md) in a disposable schema 9 Workspace
 for the human trial. No unresolved implementation defect is established by the
-checks; independent review remains required before completion.
+checks. The user subsequently confirmed successful independent review as recorded
+below.
+
+### Independent review and completion
+
+On 2026-10-29 the user reported that independent code review completed
+successfully and explicitly authorized marking the increment done and merging
+[PR #33](https://github.com/tomas-machacek/open-work-format/pull/33) into main.
+No unresolved review findings were reported. The review transcript and any
+additional reviewer-run checks were not supplied here; this records the user's
+confirmation without inventing further verification evidence.
+
+The reviewed branch head was `dfc32e5aad02ebf6b926ca9be3b309772f32969d`.
+The recorded full verification covers implementation revision
+`fd07eb7ac76c7545238ace16b088e1ab09f5a9c2`; the subsequent implementation
+handoff commit records evidence. Completion changes only status/history and
+removes stale pending-review descriptions. Runtime verification was not repeated.
 
 ## Decision changes and follow-up
 
