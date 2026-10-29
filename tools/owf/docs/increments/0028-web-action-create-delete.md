@@ -256,7 +256,7 @@ drag-and-drop and text selection continue to work.
   and accessible confirmation. Record screenshots or equivalent visual evidence.
 - Reuse relevant existing movement/layout/creation checks; run `npm run verify`
   before implementation handoff and record actual revision, platform and results.
-  No runtime tests are claimed by this documentation-only proposal.
+  Actual implementation verification is recorded below.
 
 Human try-out: open a View with several Open columns, add an Action to a
 non-default one and refresh. Open its detail, make an unsaved edit, open/cancel
@@ -273,8 +273,107 @@ from this increment; no profile change is required.
 
 ## Implementation and review outcome
 
-Not implemented. Record delivered behavior, verification, independent review,
-deviations and limitations here at handoff.
+Implemented; status remains **in_progress pending independent code review**.
+No merge or release is part of this handoff.
+
+Delivered behavior:
+
+- Ordinary columns reuse the inline creation form and owner picker. The application
+  derives the initial state from the chosen default and checks the current View
+  and serialized validated definition both before creation and within the writer
+  transaction. Shared reconciliation saves explicit source placement and append
+  order, including implicit members, with Action/organization events atomically.
+- Both board modes use the persistent red **Delete action** control. Native modal
+  confirmation names the persisted Action, describes global permanent deletion
+  and draft loss, initially focuses Cancel, contains focus and supports Escape.
+  The shared 0027 operation retains incoming-dependency protection and global cleanup.
+  Pending controls prevent duplicate/conflicting writes; rejection preserves drafts.
+- Confirmed writes update retained data before refresh and invalidate pre-write
+  reads. Hidden Default Kanban observes confirmed creation/deletion. Failed
+  follow-up reads preserve known results and mark the display stale; View ordering
+  remains disabled. Uncertain mutations are reported without automatic retry.
+- HTTP adds `POST /api/views/:id/actions` and `DELETE /api/actions/:id`, with the
+  existing Host/Origin/JSON boundary and strict request shapes. Server bootstrap
+  binds operations to the original Workspace. README, API notes, architecture and
+  the Work board example describe the delivered behavior.
+
+Canonical executable evidence:
+
+- [View ordering acceptance scenarios](../../tests/acceptance/features/view-order.feature):
+  creation in Todo preserves Open state and independent routing in another instance.
+- [SQLite/application ordering tests](../../tests/integration/view-order.test.ts):
+  append after implicit members, source isolation, explicit multi-state Waiting
+  default (different from the first accepted state), optional/literal reason,
+  invalid owner/column, changed definition and event rollback.
+- [HTTP integration](../../tests/integration/view-http.test.ts) and
+  [development proxy](../../tests/integration/board-proxy.test.ts): strict bodies,
+  forbidden Host/Origin/content type, dependency rejection and missing deletion.
+  Existing [0027 deletion integration](../../tests/integration/deletion.test.ts)
+  covers unchanged dependency, cleanup, history and rollback rules.
+- [Editor tests](../../src/web/ActionEditor.test.tsx),
+  [View read tests](../../src/web/ViewBoard.test.tsx) and
+  [client tests](../../src/web/client.test.ts): intact invalid drafts on cancel or
+  rejection, held deletion/pending controls, superseded reads, post-write read
+  failure and uncertain responses without retries. Existing form/board tests
+  retain creation validation and pending behavior coverage.
+- [Real creation/deletion journeys](../../tests/e2e/view-create-delete.spec.ts)
+  exercise persistence after reload, both deletion surfaces, backend state,
+  cancelled confirmation, dependency rejection, focus and keyboard confirmation
+  at 1920 × 1080, 390 × 844 and 1280 × 600. The extended
+  [layout journeys](../../tests/e2e/layout.spec.ts) verify all three persistent
+  controls throughout long-detail scrolling in both modes at all three sizes.
+  Existing movement/text-selection journeys remain part of the full run.
+
+Verification platform: **Windows x64, Node 24.21.0, npm 11.4.1, headless Chromium
+through Playwright**, 2026-10-29. Implementation/test revision:
+`b9872b630402d9fc4467ea51d7e7b27fd822ab45`.
+
+The final complete **`npm run verify` passed, exit 0**, against that revision:
+
+- Typecheck, ESLint, Prettier, architecture (61 modules / 204 dependencies): passed.
+- Production TypeScript/Vite build: passed.
+- Unit/component: **199 tests passed**.
+- SQLite/HTTP/proxy integration: **272 tests passed**.
+- Acceptance: **40 scenarios / 222 steps passed**.
+- Built CLI: **29 tests passed**.
+- Chromium: **27 tests passed**, including the final creation-focus regression.
+
+Only documentation/evidence changes follow that verified implementation revision;
+their formatting and `git diff --check` were checked separately.
+
+Focused checks passed: 44 editor/View/application tests, then 30 client/ordering
+tests; the three new browser journeys passed at all planned sizes. Screenshots
+were visually inspected for persistent controls, confirmation and readable errors.
+The full browser suite additionally checks the long detail in both board modes.
+Reproducible screenshots are emitted under `tools/owf/test-results/` by the linked
+browser/layout journeys. Selected screenshots from the final run were inspected
+and retained here:
+
+- [Wide View with Add Action controls](evidence/0028/view-wide.png) (1920 × 1080,
+  full-page capture after horizontal scrolling).
+- [Narrow View detail and persistent bar](evidence/0028/view-detail-narrow.png)
+  (390 × 844, content scrolled to the bottom).
+- [Short-window confirmation](evidence/0028/confirmation-short.png) (1280 × 600).
+- [Readable incoming-dependency rejection](evidence/0028/dependency-rejection-narrow.png)
+  (390 × 844).
+
+Earlier full attempts exposed lint/type errors in new tests and three old browser
+assertions that Views have no creation buttons. Those assertions were updated to
+require ordinary-column creation controls and preserve card/movement checks.
+Sandbox `spawn EPERM` blocked initial Vite/Chromium launches; actual test/build
+runs used execution outside that sandbox. No gate or acceptance criterion was
+weakened and no automatic test retries were added.
+
+No schema or dependency change, migration, CLI behavior change or scope deviation
+was required. Blocked creation, web View-instance deletion, undo/force/bulk deletion
+and release remain deferred. Markdown is outside the SQLite snapshot. Linux and
+manual human try-out were not run. Independent review has not yet occurred;
+there is no claim of review completion or established unresolved defect.
+
+Human try-out: serve a disposable schema 9 Workspace with the supplied Work board
+View. Add in Todo, refresh, then open detail, edit a field and cancel Delete to
+check the retained draft. Confirm deletion and inspect Default Kanban/another View.
+Repeat from Default Kanban with a referenced Action to see `ACTION_IN_USE`.
 
 ## Decision changes and follow-up
 

@@ -6,7 +6,8 @@ lists Actions and changes their execution state in the Workspace Operational Sto
 The local web interface offers Default Kanban and stored Views. Default Kanban
 supports Action creation, editing, state moves, filtering, manual blocking and
 Action prerequisites through the same operations. Views display evaluated columns
-and support View-local drag and drop alongside shared Action detail editing. Inbox
+and support View-local drag and drop, column creation and shared Action detail editing.
+Both modes support confirmed permanent Action deletion. Inbox
 operations are not yet implemented.
 
 The CLI creates, lists and retrieves independent View instances backed by
@@ -46,7 +47,7 @@ invalid definitions and disappeared instances produce errors with retry.
 
 Default Kanban's search and owner filters do not narrow Views. Returning restores
 the in-page filters and existing creation, drag/state changes and detail editing.
-Finish or cancel an open default creation form or drag before switching modes.
+Finish or cancel an open creation form or drag before switching modes.
 The same navigation restrictions apply in the header and Action detail.
 
 Drag a card from its background or padding with a mouse, or hold briefly on touch.
@@ -72,7 +73,9 @@ locked. A rejection, uncertain transport outcome, and confirmed move with failed
 refresh have separate feedback. No mutation is retried automatically. A successful
 refresh is required before moving or saving retained stale content.
 
-Views have no browser creation controls.
+Use **+ Add Action** below an ordinary column title to create directly there;
+the special Blocked column has no creation control. The chosen column supplies
+its default state and receives the new Action at the end.
 Create instances and edit definitions through the CLI/Markdown workflow below.
 View editing in the browser, selection persistence,
 windows, Snapshots and Action archiving remain deferred. Use web or CLI moves to organize
@@ -555,7 +558,8 @@ versions are rejected without migration or replacement.
 
 Browser Refresh reads CLI deletions through the existing API. A deleted selected
 View uses the existing disappeared-instance error; Default Kanban remains
-available. There are no browser delete controls or endpoints. Newly initialized
+available. Action detail supports permanent deletion in both board modes; View
+instance deletion remains CLI-only. Newly initialized
 Workspace guides describe these commands; existing user-edited guides are preserved.
 See the [deletion walkthrough](docs/examples/deletion.md).
 
