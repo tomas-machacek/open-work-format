@@ -1,11 +1,12 @@
 # 0028 — Create and delete Actions in web Views
 
-> Status: in_progress
+> Status: completed
 > Description: Create Actions in a chosen View column and permanently delete Actions from Views or Default Kanban through the shared web interface.
 > Depends on: [0008 — Create Actions on the board](0008-board-action-create.md), [0024 — Persist and change View column order through CLI](0024-view-order-cli.md), [0025 — Move and reorder Actions in web Views](0025-web-view-moves.md), [0026 — Web layout cleanup](0026-web-layout-cleanup.md) and [0027 — Delete Actions and View instances through CLI](0027-delete-action-view-cli.md).
 
 Scope and UI decisions agreed on 2026-10-29. The user reviewed and approved
-this document for implementation on 2026-10-29. Implementation is in progress.
+this document for implementation on 2026-10-29. The user confirmed completion
+and authorized marking the increment completed and merging PR #34 on 2026-10-29.
 
 ## Goal and scope
 
@@ -273,10 +274,11 @@ from this increment; no profile change is required.
 
 ## Implementation and review outcome
 
-Implemented; independent review identified two P2 defects at `c582e4e`.
-The corrective follow-up is recorded below. Status remains **in_progress pending
-review of the fixes**.
-No merge or release is part of this handoff.
+Completed on 2026-10-29 following implementation, independent review and correction
+of two P2 findings. The user authorized completion and merge of
+[PR #34](https://github.com/tomas-machacek/open-work-format/pull/34) at head
+`2b129af32ec7782e1d0d9855a8bdfa08b9ac1f53`. The recorded final verification
+below is reused; this completion update changes documentation only. No release.
 
 Delivered behavior:
 
@@ -437,8 +439,10 @@ Only this review/evidence documentation follows that verified revision; its
 formatting and `git diff --check` were checked separately. Linux and other browser
 engines were not tested.
 
-The fixes have not received another independent review. This follow-up does not
-mark the increment completed, merge it, or release it.
+At the corrective handoff, the fixes had not received another independent review.
+The user subsequently confirmed completion and authorized merge on 2026-10-29.
+No additional independent review or runtime verification is claimed by this
+completion update.
 
 ## Decision changes and follow-up
 
