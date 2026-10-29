@@ -1,4 +1,6 @@
 import {
+  viewMoveResponse,
+  type ViewMoveRequest,
   boardResponse,
   viewsResponse,
   viewResponse,
@@ -155,5 +157,31 @@ export async function saveAction(
     parsed.success
       ? parsed.data.error.message
       : 'Save could not be confirmed. Refresh and check the board before submitting again.',
+  );
+}
+
+export async function moveViewAction(view: string, input: ViewMoveRequest) {
+  let response: Response;
+  let body: unknown;
+  try {
+    response = await fetch(`/api/views/${encodeURIComponent(view)}/moves`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    body = await response.json();
+    if (response.ok) return viewMoveResponse.parse(body);
+  } catch {
+    throw new StateUpdateError(
+      'Move outcome is unknown. Refresh before trying again; do not resend automatically.',
+      'UNCERTAIN',
+    );
+  }
+  const parsed = boardError.safeParse(body);
+  throw new StateUpdateError(
+    parsed.success
+      ? parsed.data.error.message
+      : 'Move outcome is unknown. Refresh before trying again.',
+    parsed.success ? parsed.data.error.code : 'UNCERTAIN',
   );
 }

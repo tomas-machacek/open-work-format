@@ -4,9 +4,51 @@ import {
   fetchOwners,
   saveAction,
   updateActionState,
+  moveViewAction,
 } from './client.js';
 import { boardAction } from '../contracts/index.js';
 afterEach(() => vi.unstubAllGlobals());
+test.each(['rejection', 'network', 'body', 'contract'])(
+  'View move classifies %s without retrying the mutation',
+  async (failure) => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    if (failure === 'network')
+      fetch.mockRejectedValue(new TypeError('Disconnected'));
+    else
+      fetch.mockResolvedValue(
+        new Response(
+          failure === 'rejection'
+            ? JSON.stringify({
+                error: {
+                  code: 'INVALID_ARGUMENT',
+                  message: 'Position exceeds bound',
+                },
+              })
+            : failure === 'body'
+              ? '{'
+              : '{}',
+          { status: failure === 'rejection' ? 400 : 200 },
+        ),
+      );
+    vi.stubGlobal('fetch', fetch);
+    const input = { action: 'action', column: 'target', position: 1 };
+    const moving = moveViewAction('view /%', input);
+    await expect(moving).rejects.toMatchObject({
+      code: failure === 'rejection' ? 'INVALID_ARGUMENT' : 'UNCERTAIN',
+    });
+    await expect(moving).rejects.toThrow(
+      failure === 'rejection' ? 'Position exceeds bound' : /outcome is unknown/,
+    );
+    expect(fetch).toHaveBeenCalledExactlyOnceWith(
+      '/api/views/view%20%2F%25/moves',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      },
+    );
+  },
+);
 test('GUI reads reject missing, malformed and contradictory blocking projections', async () => {
   const action = {
     id: 'source',

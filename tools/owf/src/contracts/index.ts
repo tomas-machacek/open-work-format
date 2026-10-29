@@ -163,6 +163,7 @@ export type StoredView = z.infer<typeof viewInstance>;
 export const viewResponse = z.object({
   workspace: z.object({ root: z.string() }),
   view: viewInstance,
+  blocked_column: z.string().optional(),
   columns: z.array(
     z.object({
       id: z.string(),
@@ -255,3 +256,29 @@ export const editActionRequest = z
   );
 export const editActionResponse = updateActionStateResponse;
 export type EditActionRequest = z.infer<typeof editActionRequest>;
+
+export const viewMoveRequest = z
+  .object({
+    action: z.string().min(1),
+    column: z.string().min(1),
+    position: z
+      .number()
+      .int()
+      .positive()
+      .max(Number.MAX_SAFE_INTEGER)
+      .optional(),
+    reason: z
+      .string()
+      .refine((value) => value.trim().length > 0)
+      .optional(),
+  })
+  .strict();
+export type ViewMoveRequest = z.infer<typeof viewMoveRequest>;
+export const viewMoveResponse = z.object({
+  source: z.string().nullable(),
+  destination: z.string(),
+  source_position: z.number().nullable(),
+  destination_position: z.number(),
+  changed: z.boolean(),
+  action: boardAction,
+});

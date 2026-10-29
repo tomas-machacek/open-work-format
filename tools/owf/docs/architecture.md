@@ -382,3 +382,24 @@ The approved first increment establishes Workspace initialization and CLI toolin
 - [React Router](https://reactrouter.com/start/declarative/installation)
 - [dnd-kit](https://dndkit.com/)
 - [yaml](https://eemeli.org/yaml/)
+
+## Web View movement (0025)
+
+The browser uses dnd-kit mouse, touch and keyboard sensors with invisible insertion
+regions and natural content-area append. Only the current destination is indicated;
+stable card geometry and a thin line preserve compact resting layout. Background
+and padding activate dragging, while native text selection and interactive controls
+do not. Focusable cards use Enter for detail and Space for movement; touch swipes
+scroll and a background hold activates dragging. The Workspace-bound
+`POST /api/views/:id/moves` adapter validates shared
+contracts and invokes the same single-transaction move operation as CLI. Schema 8,
+coherent evaluation snapshots and write reconciliation are unchanged. Evaluation
+also supplies the configured Blocked column ID for the reason-only dialog.
+
+The browser freezes reads during a gesture or required Blocked reason dialog,
+queues tab refresh, guards navigation and prevents duplicate submissions. Waiting
+requires no prompt. Numeric insertion positions use execute-time membership;
+concurrent CLI organization does not imply neighbour anchoring. Every outcome
+refreshes authoritative membership/order. Rejection, unknown transport outcome and
+confirmed commit with read failure have distinct feedback; stale content disables
+movement and saves. There is no automatic mutation retry or board revision.

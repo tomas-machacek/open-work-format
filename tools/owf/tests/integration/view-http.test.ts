@@ -176,7 +176,8 @@ test('HTTP uses the CLI evaluator order and complete facts; reads preserve all s
   expect(web.view).toEqual(view);
   expect(
     web.columns.map((column) => ({
-      ...column,
+      id: column.id,
+      title: column.title,
       members: column.members.map((member, index) => ({
         position: index + 1,
         id: member.id,
@@ -331,4 +332,92 @@ test('existing HTTP edits reroute blocks, can exclude an Action and never apply 
   );
   expect(viewResponse.parse((await read()).json()).columns).toEqual([]);
   expect(view.id).toBe(web.view.id);
+});
+
+test('HTTP positional moves use current transaction facts, enforce reason and rollback all organization on failure', async () => {
+  const { root, store, file, view, server, read } = await setup();
+  const ids = ['A', 'B', 'C'].map(
+    (title) => createAction(root, { title }).result.action.id,
+  );
+  const address = server.server.address();
+  if (!address || typeof address === 'string') throw new Error('Missing port');
+  const headers = {
+    host: `127.0.0.1:${address.port}`,
+    origin: `http://127.0.0.1:${address.port}`,
+    'content-type': 'application/json',
+  };
+  const move = (action: string, column: string, extra = {}) =>
+    server.inject({
+      method: 'POST',
+      url: `/api/views/${view.id}/moves`,
+      headers,
+      payload: { action, column, ...extra },
+    });
+  const order = () =>
+    showView(root, view.id).result.columns[0]!.members.map((a) => a.id);
+  await read();
+  moveAction(root, ids[2]!, {
+    view: view.id,
+    column: 'new-actions',
+    position: 1,
+  });
+  expect((await move(ids[1]!, 'new-actions', { position: 2 })).statusCode).toBe(
+    200,
+  );
+  expect(order()).toEqual([ids[2], ids[1], ids[0]]);
+  const before = semanticSnapshot(root, store);
+  const outOfRange = await move(ids[1]!, 'new-actions', { position: 4 });
+  expect(outOfRange.statusCode).toBe(400);
+  expect(outOfRange.json()).toMatchObject({
+    error: { code: 'INVALID_ARGUMENT' },
+  });
+  expect(semanticSnapshot(root, store)).toEqual(before);
+  const missingReason = await move(ids[1]!, 'blocked');
+  expect(missingReason.statusCode).toBe(400);
+  expect(missingReason.json()).toMatchObject({
+    error: { code: 'INVALID_ARGUMENT' },
+  });
+  expect(semanticSnapshot(root, store)).toEqual(before);
+  expect(
+    (await move(ids[1]!, 'blocked', { reason: 'Access', position: 1 }))
+      .statusCode,
+  ).toBe(200);
+  setAction(root, ids[1]!, { addDependency: [ids[0]!] });
+  const blocked = semanticSnapshot(root, store);
+  const unresolvedExit = await move(ids[1]!, 'todo');
+  expect(unresolvedExit.statusCode).toBe(400);
+  expect(unresolvedExit.json()).toMatchObject({
+    error: { code: 'INVALID_ARGUMENT' },
+  });
+  expect(semanticSnapshot(root, store)).toEqual(blocked);
+  const db = new DatabaseSync(store);
+  try {
+    db.exec(
+      "CREATE TRIGGER reject_view_event BEFORE INSERT ON view_events BEGIN SELECT RAISE(ABORT, 'injected'); END",
+    );
+  } finally {
+    db.close();
+  }
+  const withTrigger = semanticSnapshot(root, store);
+  const persistenceFailure = await move(ids[0]!, 'todo', { position: 1 });
+  expect(persistenceFailure.statusCode).toBe(503);
+  expect(persistenceFailure.json()).toMatchObject({
+    error: { code: 'ACTION_UPDATE_FAILED' },
+  });
+  expect(semanticSnapshot(root, store)).toEqual(withTrigger);
+  const removeTrigger = new DatabaseSync(store);
+  try {
+    removeTrigger.exec('DROP TRIGGER reject_view_event');
+  } finally {
+    removeTrigger.close();
+  }
+  writeFileSync(file, 'Broken definition');
+  const brokenDefinition = semanticSnapshot(root, store);
+  const response = await move(ids[0]!, 'todo');
+  expect(response.statusCode).toBe(503);
+  expect(response.json()).toMatchObject({
+    error: { code: 'INVALID_VIEW_DEFINITION' },
+  });
+  expect(response.body).toContain(view.id);
+  expect(semanticSnapshot(root, store)).toEqual(brokenDefinition);
 });

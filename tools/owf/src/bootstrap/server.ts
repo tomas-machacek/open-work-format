@@ -7,6 +7,7 @@ import {
   listOwners,
   listViews,
   displayView,
+  moveAction,
 } from './workspaces.js';
 
 export async function serve(start: string, port = 4317) {
@@ -42,6 +43,12 @@ export async function serve(start: string, port = 4317) {
       return current;
     },
     {
+      move: (id, input) => {
+        if (listActions(result.root).result.root !== result.root)
+          throw new Error('The original Workspace is no longer available.');
+        const { action, ...options } = input;
+        return moveAction(result.root, action, { ...options, view: id });
+      },
       list: () => {
         const current = listViews(result.root);
         if (current.result.root !== result.root)

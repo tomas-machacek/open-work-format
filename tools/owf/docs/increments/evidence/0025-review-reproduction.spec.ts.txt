@@ -1,0 +1,111 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { test, expect, type Page } from '@playwright/test';
+import { initialize, createAction, createView, showView } from '../../src/bootstrap/workspaces.js';
+import { serve } from '../../src/bootstrap/server.js';
+import { cleanup, temporaryDirectory } from '../support/workspace.js';
+
+let root: string;
+let view: string;
+let server: Awaited<ReturnType<typeof serve>>;
+test.beforeEach(async ({ page }) => {
+  root = temporaryDirectory();
+  initialize(root, 'Independent review');
+  mkdirSync(join(root, '_views'));
+  writeFileSync(join(root, '_views', 'board.md'), '---\ntype: OWF View Definition\ntitle: Interaction\nowf:\n  renderer: kanban\n  columns:\n    - id: source\n      title: Source\n      status: open\n    - id: target\n      title: Target\n      status: in_progress\n    - id: blocked\n      title: Blocked\n      type: blocked\n---\n# Interaction\n');
+  view = createView(root, { title: 'Interaction', definition: '/_views/board.md' }).result.view.id;
+  for (const title of ['A', 'B', 'C', 'D']) createAction(root, { title });
+  server = await serve(root, 0);
+  const address = server.server.address();
+  if (!address || typeof address === 'string') throw new Error('Missing port');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`http://127.0.0.1:${address.port}`);
+  // Ensure Default Kanban really has its own retained cards before switching.
+  await expect(page.getByRole('article')).toHaveCount(4);
+  await page.getByRole('combobox', { name: 'Display' }).selectOption(view);
+  await expect(page.getByRole('region', { name: 'Source', exact: true }).getByRole('article')).toHaveCount(4);
+});
+test.afterEach(async () => { await server.close(); cleanup(root); });
+const card = (page: Page, title: string) => page.getByRole('article', { name: `${title}. Press Enter to edit or Space to move`, exact: true });
+async function pick(page: Page, title = 'A') {
+  await card(page, title).focus();
+  await page.keyboard.press('Space');
+  await expect(card(page, title)).toHaveAttribute('data-dragging', 'true');
+  await expect(page.getByLabel('Source: position 1', { exact: true })).toHaveAttribute('class', /activeSlot/);
+}
+
+test('review: cancel reason restores focus even when cancellation refresh fails', async ({ page }) => {
+  await pick(page);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Space');
+  const dialog = page.getByRole('dialog', { name: 'Blocked reason' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('textbox').focus();
+  await page.route(`**/api/views/${view}`, route => route.fulfill({ status: 503, json: { error: { code: 'UNAVAILABLE', message: 'Review read failure' } } }));
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('Stale · refresh failed', { exact: true })).toBeVisible();
+  await expect(card(page, 'A')).toBeFocused();
+});
+
+test('review: completion restores moved card when another card had focus during pending write', async ({ page }) => {
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/moves', async route => { await pending; await route.continue(); });
+  await pick(page);
+  await page.keyboard.press('End');
+  await page.keyboard.press('Space');
+  await expect(card(page, 'B')).toHaveAttribute('aria-disabled', 'true');
+  await page.keyboard.press('Tab');
+  await expect(card(page, 'B')).toBeFocused();
+  release();
+  await expect.poll(() => showView(root, view).result.columns[0]!.members.at(-1)?.title).toBe('A');
+  await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeEnabled();
+  await expect(card(page, 'A')).toBeFocused();
+});
+
+test('review: keyboard crosses horizontally clipped columns with visible insertion target', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await pick(page);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Home');
+  const target = page.getByLabel('Target: position 1', { exact: true });
+  await expect(target).toHaveAttribute('class', /activeSlot/);
+  await expect(target).toBeInViewport();
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('region', { name: 'Target', exact: true }).getByRole('heading', { level: 3 })).toHaveText(['A']);
+});
+
+test('review: pending text click does not interrupt a new selection on another card', async ({ page }) => {
+  createAction(root, { title: 'Text to select on another card' });
+  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  const heading = card(page, 'A').getByRole('heading');
+  const rect = await heading.boundingBox();
+  if (!rect) throw new Error('Missing rect');
+  await page.mouse.click(rect.x + 3, rect.y + 10);
+  await page.waitForTimeout(100);
+  const next = await card(page, 'Text to select on another card').getByRole('heading').boundingBox();
+  if (!next) throw new Error('Missing next rect');
+  await page.mouse.move(next.x + 3, next.y + 10);
+  await page.mouse.down();
+  await page.waitForTimeout(450);
+  await page.mouse.move(next.x + 100, next.y + 10, { steps: 10 });
+  await page.mouse.up();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('review: keyboard reason dialog initially owns focus and Escape cancels it', async ({ page }) => {
+  await pick(page);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Space');
+  const dialog = page.getByRole('dialog', { name: 'Blocked reason' });
+  await expect(dialog).toBeVisible();
+  await page.waitForTimeout(100);
+  console.log('Review initial focus:', await page.evaluate(() => document.activeElement?.outerHTML));
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+});
