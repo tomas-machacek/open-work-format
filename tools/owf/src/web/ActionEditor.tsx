@@ -133,6 +133,8 @@ export function ActionEditor({
     if (saving || blocked || stale || (passive && factsStale)) return;
     if (manual && !manualReason.trim()) {
       setError('Enter a nonblank manual blocking reason.');
+      // An unchanged message does not rerun the error effect on another submit.
+      errorMessage.current?.scrollIntoView?.({ block: 'nearest' });
       return;
     }
     const changes: Omit<EditActionRequest, 'expected'> = {};

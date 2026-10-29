@@ -257,6 +257,21 @@ for (const viewport of [
         await page.screenshot({
           path: testInfo.outputPath(`${mode}-validation.png`),
         });
+        // Returning to the invalid field hides the feedback. The same local
+        // rejection must reveal it again even when its message is unchanged.
+        const manualReason = detail.getByLabel('Manual blocking reason', {
+          exact: true,
+        });
+        await manualReason.fill('   ');
+        await expect(error).not.toBeInViewport();
+        await save.click();
+        await expect(error).toBeInViewport({ ratio: 1 });
+        await expect(manualReason).toHaveValue('   ');
+        expect(writes).toHaveLength(mode === 'default' ? 0 : 1);
+        await controlsVisible();
+        await page.screenshot({
+          path: testInfo.outputPath(`${mode}-repeated-validation.png`),
+        });
         await detail.getByLabel('Manual block', { exact: true }).uncheck();
         await detail
           .getByLabel('Title', { exact: true })
