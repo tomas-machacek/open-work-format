@@ -62,6 +62,51 @@ export interface ViewOrder extends ViewPlacement {
   rank: number;
 }
 
+// Deletion uses stored organization only, without evaluating definitions or routing.
+export function removeActionOrganization(
+  id: string,
+  placements: readonly ViewPlacement[],
+  order: readonly ViewOrder[],
+): { placements: ViewPlacement[]; order: ViewOrder[] } {
+  const affected = order.filter((row) => row.action_id === id);
+  const remaining = order.filter((row) => row.action_id !== id);
+  return {
+    placements: placements.filter((row) => row.action_id !== id),
+    order: remaining.map((row) =>
+      affected.some(
+        (removed) =>
+          removed.view_id === row.view_id &&
+          removed.column_id === row.column_id,
+      )
+        ? {
+            ...row,
+            rank:
+              1 +
+              remaining.filter(
+                (other) =>
+                  other.view_id === row.view_id &&
+                  other.column_id === row.column_id &&
+                  other.rank < row.rank,
+              ).length,
+          }
+        : row,
+    ),
+  };
+}
+
+export function viewInstanceId(value: string): string {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(
+      value,
+    )
+  )
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Supply a stored View instance UUID v4, not a title or definition path.',
+    );
+  return value;
+}
+
 export function validatePosition(position: number, maximum: number): number {
   if (!Number.isSafeInteger(position) || position < 1 || position > maximum)
     throw new WorkspaceError(

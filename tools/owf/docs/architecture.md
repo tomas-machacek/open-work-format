@@ -6,6 +6,7 @@
 > Web View inventory, passive display and shared Action editing delivered in 0022.
 > CLI View moves, instance placement and write reconciliation delivered in 0023.
 > Persistent instance-local column order and CLI positions delivered in 0024.
+> Permanent CLI Action and View instance deletion implemented in 0027, pending review.
 
 ## Purpose and authority
 
@@ -403,3 +404,27 @@ concurrent CLI organization does not imply neighbour anchoring. Every outcome
 refreshes authoritative membership/order. Rejection, unknown transport outcome and
 confirmed commit with read failure have distinct feedback; stale content disables
 movement and saves. There is no automatic mutation retry or board revision.
+
+## Permanent CLI deletion (0027)
+
+Shared application operations expose `delete action` and `delete view` without a
+server or prompt. The Action repository supplies validated stored Action facts
+to the domain reference guard inside the same `BEGIN IMMEDIATE` transaction as
+deletion. Every surviving incoming Action edge rejects deletion, regardless of
+state or owner; outgoing/self edges disappear with their source record.
+
+The domain removes the target's stored placements/order and closes affected rank
+gaps, retaining surviving relative order. This path uses no routing evaluation,
+Markdown owner resolution or definition loading. The View operation deletes only
+its stored instance and owned organization; other instances, Actions and shared
+definitions remain untouched, including when definitions are broken.
+
+Schema 9 adds deletion event kinds and title fields and removes foreign keys
+from historical Action/View event identities, including View events' Action IDs.
+Current placements/order retain their foreign keys. Existing history is retained;
+one deletion event records ID, title and time. Action cleanup reuses actual
+placement/order events, while View deletion needs only `view.deleted`. Object,
+organization and event writes commit or roll back together. Older stores,
+including schema 8, fail explicitly without migration or replacement.
+Existing web reads reflect CLI deletion; there are no deletion endpoints or
+browser controls. Independent review of 0027 remains pending.

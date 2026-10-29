@@ -404,7 +404,15 @@ operation nor automatic cross-store coordination, rollback, or recovery.
 | Set / Clear waiting reason | Manage waiting_for consistently with state. |
 | Set / Clear manual block | Manage the human-readable blocking reason. |
 | Add / Remove dependency | Change the set of prerequisites. |
+| Delete | Permanently remove an Action with incoming-reference protection and atomic View cleanup; preserve surviving order and history. |
 | Archive | Archive a terminal Action and preserve its preceding disposition. |
+
+Tool increment [0027](../../tools/owf/docs/increments/0027-delete-action-view-cli.md)
+delivers permanent Action deletion for the supported Action-to-Action dependency
+model. Any other referring Action prevents deletion until its dependency is
+explicitly removed or redirected, regardless of state or owner. Outgoing and
+self-dependencies disappear with their source. Future authoritative reference
+types must extend these integrity checks; Outcome dependencies remain deferred.
 
 These capabilities may be combined in one operation. Entering Waiting and
 supplying its reason, or completing an Action while clearing an obsolete waiting

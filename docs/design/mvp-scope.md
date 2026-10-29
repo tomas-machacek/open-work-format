@@ -75,6 +75,12 @@ according to the existing Operational Store model.
   on Actions and Outcomes.
 - Show derived blocking and its reasons separately from intrinsic state.
 - Keep Action identity stable across title changes, owner changes, and archival.
+- Agreed addition in [tool increment 0027](../../tools/owf/docs/increments/0027-delete-action-view-cli.md):
+  permanently delete Actions through the CLI, rejecting incoming Action
+  dependencies until explicitly removed or redirected. Clean up outgoing edges
+  and View organization atomically, retaining surviving order and historical
+  events. Browser deletion controls, undo, force/cascade and attachment or
+  Markdown reference cleanup remain outside this increment.
 
 Provide a Kanban board grouped by intrinsic state, card movement for valid state
 transitions, Action detail, title search, and direct-owner and state filters.

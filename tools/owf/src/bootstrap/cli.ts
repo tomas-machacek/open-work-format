@@ -13,6 +13,8 @@ import {
   listViews,
   showView,
   moveAction,
+  deleteAction,
+  deleteView,
 } from './workspaces.js';
 
 const metadata: unknown = JSON.parse(
@@ -53,5 +55,9 @@ await runCli(
     list: () => listViews(process.cwd()),
     show: (id) => showView(process.cwd(), id),
     move: (id, input) => moveAction(process.cwd(), id, input),
+  },
+  {
+    action: (id) => deleteAction(process.cwd(), id),
+    view: (id) => deleteView(process.cwd(), id),
   },
 );

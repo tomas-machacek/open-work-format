@@ -210,6 +210,50 @@ export function writeOrder(
 }
 
 export const viewRepository: ViewRepository = {
+  delete(path, id, time) {
+    let db: DatabaseSync | undefined;
+    try {
+      if (!statSync(path).isFile()) throw new Error('Missing store');
+      db = new DatabaseSync(path);
+      db.exec(
+        'PRAGMA busy_timeout = 1000; PRAGMA foreign_keys = ON; BEGIN IMMEDIATE',
+      );
+      const version = db
+        .prepare("SELECT value FROM owf_metadata WHERE key = 'schema_version'")
+        .get()?.value;
+      if (version !== '9')
+        throw new WorkspaceError(
+          'UNSUPPORTED_STORE_VERSION',
+          `Unsupported store schema ${String(version)}: ${path}`,
+        );
+      const target = db
+        .prepare('SELECT id, title FROM views WHERE id = ?')
+        .get(id);
+      if (!target)
+        throw new WorkspaceError(
+          'VIEW_NOT_FOUND',
+          'No such stored View instance.',
+        );
+      if (typeof target.title !== 'string')
+        throw new Error('Invalid View title');
+      db.prepare('DELETE FROM view_placements WHERE view_id = ?').run(id);
+      db.prepare('DELETE FROM view_order WHERE view_id = ?').run(id);
+      db.prepare('DELETE FROM views WHERE id = ?').run(id);
+      db.prepare(
+        'INSERT INTO view_events (kind, view_id, created_at, title) VALUES (?, ?, ?, ?)',
+      ).run('view.deleted', id, time, target.title);
+      db.exec('COMMIT');
+      return { id, title: target.title };
+    } catch (error) {
+      if (error instanceof WorkspaceError) throw error;
+      throw new WorkspaceError(
+        'VIEW_DELETE_FAILED',
+        'Could not delete the View instance, its organization and event. Check store access or concurrent writes and retry.',
+      );
+    } finally {
+      db?.close();
+    }
+  },
   evaluation(path, viewId) {
     return read(path, (db) => {
       // Keep all mutable evaluation facts coherent across concurrent writer commits.

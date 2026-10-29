@@ -1,11 +1,12 @@
 # 0027 — Delete Actions and View instances through CLI
 
-> Status: reviewed
+> Status: in_progress
 > Description: Permanently delete Actions and View instances through CLI while preserving dependency integrity, unrelated work and historical events.
 > Depends on: [0017 — CLI Action blocking and dependencies](0017-action-blocking-cli.md), [0020 — View instance CLI foundation](0020-view-instance-cli-foundation.md) and [0024 — Persist and change View column order through CLI](0024-view-order-cli.md).
 
 Scope and behavior agreed on 2026-10-29. The user reviewed and approved this
-document for implementation on 2026-10-29. Implementation has not yet started.
+document for implementation on 2026-10-29. Implementation started on 2026-10-29;
+independent code review remains pending.
 
 ## Goal and scope
 

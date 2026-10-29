@@ -1,4 +1,5 @@
 import {
+  validateActionDeletion,
   projectAction,
   validateCompletion,
   type ActionProjection,
@@ -12,6 +13,7 @@ import {
   validateActionOwner,
   type ActionInput,
 } from '../../domain/actions/index.js';
+import { removeActionOrganization } from '../../domain/views/index.js';
 import {
   validateTitle,
   WorkspaceError,
@@ -96,6 +98,42 @@ export interface ActionResult {
     action: ActionProjection;
   };
   warnings: [];
+}
+export interface DeleteActionResult {
+  result: {
+    status: 'deleted';
+    type: 'action';
+    root: string;
+    id: string;
+    title: string;
+    uri: string;
+  };
+  warnings: [];
+}
+export function deleteAction(
+  start: string,
+  identifier: string,
+  ports: ActionPorts,
+): DeleteActionResult {
+  const id = actionId(identifier);
+  const found = workspace(start, ports);
+  const deleted = ports.actions.delete(
+    found.store,
+    id,
+    ports.now(),
+    validateActionDeletion,
+    ({ placements, order }) => removeActionOrganization(id, placements, order),
+  );
+  return {
+    result: {
+      status: 'deleted',
+      type: 'action',
+      root: found.root,
+      ...deleted,
+      uri: `owf:action:${id}`,
+    },
+    warnings: [],
+  };
 }
 export interface ExpectedActionSnapshot {
   state: string;

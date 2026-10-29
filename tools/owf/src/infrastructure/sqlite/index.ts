@@ -4,17 +4,17 @@ import type { WorkspaceStore } from '../../application/ports/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
 
 const eventTableSchema = `CREATE TABLE action_events (
-          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('action.created','action.state_changed','action.updated')),
-          action_id TEXT NOT NULL REFERENCES actions(id), created_at TEXT NOT NULL,
+          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('action.created','action.state_changed','action.updated','action.deleted')),
+          action_id TEXT NOT NULL, created_at TEXT NOT NULL, title TEXT,
           old_state TEXT, new_state TEXT, old_waiting_for TEXT, new_waiting_for TEXT,
           changed_fields TEXT, old_owner_url TEXT, new_owner_url TEXT,
           old_manual_block TEXT, new_manual_block TEXT, old_depends_on TEXT, new_depends_on TEXT
         )`;
 
 const viewEventTableSchema = `CREATE TABLE view_events (
-          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('view.created','view.placement_changed','view.order_changed')),
-          view_id TEXT NOT NULL REFERENCES views(id), created_at TEXT NOT NULL,
-          action_id TEXT REFERENCES actions(id), old_column_id TEXT, new_column_id TEXT
+          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('view.created','view.placement_changed','view.order_changed','view.deleted')),
+          view_id TEXT NOT NULL, created_at TEXT NOT NULL, title TEXT,
+          action_id TEXT, old_column_id TEXT, new_column_id TEXT
         )`;
 
 const viewTableSchema = `CREATE TABLE views (
@@ -49,7 +49,7 @@ export const workspaceStore: WorkspaceStore = {
         'INSERT INTO owf_metadata (key, value) VALUES (?, ?)',
       );
       insert.run('format', 'owf-tool-operational');
-      insert.run('schema_version', '8');
+      insert.run('schema_version', '9');
       db.exec(`
         CREATE TABLE actions (
           id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
@@ -99,7 +99,7 @@ export const workspaceStore: WorkspaceStore = {
           'INVALID_STORE',
           `Unrecognized store: ${path}`,
         );
-      if (version !== '8')
+      if (version !== '9')
         throw new WorkspaceError(
           'UNSUPPORTED_STORE_VERSION',
           `Unsupported store schema ${version}: ${path}`,

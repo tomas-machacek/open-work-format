@@ -25,6 +25,26 @@ export interface Action {
   updated_at: string;
 }
 
+export function validateActionDeletion(
+  target: Action,
+  actions: readonly Action[],
+): void {
+  const referring = actions
+    .filter(
+      (action) =>
+        action.id !== target.id &&
+        action.depends_on?.some((uri) => actionId(uri) === target.id),
+    )
+    .sort((left, right) =>
+      left.id < right.id ? -1 : left.id > right.id ? 1 : 0,
+    );
+  if (referring.length)
+    throw new WorkspaceError(
+      'ACTION_IN_USE',
+      `Cannot permanently delete owf:action:${target.id}. First explicitly remove or redirect dependencies from these Actions:\n${referring.map((action) => `owf:action:${action.id} | ${action.title}`).join('\n')}`,
+    );
+}
+
 export const actionStates = [
   'open',
   'in_progress',
