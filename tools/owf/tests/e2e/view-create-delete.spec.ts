@@ -51,6 +51,7 @@ test('View creation restores keyboard focus after render while refresh is held o
   const started = new Promise<void>((resolve) => {
     reading = resolve;
   });
+  const session = await page.context().newCDPSession(page);
   try {
     await page.setViewportSize({ width: 1280, height: 600 });
     await page.goto(url);
@@ -60,7 +61,6 @@ test('View creation restores keyboard focus after render while refresh is held o
     const todo = page.getByRole('region', { name: 'Todo', exact: true });
     const add = todo.getByRole('button', { name: '+ Add Action' });
     await expect(add).toBeEnabled();
-    const session = await page.context().newCDPSession(page);
     await session.send('Emulation.setCPUThrottlingRate', { rate: 6 });
     await page.route(`${url}/api/views/${view.id}`, async (route) => {
       reading();
@@ -118,6 +118,8 @@ test('View creation restores keyboard focus after render while refresh is held o
   } finally {
     release();
     await page.unrouteAll({ behavior: 'wait' });
+    await session.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+    await session.detach();
     await server.close();
     cleanup(root);
   }
