@@ -6,7 +6,7 @@
 > Web View inventory, passive display and shared Action editing delivered in 0022.
 > CLI View moves, instance placement and write reconciliation delivered in 0023.
 > Persistent instance-local column order and CLI positions delivered in 0024.
-> Permanent CLI Action and View instance deletion implemented in 0027, pending review.
+> Permanent CLI Action and View instance deletion delivered in 0027.
 
 ## Purpose and authority
 
@@ -427,4 +427,5 @@ placement/order events, while View deletion needs only `view.deleted`. Object,
 organization and event writes commit or roll back together. Older stores,
 including schema 8, fail explicitly without migration or replacement.
 Existing web reads reflect CLI deletion; there are no deletion endpoints or
-browser controls. Independent review of 0027 remains pending.
+browser controls. The user confirmed successful independent review of 0027 on
+2026-10-29.
