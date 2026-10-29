@@ -273,7 +273,9 @@ from this increment; no profile change is required.
 
 ## Implementation and review outcome
 
-Implemented; status remains **in_progress pending independent code review**.
+Implemented; independent review identified two P2 defects at `c582e4e`.
+The corrective follow-up is recorded below. Status remains **in_progress pending
+review of the fixes**.
 No merge or release is part of this handoff.
 
 Delivered behavior:
@@ -328,7 +330,7 @@ Verification platform: **Windows x64, Node 24.21.0, npm 11.4.1, headless Chromiu
 through Playwright**, 2026-10-29. Implementation/test revision:
 `b9872b630402d9fc4467ea51d7e7b27fd822ab45`.
 
-The final complete **`npm run verify` passed, exit 0**, against that revision:
+The original complete **`npm run verify` passed, exit 0**, against that revision:
 
 - Typecheck, ESLint, Prettier, architecture (61 modules / 204 dependencies): passed.
 - Production TypeScript/Vite build: passed.
@@ -338,8 +340,9 @@ The final complete **`npm run verify` passed, exit 0**, against that revision:
 - Built CLI: **29 tests passed**.
 - Chromium: **27 tests passed**, including the final creation-focus regression.
 
-Only documentation/evidence changes follow that verified implementation revision;
-their formatting and `git diff --check` were checked separately.
+At the original handoff only documentation/evidence changes followed that verified
+implementation revision; their formatting and `git diff --check` were checked
+separately. The later review corrections have separate verification below.
 
 Focused checks passed: 44 editor/View/application tests, then 30 client/ordering
 tests; the three new browser journeys passed at all planned sizes. Screenshots
@@ -367,13 +370,75 @@ weakened and no automatic test retries were added.
 No schema or dependency change, migration, CLI behavior change or scope deviation
 was required. Blocked creation, web View-instance deletion, undo/force/bulk deletion
 and release remain deferred. Markdown is outside the SQLite snapshot. Linux and
-manual human try-out were not run. Independent review has not yet occurred;
-there is no claim of review completion or established unresolved defect.
+manual human try-out were not run. The original handoff preceded independent
+review; the findings and corrections are recorded below.
 
 Human try-out: serve a disposable schema 9 Workspace with the supplied Work board
 View. Add in Todo, refresh, then open detail, edit a field and cancel Delete to
 check the retained draft. Confirm deletion and inspect Default Kanban/another View.
 Repeat from Default Kanban with a referenced Action to see `ACTION_IN_USE`.
+
+### Independent review and corrective follow-up
+
+Independent review of `c582e4eaed0fd0ae00aeaf223b7256df6780a305` against fetched
+`origin/main` / merge base `d263332341ad34fc6bbf43fdf4791bd522d16a7f` identified
+two P2 defects:
+
+- A successful View deletion did not notify the retained Default Kanban. Switching
+  back with a failed board read could display the already-deleted Action.
+- Creation focus restoration could run before React enabled its target, leaving
+  focus on `body`. This occurred intermittently at normal speed and consistently
+  with slower rendering.
+
+Both are corrected in `7fb59d20f70813a5ad98601976b8676e327a8e79`:
+
+- The shared deletion client emits the existing deletion notification only after
+  a validated successful response, so the hidden board removes its cached card
+  before any follow-up read. Rejection and uncertain responses emit no notification.
+- Creation remembers its intended focus destination and restores focus in a layout
+  effect after the closing render. While refresh is pending or failed, the enabled
+  Refresh/Retry control is the fallback; cancellation returns to Add Action.
+
+Regression evidence links to the existing
+[client](../../src/web/client.test.ts),
+[View component](../../src/web/ViewBoard.test.tsx), and
+[browser journey](../../tests/e2e/view-create-delete.spec.ts) suites. The new
+hidden-cache browser test failed against the pre-fix build. The component test
+also failed against the pre-fix focus implementation when an animation frame ran
+before the closing render. The browser tests exercise real application writes,
+held and failed reads, CPU-throttled rendering, cancellation, hidden-cache removal,
+and backend deletion evidence. No test timeouts or quality gates were weakened.
+
+Test-only follow-ups explicitly reset CPU throttling and detach the CDP session
+after the new browser regression (`a888f63`). The existing keyboard interaction
+journey now verifies restored card focus before sending its next Space gesture
+(`bca228d`); this adds an assertion and awaits the intended asynchronous behavior
+without forcing focus or relaxing movement expectations.
+
+Earlier full attempts exposed two existing CLI tests exceeding their unchanged
+5-second timeout, plus keyboard movement timing failures. Both CLI tests later
+passed in complete serial runs. The keyboard cases passed in isolation, and all
+11 interaction journeys passed after adding the focus assertion above. There are
+no automatic test retries or increased timeouts.
+
+The final complete **`npm run verify` passed, exit 0**, against implementation/test
+revision `bca228dfb2dfedd3a145f7b006a8c5350ece55dc` on **Windows x64, Node 24.21.0,
+npm 11.4.1 and headless Chromium**, 2026-10-29:
+
+- Typecheck, ESLint, Prettier, architecture and production build: passed.
+- Unit/component: **203 tests passed**.
+- SQLite/HTTP/proxy integration: **272 tests passed**.
+- Acceptance: **40 scenarios / 222 steps passed**.
+- Built CLI: **29 tests passed**.
+- Chromium: **29 tests passed**, including both new regressions and the original
+  creation/deletion/layout checks at all three viewport sizes.
+
+Only this review/evidence documentation follows that verified revision; its
+formatting and `git diff --check` were checked separately. Linux and other browser
+engines were not tested.
+
+The fixes have not received another independent review. This follow-up does not
+mark the increment completed, merge it, or release it.
 
 ## Decision changes and follow-up
 
