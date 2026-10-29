@@ -79,7 +79,10 @@ test('compact board has stable generous insertion regions; pointer moves preserv
   await expect(
     page.getByText(/Insert at \d|Append to column|Move card/),
   ).toHaveCount(0);
-  await expect(source.getByRole('button')).toHaveCount(0);
+  await expect(
+    source.getByRole('button', { name: '+ Add Action', exact: true }),
+  ).toHaveCount(1);
+  await expect(source.getByRole('article').getByRole('button')).toHaveCount(0);
   const a = await box(cardNamed(page, 'A'));
   const b = await box(cardNamed(page, 'B'));
   expect(b.y - (a.y + a.height)).toBe(12);
