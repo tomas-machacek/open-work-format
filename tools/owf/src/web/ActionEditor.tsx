@@ -54,6 +54,7 @@ export function ActionEditor({
   const dialog = useRef<HTMLDialogElement>(null);
   const titleInput = useRef<HTMLInputElement>(null);
   const continueButton = useRef<HTMLButtonElement>(null);
+  const errorMessage = useRef<HTMLParagraphElement>(null);
   const [baseline, setBaseline] = useState(action);
   const [title, setTitle] = useState(action.title);
   const [description, setDescription] = useState(action.description ?? '');
@@ -75,6 +76,9 @@ export function ActionEditor({
   const [blocked, setBlocked] = useState(false);
   const [inspected, setInspected] = useState(false);
   const [error, setError] = useState<string>();
+  useEffect(() => {
+    errorMessage.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [error]);
   const stale = !current || !sameSnapshot(baseline, current);
   const dirty =
     manualDirty ||
@@ -217,201 +221,212 @@ export function ActionEditor({
         if (event.target === dialog.current) requestClose();
       }}
     >
-      <div className={styles.editorCard}>
-        {navigation}
-        <p className={styles.eyebrow}>Action detail</p>
-        <h2 id="editor-heading">Edit Action</h2>
-        <p id="editor-intro" className={styles.editorIntro}>
-          {passive
-            ? 'Edit this shared Action. State changes and card moves are unavailable in Views.'
-            : 'Change the details below. To change state, close this card and drag it to another column.'}
-        </p>
-        {discard ? (
-          <div className={styles.editorNotice} role="alert">
-            <strong>Discard unsaved changes?</strong>
-            <p>Your edits will be lost.</p>
-            <div className={styles.formButtons}>
-              <button type="button" onClick={close}>
-                Discard changes
-              </button>
-              <button
-                ref={continueButton}
-                type="button"
-                onClick={() => {
-                  setDiscard(false);
-                  afterClose.current = undefined;
-                }}
-              >
-                Continue editing
-              </button>
-            </div>
-          </div>
-        ) : (
-          <form
-            onSubmit={(event) => {
-              void submit(event);
-            }}
-            noValidate
-          >
-            {stale && (
-              <div className={styles.editorNotice} role="status">
-                This Action changed on the board. Your draft is preserved.
-                Reload current values before saving.
-                <button type="button" onClick={reload} disabled={!current}>
-                  Reload current values
+      <form
+        className={`${styles.editorCard} ${styles.editorLayout}`}
+        onSubmit={(event) => {
+          void submit(event);
+        }}
+        noValidate
+      >
+        <div className={styles.editorScroll}>
+          {navigation}
+          <p className={styles.eyebrow}>Action detail</p>
+          <h2 id="editor-heading">Edit Action</h2>
+          <p id="editor-intro" className={styles.editorIntro}>
+            {passive
+              ? 'Edit this shared Action. State changes and card moves are unavailable in Views.'
+              : 'Change the details below. To change state, close this card and drag it to another column.'}
+          </p>
+          {discard ? (
+            <div className={styles.editorNotice} role="alert">
+              <strong>Discard unsaved changes?</strong>
+              <p>Your edits will be lost.</p>
+              <div className={styles.formButtons}>
+                <button type="button" onClick={close}>
+                  Discard changes
                 </button>
-              </div>
-            )}
-            {passive && factsStale && (
-              <p role="status" className={styles.editorNotice}>
-                View data is not current. Refresh successfully before saving.
-              </p>
-            )}
-            {blocked && !stale && (
-              <div className={styles.editorNotice} role="status">
-                Inspect the current Action before another save.
                 <button
+                  ref={continueButton}
                   type="button"
                   onClick={() => {
-                    void checkCurrent();
+                    setDiscard(false);
+                    afterClose.current = undefined;
                   }}
                 >
-                  Refresh board
-                </button>
-                <button
-                  type="button"
-                  onClick={reload}
-                  disabled={!current || !inspected}
-                >
-                  Use current values
+                  Continue editing
                 </button>
               </div>
-            )}
-            <label htmlFor="edit-title">Title</label>
-            <input
-              ref={titleInput}
-              id="edit-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              disabled={saving}
-            />
-            <label htmlFor="edit-description">
-              Description <span>(Markdown)</span>
-            </label>
-            <textarea
-              id="edit-description"
-              rows={6}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              disabled={saving}
-            />
-            <OwnerPicker value={owner} onChange={setOwner} disabled={saving} />
-            <PrerequisitePicker
-              value={dependencies}
-              original={baseline.depends_on}
-              current={current}
-              saved={current ?? baseline}
-              sourceFactsStale={factsStale || !current}
-              disabled={saving}
-              dirty={manualDirty || dependencyDirty}
-              refreshSource={refresh}
-              onChange={setDependencies}
-            >
-              <label className={styles.manualToggle}>
-                <input
-                  type="checkbox"
-                  checked={manual}
-                  disabled={saving || !manualEligible}
-                  onChange={(event) => setManual(event.target.checked)}
-                />
-                Manual block
-              </label>
-              {!manualEligible && (
-                <p className={styles.hint}>
-                  Completed and cancelled Actions cannot receive a manual
-                  reason. Prerequisites remain editable.
+            </div>
+          ) : (
+            <>
+              {stale && (
+                <div className={styles.editorNotice} role="status">
+                  This Action changed on the board. Your draft is preserved.
+                  Reload current values before saving.
+                  <button type="button" onClick={reload} disabled={!current}>
+                    Reload current values
+                  </button>
+                </div>
+              )}
+              {passive && factsStale && (
+                <p role="status" className={styles.editorNotice}>
+                  View data is not current. Refresh successfully before saving.
                 </p>
               )}
-              {manual && (
-                <>
-                  <label htmlFor="manual-reason">Manual blocking reason</label>
-                  <textarea
-                    id="manual-reason"
-                    rows={3}
-                    value={manualReason}
+              {blocked && !stale && (
+                <div className={styles.editorNotice} role="status">
+                  Inspect the current Action before another save.
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void checkCurrent();
+                    }}
+                  >
+                    Refresh board
+                  </button>
+                  <button
+                    type="button"
+                    onClick={reload}
+                    disabled={!current || !inspected}
+                  >
+                    Use current values
+                  </button>
+                </div>
+              )}
+              <label htmlFor="edit-title">Title</label>
+              <input
+                ref={titleInput}
+                id="edit-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                disabled={saving}
+              />
+              <label htmlFor="edit-description">
+                Description <span>(Markdown)</span>
+              </label>
+              <textarea
+                id="edit-description"
+                rows={6}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                disabled={saving}
+              />
+              <OwnerPicker
+                value={owner}
+                onChange={setOwner}
+                disabled={saving}
+              />
+              <PrerequisitePicker
+                value={dependencies}
+                original={baseline.depends_on}
+                current={current}
+                saved={current ?? baseline}
+                sourceFactsStale={factsStale || !current}
+                disabled={saving}
+                dirty={manualDirty || dependencyDirty}
+                refreshSource={refresh}
+                onChange={setDependencies}
+              >
+                <label className={styles.manualToggle}>
+                  <input
+                    type="checkbox"
+                    checked={manual}
                     disabled={saving || !manualEligible}
-                    onChange={(event) => setManualReason(event.target.value)}
+                    onChange={(event) => setManual(event.target.checked)}
+                  />
+                  Manual block
+                </label>
+                {!manualEligible && (
+                  <p className={styles.hint}>
+                    Completed and cancelled Actions cannot receive a manual
+                    reason. Prerequisites remain editable.
+                  </p>
+                )}
+                {manual && (
+                  <>
+                    <label htmlFor="manual-reason">
+                      Manual blocking reason
+                    </label>
+                    <textarea
+                      id="manual-reason"
+                      rows={3}
+                      value={manualReason}
+                      disabled={saving || !manualEligible}
+                      onChange={(event) => setManualReason(event.target.value)}
+                    />
+                  </>
+                )}
+                {manualDirty && (
+                  <p role="status" className={styles.hint}>
+                    {manual
+                      ? 'Pending manual reason edit. Save to apply.'
+                      : 'Saving will clear the manual block.'}
+                  </p>
+                )}
+              </PrerequisitePicker>
+              {baseline.state === 'waiting' && (
+                <>
+                  <label htmlFor="edit-reason">
+                    Waiting for <span>(optional)</span>
+                  </label>
+                  <textarea
+                    id="edit-reason"
+                    rows={2}
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    disabled={saving}
                   />
                 </>
               )}
-              {manualDirty && (
-                <p role="status" className={styles.hint}>
-                  {manual
-                    ? 'Pending manual reason edit. Save to apply.'
-                    : 'Saving will clear the manual block.'}
+              <dl className={styles.editorMeta}>
+                <div>
+                  <dt>State</dt>
+                  <dd>{baseline.state.replace('_', ' ')}</dd>
+                </div>
+                <div>
+                  <dt>ID</dt>
+                  <dd>{baseline.id}</dd>
+                </div>
+                <div>
+                  <dt>Created</dt>
+                  <dd>{baseline.created_at}</dd>
+                </div>
+                <div>
+                  <dt>Updated</dt>
+                  <dd>{baseline.updated_at}</dd>
+                </div>
+              </dl>
+              {error && (
+                <p ref={errorMessage} className={styles.formError} role="alert">
+                  {error}
                 </p>
               )}
-            </PrerequisitePicker>
-            {baseline.state === 'waiting' && (
-              <>
-                <label htmlFor="edit-reason">
-                  Waiting for <span>(optional)</span>
-                </label>
-                <textarea
-                  id="edit-reason"
-                  rows={2}
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                  disabled={saving}
-                />
-              </>
-            )}
-            <dl className={styles.editorMeta}>
-              <div>
-                <dt>State</dt>
-                <dd>{baseline.state.replace('_', ' ')}</dd>
-              </div>
-              <div>
-                <dt>ID</dt>
-                <dd>{baseline.id}</dd>
-              </div>
-              <div>
-                <dt>Created</dt>
-                <dd>{baseline.created_at}</dd>
-              </div>
-              <div>
-                <dt>Updated</dt>
-                <dd>{baseline.updated_at}</dd>
-              </div>
-            </dl>
-            {error && (
-              <p className={styles.formError} role="alert">
-                {error}
-              </p>
-            )}
-            {saving && (
-              <p role="status" className={styles.hint}>
-                Saving Action…
-              </p>
-            )}
-            <div className={styles.formButtons}>
-              <button
-                type="submit"
-                disabled={saving || blocked || stale || (passive && factsStale)}
-              >
-                Save changes
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => requestClose()}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+              {saving && (
+                <p role="status" className={styles.hint}>
+                  Saving Action…
+                </p>
+              )}
+            </>
+          )}
+        </div>
+        {!discard && (
+          <div className={`${styles.formButtons} ${styles.editorActions}`}>
+            <button
+              type="submit"
+              disabled={saving || blocked || stale || (passive && factsStale)}
+            >
+              Save changes
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => requestClose()}
+            >
+              Cancel
+            </button>
+          </div>
         )}
-      </div>
+      </form>
     </dialog>
   );
 }

@@ -619,6 +619,7 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
         ),
       ).toBe(true);
       const session = await mobileContext.newCDPSession(mobile);
+      await mobileCard.scrollIntoViewIfNeeded();
       const scrollStart = await mobileCard.getByRole('heading').boundingBox();
       expect(scrollStart).not.toBeNull();
       const scrollX = scrollStart!.x + scrollStart!.width / 2;
@@ -639,14 +640,22 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
         .poll(() => mobile.evaluate('window.scrollY'))
         .toBeGreaterThan(0);
       expect(persisted().state).toBe('in_progress');
-      const touchFrom = await mobileCard.getByRole('heading').boundingBox();
+      await mobileCard.scrollIntoViewIfNeeded();
+      // The narrow board now scrolls horizontally. Expose the shared boundary
+      // so pickup and drop both use real on-screen touch coordinates.
+      await mobile
+        .getByLabel('Action board', { exact: true })
+        .evaluate((element: { scrollLeft: number }) => {
+          element.scrollLeft += 180;
+        });
+      const touchFrom = await mobileCard.boundingBox();
       const touchTo = await mobileWaiting.boundingBox();
       expect(touchFrom).not.toBeNull();
       expect(touchTo).not.toBeNull();
-      const x = touchFrom!.x + touchFrom!.width / 2;
-      const y = touchFrom!.y + touchFrom!.height / 2;
-      const targetX = touchTo!.x + touchTo!.width / 2;
-      const targetY = touchTo!.y + touchTo!.height / 2;
+      const x = touchFrom!.x + touchFrom!.width - 8;
+      const y = touchFrom!.y + 8;
+      const targetX = touchTo!.x + 24;
+      const targetY = touchTo!.y + 80;
       await session.send('Input.dispatchTouchEvent', {
         type: 'touchStart',
         touchPoints: [{ x, y }],

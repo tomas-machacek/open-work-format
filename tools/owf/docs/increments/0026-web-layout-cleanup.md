@@ -1,12 +1,12 @@
 # 0026 — Web layout cleanup
 
-> Status: reviewed
+> Status: in_progress
 > Description: Keep Action editing controls visible, use the available View width and keep Default Kanban columns in one horizontal row.
 > Depends on: [0025 — Move and reorder Actions in web Views](0025-web-view-moves.md).
 
 Scope and direction agreed on 2026-10-29. The user reviewed and approved this
-document for implementation on 2026-10-29. Implementation and code review
-have not started.
+document for implementation on 2026-10-29. Implementation started on 2026-10-29;
+independent code review remains pending.
 
 ## Goal and scope
 
@@ -155,9 +155,69 @@ implementation choices within the behavior described above.
 
 ## Implementation and review outcome
 
-Not implemented. No runtime checks or code review are claimed by this proposal.
-Record delivered behavior, deviations, verification evidence and review findings
-here at implementation handoff.
+Implemented on 2026-10-29. Status remains **in_progress** pending independent
+code review; this implementation session does not claim that review, completion,
+merge or a release.
+
+Delivered behavior:
+
+- The shared Action editor uses one form with a bounded, independently scrolling
+  content area and one persistent Save changes/Cancel bar. The bar reserves its
+  own space; it does not cover lower fields, metadata or feedback. Validation
+  and save errors scroll into view. Existing save, discard, pending, stale and
+  conflict logic is retained in both board modes.
+- The shared page has no 1800px maximum width. Views and Default Kanban use the
+  available width with the existing outer gutters; editor width remains bounded
+  at 640px.
+- Default Kanban uses a single horizontal grid row, with readable minimum column
+  widths and board-local horizontal overflow at all widths. Its former three-
+  and one-column wrapping breakpoints are removed. State order, filters, creation
+  and movement behavior are retained.
+- README describes the delivered scrolling and layout. No dependency, domain,
+  CLI, HTTP, schema or storage changes were made. No scope deviations.
+
+Verification evidence:
+
+- [Layout browser journeys](../../tests/e2e/layout.spec.ts) exercise the real
+  production frontend and server with isolated SQLite Workspaces in Chromium at
+  **1920 × 1080**, **390 × 844** and **1280 × 600**. Both modes use a Waiting
+  Action with a long description and ten prerequisites; the View has eight
+  columns, enough to overflow even the wide viewport.
+- Geometry checks cover buttons at the top/middle/bottom of content scrolling,
+  independent content/bar bounds, bounded editor width, keyboard access to the
+  lower Waiting field, owner results, prerequisite identity and Escape, visible
+  validation feedback, save and dirty Cancel/discard with focus restoration.
+- Board checks cover aligned, readable columns, last-column access without page
+  overflow, retained column order and View growth from 1600px to 1920px beyond
+  the former cap. Inspection/resizing/pickers/cancellation issue no writes;
+  each Save issues one write. Both boards also exercise keyboard movement from
+  their final column after horizontal scrolling.
+- Reused the existing validation/failure/pending/stale editor coverage and browser
+  creation/movement/native-selection/touch journeys. The Default mobile movement
+  journey now scrolls to the card and exposes the boundary between its source and
+  destination before dispatching on-screen touch coordinates; its former
+  stacked-column geometry no longer applies.
+- Visually inspected Chromium screenshots from all three viewport sizes,
+  including both boards, long detail, the lower field, owner results,
+  prerequisite identity and validation. Labels and feedback remain readable;
+  content and focus stay above the action bar. The three new layout journeys
+  and adjusted Default movement journey passed together (4 browser tests).
+- A separate Chromium touch check at 390 × 844 scrolled Default Kanban by 357px
+  with no drag activation, opened detail or write. Browser version:
+  **153.0.8010.12**. Its screenshot and script are retained locally under
+  `tools/owf/.test-artifacts/increment-0026/`.
+
+Full verification results, verified revision and final visual evidence are
+recorded below after the required checks finish.
+
+Platform: Microsoft Windows NT **10.0.26300.0**, Node **24.21.0**, npm **11.4.1**,
+Playwright **1.63.0**, Chromium. Vite/test/browser subprocesses required execution
+outside the filesystem sandbox after `spawn EPERM` on the sandboxed focused
+test run. No checks were disabled.
+
+Limitations: Windows/Chromium only; Linux, macOS, Firefox and WebKit were not
+tested. Touch testing uses Chromium emulation; a physical phone and its virtual
+keyboard were not exercised. Independent review remains outstanding.
 
 ## Decision changes and follow-up
 

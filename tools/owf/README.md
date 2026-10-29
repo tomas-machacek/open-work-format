@@ -26,6 +26,9 @@ a View definition is broken. A full page reload returns to Default Kanban.
 
 Views show all configured columns and counts, including empty columns, in
 definition order. Members retain the evaluator's persistent instance/column order.
+Both boards use the available page width with ordinary outer gutters. Columns
+stay side by side at every window width; scroll the board horizontally to reach
+overflowing columns.
 Cards include owner, waiting reason, compact blocking information and the actual
 execution state, even when a column combines states. Click a card or focus it
 and press Enter to open the existing detail editor. Edits change the shared
@@ -682,8 +685,9 @@ without changing the draft. Added rows are labeled **Added**; removing them drop
 the draft row. Saved rows remain **Removed** with **Undo** until Save; selecting
 them again also restores membership. Net membership undo sends no edit.
 Lookup failure offers Retry inside the active picker without clearing selections.
-The dialog and bounded results scroll on narrow screens. Save changes commits all
-fields and edges together; Cancel, outside-dialog click and Escape after closing
+The dialog content and bounded picker results scroll independently of the
+always-visible **Save changes** and **Cancel** bar, including in narrow or short
+windows. Save changes commits all fields and edges together; Cancel, outside-dialog click and Escape after closing
 inner disclosures/picker use the existing discard confirmation.
 
 Completing requires satisfied prerequisites. Completing or cancelling requires
