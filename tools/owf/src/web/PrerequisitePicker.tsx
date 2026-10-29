@@ -373,6 +373,11 @@ export function PrerequisitePicker({
           className={styles.compactButton}
           disabled={disabled}
           aria-expanded={open}
+          onMouseDown={(event) => {
+            // Keep the current picker focused until click. Blurring an open
+            // owner list on mouse down can move this button before mouse up.
+            event.preventDefault();
+          }}
           onClick={() => {
             setOpen(true);
             searchInput.current?.focus();

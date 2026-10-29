@@ -331,6 +331,8 @@ test('native text selection and copy, click/detail, cancellation and controls st
   await page.keyboard.press('Enter');
   await expect(detail).toBeVisible();
   await detail.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(detail).toHaveCount(0);
+  await expect(card).toBeFocused();
   await page.keyboard.press('Space');
   await expect(card).toHaveAttribute('data-dragging', 'true');
   await page.keyboard.press('Enter');
