@@ -1,14 +1,14 @@
 # 0026 — Web layout cleanup
 
-> Status: in_progress
+> Status: completed
 > Description: Keep Action editing controls visible, use the available View width and keep Default Kanban columns in one horizontal row.
 > Depends on: [0025 — Move and reorder Actions in web Views](0025-web-view-moves.md).
 
 Scope and direction agreed on 2026-10-29. The user reviewed and approved this
 document for implementation on 2026-10-29. Implementation started on 2026-10-29.
 Independent code review on 2026-10-29 found one P2 validation-visibility issue;
-the review and correction are recorded below. Status remains in_progress at the
-user's request.
+the review and correction are recorded below. The user confirmed completion
+and authorized merge on 2026-10-29.
 
 ## Goal and scope
 
@@ -157,8 +157,12 @@ implementation choices within the behavior described above.
 
 ## Implementation and review outcome
 
-Implemented and independently reviewed on 2026-10-29. Status remains
-**in_progress** at the user's request; no merge or release is claimed.
+Completed on 2026-10-29 after implementation, independent review, correction
+and verification. The user approved completion and merge of
+[PR #32](https://github.com/tomas-machacek/open-work-format/pull/32) at revision
+`95bee365e1cee66f35690f94243e539e7bf47046`. This completion update changes
+only documentation and reuses the recorded post-review verification; no new
+runtime checks or release are claimed.
 
 Delivered behavior:
 
@@ -296,8 +300,9 @@ the layout journeys regenerate `default-repeated-validation.png` and
 
 Optional test-maintenance suggestions concerning exact gutter arithmetic and
 fixed keyboard-listener waits were non-blocking; the focused correction leaves
-them unchanged. No other correctness findings were identified. Status remains
-in_progress; no merge or release was performed.
+them unchanged. No other correctness findings were identified. At that review
+handoff, status remained in_progress and no merge or release was performed.
+The subsequent user-authorized completion is recorded above.
 
 ## Decision changes and follow-up
 
