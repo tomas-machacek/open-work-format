@@ -236,6 +236,8 @@ export function ViewBoard({
                     ref={(node) => {
                       if (node) addButtons.current.set(column.id, node);
                     }}
+                    type="button"
+                    aria-expanded={creating === column.id}
                     className={styles.add}
                     disabled={
                       busy || !!detail || !!error || loading || !!creating
@@ -274,9 +276,13 @@ export function ViewBoard({
                       onClose={() => {
                         frozen.current = false;
                         setCreating(undefined);
-                        requestAnimationFrame(() =>
-                          addButtons.current.get(column.id)?.focus(),
-                        );
+                        requestAnimationFrame(() => {
+                          const add = addButtons.current.get(column.id);
+                          (add?.disabled
+                            ? refreshButton.current
+                            : add
+                          )?.focus();
+                        });
                       }}
                     />
                   )}

@@ -66,6 +66,7 @@ for (const viewport of [
         .fill('Created in Todo');
       await page.getByRole('button', { name: 'Save', exact: true }).click();
       await expect(todo.locator('[data-action-id]')).toHaveCount(1);
+      await expect(page.locator(':focus')).toHaveText(/Add Action|Refresh/);
       const created = listActions(root).result.actions.find(
         (a) => a.title === 'Created in Todo',
       )!;
