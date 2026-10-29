@@ -159,7 +159,7 @@ test('required reason is sent once, confirmed commit followed by failed read dis
   vi.mocked(fetchView).mockRejectedValue(new Error('Read unavailable'));
   fireEvent.click(screen.getByText('Pick up'));
   fireEvent.click(screen.getByText('Drop blocked'));
-  fireEvent.change(screen.getByLabelText('Reason'), {
+  fireEvent.change(screen.getByLabelText('Manual blocking reason'), {
     target: { value: 'Access' },
   });
   fireEvent.click(screen.getByText('Confirm move'));
@@ -168,9 +168,10 @@ test('required reason is sent once, confirmed commit followed by failed read dis
     true,
   );
   expect(screen.getByText<HTMLButtonElement>('Cancel').disabled).toBe(true);
-  expect(screen.getByLabelText<HTMLTextAreaElement>('Reason').disabled).toBe(
-    true,
-  );
+  expect(
+    screen.getByLabelText<HTMLTextAreaElement>('Manual blocking reason')
+      .disabled,
+  ).toBe(true);
   fireEvent.click(screen.getByText('Cancel'));
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
   fireEvent.click(screen.getByText('Escape drag'));

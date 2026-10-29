@@ -540,6 +540,54 @@ Post-correction verification, 2026-10-29:
 Status and index remain `in_progress`; PR #31 remains draft. No merge, tag or
 release is included.
 
+### Authorized reason-dialog visual refinement, 2026-10-29
+
+The user requested removing the redundant "Reason" label below "Manual blocking
+reason", matching the dialog buttons to the app and separating them. This is a
+visual refinement of the required-reason dialog under AC3 and AC7, within 0025;
+movement semantics and the increment's `in_progress` status remain unchanged.
+
+Acceptance: show one visible heading, retain an accessible name for the textarea,
+reuse the shared primary/secondary button styles and wrapping button gap, and
+keep input, keyboard focus, pending-write protection, confirmation and cancellation
+working at desktop and narrow widths. The supplied root `reason-window.png` is
+reference material only and must not be committed.
+
+The textarea now uses the heading as its accessible label, with four rows and
+space below the heading. Confirm move and Cancel use the existing shared form
+button group, including its 8px gap and narrow-screen touch sizing. Existing
+component/browser selectors follow the field's descriptive accessible name.
+
+Verification and review, 2026-10-29 (working-tree refinement over
+`64172a782fae700afa5551b4a73237c8a5fcc7cf`):
+
+- Windows NT 10.0.26300.0 / PowerShell / Node.js 24.21.0 / npm 11.4.1;
+  headless Chromium. The nine focused ViewBoard tests and the original View move
+  browser journey passed. Inspected actual dialog captures at 1440px and 390px
+  viewport widths; the heading, textarea and separated buttons fit cleanly.
+  Capture instrumentation was temporary and removed before full verification.
+- `npm run verify` passed typecheck, ESLint, formatting, architecture, production
+  build and all 194 unit/component tests. Integration finished with 247 passing
+  tests and one environment failure: `board-proxy.test.ts` could not bind port
+  4317 because an existing `node .../dist/bootstrap/cli.js serve` process used it.
+  That server was left running. Full verify therefore did **not** pass.
+- Separately, all 36 acceptance scenarios / 204 steps and `npm run test:e2e`
+  passed: 27 CLI tests and all 21 Chromium journeys, including the existing
+  reason-dialog focus, Tab/Escape, pending-write and no-write cancellation cases.
+- Final focused Prettier check and `git diff --check` passed after this evidence
+  update. No assertions, checks or timeouts were weakened.
+- Independent review read the actual diff against the request and AC3/AC7:
+  no findings. It checked accessible naming, shared CSS, focus trapping,
+  pending-write guards, cancellation, narrow layout and retained test assertions.
+  It reused executed tests rather than rerunning them. `git diff --check` passed.
+- Initial sandbox test/build attempts hit `spawn EPERM`; executable checks ran
+  with approved escalation. Physical touch hardware, an actual screen reader,
+  non-Chromium browsers and Linux were not checked for this visual refinement.
+
+The user accepted the visual result and requested committing and pushing this
+refinement. Status and index remain `in_progress`; the supplied screenshot remains
+untracked. No merge, tag or release is included.
+
 ## Decision changes and follow-up
 
 - 2026-10-29: User approved compact resting cards, invisible generous drop regions,

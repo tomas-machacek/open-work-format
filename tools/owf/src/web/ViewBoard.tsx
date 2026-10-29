@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type {
   BoardAction,
   StoredView,
@@ -27,6 +27,7 @@ export function ViewBoard({
   const [busy, setBusy] = useState(false);
   const [reasonMove, setReasonMove] = useState<ViewMoveRequest>();
   const [reason, setReason] = useState('');
+  const reasonHeadingId = useId();
   const reasonAction = useRef<string | undefined>(undefined);
   const [moveNotice, setMoveNotice] = useState<string>();
   const { data, loading, error, refresh } = useView(
@@ -280,7 +281,7 @@ export function ViewBoard({
               }
             }}
           >
-            <h2>Manual blocking reason</h2>
+            <h2 id={reasonHeadingId}>Manual blocking reason</h2>
             {pendingMove && <p role="status">Submitting move…</p>}
             <form
               onSubmit={(event) => {
@@ -288,21 +289,22 @@ export function ViewBoard({
                 if (reason.trim()) void submit({ ...reasonMove, reason });
               }}
             >
-              <label>
-                Reason
-                <textarea
-                  autoFocus
-                  value={reason}
-                  disabled={pendingMove}
-                  onChange={(event) => setReason(event.target.value)}
-                />
-              </label>
-              <button disabled={!reason.trim() || pendingMove}>
-                Confirm move
-              </button>
-              <button type="button" disabled={pendingMove} onClick={cancel}>
-                Cancel
-              </button>
+              <textarea
+                aria-labelledby={reasonHeadingId}
+                autoFocus
+                rows={4}
+                value={reason}
+                disabled={pendingMove}
+                onChange={(event) => setReason(event.target.value)}
+              />
+              <div className={styles.formButtons}>
+                <button disabled={!reason.trim() || pendingMove}>
+                  Confirm move
+                </button>
+                <button type="button" disabled={pendingMove} onClick={cancel}>
+                  Cancel
+                </button>
+              </div>
             </form>
             {moveNotice && <p role="alert">{moveNotice}</p>}
           </section>

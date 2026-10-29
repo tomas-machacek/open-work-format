@@ -372,7 +372,9 @@ for (const blocked of [false, true])
     await page.keyboard.press('Space');
     const dialog = page.getByRole('dialog', { name: 'Blocked reason' });
     if (blocked) {
-      await dialog.getByLabel('Reason', { exact: true }).fill('Access');
+      await dialog
+        .getByLabel('Manual blocking reason', { exact: true })
+        .fill('Access');
       await dialog.getByRole('button', { name: 'Confirm move' }).click();
     }
     try {
@@ -385,7 +387,10 @@ for (const blocked of [false, true])
           dialog.getByRole('button', { name: 'Confirm move' }),
         ).toBeDisabled();
         await expect(
-          dialog.getByRole('textbox', { name: 'Reason', exact: true }),
+          dialog.getByRole('textbox', {
+            name: 'Manual blocking reason',
+            exact: true,
+          }),
         ).toBeDisabled();
         await expect(dialog).toBeFocused();
         await page.keyboard.press('Tab');
@@ -666,7 +671,10 @@ test.describe('independent review regressions', () => {
     });
     const before = showView(root, view);
     const dialog = await dropBlocked(page);
-    const reason = dialog.getByRole('textbox', { name: 'Reason', exact: true });
+    const reason = dialog.getByRole('textbox', {
+      name: 'Manual blocking reason',
+      exact: true,
+    });
     const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true });
     await expect(reason).toBeFocused();
     await page.keyboard.press('Shift+Tab');

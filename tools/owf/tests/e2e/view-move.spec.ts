@@ -278,7 +278,7 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
     ).toBeEnabled();
     await dragTo(last.title, 'Blocked', 1);
     await reasonDialog
-      .getByLabel('Reason', { exact: true })
+      .getByLabel('Manual blocking reason', { exact: true })
       .fill('Access needed');
     await reasonDialog.getByRole('button', { name: 'Confirm move' }).click();
     await expect(region('Blocked').getByRole('article')).toContainText(
