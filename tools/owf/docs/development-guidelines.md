@@ -131,6 +131,11 @@ Pending-write state used to disable controls must trigger a render; an imperativ
 duplicate-submit guard alone is insufficient. Test cancellation and a second
 gesture while the write is deliberately unfinished. For keyboard drag jumps,
 verify that the selected insertion target is visible as well as correctly saved.
+When a gesture opens a modal, verify focus after the drag library's cleanup and
+before clicking or filling any modal control. Restore focus within the active
+surface, including when hidden boards retain duplicate objects or refresh fails.
+Deferred interaction callbacks must yield to newer gestures on other objects;
+test native selection across objects as well as isolated clicks and selections.
 
 Write Gherkin in English, matching project terminology. Scenarios describe
 domain behavior, not selectors, CLI flags or SQL. Bind them to the real

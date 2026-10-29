@@ -477,6 +477,43 @@ Verification on 2026-10-29:
 Status and index remain `in_progress`; human visual acceptance is pending. The PR
 stays draft. No merge, tag or release is included.
 
+### Independent review of compact-card refinement, 2026-10-29
+
+Reviewed PR #31 at `41cd9b25115603b9a5410fefcd352bbeba3e5069` against main
+`dbb72a9bf901b9dd68740ceba67001b02522f19b`, including the actual refinement diff
+in `1b4c835`. At that revision, three confirmed P2 findings were unresolved: keyboard-drop focus
+escapes the required-reason dialog, global focus restoration can select a hidden
+Default Kanban card, and a deferred text click can interrupt another card's text
+selection. The independent browser reproductions confirm all three twice.
+
+The reviewer personally rebuilt HEAD, passed the seven interaction and three
+original compatibility browser journeys, and passed 28 focused component/client/
+HTTP tests. Full verify was not repeated; applicable recorded results for unchanged
+code were reused. See the [independent report and reproduction evidence](evidence/0025-independent-review-2026-10-29.md)
+for locations, scenarios, impact, recommended corrections/tests and verification
+limits. This review makes no implementation correction. Status and index remain
+`in_progress`; no merge or release is included.
+
+### Authorized independent-review corrections, 2026-10-29
+
+The user authorized correcting the three findings, committing and pushing the
+branch while retaining `in_progress`. Drag focus restoration is now owned by
+ViewBoard, so keyboard drop cannot override the required-reason dialog's focus.
+Card lookup is scoped to the active View for completion, cancellation and detail
+closure, including failed-refresh recovery with retained hidden Default cards.
+Deferred text clicks check a board gesture version, so another card's new pointer
+or keyboard gesture invalidates the older callback without intercepting selection.
+
+Four permanent browser regressions first failed on the reviewed frontend at the
+reported boundaries. They cover initial reason-dialog focus and Tab/Escape without
+prior input interaction, cancellation plus failed refresh, focus after Tab during
+a pending write, and cross-card selection with a real clipboard roundtrip. The
+existing interaction fixture now waits for Default Kanban cards to load before
+switching, retaining hidden duplicates during the tests. Typecheck, focused lint,
+build and all 11 interaction browser tests passed on the corrected working tree.
+Full verification is pending; its revision and results will be recorded before
+handoff.
+
 ## Decision changes and follow-up
 
 - 2026-10-29: User approved compact resting cards, invisible generous drop regions,

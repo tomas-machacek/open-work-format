@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -36,6 +36,8 @@ export function ViewDragBoard({
   onDrop: (input: ViewMoveRequest) => void;
 }) {
   const active = useRef<string | undefined>(undefined);
+  // A deferred text click belongs only to the latest gesture on this board.
+  const gestureVersion = useRef(0);
   const keyboardActive = useRef(false);
   const collisionArgs = useRef<Parameters<CollisionDetection>[0] | undefined>(
     undefined,
@@ -170,6 +172,9 @@ export function ViewDragBoard({
         });
       }}
       accessibility={{
+        // ViewBoard restores focus after cancel/refresh or opens a reason dialog.
+        // dnd-kit's restoration would steal focus back out of that dialog.
+        restoreFocus: false,
         screenReaderInstructions: {
           draggable:
             'Enter opens detail. Space picks up and drops. Left/right choose column; up/down choose position. Home/End choose first/last; Down past last chooses append. Escape cancels. Drag from card background; text can be selected and copied.',
@@ -244,6 +249,12 @@ export function ViewDragBoard({
         className={styles.viewBoard}
         aria-label="View board"
         data-view-board=""
+        onPointerDownCapture={() => {
+          ++gestureVersion.current;
+        }}
+        onKeyDownCapture={() => {
+          ++gestureVersion.current;
+        }}
       >
         {targets.map(({ column, members }) => (
           <section
@@ -277,6 +288,7 @@ export function ViewDragBoard({
                     action={action}
                     disabled={disabled}
                     onOpen={onOpen}
+                    gestureVersion={gestureVersion}
                   />
                 </div>
               ))}
@@ -415,10 +427,12 @@ function ViewCard({
   action,
   disabled,
   onOpen,
+  gestureVersion,
 }: {
   action: BoardAction;
   disabled: boolean;
   onOpen: (action: BoardAction) => void;
+  gestureVersion: RefObject<number>;
 }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, isDragging } =
     useDraggable({
@@ -531,8 +545,13 @@ function ViewCard({
           )
         ) {
           // Allow the second press of native double-click selection before opening.
+          const version = gestureVersion.current;
           textClick.current = setTimeout(() => {
-            if (window.getSelection()?.isCollapsed !== false) onOpen(action);
+            if (
+              version === gestureVersion.current &&
+              window.getSelection()?.isCollapsed !== false
+            )
+              onOpen(action);
           }, 400);
         } else onOpen(action);
       }}

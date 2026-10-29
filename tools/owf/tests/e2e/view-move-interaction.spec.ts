@@ -31,6 +31,8 @@ test.beforeEach(async ({ page }) => {
   if (!address || typeof address === 'string') throw new Error('Missing port');
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`http://127.0.0.1:${address.port}`);
+  // Retain loaded Default Kanban cards to exercise focus with hidden duplicates.
+  await expect(page.getByRole('article')).toHaveCount(4);
   await page.getByRole('combobox', { name: 'Display' }).selectOption(view);
   await expect(
     page
@@ -627,4 +629,160 @@ test('Home, End and pointer scrolling reach visible targets in a long column and
   await page.mouse.up();
   await expect.poll(() => order().at(-1)).toBe('A');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test.describe('independent review regressions', () => {
+  async function pickUp(page: Page) {
+    const card = cardNamed(page, 'A');
+    await card.focus();
+    await page.keyboard.press('Space');
+    await expect(card).toHaveAttribute('data-dragging', 'true');
+    await expect(
+      page.getByLabel('Source: position 1', { exact: true }),
+    ).toHaveAttribute('class', /activeSlot/);
+  }
+  async function dropBlocked(page: Page) {
+    await pickUp(page);
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Space');
+    const dialog = page.getByRole('dialog', { name: 'Blocked reason' });
+    await expect(dialog).toBeVisible();
+    // Observe focus after dnd-kit's drag-ending restoration frame.
+    await page.evaluate(
+      'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
+    );
+    return dialog;
+  }
+
+  test('keyboard Blocked entry keeps focus and Tab inside its dialog; Escape cancels without writes', async ({
+    page,
+  }) => {
+    let writes = 0;
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.url().endsWith('/moves'))
+        writes++;
+    });
+    const before = showView(root, view);
+    const dialog = await dropBlocked(page);
+    const reason = dialog.getByRole('textbox', { name: 'Reason', exact: true });
+    const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true });
+    await expect(reason).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(cancel).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(reason).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(cardNamed(page, 'A')).toBeFocused();
+    expect(writes).toBe(0);
+    expect(showView(root, view)).toEqual(before);
+  });
+
+  test('reason cancellation restores the visible View card even when refresh fails', async ({
+    page,
+  }) => {
+    const dialog = await dropBlocked(page);
+    // Isolate cancellation recovery from initial modal focus restoration.
+    await dialog.getByRole('textbox').focus();
+    await page.route(`**/api/views/${view}`, (route) =>
+      route.fulfill({
+        status: 503,
+        json: { error: { code: 'UNAVAILABLE', message: 'Read unavailable' } },
+      }),
+    );
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(
+      page.getByText('Stale · refresh failed', { exact: true }),
+    ).toBeVisible();
+    await expect(cardNamed(page, 'A')).toBeFocused();
+  });
+
+  test('completion restores the moved View card after Tab during a pending write', async ({
+    page,
+  }) => {
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route('**/moves', async (route) => {
+      await pending;
+      await route.continue();
+    });
+    try {
+      await pickUp(page);
+      await page.keyboard.press('End');
+      await page.keyboard.press('Space');
+      await expect(cardNamed(page, 'B')).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await page.keyboard.press('Tab');
+      await expect(cardNamed(page, 'B')).toBeFocused();
+      release();
+      await expect
+        .poll(() =>
+          showView(root, view).result.columns[0]!.members.map((a) => a.title),
+        )
+        .toEqual(['B', 'C', 'D', 'A']);
+      await expect(
+        page.getByRole('button', { name: 'Refresh', exact: true }),
+      ).toBeEnabled();
+      await expect(cardNamed(page, 'A')).toBeFocused();
+    } finally {
+      release();
+    }
+  });
+
+  test("a new text selection cancels another card's deferred click and remains copyable", async ({
+    page,
+    context,
+  }) => {
+    const title = 'Text to select on another card';
+    createAction(root, { title });
+    await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+    const selected = cardNamed(page, title);
+    await expect(selected).toBeVisible();
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    let writes = 0;
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.url().endsWith('/moves'))
+        writes++;
+    });
+    const text = await page.evaluate<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }>(`(() => {
+      const heading = [...document.querySelectorAll('h3')].find(element => element.textContent === 'Text to select on another card');
+      const range = document.createRange();
+      range.selectNodeContents(heading);
+      const rect = range.getClientRects()[0];
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    })()`);
+    const a = await box(cardNamed(page, 'A').getByRole('heading'));
+    await page.mouse.click(a.x + 3, a.y + 10);
+    await page.waitForTimeout(100);
+    await page.mouse.move(text.x + 1, text.y + text.height / 2);
+    await page.mouse.down();
+    // The previous card's 400ms callback must not interrupt this held gesture.
+    await page.waitForTimeout(450);
+    await page.mouse.move(text.x + text.width - 1, text.y + text.height / 2, {
+      steps: 15,
+    });
+    await page.mouse.up();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect
+      .poll(() => page.evaluate<string>('window.getSelection()?.toString()'))
+      .toBe(title);
+    await page.keyboard.press('Control+c');
+    expect(await page.evaluate<string>('navigator.clipboard.readText()')).toBe(
+      title,
+    );
+    await expect(selected).not.toHaveAttribute('data-dragging', 'true');
+    expect(writes).toBe(0);
+  });
 });

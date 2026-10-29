@@ -49,7 +49,8 @@ export function ViewBoard({
   function focusCard(id?: string) {
     requestAnimationFrame(() => {
       const card = [
-        ...document.querySelectorAll<HTMLElement>('[data-action-id]'),
+        ...(board.current?.querySelectorAll<HTMLElement>('[data-action-id]') ??
+          []),
       ].find((element) => element.dataset['actionId'] === id);
       (card ?? refreshButton.current)?.focus();
     });
@@ -323,16 +324,7 @@ export function ViewBoard({
           }}
           onClose={() => {
             setDetail(undefined);
-            requestAnimationFrame(() => {
-              const card = [
-                ...document.querySelectorAll<HTMLElement>('[data-action-id]'),
-              ].find(
-                (element) =>
-                  element.getAttribute('data-action-id') === detail.id &&
-                  element.closest('[aria-label="View board"]'),
-              );
-              (card ?? refreshButton.current)?.focus();
-            });
+            focusCard(detail.id);
           }}
         />
       )}
