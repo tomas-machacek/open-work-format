@@ -204,6 +204,10 @@ Verification evidence:
   all three passed after the fix. A separate repeated pointer check passed
   three openings at each of the three viewport sizes. Keyboard activation and
   Escape retain their existing behavior.
+- The existing native-selection journey now explicitly waits for dialog closure
+  and restored card focus before starting a new keyboard drag. A full run exposed
+  its immediate Space racing that focus restoration; the assertion strengthens
+  the existing interaction check without changing product behavior.
 - Visually inspected Chromium screenshots from all three viewport sizes,
   including both boards, long detail, the lower field, owner results,
   prerequisite identity and validation. Labels and feedback remain readable;
