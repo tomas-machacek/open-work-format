@@ -481,6 +481,7 @@ test('keyboard announces exact insertion and append, restores focus and keeps En
     .getByRole('dialog')
     .getByRole('button', { name: 'Cancel', exact: true })
     .click();
+  await expect(card).toBeFocused();
   await page.keyboard.press('Space');
   await expect(
     page.getByLabel('Source: position 1', { exact: true }),
