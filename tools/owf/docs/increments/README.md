@@ -46,6 +46,7 @@ link and a one-line description; keep its status in sync.
 | [0024 — Persist and change View column order through CLI](0024-view-order-cli.md) | Reorder Actions and persist insertion positions independently per View instance.                                   | completed   |
 | [0025 — Move and reorder Actions in web Views](0025-web-view-moves.md)            | Compact View cards with pointer, touch and keyboard drag and drop, native text selection and shared CLI semantics. | completed   |
 | [0026 — Web layout cleanup](0026-web-layout-cleanup.md)                           | Keep Action edit controls visible, use available View width and keep Default Kanban columns side by side.          | completed   |
+| [0027 — Delete Actions and View instances through CLI](0027-delete-action-view-cli.md) | Permanently delete Actions with incoming-dependency protection and delete View instances with atomic cleanup. | agreed |
 
 0022 depends on completed [0021](0021-view-evaluation-cli.md), merged through [PR #27](https://github.com/tomas-machacek/open-work-format/pull/27).
 
