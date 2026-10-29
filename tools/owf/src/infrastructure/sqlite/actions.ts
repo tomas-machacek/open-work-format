@@ -13,6 +13,59 @@ import {
 import { readActions } from './actions-read.js';
 
 export const actionRepository: ActionRepository = {
+  delete(path, id, time, validate, cleanup) {
+    let db: DatabaseSync | undefined;
+    try {
+      if (!statSync(path).isFile()) throw new Error('Missing store');
+      db = new DatabaseSync(path);
+      db.exec(
+        'PRAGMA busy_timeout = 1000; PRAGMA foreign_keys = ON; BEGIN IMMEDIATE',
+      );
+      const version = db
+        .prepare("SELECT value FROM owf_metadata WHERE key = 'schema_version'")
+        .get()?.value;
+      if (version !== '9')
+        throw new WorkspaceError(
+          'UNSUPPORTED_STORE_VERSION',
+          `Unsupported store schema ${String(version)}: ${path}`,
+        );
+      const actions = readActions(db);
+      const target = actions.get(id);
+      if (!target)
+        throw new WorkspaceError(
+          'ACTION_NOT_FOUND',
+          'No Action with that ID exists in this Workspace.',
+        );
+      validate(target, [...actions.values()]);
+      const before = { placements: readPlacements(db), order: readOrder(db) };
+      const after = cleanup(before);
+      writePlacements(db, before.placements, after.placements, time);
+      writeOrder(db, before.order, after.order, time);
+      // Outgoing dependencies are values owned by this row; history has no current FK.
+      db.prepare('DELETE FROM actions WHERE id = ?').run(id);
+      db.prepare(
+        'INSERT INTO action_events (kind, action_id, created_at, title) VALUES (?, ?, ?, ?)',
+      ).run('action.deleted', id, time, target.title);
+      db.exec('COMMIT');
+      return { id, title: target.title };
+    } catch (error) {
+      if (
+        error instanceof WorkspaceError &&
+        [
+          'ACTION_NOT_FOUND',
+          'ACTION_IN_USE',
+          'UNSUPPORTED_STORE_VERSION',
+        ].includes(error.code)
+      )
+        throw error;
+      throw new WorkspaceError(
+        'ACTION_DELETE_FAILED',
+        'Could not delete the Action, its organization and event. Check store access and integrity or concurrent writes and retry.',
+      );
+    } finally {
+      db?.close();
+    }
+  },
   update(path, id, change, organizationChange, eventTime) {
     let db: DatabaseSync | undefined;
     try {
@@ -25,7 +78,7 @@ export const actionRepository: ActionRepository = {
       const version = db
         .prepare("SELECT value FROM owf_metadata WHERE key = 'schema_version'")
         .get()?.value;
-      if (version !== '8')
+      if (version !== '9')
         throw new WorkspaceError(
           'UNSUPPORTED_STORE_VERSION',
           `Unsupported store schema ${String(version)}: ${path}`,

@@ -4,6 +4,7 @@ import {
 } from '../../domain/workspaces/index.js';
 import {
   evaluateView,
+  viewInstanceId,
   recordViewOrder,
   moveViewAction,
   type MoveActionInput,
@@ -32,6 +33,29 @@ export interface ViewResult {
     definition?: ViewDefinition;
   };
   warnings: [];
+}
+export interface DeleteViewResult {
+  result: {
+    status: 'deleted';
+    type: 'view';
+    root: string;
+    id: string;
+    title: string;
+  };
+  warnings: [];
+}
+export function deleteView(
+  start: string,
+  identifier: string,
+  ports: ViewPorts,
+): DeleteViewResult {
+  const id = viewInstanceId(identifier);
+  const found = workspace(start, ports);
+  const deleted = ports.views.delete(found.store, id, ports.now());
+  return {
+    result: { status: 'deleted', type: 'view', root: found.root, ...deleted },
+    warnings: [],
+  };
 }
 export interface ListViewsResult {
   result: {

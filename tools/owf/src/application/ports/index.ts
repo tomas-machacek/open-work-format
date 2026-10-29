@@ -8,6 +8,7 @@ import type {
 } from '../../domain/views/index.js';
 
 export interface ViewRepository {
+  delete(path: string, id: string, time: string): { id: string; title: string };
   create(
     path: string,
     view: ViewInstance,
@@ -33,6 +34,13 @@ import type {
 } from '../../domain/actions/index.js';
 
 export interface ActionRepository {
+  delete(
+    path: string,
+    id: string,
+    time: string,
+    validate: (target: Action, actions: Action[]) => void,
+    cleanup: (organization: ViewOrganization) => ViewOrganization,
+  ): { id: string; title: string };
   create(
     path: string,
     action: Action,

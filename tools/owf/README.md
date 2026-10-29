@@ -64,7 +64,7 @@ cancelling does not. A text click waits briefly to allow native double-click wor
 selection. Normal touch swipes scroll; hold on background to begin dragging.
 
 Entry into Blocked asks for a manual reason only when none exists; cancel writes
-nothing. Waiting never prompts. Moves use the shared CLI operation and schema 8.
+nothing. Waiting never prompts. Moves use the shared CLI operation and schema 9.
 Positions resolve against server facts at execution time, so concurrent CLI changes
 can change neighbours; an invalid position fails rather than being clamped.
 During dragging and required-reason input, refresh is queued and navigation is
@@ -84,7 +84,7 @@ backlog and Backlog belong only to the broader design example.
 
 ## View instances
 
-Use a fresh Workspace initialized by this version (Operational Store schema 8).
+Use a fresh Workspace initialized by this version (Operational Store schema 9).
 Prepare `_views/` manually with a navigation `index.md`, for example:
 
 ```markdown
@@ -176,7 +176,7 @@ Change `owf.defaults.open` in the shared definition to `todo` and show again to
 see live routing without refresh/rebuild. Current dependency facts are reused
 even when prerequisites are outside the View. Missing prerequisites and malformed
 Actions fail the entire read, including Actions that routing would otherwise omit.
-Schema 8 supports five execution states; Action archival and archived prerequisite
+Schema 9 supports five execution states; Action archival and archived prerequisite
 dispositions are not supported by this version. Externally injected `archived`
 records are invalid store data and fail explicitly.
 
@@ -486,7 +486,7 @@ transaction saves neither change nor event. `ACTION_NOT_FOUND` means the ID is
 absent; `ACTION_CONFLICT` reports a rejected conditional write;
 `ACTION_UPDATE_FAILED` reports a write failure or clock rollback. The browser preserves blocking data and enforces shared completion rules.
 
-Fresh PoC Workspaces use schema 8. Older stores (including schemas 6 and 7) are refused with
+Fresh PoC Workspaces use schema 9. Older stores (including schemas 6, 7 and 8) are refused with
 `UNSUPPORTED_STORE_VERSION` without migration or mutation;
 create a new disposable Workspace with `owf init` to try this increment. Never
 reset or overwrite an existing store.
@@ -496,6 +496,68 @@ repeat Actions. Owner scope and state selection combine with AND. Comma-separate
 states are invalid. Without state selection, terminal Actions are included.
 Get and list stay read-only and include `waiting_for` only when present.
 Archive and Outcome dependency targets are not implemented.
+
+## Permanent deletion
+
+Delete one Action or stored View instance from the Workspace root or any
+descendant, without a server, confirmation prompt or confirmation flag:
+
+```sh
+owf delete action ACTION_ID
+owf delete action owf:action:ACTION_ID --json
+owf delete view VIEW_ID --json
+```
+
+Replace placeholders with actual UUIDs. Action UUID and URI selectors are
+equivalent. View selectors accept only a stored instance UUID from `owf list
+views`, never a title or Markdown definition path. Default Kanban is a built-in
+projection with no deletable instance ID.
+
+Deletion is permanent, with no undo, trash or force bypass. Any other Action
+depending on the target rejects deletion with `ACTION_IN_USE` (exit 1), even
+when the prerequisite is completed or the dependent is terminal or has another
+owner. The message lists referring canonical URIs and titles in stable ID order.
+Explicitly remove or redirect those dependencies first:
+
+```sh
+owf set action DEPENDENT_ID --remove-dependency ACTION_ID
+owf delete action ACTION_ID --json
+```
+
+Deleting an Action in any supported execution state removes its record,
+outgoing dependencies (including self-dependency), and placements/order in every
+View. Surviving Actions keep all data and relative order; stored rank gaps close.
+Missing Markdown owners and broken View definitions do not block this scoped
+cleanup. No unrelated routing repair or Markdown/reference/attachment cleanup
+is performed.
+
+Deleting a View removes only that instance and its owned placements/order.
+Actions, dependencies, the shared Markdown definition and other instances with
+their independent organization survive. A missing, malformed or ID-mismatched
+definition does not block deletion. No Markdown files or navigation indexes change.
+
+Success exits 0 and identifies the deleted object's type, ID and title. JSON is
+a receipt, using `{ "ok": true, "result": { "status": "deleted", "type":
+"action", "root": "/absolute/workspace/path", "id": "ACTION_ID", "title":
+"Deleted title", "uri": "owf:action:ACTION_ID" }, "warnings": [] }`. View receipts
+use `type: "view"` and omit `uri`. Malformed arguments exit 2; absent or repeated
+IDs fail with `ACTION_NOT_FOUND` or `VIEW_NOT_FOUND`, exit 1, without a new event.
+Other transactional failures use `ACTION_DELETE_FAILED` or `VIEW_DELETE_FAILED`.
+Store availability/version diagnostics remain explicit.
+
+Data cleanup and events commit or roll back together. Exactly one `action.deleted`
+or `view.deleted` event retains the identity, title and deletion time; all prior
+events remain historical evidence. Action cleanup retains placement/order event
+conventions; View deletion emits no per-card events. Schema 9 removes current
+foreign keys from historical event identities, retains foreign keys on current
+organization, and adds deletion event kinds and titles. Schema 8 and all other
+versions are rejected without migration or replacement.
+
+Browser Refresh reads CLI deletions through the existing API. A deleted selected
+View uses the existing disappeared-instance error; Default Kanban remains
+available. There are no browser delete controls or endpoints. Newly initialized
+Workspace guides describe these commands; existing user-edited guides are preserved.
+See the [deletion walkthrough](docs/examples/deletion.md).
 
 ## Manual blocking and prerequisites
 
@@ -697,7 +759,7 @@ Confirmed writes refresh dependents, including after target title edits. Target-
 refresh updates derived facts while preserving source drafts; source changes
 require explicit reload. Stale/unavailable facts are labeled. A successful save
 followed by refresh failure remains a successful save; do not repeat it. The
-board requires schema 8, with no migration or implicit store replacement.
+board requires schema 9, with no migration or implicit store replacement.
 
 The editor uses the same owner picker. An unavailable stored owner stays visible;
 editing other fields retains it without requiring its Markdown context. Selecting

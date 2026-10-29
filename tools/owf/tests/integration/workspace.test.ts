@@ -149,7 +149,7 @@ test.each(['missing', 'garbage', 'unrecognized', 'version'])(
       const db = new DatabaseSync(result.store);
       try {
         db.prepare('UPDATE owf_metadata SET value = ? WHERE key = ?').run(
-          '9',
+          '999',
           kind === 'version' ? 'schema_version' : 'format',
         );
       } finally {

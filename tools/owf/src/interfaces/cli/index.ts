@@ -23,6 +23,7 @@ import type {
   ListActionsInput,
   ListActionsResult,
   SetActionInput,
+  DeleteActionResult,
 } from '../../application/actions/index.js';
 import type {
   CreateViewInput,
@@ -32,6 +33,7 @@ import type {
   ShowViewResult,
   MoveActionInput,
   MoveActionResult,
+  DeleteViewResult,
 } from '../../application/views/index.js';
 
 function once(label: string) {
@@ -73,6 +75,10 @@ export async function runCli(
     show(id: string): ShowViewResult;
     move(id: string, input: MoveActionInput): MoveActionResult;
   },
+  deletion: {
+    action(id: string): DeleteActionResult;
+    view(id: string): DeleteViewResult;
+  },
 ): Promise<void> {
   let json = false;
   const program = new Command()
@@ -87,6 +93,46 @@ export async function runCli(
       /* Errors are rendered once below. */
     },
   });
+  const removal = program
+    .command('delete')
+    .description(
+      'Permanently delete one Action or stored View instance without a confirmation prompt',
+    );
+  for (const type of ['action', 'view'] as const) {
+    removal
+      .command(type)
+      .description(
+        type === 'action'
+          ? 'Permanently delete an Action; reject references from any other Action (no force bypass)'
+          : 'Permanently delete only a View instance and its placement/order; preserve Actions and the shared definition',
+      )
+      .argument(
+        '<id>',
+        type === 'action'
+          ? 'UUID or owf:action:<UUID>'
+          : 'Stored View instance UUID; not a title or definition path',
+      )
+      .option(
+        '--json',
+        'Emit a deletion receipt with status, type, root, ID and title; Actions also include URI',
+      )
+      .addHelpText(
+        'after',
+        type === 'action'
+          ? '\nPermanent and noninteractive. Explicitly remove or redirect incoming dependencies first, even for completed prerequisites or terminal dependents. Outgoing/self dependencies and this Action’s organization in every View are removed; remaining order and historical events are preserved.\nExample: owf delete action owf:action:ACTION_ID --json\n'
+          : '\nPermanent and noninteractive. Uses the stored ID without loading its definition, including broken definitions. Other instances and their independent organization survive. Default Kanban is not a stored instance.\nExample: owf delete view VIEW_ID --json\n',
+      )
+      .action((id: string, options: { json?: boolean }) => {
+        json = options.json ?? false;
+        const receipt = deletion[type](id);
+        const result = receipt.result;
+        console.log(
+          json
+            ? JSON.stringify({ ok: true, ...receipt })
+            : `deleted ${result.type}\nTitle: ${result.title}\nID: ${result.id}${'uri' in result ? `\nURI: ${result.uri}` : ''}\nRoot: ${result.root}`,
+        );
+      });
+  }
   program
     .command('init')
     .description('Initialize the current directory, or discover its Workspace')
@@ -555,20 +601,25 @@ unresolved_dependencies, dependencies [{ uri, title, state, satisfied }].
         ? error.code
         : error instanceof CommanderError
           ? 'INVALID_ARGUMENT'
-          : operationalArgs[0] === 'set' && operationalArgs[1] === 'action'
-            ? 'ACTION_UPDATE_FAILED'
-            : operationalArgs[0] === 'create' && operationalArgs[1] === 'action'
-              ? 'ACTION_CREATE_FAILED'
-              : (operationalArgs[0] === 'get' &&
-                    operationalArgs[1] === 'action') ||
-                  (operationalArgs[0] === 'list' &&
-                    operationalArgs[1] === 'actions')
-                ? 'ACTION_READ_FAILED'
-                : operationalArgs[0] === 'create'
-                  ? 'CREATION_FAILED'
-                  : operationalArgs[0] === 'serve'
-                    ? 'SERVER_START_FAILED'
-                    : 'INITIALIZATION_FAILED';
+          : operationalArgs[0] === 'delete' && operationalArgs[1] === 'action'
+            ? 'ACTION_DELETE_FAILED'
+            : operationalArgs[0] === 'delete' && operationalArgs[1] === 'view'
+              ? 'VIEW_DELETE_FAILED'
+              : operationalArgs[0] === 'set' && operationalArgs[1] === 'action'
+                ? 'ACTION_UPDATE_FAILED'
+                : operationalArgs[0] === 'create' &&
+                    operationalArgs[1] === 'action'
+                  ? 'ACTION_CREATE_FAILED'
+                  : (operationalArgs[0] === 'get' &&
+                        operationalArgs[1] === 'action') ||
+                      (operationalArgs[0] === 'list' &&
+                        operationalArgs[1] === 'actions')
+                    ? 'ACTION_READ_FAILED'
+                    : operationalArgs[0] === 'create'
+                      ? 'CREATION_FAILED'
+                      : operationalArgs[0] === 'serve'
+                        ? 'SERVER_START_FAILED'
+                        : 'INITIALIZATION_FAILED';
     const message = error instanceof Error ? error.message : String(error);
     if (json)
       console.log(JSON.stringify({ ok: false, error: { code, message } }));

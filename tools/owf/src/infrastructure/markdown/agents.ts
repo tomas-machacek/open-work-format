@@ -108,7 +108,7 @@ Unplaced Open Actions go to New to organize. Change owf.defaults.open to todo an
 show again to see current routing.
 Prerequisites outside the View still affect blocking. Malformed Actions and
 missing prerequisites fail the whole read, even for otherwise omitted Actions.
-Schema 8 has five states and no Action archival support; externally injected
+Schema 9 has five states and no Action archival support; externally injected
 archived data is rejected. Empty membership and zero columns are successful.
 Get/list/show do not move Actions or edit/delete instances. The browser Display
 selector shows the same placement-aware evaluation with passive cards and shared
@@ -345,7 +345,47 @@ retrying a terminal move. Refresh the board after CLI edits to see current facts
 
 
 
-This tool requires schema 8. Older stores, including schemas 6 and 7, are refused without migration or
+## Permanent deletion
+
+These commands delete exactly one object without a confirmation prompt or flag:
+
+\`\`\`sh
+owf create action --title "Disposable Action" --json
+owf delete action {id}
+owf create action --title "Another disposable Action" --json
+owf delete action owf:action:{id} --json
+owf delete view {view-id} --json
+\`\`\`
+
+Replace {id} and {view-id} with real UUIDs from creation/list results. Commands discover this Workspace
+from its root or descendants and need no web server. Deletion is permanent;
+there is no undo, trash, archive transition or force bypass.
+
+Any other Action depending on the target prevents deletion with ACTION_IN_USE,
+even for completed prerequisites and terminal/cross-owner dependents. The error
+lists referring Action URIs and titles in stable ID order. First explicitly
+remove or redirect those dependencies with owf set action DEPENDENT_ID
+--remove-dependency ACTION_ID (and optionally --add-dependency REPLACEMENT_ID).
+Outgoing and self-dependencies disappear with the deleted source. All of its
+View placements/order are removed; surviving cards keep relative order and dense
+positions. Missing Markdown owners or broken definitions do not prevent deletion.
+
+View deletion removes only the stored instance and its own placement/order.
+It preserves Actions, dependencies, shared Markdown definitions and other
+instances with their independent order. Use an instance UUID from owf list views,
+not a title or definition path. Broken definitions do not block deletion.
+Default Kanban is a built-in projection with no deletable instance ID.
+
+Human receipts contain type, ID and title. JSON uses ok/result/warnings with
+status deleted, type, root, id, title and an Action-only uri; it is a deletion
+receipt, not a live object. Invalid arguments exit 2; absent/repeated IDs return
+ACTION_NOT_FOUND or VIEW_NOT_FOUND, exit 1. Reference rejection exits 1.
+Other transactional failures use ACTION_DELETE_FAILED or VIEW_DELETE_FAILED.
+Deletion and events commit atomically; historical events remain. Refresh the
+browser after CLI deletion; a deleted selected View reports the existing missing
+instance error. Markdown links and screenshots are not automatically cleaned up.
+
+This tool requires schema 9. Older stores, including schemas 6, 7 and 8, are refused without migration or
 mutation. For this PoC, initialize a fresh disposable directory with owf init;
 never reset or replace an existing store. Existing user guidance stays untouched.
 

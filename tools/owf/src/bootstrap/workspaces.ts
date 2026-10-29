@@ -4,6 +4,7 @@ import {
 } from '../infrastructure/runtime/index.js';
 import {
   createView as createViewUseCase,
+  deleteView as deleteViewUseCase,
   getView as getViewUseCase,
   listViews as listViewsUseCase,
   showView as showViewUseCase,
@@ -18,6 +19,7 @@ import type { ViewPorts } from '../application/ports/index.js';
 import { actionRepository } from '../infrastructure/sqlite/index.js';
 import {
   createAction as createActionUseCase,
+  deleteAction as deleteActionUseCase,
   getAction as getActionUseCase,
   listActions as listActionsUseCase,
   setAction as setActionUseCase,
@@ -65,6 +67,8 @@ export const createView = (root: string, input: CreateViewInput) =>
   createViewUseCase(root, input, viewPorts);
 export const getView = (root: string, id: string) =>
   getViewUseCase(root, id, viewPorts);
+export const deleteView = (root: string, id: string) =>
+  deleteViewUseCase(root, id, viewPorts);
 export const listViews = (root: string) => listViewsUseCase(root, viewPorts);
 export const showView = (root: string, id: string) =>
   showViewUseCase(root, id, viewPorts);
@@ -96,6 +100,8 @@ export const createAction = (root: string, input: ActionInput) =>
   createActionUseCase(root, input, actionPorts);
 export const getAction = (root: string, identifier: string) =>
   getActionUseCase(root, identifier, actionPorts);
+export const deleteAction = (root: string, identifier: string) =>
+  deleteActionUseCase(root, identifier, actionPorts);
 export const listActions = (root: string, input: ListActionsInput = {}) =>
   listActionsUseCase(root, input, actionPorts);
 export const setAction = (
