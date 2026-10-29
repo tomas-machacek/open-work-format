@@ -19,6 +19,7 @@ import type { ViewPorts } from '../application/ports/index.js';
 import { actionRepository } from '../infrastructure/sqlite/index.js';
 import {
   createAction as createActionUseCase,
+  createActionInView as createActionInViewUseCase,
   deleteAction as deleteActionUseCase,
   getAction as getActionUseCase,
   listActions as listActionsUseCase,
@@ -27,6 +28,7 @@ import {
   type ExpectedActionSnapshot,
   type ListActionsInput,
   type ActionInput,
+  type ViewCreationTarget,
 } from '../application/actions/index.js';
 import type { ActionPorts } from '../application/ports/index.js';
 import { initializeWorkspace } from '../application/workspaces/index.js';
@@ -110,3 +112,13 @@ export const setAction = (
   input: SetActionInput,
   expected?: ExpectedActionSnapshot,
 ) => setActionUseCase(root, identifier, input, actionPorts, expected);
+
+export const createActionInView = (
+  root: string,
+  input: ActionInput,
+  target: ViewCreationTarget,
+) =>
+  createActionInViewUseCase(root, input, target, {
+    ...actionPorts,
+    ...viewPorts,
+  });

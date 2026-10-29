@@ -1,4 +1,6 @@
 import {
+  deleteActionResponse,
+  type ViewCreateRequest,
   viewMoveResponse,
   type ViewMoveRequest,
   boardResponse,
@@ -183,5 +185,64 @@ export async function moveViewAction(view: string, input: ViewMoveRequest) {
       ? parsed.data.error.message
       : 'Move outcome is unknown. Refresh before trying again.',
     parsed.success ? parsed.data.error.code : 'UNCERTAIN',
+  );
+}
+
+async function actionMutation(
+  path: string,
+  method: string,
+  input: unknown,
+  deletion = false,
+): Promise<BoardAction | undefined> {
+  let response: Response;
+  let body: unknown;
+  try {
+    response = await fetch(path, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    body = await response.json();
+    if (response.ok) {
+      if (deletion) {
+        deleteActionResponse.parse(body);
+        return;
+      }
+      return createActionResponse.parse(body).action;
+    }
+  } catch {
+    throw new StateUpdateError(
+      'Write could not be confirmed. Refresh and check before deliberately trying again. Do not resend automatically.',
+      'UNCERTAIN',
+    );
+  }
+  const parsed = boardError.safeParse(body);
+  throw new StateUpdateError(
+    parsed.success
+      ? parsed.data.error.message
+      : 'Write could not be confirmed. Refresh before trying again.',
+    parsed.success ? parsed.data.error.code : 'UNCERTAIN',
+  );
+}
+export async function createViewAction(
+  id: string,
+  input: ViewCreateRequest,
+): Promise<BoardAction> {
+  const action = (await actionMutation(
+    `/api/views/${encodeURIComponent(id)}/actions`,
+    'POST',
+    input,
+  ))!;
+  window.dispatchEvent(
+    new CustomEvent('owf-action-created', { detail: action }),
+  );
+  return action;
+}
+export async function deleteBoardAction(id: string): Promise<void> {
+  await actionMutation(
+    `/api/actions/${encodeURIComponent(id)}`,
+    'DELETE',
+    {},
+    true,
   );
 }

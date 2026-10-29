@@ -1,11 +1,11 @@
 # 0028 — Create and delete Actions in web Views
 
-> Status: reviewed
+> Status: in_progress
 > Description: Create Actions in a chosen View column and permanently delete Actions from Views or Default Kanban through the shared web interface.
 > Depends on: [0008 — Create Actions on the board](0008-board-action-create.md), [0024 — Persist and change View column order through CLI](0024-view-order-cli.md), [0025 — Move and reorder Actions in web Views](0025-web-view-moves.md), [0026 — Web layout cleanup](0026-web-layout-cleanup.md) and [0027 — Delete Actions and View instances through CLI](0027-delete-action-view-cli.md).
 
 Scope and UI decisions agreed on 2026-10-29. The user reviewed and approved
-this document for implementation on 2026-10-29. Implementation has not started.
+this document for implementation on 2026-10-29. Implementation is in progress.
 
 ## Goal and scope
 

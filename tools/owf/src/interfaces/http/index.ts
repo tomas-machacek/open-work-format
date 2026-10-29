@@ -13,9 +13,13 @@ import type {
 import type {
   ListActionsResult,
   ActionResult,
+  DeleteActionResult,
 } from '../../application/actions/index.js';
 import { WorkspaceError } from '../../application/workspaces/index.js';
 import {
+  viewCreateRequest,
+  type ViewCreateRequest,
+  deleteActionResponse,
   viewMoveRequest,
   viewMoveResponse,
   type ViewMoveRequest,
@@ -44,10 +48,12 @@ export function createBoardServer(
   edit?: (id: string, input: EditActionRequest) => ActionResult,
   owners?: () => { owners: AvailableOwner[] },
   views?: {
+    create?: (id: string, input: ViewCreateRequest) => ActionResult;
     move?: (id: string, input: ViewMoveRequest) => MoveActionResult;
     list: () => ListViewsResult;
     display: (id: string) => DisplayViewResult;
   },
+  remove?: (id: string) => DeleteActionResult,
 ) {
   const server = Fastify({ logger: false });
   server.get('/api/views', (_request, reply) => {
@@ -61,14 +67,14 @@ export function createBoardServer(
   server.get<{ Params: { id: string } }>('/api/views/:id', (request, reply) => {
     try {
       if (!views) throw new Error('View evaluation is unavailable.');
-      const { root, view, columns, blocked_column } = views.display(
-        request.params.id,
-      );
+      const { root, view, columns, blocked_column, creation_definition } =
+        views.display(request.params.id);
       return viewResponse.parse({
         workspace: { root },
         view,
         columns,
         blocked_column,
+        creation_definition,
       });
     } catch (error) {
       return viewError(error, reply);
@@ -197,6 +203,79 @@ export function createBoardServer(
                   : 'Unable to move Action.',
             },
           });
+      }
+    },
+  );
+  function mutationError(error: unknown, reply: FastifyReply) {
+    const code =
+      error instanceof WorkspaceError ? error.code : 'ACTION_WRITE_FAILED';
+    return reply
+      .code(
+        code.endsWith('_NOT_FOUND')
+          ? 404
+          : ['ACTION_IN_USE', 'VIEW_CONFLICT'].includes(code)
+            ? 409
+            : code.startsWith('INVALID_')
+              ? 400
+              : 503,
+      )
+      .send({
+        error: {
+          code,
+          message:
+            error instanceof WorkspaceError
+              ? error.message
+              : 'Unable to write Action. Check the Workspace store.',
+        },
+      });
+  }
+  server.post<{ Params: { id: string } }>(
+    '/api/views/:id/actions',
+    { onRequest: trustedWrite },
+    (request, reply) => {
+      const parsed = viewCreateRequest.safeParse(request.body);
+      if (!parsed.success)
+        return reply.code(400).send({
+          error: {
+            code: 'INVALID_REQUEST',
+            message:
+              'Supply Action fields, column and expected_definition only.',
+          },
+        });
+      try {
+        if (!views?.create) throw new Error('Creation unavailable');
+        return reply.code(201).send(
+          createActionResponse.parse({
+            action: views.create(request.params.id, parsed.data).result.action,
+          }),
+        );
+      } catch (error) {
+        return mutationError(error, reply);
+      }
+    },
+  );
+  server.delete<{ Params: { id: string } }>(
+    '/api/actions/:id',
+    { onRequest: trustedWrite },
+    (request, reply) => {
+      if (
+        !request.body ||
+        typeof request.body !== 'object' ||
+        Array.isArray(request.body) ||
+        Object.keys(request.body).length
+      )
+        return reply.code(400).send({
+          error: {
+            code: 'INVALID_REQUEST',
+            message: 'Supply an empty JSON object.',
+          },
+        });
+      try {
+        if (!remove) throw new Error('Deletion unavailable');
+        const { id, status } = remove(request.params.id).result;
+        return deleteActionResponse.parse({ id, status });
+      } catch (error) {
+        return mutationError(error, reply);
       }
     },
   );

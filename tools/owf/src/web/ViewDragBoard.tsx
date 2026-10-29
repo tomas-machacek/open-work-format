@@ -27,7 +27,9 @@ export function ViewDragBoard({
   onStart,
   onCancel,
   onDrop,
+  creation,
 }: {
+  creation?: (column: ViewResponse['columns'][number]) => ReactNode;
   data: ViewResponse;
   disabled: boolean;
   onOpen: (action: BoardAction) => void;
@@ -266,6 +268,7 @@ export function ViewDragBoard({
               {column.title}
               <span className={styles.count}>{column.members.length}</span>
             </h2>
+            {creation?.(column)}
             <ColumnContent
               column={column.id}
               title={column.title}

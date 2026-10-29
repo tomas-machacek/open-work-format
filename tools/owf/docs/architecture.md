@@ -429,3 +429,20 @@ including schema 8, fail explicitly without migration or replacement.
 Existing web reads reflect CLI deletion; there are no deletion endpoints or
 browser controls. The user confirmed successful independent review of 0027 on
 2026-10-29.
+
+## Web creation and deletion (0028)
+
+View evaluation exposes each ordinary column's default status and a serialized
+validated definition precondition. `createActionInView` derives the initial state
+and reuses Action creation, checking the selected instance and definition again
+inside the store transaction. Shared View reconciliation explicitly places the
+new Action and appends it after evaluated implicit/explicit members. Action,
+organization and events commit atomically. Markdown is outside the SQLite snapshot.
+
+The shared editor invokes the existing global Action deletion use case through
+`DELETE /api/actions/:id`; HTTP and React do not duplicate dependency/cleanup rules.
+Native modal confirmation contains keyboard focus and preserves editor drafts on
+cancel/rejection. Confirmed mutations invalidate older reads and update retained
+board data before refreshing. Hidden Default Kanban observes confirmed deletion
+notifications so returning after a failed read cannot resurrect deleted cards.
+No schema, dependency or CLI behavior changes are introduced.

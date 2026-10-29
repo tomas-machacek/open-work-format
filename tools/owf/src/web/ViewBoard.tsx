@@ -6,7 +6,8 @@ import type {
 } from '../contracts/index.js';
 import { ActionEditor, type EditorNavigation } from './ActionEditor.js';
 import { ViewDragBoard } from './ViewDragBoard.js';
-import { editBoardAction, moveViewAction } from './client.js';
+import { createViewAction, editBoardAction, moveViewAction } from './client.js';
+import { ActionForm } from './ActionForm.js';
 import { useView } from './useView.js';
 import type { BoardNavigation } from './ViewSelector.js';
 import styles from './Board.module.css';
@@ -23,6 +24,8 @@ export function ViewBoard({
   const frozen = useRef(false);
   const alive = useRef(true);
   const submitting = useRef(false);
+  const [creating, setCreating] = useState<string>();
+  const addButtons = useRef(new Map<string, HTMLButtonElement>());
   const [pendingMove, setPendingMove] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reasonMove, setReasonMove] = useState<ViewMoveRequest>();
@@ -30,7 +33,7 @@ export function ViewBoard({
   const reasonHeadingId = useId();
   const reasonAction = useRef<string | undefined>(undefined);
   const [moveNotice, setMoveNotice] = useState<string>();
-  const { data, loading, error, refresh } = useView(
+  const { data, loading, error, refresh, accept } = useView(
     selected.id,
     onRefresh,
     undefined,
@@ -145,7 +148,7 @@ export function ViewBoard({
         <span className={styles.brand}>
           owf <span>/ workspace</span>
         </span>
-        {navigation(editorNavigation, busy)}
+        {navigation(editorNavigation, busy || !!creating)}
       </header>
       <section
         className={`${styles.intro} ${styles.viewIntro}`}
@@ -159,7 +162,7 @@ export function ViewBoard({
           </p>
         </div>
         <button
-          disabled={busy}
+          disabled={busy || !!creating}
           ref={refreshButton}
           onClick={() => {
             void refresh();
@@ -226,12 +229,71 @@ export function ViewBoard({
           }}
         >
           <ViewDragBoard
+            creation={(column) =>
+              column.default_status && column.id !== data.blocked_column ? (
+                <>
+                  <button
+                    ref={(node) => {
+                      if (node) addButtons.current.set(column.id, node);
+                    }}
+                    className={styles.add}
+                    disabled={
+                      busy || !!detail || !!error || loading || !!creating
+                    }
+                    onClick={() => {
+                      frozen.current = true;
+                      setCreating(column.id);
+                    }}
+                  >
+                    + Add Action
+                  </button>
+                  {creating === column.id && (
+                    <ActionForm
+                      state={column.default_status}
+                      label={column.title}
+                      save={(input) =>
+                        createViewAction(selected.id, {
+                          ...input,
+                          column: column.id,
+                          expected_definition: data.creation_definition!,
+                        })
+                      }
+                      onSaved={(action) => {
+                        frozen.current = false;
+                        accept((current) => ({
+                          ...current,
+                          columns: current.columns.map((c) =>
+                            c.id === column.id
+                              ? { ...c, members: [...c.members, action] }
+                              : c,
+                          ),
+                        }));
+                        setSaved(action);
+                        void refresh();
+                      }}
+                      onClose={() => {
+                        frozen.current = false;
+                        setCreating(undefined);
+                        requestAnimationFrame(() =>
+                          addButtons.current.get(column.id)?.focus(),
+                        );
+                      }}
+                    />
+                  )}
+                </>
+              ) : null
+            }
             data={data}
             disabled={
-              !!error || loading || !!detail || !!reasonMove || pendingMove
+              !!error ||
+              loading ||
+              !!detail ||
+              !!reasonMove ||
+              pendingMove ||
+              !!creating
             }
             onOpen={(action) => {
-              if (!busy && !frozen.current && !submitting.current)
+              if (!creating && !busy && !frozen.current && !submitting.current)
                 setDetail(action);
             }}
             onStart={(id) => {
@@ -319,7 +381,18 @@ export function ViewBoard({
           save={editBoardAction}
           refresh={() => refresh()}
           navigationRef={editorNavigation}
-          navigation={navigation(editorNavigation, busy)}
+          navigation={navigation(editorNavigation, busy || !!creating)}
+          onDeleted={(id) => {
+            accept((current) => ({
+              ...current,
+              columns: current.columns.map((c) => ({
+                ...c,
+                members: c.members.filter((a) => a.id !== id),
+              })),
+            }));
+            setMoveNotice('Action deleted permanently.');
+            void refresh();
+          }}
           onSaved={(action) => {
             setSaved(action);
             void refresh();

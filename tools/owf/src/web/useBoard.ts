@@ -4,6 +4,7 @@ import type {
   BoardAction,
   BoardQuery,
 } from '../contracts/index.js';
+import { boardAction } from '../contracts/index.js';
 import { fetchBoard } from './client.js';
 
 export function useBoard(
@@ -56,6 +57,36 @@ export function useBoard(
         },
     );
   }, []);
+  const remove = useCallback((id: string) => {
+    ++generation.current;
+    ++writes.current;
+    accepted.current.delete(id);
+    setData(
+      (current) =>
+        current && {
+          ...current,
+          actions: current.actions.filter((a) => a.id !== id),
+        },
+    );
+    if (tracked.current === id) setCurrent(undefined);
+  }, []);
+  useEffect(() => {
+    const deleted = (event: Event) => {
+      if (event instanceof CustomEvent && typeof event.detail === 'string')
+        remove(event.detail);
+    };
+    const created = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const parsed = boardAction.safeParse(event.detail);
+      if (parsed.success) accept(parsed.data);
+    };
+    window.addEventListener('owf-action-created', created);
+    window.addEventListener('owf-action-deleted', deleted);
+    return () => {
+      window.removeEventListener('owf-action-deleted', deleted);
+      window.removeEventListener('owf-action-created', created);
+    };
+  }, [remove, accept]);
   const inFlight = useRef(false);
   const pendingReturn = useRef(false);
   const refresh = useCallback(
@@ -190,6 +221,7 @@ export function useBoard(
     membershipPending,
     refresh,
     accept,
+    remove,
     query,
     resultQuery,
     apply,

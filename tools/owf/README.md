@@ -748,7 +748,7 @@ the draft row. Saved rows remain **Removed** with **Undo** until Save; selecting
 them again also restores membership. Net membership undo sends no edit.
 Lookup failure offers Retry inside the active picker without clearing selections.
 The dialog content and bounded picker results scroll independently of the
-always-visible **Save changes** and **Cancel** bar, including in narrow or short
+always-visible **Save changes**, **Cancel** and red **Delete action** bar, including in narrow or short
 windows. Save changes commits all fields and edges together; Cancel, outside-dialog click and Escape after closing
 inner disclosures/picker use the existing discard confirmation.
 
@@ -821,3 +821,34 @@ or malformed blocking projections rather than treating them as unblocked.
 For frontend development, run `owf serve` on its default port 4317 and `npx vite`
 in `tools/owf`. Vite binds to 127.0.0.1 and proxies `/api` to that local server,
 preserving origin checks. Production assets and API share the server origin.
+
+### Create in a View and delete globally
+
+Each ordinary View column has the same small **+ Add Action** control, including
+empty and multi-state columns. Creation uses the chosen column's `default_status`
+and appends after all evaluated members. Owner defaults to Workspace; use the
+existing owner picker to choose a Project or Outcome. Waiting reasons remain
+optional. The special Blocked column has no creation control.
+
+The source instance receives explicit placement; other instances evaluate the
+same Action independently. Creation, placement, order and events commit together.
+A stale definition is rejected: cancel, refresh and review the destination before
+trying again. Failed writes retain the draft.
+
+In either board mode, open detail and choose **Delete action**. Confirmation names
+the persisted Action and explains permanent deletion from the whole Workspace and
+every View, including loss of unsaved edits. Cancel or Escape preserves the draft.
+Any incoming Action dependency rejects deletion with `ACTION_IN_USE` and identifies
+the referring Actions, including terminal ones. Remove/redirect those edges
+explicitly. There is no force-delete or undo. Confirmed deletion closes detail and
+refreshes the active board without page reload; refresh failure preserves the known
+result. View instance deletion remains CLI-only.
+
+`POST /api/views/:id/actions` accepts the existing creation fields plus `column`
+and `expected_definition` from `GET /api/views/:id`. The server derives the initial
+state from the current definition, validates the precondition again within the
+write transaction and returns `{ action }` (201). `DELETE /api/actions/:id` requires
+an empty JSON object and returns `{ id, status: "deleted" }`. Both use the existing
+Host/Origin, JSON, strict shape and development proxy boundary. Missing targets
+return 404, dependency/precondition conflicts 409, invalid input 400 and store
+failure 503 with structured diagnostics. No new schema or dependencies are needed.

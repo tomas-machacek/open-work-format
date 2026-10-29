@@ -1,6 +1,8 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import {
   fetchBoard,
+  createViewAction,
+  deleteBoardAction,
   fetchOwners,
   saveAction,
   updateActionState,
@@ -284,3 +286,25 @@ test('owner reads bypass cache, reject malformed success and retain discovery er
   );
   await expect(fetchOwners()).rejects.toThrow('Cannot read README');
 });
+
+test.each(['create', 'delete'])(
+  'new %s mutation reports uncertainty without automatic retry',
+  async (kind) => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockRejectedValue(new TypeError('Connection lost'));
+    vi.stubGlobal('fetch', fetch);
+    const write =
+      kind === 'delete'
+        ? deleteBoardAction('action')
+        : createViewAction('view', {
+            title: 'Draft',
+            state: 'open',
+            owner: '/',
+            column: 'todo',
+            expected_definition: '{}',
+          });
+    await expect(write).rejects.toMatchObject({ code: 'UNCERTAIN' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  },
+);

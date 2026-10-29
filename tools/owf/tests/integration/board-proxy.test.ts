@@ -42,6 +42,24 @@ test('Vite proxy rejects a foreign backend Origin without Fetch Metadata before 
       'ORIGIN_REJECTED',
     );
     expect(snapshot(root)).toEqual(before);
+    for (const [path, method] of [
+      ['/api/views/missing/actions', 'POST'],
+      ['/api/actions/missing', 'DELETE'],
+    ] as const) {
+      const forbidden = await fetch(`${origin}${path}`, {
+        method,
+        headers: {
+          Origin: 'http://127.0.0.1:4317',
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      });
+      expect(forbidden.status).toBe(403);
+      expect(boardError.parse(await forbidden.json()).error.code).toBe(
+        'ORIGIN_REJECTED',
+      );
+    }
+    expect(snapshot(root)).toEqual(before);
     const accepted = await post(origin);
     expect(accepted.status).toBe(201);
     const action = listActions(root).result.actions[0]!;

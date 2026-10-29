@@ -350,3 +350,53 @@ for (const fails of [false, true])
     expect(load).toHaveBeenCalledTimes(3);
     expect(result.current.loading).toBe(false);
   });
+
+for (const mutation of ['create', 'delete']) {
+  test(`confirmed ${mutation} survives a pre-write read and a failed follow-up read`, async () => {
+    let finish!: (value: ViewResponse) => void;
+    const load = vi.fn<() => Promise<ViewResponse>>().mockResolvedValue(data);
+    const onRefresh = vi.fn();
+    const { result } = renderHook(() => useView('v', onRefresh, load));
+    await waitFor(() => expect(result.current.data).toEqual(data));
+    load.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    let reading!: Promise<boolean>;
+    act(() => {
+      reading = result.current.refresh();
+    });
+    act(() =>
+      result.current.accept((current) => ({
+        ...current,
+        columns: current.columns.map((c) =>
+          c.id === 'source'
+            ? {
+                ...c,
+                members:
+                  mutation === 'delete'
+                    ? []
+                    : [...c.members, { ...c.members[0]!, id: 'created' }],
+              }
+            : c,
+        ),
+      })),
+    );
+    await act(async () => {
+      finish(data);
+      await reading;
+    });
+    const known = result.current.data;
+    expect(known!.columns[0]!.members).toHaveLength(
+      mutation === 'delete' ? 0 : 2,
+    );
+    load.mockRejectedValueOnce(new Error('Refresh unavailable'));
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(result.current.data).toEqual(known);
+    expect(result.current.error).toBe('Refresh unavailable');
+  });
+}

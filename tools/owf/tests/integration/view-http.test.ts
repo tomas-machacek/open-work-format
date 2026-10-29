@@ -421,3 +421,93 @@ test('HTTP positional moves use current transaction facts, enforce reason and ro
   expect(response.body).toContain(view.id);
   expect(semanticSnapshot(root, store)).toEqual(brokenDefinition);
 });
+
+test('web column creation and global deletion enforce strict write boundaries and dependency guard', async () => {
+  const { root, view, server, read } = await setup();
+  const address = server.server.address();
+  if (!address || typeof address === 'string') throw new Error('Missing port');
+  const headers = {
+    host: `127.0.0.1:${address.port}`,
+    origin: `http://127.0.0.1:${address.port}`,
+    'content-type': 'application/json',
+  };
+  const data = viewResponse.parse((await read()).json());
+  const payload = {
+    title: 'Web created',
+    state: 'cancelled',
+    owner: '/',
+    column: 'todo',
+    expected_definition: data.creation_definition,
+  };
+  const url = `/api/views/${view.id}/actions`;
+  for (const bad of [
+    { ...headers, origin: 'http://evil.test' },
+    { ...headers, host: 'evil.test' },
+    { ...headers, 'content-type': 'text/plain' },
+  ]) {
+    expect(
+      (
+        await server.inject({
+          method: 'POST',
+          url,
+          headers: bad,
+          payload: JSON.stringify(payload),
+        })
+      ).statusCode,
+    ).toBeGreaterThanOrEqual(400);
+    expect(
+      (
+        await server.inject({
+          method: 'DELETE',
+          url: '/api/actions/missing',
+          headers: bad,
+          payload: '{}',
+        })
+      ).statusCode,
+    ).toBeGreaterThanOrEqual(400);
+  }
+  expect(
+    (
+      await server.inject({
+        method: 'POST',
+        url,
+        headers,
+        payload: { ...payload, root: '/arbitrary' },
+      })
+    ).statusCode,
+  ).toBe(400);
+  const created = await server.inject({
+    method: 'POST',
+    url,
+    headers,
+    payload,
+  });
+  expect(created.statusCode).toBe(201);
+  const action = viewResponse
+    .parse((await read()).json())
+    .columns.find((c) => c.id === 'todo')!.members[0]!;
+  expect(action.state).toBe('open');
+  const dependent = createAction(root, { title: 'Referring Action' }).result
+    .action;
+  setAction(root, dependent.id, { addDependency: [action.id] });
+  const remove = () =>
+    server.inject({
+      method: 'DELETE',
+      url: `/api/actions/${action.id}`,
+      headers,
+      payload: {},
+    });
+  const rejected = await remove();
+  expect(rejected.statusCode).toBe(409);
+  expect(rejected.body).toContain('ACTION_IN_USE');
+  expect(rejected.body).toContain(dependent.id);
+  setAction(root, dependent.id, { removeDependency: [action.id] });
+  expect((await remove()).statusCode).toBe(200);
+  expect((await remove()).statusCode).toBe(404);
+  expect(
+    viewResponse
+      .parse((await read()).json())
+      .columns.flatMap((c) => c.members)
+      .some((a) => a.id === action.id),
+  ).toBe(false);
+});

@@ -90,10 +90,16 @@ export function showView(
 }
 
 export interface DisplayViewResult {
+  creation_definition?: string;
   blocked_column?: string | undefined;
   root: string;
   view: ViewInstance;
-  columns: { id: string; title: string; members: ActionProjection[] }[];
+  columns: {
+    id: string;
+    title: string;
+    default_status?: ActionProjection['state'] | undefined;
+    members: ActionProjection[];
+  }[];
 }
 
 export function displayView(
@@ -110,11 +116,16 @@ export function displayView(
   return {
     root,
     view,
+    creation_definition: JSON.stringify(definition),
     blocked_column: definition.columns.find(
       (column) => column.type === 'blocked',
     )?.id,
     columns: columns.map((column) => ({
       ...column,
+      default_status: (() => {
+        const c = definition.columns.find((c) => c.id === column.id)!;
+        return c.type === 'blocked' ? undefined : c.default_status;
+      })(),
       members: column.members.map((member) => byId.get(member.id)!),
     })),
   };

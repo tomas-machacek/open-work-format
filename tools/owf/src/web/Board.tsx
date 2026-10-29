@@ -105,6 +105,7 @@ export function Board({
     membershipPending,
     refresh,
     accept,
+    remove,
     query,
     resultQuery,
     apply,
@@ -167,6 +168,7 @@ export function Board({
   >(new Map());
   const moving = useRef(new Set<string>());
   const [moveErrors, setMoveErrors] = useState<Record<string, string>>({});
+  const [deletionNotice, setDeletionNotice] = useState<string>();
   const [moveNotice, setMoveNotice] = useState<string>();
   const [announcement, setAnnouncement] = useState('');
   useEffect(() => {
@@ -420,6 +422,11 @@ export function Board({
           {error} Use Retry to read the Workspace again.
         </div>
       )}
+      {deletionNotice && (
+        <p role="status" className={styles.scope}>
+          {deletionNotice}
+        </p>
+      )}
       {moveNotice && (
         <div role="alert" className={styles.error}>
           {moveNotice}
@@ -543,6 +550,11 @@ export function Board({
           save={editAction}
           refresh={async () => {
             return refresh();
+          }}
+          onDeleted={(id) => {
+            remove(id);
+            setDeletionNotice('Action deleted permanently.');
+            void refresh();
           }}
           onSaved={saved}
           onClose={() => {

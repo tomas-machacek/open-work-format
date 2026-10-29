@@ -18,10 +18,10 @@ import {
   validateTitle,
   WorkspaceError,
 } from '../../domain/workspaces/index.js';
-import type { ActionPorts } from '../ports/index.js';
+import type { ViewPorts, ActionPorts } from '../ports/index.js';
 import { resolveContextOwner } from '../contexts/index.js';
 import { discoverWorkspace } from '../workspaces/index.js';
-import { reconcilePlacements } from '../views/index.js';
+import { getView, reconcilePlacements } from '../views/index.js';
 
 export type {
   Action,
@@ -238,11 +238,44 @@ export function setAction(
     saved.changed ? 'updated' : 'unchanged',
   );
 }
+export interface ViewCreationTarget {
+  view: string;
+  column: string;
+  expected_definition: string;
+}
+export function createActionInView(
+  start: string,
+  input: ActionInput,
+  target: ViewCreationTarget,
+  ports: ActionPorts & ViewPorts,
+): ActionResult {
+  const { definition } = getView(start, target.view, ports).result;
+  if (JSON.stringify(definition) !== target.expected_definition)
+    throw new WorkspaceError(
+      'VIEW_CONFLICT',
+      'View definition changed. Refresh and review the destination.',
+    );
+  const column = definition!.columns.find((c) => c.id === target.column);
+  if (!column || column.type === 'blocked')
+    throw new WorkspaceError(
+      'INVALID_ARGUMENT',
+      'Choose an ordinary View column.',
+    );
+  return createAction(
+    start,
+    { ...input, state: column.default_status },
+    ports,
+    target,
+  );
+}
 export function createAction(
   start: string,
   input: ActionInput,
   ports: ActionPorts,
+  destination?: ViewCreationTarget,
 ): ActionResult {
+  const found = workspace(start, ports);
+  const creationDefinition = destination?.expected_definition;
   const title = validateTitle(input.title);
   validateStateRequest({
     state: input.state ?? 'open',
@@ -252,7 +285,6 @@ export function createAction(
     input.owner === undefined
       ? undefined
       : ports.contexts.decodeOwner(input.owner);
-  const found = workspace(start, ports);
   const owner = resolveContextOwner(start, found.root, explicit, ports, false);
   validateActionOwner(owner.chain);
   const action = newAction(
@@ -261,15 +293,41 @@ export function createAction(
     ports.now(),
     ports.contexts.url(owner.segments),
   );
-  ports.actions.create(found.store, action, (snapshot, after) =>
-    reconcilePlacements(
+  ports.actions.create(found.store, action, (snapshot, after) => {
+    if (destination) {
+      const view = snapshot.views.find((v) => v.id === destination.view);
+      if (!view)
+        throw new WorkspaceError(
+          'VIEW_NOT_FOUND',
+          'View instance no longer exists.',
+        );
+      const definition = ports.definitions.load(found.root, view.definition);
+      const column = definition.columns.find(
+        (c) => c.id === destination.column,
+      );
+      if (!column || column.type === 'blocked')
+        throw new WorkspaceError(
+          'INVALID_ARGUMENT',
+          'Choose an ordinary View column.',
+        );
+      if (
+        JSON.stringify(definition) !== creationDefinition ||
+        column.default_status !== action.state
+      )
+        throw new WorkspaceError(
+          'VIEW_CONFLICT',
+          'View definition changed. Refresh and review the destination before creating.',
+        );
+    }
+    return reconcilePlacements(
       found.root,
       action.id,
       snapshot,
       after,
       ports.definitions,
-    ),
-  );
+      destination,
+    );
+  });
   return result(
     found.root,
     projectAction(action, () => undefined),

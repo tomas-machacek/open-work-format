@@ -9,7 +9,7 @@ import {
   type FormEvent,
 } from 'react';
 import type { BoardAction, EditActionRequest } from '../contracts/index.js';
-import { StateUpdateError } from './client.js';
+import { deleteBoardAction, StateUpdateError } from './client.js';
 import { OwnerPicker } from './OwnerPicker.js';
 import { PrerequisitePicker } from './PrerequisitePicker.js';
 import styles from './Board.module.css';
@@ -36,6 +36,8 @@ export function ActionEditor({
   refresh,
   onSaved,
   onClose,
+  onDeleted,
+  remove = deleteBoardAction,
   navigationRef,
   navigation,
   passive = false,
@@ -47,10 +49,55 @@ export function ActionEditor({
   refresh: () => Promise<boolean>;
   onSaved: (action: BoardAction) => void;
   onClose: () => void;
+  onDeleted?: (id: string) => void;
+  remove?: (id: string) => Promise<void>;
   navigationRef?: Ref<EditorNavigation>;
   navigation?: ReactNode;
   passive?: boolean;
 }) {
+  const confirmation = useRef<HTMLDialogElement>(null);
+  const deleteButton = useRef<HTMLButtonElement>(null);
+  const cancelDelete = useRef<HTMLButtonElement>(null);
+  const deleting = useRef(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deletePending, setDeletePending] = useState(false);
+  useEffect(() => {
+    if (confirmDelete) {
+      confirmation.current?.showModal();
+      cancelDelete.current?.focus();
+    } else confirmation.current?.close();
+  }, [confirmDelete]);
+  function cancelDeletion() {
+    if (deleting.current) return;
+    setConfirmDelete(false);
+    requestAnimationFrame(() => deleteButton.current?.focus());
+  }
+  async function confirmDeletion() {
+    if (deleting.current) return;
+    deleting.current = true;
+    setDeletePending(true);
+    setSaving(true);
+    setError(undefined);
+    try {
+      await remove(action.id);
+      onDeleted?.(action.id);
+      onClose();
+    } catch (failure) {
+      setError(
+        failure instanceof Error ? failure.message : 'Unable to delete Action.',
+      );
+      setConfirmDelete(false);
+      if (failure instanceof StateUpdateError && failure.code === 'UNCERTAIN') {
+        setBlocked(true);
+        void checkCurrent();
+      }
+      requestAnimationFrame(() => deleteButton.current?.focus());
+    } finally {
+      deleting.current = false;
+      setDeletePending(false);
+      setSaving(false);
+    }
+  }
   const dialog = useRef<HTMLDialogElement>(null);
   const titleInput = useRef<HTMLInputElement>(null);
   const continueButton = useRef<HTMLButtonElement>(null);
@@ -103,7 +150,7 @@ export function ActionEditor({
     afterClose.current = undefined;
   }
   function requestClose(next?: () => void) {
-    if (saving) return;
+    if (saving || confirmDelete) return;
     afterClose.current = next;
     if (dirty) setDiscard(true);
     else close();
@@ -426,9 +473,58 @@ export function ActionEditor({
             >
               Cancel
             </button>
+            <button
+              ref={deleteButton}
+              type="button"
+              className={styles.danger}
+              disabled={saving || blocked}
+              onClick={() => setConfirmDelete(true)}
+            >
+              Delete action
+            </button>
           </div>
         )}
       </form>
+      {confirmDelete && (
+        <dialog
+          ref={confirmation}
+          aria-labelledby="delete-heading"
+          className={styles.editor}
+          onCancel={(e) => {
+            e.preventDefault();
+            cancelDeletion();
+          }}
+        >
+          <section className={styles.editorCard}>
+            <h2 id="delete-heading">Delete action permanently?</h2>
+            <p>{current?.title ?? baseline.title}</p>
+            <p>
+              This permanently deletes the Action from the Workspace and every
+              View. It cannot be undone. Unsaved edits will be discarded.
+            </p>
+            <div className={styles.formButtons}>
+              <button
+                ref={cancelDelete}
+                type="button"
+                disabled={deletePending}
+                onClick={cancelDeletion}
+              >
+                Cancel deletion
+              </button>
+              <button
+                type="button"
+                className={styles.danger}
+                disabled={deletePending}
+                onClick={() => {
+                  void confirmDeletion();
+                }}
+              >
+                {deletePending ? 'Deleting…' : 'Permanently delete'}
+              </button>
+            </div>
+          </section>
+        </dialog>
+      )}
     </dialog>
   );
 }
