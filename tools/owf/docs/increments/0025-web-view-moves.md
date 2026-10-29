@@ -1,6 +1,6 @@
 # 0025 — Move and reorder Actions in web Views
 
-> Status: in_progress
+> Status: completed
 > Description: Move and reorder existing View cards through pointer, touch and keyboard drag and drop, using the shared CLI movement semantics.
 > Depends on: [0022](0022-web-view-display.md), [0023](0023-view-move-cli.md), and completed [0024](0024-view-order-cli.md).
 
@@ -294,6 +294,12 @@ contract. The execute-time positioning limitation is explicit; stronger stale-bo
 detection would require a separately agreed extension.
 
 ## Implementation and review outcome
+
+Completed with user acceptance on 2026-10-29 after implementation, independent
+review, corrections and the final reason-dialog refinement. The user authorized
+merging PR #31. The dated entries below retain the actual verification history,
+including the occupied-port limitation on the final refinement's full verify run;
+closure does not claim a new successful full run.
 
 Design reviewed and approved for implementation by the user on 2026-10-28.
 Implemented the narrow Workspace-bound `POST /api/views/:id/moves` contract and
@@ -614,3 +620,12 @@ untracked. No merge, tag or release is included.
 - 2026-10-28: User reviewed and approved the updated drag-and-drop-only design
   for implementation. Increment and index marked `reviewed`; implementation and
   independent code review remain pending.
+
+- 2026-10-29: User accepted the final result, confirmed all changes were pushed,
+  and authorized completion and merge of PR #31 into main. Increment and index
+  marked `completed`. Final implementation/refinement head before this
+  documentation-only closure: `46c16c9765065c9fed830f46a62bb78d839ae2cc`.
+  Existing review and verification evidence is reused; the final refinement's
+  full verify remained blocked by occupied port 4317 in one proxy integration
+  test, while its other recorded checks and all CLI/browser E2E passed.
+  No release is created by this closure.
