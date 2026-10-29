@@ -273,10 +273,96 @@ necessary schema change are implementation choices within this contract.
 
 ## Implementation and review outcome
 
-Not implemented. No runtime tests or independent code review have been performed
-for this increment. Record delivered behavior, deviations, verification evidence
-and review outcome here at implementation handoff.
+Implemented on 2026-10-29 in revision
+`fd07eb7ac76c7545238ace16b088e1ab09f5a9c2` on
+`increment-0027-delete-action-view-cli`, in existing [PR #33](https://github.com/tomas-machacek/open-work-format/pull/33).
+The branch was clean and `git pull --ff-only` reported it up to date before work.
+Increment and index remain `in_progress`: independent code review has not yet
+been performed. No merge, release or version/tag change is included.
+
+Delivered both noninteractive commands and human/JSON deletion receipts, shared
+application operations and domain rules. The Action reference guard runs inside
+the same SQLite write transaction as cleanup and deletion, identifies referring
+Actions in stable ID order, and covers terminal and cross-owner sources.
+Outgoing/self edges disappear with the source. Stored placements/order are
+removed across instances, with affected ranks made dense and surviving order
+retained, without resolving Markdown owners, loading definitions or rerouting
+unrelated cards. View deletion removes only its instance and organization.
+Deletion events include ID, title and time; all historical events remain.
+Cleanup, deletion and new events commit or roll back together.
+
+CLI help, README, the [walkthrough](../examples/deletion.md), generated Workspace
+guide, architecture, MVP addition and operational operation catalogue now describe
+the delivered behavior. Existing Workspace guides are preserved. Existing HTTP
+reads and missing-object responses remain compatible; no web deletion endpoint
+or control was added.
+
+No scope or behavior deviations were necessary. Schema **9** was required because
+schema 8's event foreign keys prohibited deleting identities retained by history.
+The new schema removes foreign keys only from historical Action/View event
+identities (including View events' Action references), adds deletion event kinds
+and title fields, and retains foreign keys on current placements/order. New
+Workspaces use schema 9; all other versions, including schema 8, are explicitly
+rejected without migration, reset or replacement.
+
+Executable evidence:
+
+- [Acceptance scenarios](../../tests/acceptance/features/deletion.feature) and
+  [bindings](../../tests/acceptance/steps/deletion.ts): incoming-reference rejection,
+  explicit edge removal, multi-View Action removal and instance-only deletion
+  (AC2–AC4, AC6).
+- [Real SQLite/HTTP integration](../../tests/integration/deletion.test.ts): all five
+  supported states; terminal/cross-owner incoming references; cycles and self
+  edges; direct current-row inspection; independent surviving order; unavailable
+  owner and missing/invalid/ID-mismatched definitions; old history retention;
+  injected persistence/event failures with complete rollback; repeated deletion;
+  unavailable/unsupported stores; and existing web reads/missing-object behavior
+  (AC2–AC9 and AC10 compatibility).
+- [Built CLI processes](../../tests/e2e/delete-cli.test.ts): root/descendant
+  discovery, UUID/URI selectors, closed stdin, human/JSON receipts, argument and
+  reference errors with exit codes, help and preserved guides (AC1, AC9–AC10).
+  The existing generated-guide journey also executes the new examples.
+
+Verification ran on **Windows x64**, Node **24.21.0**, npm **11.4.1**, with
+headless Chromium through Playwright. Focused typecheck, lint, architecture and
+build checks passed. The final focused deletion suites passed 22 integration
+tests, 2 CLI tests and 3 Cucumber scenarios / 14 steps. The initial focused Vite
+launch was blocked by sandbox `spawn EPERM`; tests/build/verify were subsequently
+run outside that sandbox. No controls were disabled or weakened.
+
+The final complete **`npm run verify` passed, exit 0**, against the source and
+tests committed in `fd07eb7ac76c7545238ace16b088e1ab09f5a9c2`:
+
+- Typecheck, ESLint and Prettier: passed.
+- Architecture: no violations, 61 modules / 202 dependencies.
+- Production TypeScript/Vite build: passed.
+- Unit/component: 194 tests passed.
+- SQLite/HTTP/other integration: 270 tests passed.
+- Acceptance: 39 scenarios / 218 steps passed.
+- Built CLI: 29 tests passed, including generated-guide examples.
+- Chromium: 24 tests passed.
+
+Earlier full attempts are not counted as successful: the first exposed an
+existing unsupported-version test using `9`, now the supported schema. Its
+sentinel was changed to `999`, preserving the rejection and no-mutation checks.
+The next attempt passed all non-browser checks but the existing narrow-touch
+horizontal-scroll test observed scrollLeft 0. That unchanged scenario then passed
+three isolated repetitions and passed in the final full run; no web implementation,
+test expectations, retries or timeouts were changed. The intermittent observation
+is retained here for review rather than treated as a deletion regression without
+reproduction. Only this outcome record was added after the final successful run;
+its formatting and `git diff --check` were checked separately.
+
+Limitations remain those agreed above: no migration for schema 8, undo, bulk or
+force deletion, Outcome dependencies, Markdown reference rewriting, attachment
+cleanup or browser deletion workflow. Automated Windows checks and existing
+browser journeys were run; Linux and a separate manual human try-out were not.
+Use the [walkthrough](../examples/deletion.md) in a disposable schema 9 Workspace
+for the human trial. No unresolved implementation defect is established by the
+checks; independent review remains required before completion.
 
 ## Decision changes and follow-up
 
-None.
+- 2026-10-29: Implemented the approved scope and retained `in_progress` pending
+  independent review. Schema 9 is the necessary compatibility change described
+  above; no automatic migration or additional deletion scope was introduced.
