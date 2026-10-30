@@ -1,6 +1,6 @@
 # 0029 — Progressive Workspace agent guidance
 
-> Status: in_progress
+> Status: completed
 > Description: Generate a compact Workspace AGENTS.md with linked offline topic guides and enforce rules that prevent renewed growth.
 > Depends on: Existing Workspace initialization and completed operational increments through [0028](0028-web-action-create-delete.md), merged into main through [PR #34](https://github.com/tomas-machacek/open-work-format/pull/34).
 
@@ -262,8 +262,8 @@ of the baseline, not a pending dependency.
 
 ## Implementation and review outcome
 
-Implemented and independently reviewed; status remains in_progress as explicitly
-requested. The subsequent authorization covers corrective commits and merge.
+Implemented, independently reviewed and verified. Both P2 review findings were
+corrected. PR #35 was merged into main, and completion was authorized on 2026-10-30.
 Fresh init emits
 the compact entry point, six Knowledge topics and two Knowledge navigation indexes.
 Content is compiled with the CLI and uses the same installed package-version
@@ -398,8 +398,13 @@ claimed. The human explicitly authorized fixes, commits and merge of PR #35.
 
 ## Decision changes and follow-up
 
+- 2026-10-30: Marked completed after implementation, independent review, correction
+  of both P2 findings and successful final verification. Merged through
+  [PR #35](https://github.com/tomas-machacek/open-work-format/pull/35).
+  Completion does not create a release.
+
 - 2026-10-30: The human reviewed and approved this proposal for implementation.
-  Status is reviewed; implementation and independent code review remain pending.
+  The proposal was marked reviewed at that point, before implementation and review.
 
 - 2026-10-30: Rebased the proposal onto main after completion and merge of 0028.
   Updated dependency, browser-guidance scope and index; the proposed 0029 scope
