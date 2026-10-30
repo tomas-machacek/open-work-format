@@ -100,6 +100,7 @@ export interface WorkspaceFiles {
   join(root: string, name: string): string;
   readReadme(root: string): string | undefined;
   exists(path: string): boolean;
+  entryKind(path: string): 'file' | 'directory' | 'other' | undefined;
   createDirectory(path: string): void;
   createFile(path: string, content: string, owned: () => void): void;
   reserveFile(path: string, owned: () => void): void;
@@ -113,7 +114,13 @@ export interface WorkspaceDocuments {
   render(
     title: string,
     date: string,
-  ): { readme: string; index: string; log: string; agents: string };
+  ): {
+    readme: string;
+    index: string;
+    log: string;
+    agents: string;
+    guides: { path: string; content: string }[];
+  };
 }
 
 export interface ContextFiles {

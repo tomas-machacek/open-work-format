@@ -48,7 +48,7 @@ function setup() {
 
 test('built deletion commands execute noninteractively from root/descendants with UUID/URI selectors, human and JSON receipts and preserved guides', () => {
   const { root, child, run } = setup();
-  const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  const guide = readFileSync(join(root, '_knowledge/owf/deletion.md'), 'utf8');
   expect(guide).toContain('owf delete action {id}');
   expect(guide).toContain('owf delete view {view-id} --json');
   for (const [cwd, uri, json] of [

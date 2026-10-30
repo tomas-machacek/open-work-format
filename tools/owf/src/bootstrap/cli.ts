@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import { toolVersion } from '../infrastructure/runtime/index.js';
 import { runCli } from '../interfaces/cli/index.js';
 import {
   initialize,
@@ -17,19 +17,9 @@ import {
   deleteView,
 } from './workspaces.js';
 
-const metadata: unknown = JSON.parse(
-  readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
-);
-if (
-  typeof metadata !== 'object' ||
-  metadata === null ||
-  !('version' in metadata) ||
-  typeof metadata.version !== 'string'
-)
-  throw new Error('Invalid package version');
 await runCli(
   process.argv,
-  metadata.version,
+  toolVersion,
   (title) => initialize(process.cwd(), title),
   (input) => create(process.cwd(), input),
   (input) => createAction(process.cwd(), input),

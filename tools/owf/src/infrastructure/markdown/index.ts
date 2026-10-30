@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { WorkspaceDocuments } from '../../application/ports/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
 import { workspaceGuide } from './agents.js';
+import { workspaceGuides } from './guides.js';
 import { literal } from './literal.js';
 export { contextDocuments } from './contexts.js';
 export { viewDefinitions } from './views.js';
@@ -18,8 +19,8 @@ const metadataSchema = z.object({
     .passthrough(),
 });
 
-export const workspaceDocuments: WorkspaceDocuments = {
-  parse(content, path) {
+export const workspaceDocuments = {
+  parse(content: string, path: string) {
     const lines = content.replace(/^\uFEFF/u, '').split(/\r?\n/u);
     if (lines[0] !== '---') return undefined;
     const end = lines.findIndex(
@@ -69,7 +70,11 @@ export const workspaceDocuments: WorkspaceDocuments = {
       hasState: 'state' in parsed.data.owf,
     };
   },
-  render(title, date) {
+  render(
+    title: string,
+    date: string,
+    version: string,
+  ): ReturnType<WorkspaceDocuments['render']> {
     const metadata = {
       type: 'OWF Workspace',
       title,
@@ -77,8 +82,10 @@ export const workspaceDocuments: WorkspaceDocuments = {
     };
     return {
       agents: workspaceGuide,
+      guides: workspaceGuides(version),
       readme: `---\n${stringify(metadata)}---\n\n# ${literal(title)}\n`,
-      index: '# Index\n\n- [Workspace](README.md)\n- [Event log](log.md)\n',
+      index:
+        '# Index\n\n- [Workspace](README.md)\n- [Event log](log.md)\n- [Knowledge](_knowledge/index.md)\n',
       log: `# Log\n\n## ${date}\n\n- Initialized Workspace ${literal(title)}.\n`,
     };
   },

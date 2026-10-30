@@ -61,10 +61,23 @@ material changes visible in the increment document.
 ## Workspace agent guidance
 
 The tool-generated Workspace AGENTS.md is user-facing operational guidance,
-separate from repository development instructions. Starting with increment 0002,
-every increment adding or changing fundamental CLI commands must update the
-Workspace guide template alongside command help and examples. Keep one source
-for generated guidance, and verify its examples against implemented commands.
+separate from repository development instructions. Increments adding or changing
+fundamental commands must update the relevant topic guidance, help and examples.
+AGENTS.md owns cross-cutting orientation, essential semantics and navigation.
+A feature normally extends its topic guide; add an entry-point link only when
+needed for discovery. New entry-point prose needs a cross-cutting reason: the
+agent needs it before choosing a topic. Detailed information has one primary
+home; entry points summarize and link. Keep one maintained source per topic and
+verify examples against implemented commands.
+
+The actual generated AGENTS.md must remain frontmatter-free and at most 4096
+UTF-8 bytes. This ceiling applies to generated output, never user-owned files.
+Do not raise or bypass it during routine feature work; changing it requires an
+explicit separately agreed design decision. Review both size and useful content:
+minification or removal of essential semantics is not an acceptable workaround.
+Verification checks actual initialized artifacts, Knowledge envelopes, navigation,
+local links and installed tool-version provenance. Demonstrate representative
+oversize and broken-link failures when changing this gate.
 Do not silently overwrite user-edited instructions in existing Workspaces;
 compatibility and any refresh mechanism must be specified in the increment.
 

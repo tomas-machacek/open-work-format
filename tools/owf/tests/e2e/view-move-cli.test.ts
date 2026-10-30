@@ -144,7 +144,7 @@ test('built move CLI works from descendants without a server; generated examples
   expect(success('get', 'action', action.id)).toContain(
     'Waiting for:   Odpoveď dodávateľa  ',
   );
-  const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  const guide = readFileSync(join(root, '_knowledge/owf/views.md'), 'utf8');
   for (const example of [
     '--column todo',
     '--column blocked --reason "Missing access"',

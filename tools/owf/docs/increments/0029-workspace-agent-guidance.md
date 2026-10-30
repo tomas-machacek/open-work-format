@@ -1,6 +1,6 @@
 # 0029 — Progressive Workspace agent guidance
 
-> Status: reviewed
+> Status: in_progress
 > Description: Generate a compact Workspace AGENTS.md with linked offline topic guides and enforce rules that prevent renewed growth.
 > Depends on: Existing Workspace initialization and completed operational increments through [0028](0028-web-action-create-delete.md), merged into main through [PR #34](https://github.com/tomas-machacek/open-work-format/pull/34).
 
@@ -72,15 +72,15 @@ event sequences, transaction internals or a feature-by-feature changelog here.
 
 Generate these files on fresh initialization:
 
-| Workspace path | Purpose |
-| --- | --- |
-| `_knowledge/owf/index.md` | Topic discovery with concise descriptions. |
-| `_knowledge/owf/workspace.md` | Layout, navigation, authority boundaries, context, owner URLs and Project/Outcome creation. |
-| `_knowledge/owf/actions.md` | Action creation, retrieval, listing, search, editing, state and Waiting workflows. |
-| `_knowledge/owf/blocking-and-dependencies.md` | Manual blocks, prerequisite direction, derived blocking and completion guards. |
-| `_knowledge/owf/views.md` | Reusable definitions, instances, routing, placement, ordering and CLI moves. |
-| `_knowledge/owf/browser-board.md` | Serve, refresh, Default Kanban, Views and delivered browser interactions. |
-| `_knowledge/owf/deletion.md` | Permanent deletion, incoming dependencies, global Action cleanup and instance-only View deletion. |
+| Workspace path                                | Purpose                                                                                           |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `_knowledge/owf/index.md`                     | Topic discovery with concise descriptions.                                                        |
+| `_knowledge/owf/workspace.md`                 | Layout, navigation, authority boundaries, context, owner URLs and Project/Outcome creation.       |
+| `_knowledge/owf/actions.md`                   | Action creation, retrieval, listing, search, editing, state and Waiting workflows.                |
+| `_knowledge/owf/blocking-and-dependencies.md` | Manual blocks, prerequisite direction, derived blocking and completion guards.                    |
+| `_knowledge/owf/views.md`                     | Reusable definitions, instances, routing, placement, ordering and CLI moves.                      |
+| `_knowledge/owf/browser-board.md`             | Serve, refresh, Default Kanban, Views and delivered browser interactions.                         |
+| `_knowledge/owf/deletion.md`                  | Permanent deletion, incoming dependencies, global Action cleanup and instance-only View deletion. |
 
 Use the existing representation profile for Knowledge Documents: parseable YAML
 frontmatter with the established Knowledge `type`, title and short description.
@@ -262,8 +262,38 @@ of the baseline, not a pending dependency.
 
 ## Implementation and review outcome
 
-Not implemented. This document specifies the proposed increment; no implementation,
-automated verification or independent code review is claimed.
+Implemented for independent review; status remains in_progress. Fresh init emits
+the compact entry point, six Knowledge topics and two Knowledge navigation indexes.
+Content is compiled with the CLI and uses the same installed package-version
+source as --version. Generation uses the existing application/file-port ownership
+and rollback flow. Existing root collisions still fail; existing physical
+Knowledge directories and regular topic/index files are preserved, with
+GUIDANCE_PRESERVED warnings for retained files and manual navigation work.
+
+The generated topics cover delivered CLI/browser behavior through 0028, including
+ordinary-column Action creation, View movement/reordering and confirmed global
+Action deletion. No operation, schema, migration or refresh feature was added.
+Representation/overview notes now distinguish the OKF-compatible document subset
+from the plain AGENTS.md integration artifact. Maintenance policy, increment
+template and repository agent instructions enforce progressive guidance.
+
+Removed implementation detail retains these repository authorities:
+
+- [Architecture](../architecture.md#view-evaluation-and-write-command-boundary)
+  owns evaluation snapshots, write reconciliation, placement/order and events;
+  its web movement/deletion sections cover the delivered adapter contracts.
+- [Tool reference](../../README.md#view-instances),
+  [moves](../../README.md#moving-actions-through-cli),
+  [Action operations](../../README.md#create-projects-outcomes-and-actions) and
+  [blocking](../../README.md#manual-blocking-and-prerequisites) retain JSON/output,
+  search, state/event and error details; corresponding integration/CLI/browser
+  tests remain executable contract evidence.
+- [Operational Store design](../../../../docs/design/operational-store-notes.md)
+  remains the authority for identity, dependency direction and atomic operations.
+
+No substantive design/scope deviation was required. Final verification evidence
+will be recorded after the implementation commit. Independent code review has
+not run; this handoff does not authorize completion or merge.
 
 ## Decision changes and follow-up
 
