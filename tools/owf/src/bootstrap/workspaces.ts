@@ -1,6 +1,7 @@
 import {
   newActionId,
   currentTimestamp,
+  toolVersion,
 } from '../infrastructure/runtime/index.js';
 import {
   createView as createViewUseCase,
@@ -52,7 +53,11 @@ import type { ContextPorts } from '../application/ports/index.js';
 
 export const workspacePorts: WorkspacePorts = {
   files: workspaceFiles,
-  documents: workspaceDocuments,
+  documents: {
+    ...workspaceDocuments,
+    render: (title, date) =>
+      workspaceDocuments.render(title, date, toolVersion),
+  },
   store: workspaceStore,
   today: () => new Date().toISOString().slice(0, 10),
 };

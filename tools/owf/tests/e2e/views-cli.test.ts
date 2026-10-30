@@ -36,7 +36,7 @@ test('documented View commands work across CLI processes from a descendant with 
   const root = temporaryDirectory();
   roots.push(root);
   expect(run(root, ['init']).status).toBe(0);
-  const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  const guide = readFileSync(join(root, '_knowledge/owf/views.md'), 'utf8');
   const createExample =
     'owf create view --definition /_views/work-board.md --title "My work"';
   expect(guide).toContain(createExample);
@@ -165,7 +165,8 @@ test('show View has matching ordered human/JSON content from root and Project co
   const root = temporaryDirectory();
   roots.push(root);
   const { store } = initialize(root, 'Show views');
-  const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  const entryPoint = readFileSync(join(root, 'AGENTS.md'));
+  const guide = readFileSync(join(root, '_knowledge/owf/views.md'), 'utf8');
   expect(guide).toContain('owf show view {view-id} --json');
   expect(guide).toContain('Eligible stored placements are retained.');
   expect(guide).toContain('Unplaced Open Actions go to New to organize.');
@@ -314,7 +315,7 @@ test('show View has matching ordered human/JSON content from root and Project co
   expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toBe(
     'My custom guide\n',
   );
-  writeFileSync(join(root, 'AGENTS.md'), guide);
+  writeFileSync(join(root, 'AGENTS.md'), entryPoint);
   expect(semanticSnapshot(root, store)).toEqual(broken);
   // Allow CLI process startup under concurrent suite load on Windows;
   // this journey verifies behavior, not a performance limit.

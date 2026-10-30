@@ -6,7 +6,10 @@ independent tools can use without relying on hidden application state.
 
 OWF is currently at **Core v0**. The conceptual model is defined; a durable
 Markdown representation baseline and the boundary of a complementary
-Operational Store are under active design. The next direction is reusable
+Operational Store are under active design. The Workspace representation targets
+an OKF-compatible knowledge/document subset alongside integration artifacts such
+as frontmatter-free AGENTS.md; strict whole-tree OKF bundle conformance is not claimed.
+The next direction is reusable
 Markdown View definitions with independent live instances in the store; this
 documentation baseline does not yet add View runtime functionality.
 
@@ -56,8 +59,8 @@ OWF is informed by:
 - Andrej Karpathy's [LLM Wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f);
 - Google's [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 
-These are influences rather than normative dependencies. OWF does not claim
-compatibility or affiliation with them.
+These influences are not normative Core dependencies or affiliation claims.
+The representation profile describes its targeted OKF-compatible document subset.
 
 ## License
 

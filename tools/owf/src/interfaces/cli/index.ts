@@ -142,6 +142,9 @@ export async function runCli(
       const parsed = initOptions.parse(options);
       json = parsed.json ?? false;
       const result = initialize(parsed.title);
+      if (!json)
+        for (const warning of result.warnings ?? [])
+          console.error(`${warning.code}: ${warning.message}`);
       console.log(
         json
           ? JSON.stringify({ ok: true, result })

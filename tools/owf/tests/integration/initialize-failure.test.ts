@@ -9,7 +9,7 @@ const roots: string[] = [];
 afterEach(() => {
   roots.splice(0).forEach(cleanup);
 });
-test.each(['store', 'write'])(
+test.each(['render', 'store', 'write'])(
   'clean up owned artifacts after %s failure',
   (failure) => {
     const root = temporaryDirectory();
@@ -17,6 +17,13 @@ test.each(['store', 'write'])(
     writeFileSync(join(root, 'keep.txt'), 'original');
     const ports = {
       ...workspacePorts,
+      documents: {
+        ...workspacePorts.documents,
+        render: (title: string, date: string) => {
+          if (failure === 'render') throw new Error('Injected render failure');
+          return workspacePorts.documents.render(title, date);
+        },
+      },
       store: {
         ...workspacePorts.store,
         initializeReserved:
@@ -34,7 +41,12 @@ test.each(['store', 'write'])(
         },
       },
     };
-    expect(() => initializeWorkspace(root, 'Test', ports)).toThrow('Injected');
+    expect(() => initializeWorkspace(root, 'Test', ports)).toThrow(
+      expect.objectContaining({
+        code: 'INITIALIZATION_FAILED',
+        message: `Injected ${failure} failure; created artifacts removed.`,
+      }),
+    );
     expect(readdirSync(root)).toEqual(['keep.txt']);
   },
 );

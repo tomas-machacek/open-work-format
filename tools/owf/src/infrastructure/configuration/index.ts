@@ -75,6 +75,22 @@ export const workspaceFiles: WorkspaceFiles = {
   createDirectory(path) {
     mkdirSync(path);
   },
+  entryKind(path) {
+    try {
+      const entry = lstatSync(path);
+      return entry.isFile()
+        ? 'file'
+        : entry.isDirectory()
+          ? 'directory'
+          : 'other';
+    } catch (error) {
+      if (missing(error)) return undefined;
+      throw new WorkspaceError(
+        'PATH_CONFLICT',
+        `Cannot inspect target: ${path}`,
+      );
+    }
+  },
   createFile: create,
   reserveFile(path, owned) {
     create(path, '', owned);

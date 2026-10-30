@@ -372,7 +372,11 @@ node $cli --help
 node $cli --version
 ```
 
-The first call creates `README.md`, `index.md`, `log.md`, `AGENTS.md` and `_store/owf.sqlite`.
+The first call creates `README.md`, `index.md`, `log.md`, a compact frontmatter-free
+`AGENTS.md`, `_store/owf.sqlite`, and offline topic guides under `_knowledge/owf/`
+with Knowledge/guide navigation indexes. AGENTS.md stays within 4096 UTF-8 bytes;
+topics identify the producing package version and their initialization snapshot
+nature. Root navigation leads through `_knowledge/index.md` to the OWF guide index.
 The second returns `already_initialized`, the original title and the same absolute
 root, without changing existing artifacts. Omit `--title` to use the directory
 basename. Omit `--json` for human output. No prompts are required.
@@ -626,16 +630,26 @@ read-only; a valid absent ID returns `ACTION_NOT_FOUND`, while store failures
 retain their store diagnostics. Both commands use exit 2 for invalid arguments
 or titles and exit 1 for operational errors.
 
-Fresh initialization provides command examples in `AGENTS.md`. Repeat init never
-overwrites or backfills that guide. Older-schema Workspaces require a fresh
+Fresh initialization provides orientation in `AGENTS.md` and workflow examples
+in the linked Knowledge topics. Repeat init never refreshes or backfills any
+guidance, index, configuration or store. Older-schema Workspaces require a fresh
 disposable directory for this version; existing instructions can be updated
 manually using the commands documented here. An
 existing `AGENTS.md` in a fresh directory prevents initialization.
+Existing physical `_knowledge/` and `owf/` directories are preserved. Existing
+topic files/indexes remain byte-for-byte intact and produce `GUIDANCE_PRESERVED`
+warnings (in the init result for JSON, on stderr for human output), identifying
+retained content and any manual navigation work. Directory/file and symlink
+collisions fail before writes. Existing root indexes still prevent fresh init.
+Older retained AGENTS.md files may lack new topic links. No refresh or force
+option is provided. These guides are ordinary Knowledge Documents; AGENTS.md is
+an integration artifact outside the OKF-compatible subset, so the whole Workspace
+tree does not claim strict OKF bundle conformance.
 
 The tool refuses target collisions and unavailable/unsupported stores. It does
 not rename, repair, overwrite, or create nested Workspaces. Fresh initialization
 creates `owf_metadata`, Actions, View instances, and the Operational Event Log with format
-`owf-tool-operational` and schema version `7`; profile version `0.1` and package
+`owf-tool-operational` and schema version `9`; profile version `0.1` and package
 version `0.0.0` are independent. Older and unknown schema versions are rejected
 without upgrade. Use a fresh disposable directory to try this version; do not
 overwrite an existing Workspace. This is

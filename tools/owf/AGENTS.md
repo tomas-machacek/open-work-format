@@ -24,9 +24,9 @@ Follow the agreed increment and its acceptance criteria. Consult the increment i
 Keep domain rules in the domain and orchestration in the application.
 Respect public module boundaries. Do not add unrelated abstractions,
 dependencies, refactors or features.
-When changing fundamental CLI operations, update the Workspace AGENTS.md template
-and examples according to the development guidelines. Repository instructions and
-generated Workspace guidance serve different audiences.
+Follow the development guidelines' Workspace guidance policy: update relevant
+topics, help and examples; justify cross-cutting entry-point changes and retain
+the 4096-byte ceiling. Repository and generated instructions serve different audiences.
 Develop meaningful tests alongside behavior; use the guidelines rather than
 a test-count or coverage quota.
 Apply the guidelines' boundary and verification discipline: preserve URL/path

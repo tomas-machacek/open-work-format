@@ -20,6 +20,10 @@ and failure behavior. Explain significant choices and alternatives only where
 they help assess the design. Include migration/compatibility impact when relevant.
 Reference the architecture; do not silently override it or prescribe every class.
 
+Documentation impact: identify affected Workspace topic guides, help and examples.
+Justify any AGENTS.md change by what agents need before choosing a topic; retain
+the 4096 UTF-8 byte ceiling and link to details in their primary topic home.
+
 ## Acceptance criteria
 
 List specific, observable criteria with stable labels such as AC1, AC2.

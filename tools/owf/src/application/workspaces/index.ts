@@ -11,6 +11,7 @@ export interface WorkspaceResult {
   root: string;
   title: string;
   store: string;
+  warnings?: { code: 'GUIDANCE_PRESERVED'; message: string }[];
 }
 
 export function discoverWorkspaceMetadata(
@@ -72,6 +73,32 @@ export function initializeWorkspace(
   }
   const storeDirectory = files.join(root, '_store');
   const storePath = files.join(storeDirectory, 'owf.sqlite');
+  let content: ReturnType<WorkspacePorts['documents']['render']>;
+  try {
+    content = documents.render(title, ports.today());
+  } catch (error) {
+    throw initializationFailure(error, []);
+  }
+  const directories = ['_knowledge', '_knowledge/owf'].filter((name) => {
+    const path = files.join(root, name);
+    const kind = files.entryKind(path);
+    if (kind !== undefined && kind !== 'directory')
+      throw new WorkspaceError('PATH_CONFLICT', `Existing entry: ${path}`);
+    return kind === undefined;
+  });
+  const warnings: NonNullable<WorkspaceResult['warnings']> = [];
+  const guides = content.guides.filter(({ path: name }) => {
+    const path = files.join(root, name);
+    const kind = files.entryKind(path);
+    if (kind === undefined) return true;
+    if (kind !== 'file')
+      throw new WorkspaceError('PATH_CONFLICT', `Existing entry: ${path}`);
+    warnings.push({
+      code: 'GUIDANCE_PRESERVED',
+      message: `Preserved existing ${name}; it was not generated or refreshed. Check retained content and add navigation links manually where needed.`,
+    });
+    return false;
+  });
   const owned: { path: string; directory: boolean }[] = [];
   const write = (name: string, content: string) => {
     const path = files.join(root, name);
@@ -80,13 +107,18 @@ export function initializeWorkspace(
     );
   };
   try {
-    const content = documents.render(title, ports.today());
     files.createDirectory(storeDirectory);
     owned.push({ path: storeDirectory, directory: true });
     files.reserveFile(storePath, () =>
       owned.push({ path: storePath, directory: false }),
     );
     store.initializeReserved(storePath);
+    for (const name of directories) {
+      const path = files.join(root, name);
+      files.createDirectory(path);
+      owned.push({ path, directory: true });
+    }
+    for (const guide of guides) write(guide.path, guide.content);
     write('index.md', content.index);
     write('log.md', content.log);
     write('AGENTS.md', content.agents);
@@ -101,11 +133,21 @@ export function initializeWorkspace(
         remaining.push(artifact.path);
       }
     }
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new WorkspaceError(
-      'INITIALIZATION_FAILED',
-      `${detail}${remaining.length ? `; cleanup failed; manually inspect: ${remaining.join(', ')}` : '; created artifacts removed.'}`,
-    );
+    throw initializationFailure(error, remaining);
   }
-  return { status: 'initialized', root, title, store: storePath };
+  return {
+    status: 'initialized',
+    root,
+    title,
+    store: storePath,
+    ...(warnings.length ? { warnings } : {}),
+  };
+}
+
+function initializationFailure(error: unknown, remaining: string[]) {
+  const detail = error instanceof Error ? error.message : String(error);
+  return new WorkspaceError(
+    'INITIALIZATION_FAILED',
+    `${detail}${remaining.length ? `; cleanup failed; manually inspect: ${remaining.join(', ')}` : '; created artifacts removed.'}`,
+  );
 }

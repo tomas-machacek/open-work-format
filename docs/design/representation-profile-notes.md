@@ -22,10 +22,12 @@ The representation should remain:
 Generic file and Markdown editability remains desirable for durable context, but
 is no longer required for every frequent Inbox and Action operation.
 
-The profile targets bundle-level conformance with
+The profile targets an OWF knowledge/document subset compatible with
 [Open Knowledge Format (OKF) v0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md).
 OWF specializes OKF for personal work without requiring every OWF object to be a
-separate OKF Concept.
+separate OKF Concept. A Workspace may additionally contain agent integration
+artifacts such as frontmatter-free `AGENTS.md`; the entire tree is therefore not
+claimed to be a strictly conformant OKF bundle (see Section 15).
 
 ### 1.1 Markdown and operational work
 
@@ -86,8 +88,9 @@ evidence rather than part of the compact Core specification.
 ## 2. General Model
 
 The durable contextual part of an OWF Workspace is represented by an
-OKF-compatible directory tree of Markdown documents. The Workspace directory is
-the bundle root. The authoritative operational representation for Actions,
+OKF-compatible subset of its Markdown directory tree. The Workspace directory is
+the navigation root; integration artifacts are outside that subset. The
+authoritative operational representation for Actions,
 Inbox Items, and View instances remains profile-defined but MUST belong to this
 same logical Workspace.
 
@@ -157,6 +160,9 @@ user content in file explorers, and avoids hidden dot-files.
 
 OWF also assigns profile semantics to `README.md`. OKF reserves `index.md`
 and `log.md`; OWF retains their OKF names and structures.
+Workspace-root `AGENTS.md` is an agent integration artifact, not a Knowledge
+Document or a new Core object. It has plain Markdown instructions without YAML
+frontmatter. This is an OWF integration boundary, not an upstream OKF exception.
 
 ## 4. Object and Document Mapping
 
@@ -166,12 +172,13 @@ them.
 
 | Representation | OWF meaning | OKF meaning |
 | --- | --- | --- |
-| Workspace root | Workspace | Knowledge Bundle root |
+| Workspace root | Workspace | root of the knowledge/document subset |
 | User-named directory directly under `_projects/` | Project | grouping directory |
 | User-named directory directly under a Project or Outcome | child Outcome | grouping directory |
 | Workspace, Project, or Outcome `README.md` | canonical overview and metadata representation | Concept document |
 | `index.md` | navigation for its directory | reserved OKF index |
 | Root `log.md` | Markdown Event Log | reserved OKF update log |
+| Root `AGENTS.md` | agent integration instructions | outside the OKF-compatible document subset |
 | Profile-defined Operational Store | Inbox Items, Actions, their outgoing relationships, View instances and local data, and Operational Event Log | outside the OKF document model |
 | Owner-local `_notes.md` | conventional aggregated Knowledge Document | Concept document |
 | Ordinary `.md` directly under a Project or Outcome | owned Knowledge Document | Concept document |
@@ -184,9 +191,13 @@ with the role implied by location.
 
 ## 5. Common Document Envelope
 
-Every non-reserved Markdown document is an OKF Concept and begins with a
-parseable YAML frontmatter mapping. The reserved OKF `index.md` and `log.md`
+Every non-reserved Markdown document in the knowledge/document subset is an OKF
+Concept and begins with a parseable YAML frontmatter mapping. The reserved OKF
+`index.md` and `log.md`
 files follow their own profiles and are excluded from this common envelope.
+The root `AGENTS.md` integration artifact is also excluded. Topic guides under
+`_knowledge/owf/` are ordinary `OWF Knowledge Document` Concepts with the envelope;
+their `index.md` files follow the existing navigation profile.
 
 The minimum envelope is:
 
@@ -1052,16 +1063,22 @@ be achieved merely by moving Markdown files or hiding an operational object.
 
 ## 15. OKF Compatibility Profile
 
-The durable Markdown part of an OWF Workspace is an OKF v0.2-conformant
-Knowledge Bundle. Every non-reserved Markdown document is an OKF Concept. The
-Operational Store accompanies the same OWF Workspace but its Actions, Inbox
+The durable knowledge/document subset of an OWF Workspace targets OKF v0.2
+compatibility. Every non-reserved Markdown document in that subset is an OKF
+Concept. The Operational Store accompanies the same OWF Workspace but its Actions, Inbox
 Items, relationships, View instances and local data, and Operational Event Log
 are outside the OKF document model.
 
+OKF v0.2 reserves only `index.md` and `log.md`; all other Markdown files require
+the Concept envelope. Frontmatter-free `AGENTS.md` is not an upstream exception.
+The Workspace includes the OKF-compatible subset plus this agent integration
+artifact, so strict whole-tree bundle conformance is not claimed. The upstream
+specification and OWF Core semantics are unchanged.
+
 Consequently:
 
-- every non-reserved `.md` has parseable YAML frontmatter and non-empty
-  `type`;
+- every non-reserved `.md` in the knowledge/document subset has parseable YAML
+  frontmatter and non-empty `type`;
 - `index.md` and the Markdown `log.md` follow their reserved OKF structures;
 - unknown OKF fields and producer-defined extension fields remain permitted;
 - standard Markdown links are used for physical Markdown navigation;
@@ -1077,7 +1094,8 @@ do not introduce actor identity or collaboration semantics into OWF Core.
 
 The external structure baseline now defines:
 
-- an OKF-compatible Markdown bundle;
+- an OKF-compatible Markdown knowledge/document subset alongside agent
+  integration artifacts;
 - directory-based Workspace, Project, and Outcome objects;
 - `README.md` as their canonical landing page and metadata representation;
 - reserved OKF `index.md` for navigation;

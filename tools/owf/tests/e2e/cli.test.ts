@@ -59,7 +59,10 @@ test('CLI manual/dependency journey exposes complete JSON and concise text while
   const source = action(['create', 'action', '--title', 'Deploy']);
   const edit = ['set', 'action', source.id];
   const read = ['get', 'action', source.id];
-  const manualExample = readFileSync(join(root, 'AGENTS.md'), 'utf8')
+  const manualExample = readFileSync(
+    join(root, '_knowledge/owf/blocking-and-dependencies.md'),
+    'utf8',
+  )
     .split('\n')
     .find((line) => line.startsWith('owf set action {id} --manual-block'));
   expect(manualExample).toBeDefined();
@@ -404,9 +407,21 @@ test('generated guide examples execute through the built CLI outside checkout', 
   const root = temporaryDirectory();
   roots.push(root);
   expect(run(root, ['init', '--title', 'Trial']).status).toBe(0);
-  const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
-  expect(guide).toContain('owf serve');
-  expect(guide).toContain('http://127.0.0.1:4317');
+  const guide = [
+    'workspace',
+    'actions',
+    'blocking-and-dependencies',
+    'views',
+    'deletion',
+  ]
+    .map((topic) =>
+      readFileSync(join(root, `_knowledge/owf/${topic}.md`), 'utf8'),
+    )
+    .join('\n');
+  expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toContain('owf serve');
+  expect(readFileSync(join(root, 'AGENTS.md'), 'utf8')).toContain(
+    'http://127.0.0.1:4317',
+  );
   const viewDefinition = /```markdown\n([\s\S]*?)\n```/u.exec(guide)?.[1];
   expect(viewDefinition).toBeDefined();
   mkdirSync(join(root, '_views'));
@@ -440,6 +455,7 @@ test('generated guide examples execute through the built CLI outside checkout', 
   let cwd = root;
   let actionId = '';
   for (const line of guide.split('\n')) {
+    if (line.startsWith('## ')) cwd = root;
     if (line.startsWith('cd ')) {
       cwd = join(root, line.slice(3));
       continue;
@@ -989,7 +1005,7 @@ test('built search CLI validates arguments, combines filters and runs the docume
       'completed',
     ]).status,
   ).toBe(0);
-  const guide = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+  const guide = readFileSync(join(root, '_knowledge/owf/actions.md'), 'utf8');
   const example = guide
     .split('\n')
     .find((line) => line.startsWith('owf list actions --search "delivery"'));
