@@ -291,9 +291,51 @@ Removed implementation detail retains these repository authorities:
 - [Operational Store design](../../../../docs/design/operational-store-notes.md)
   remains the authority for identity, dependency direction and atomic operations.
 
-No substantive design/scope deviation was required. Final verification evidence
-will be recorded after the implementation commit. Independent code review has
+No substantive design/scope deviation was required. Independent code review has
 not run; this handoff does not authorize completion or merge.
+
+Verification on 2026-10-30:
+
+- Implementation: [9059b71](https://github.com/tomas-machacek/open-work-format/commit/9059b715ad5b4555b269504766812d7ff501be00),
+  with the type-safe regression assertion fix in
+  [623f460](https://github.com/tomas-machacek/open-work-format/commit/623f460a69e78b3dcae4309f669a781774a15a36).
+  The final full verification passed on 623f460; the following documentation-only
+  handoff update records its evidence.
+- Platform: Windows NT 10.0.26300.0, PowerShell, Node 24.21.0, npm 11.4.1.
+  Commands run from tools/owf with an uppercase C: checkout path.
+- Final `npm run verify`: exit 0. Typecheck, lint, formatting, architecture and
+  production build passed, followed by 203 unit tests, 288 integration tests,
+  40 Cucumber scenarios / 222 steps, 32 CLI tests and 29 Chromium tests. The
+  documentation-only handoff update was checked with Prettier and git diff --check.
+- Standalone disposable-Workspace probes against the implementation passed:
+  fresh AGENTS.md is 3103 UTF-8 bytes; an artifact with 3600 characters but 4097
+  UTF-8 bytes is rejected with the size diagnostic. Replacing the Actions topic's
+  deletion link with missing-topic.md is rejected as a broken local link. The
+  temporary Workspace/probes were removed. Permanent negative regression cases
+  additionally cover frontmatter, Knowledge roles, Concept-style indexes,
+  version mismatch and orphaned topics.
+- The built-package smoke test copies dist and installed package metadata without
+  source/templates/repository docs, shares only dependency packages, and changes
+  its installed version to prove provenance. Generated guidance passes the same
+  audit offline. Existing CLI journeys now execute topic examples, including the
+  complete View definition, chosen-column move and dependencies/deletion.
+- Preservation coverage includes invalid UTF-8 user bytes, existing indexes/topics,
+  empty directories, missing-guide repeat init without backfill, unsafe path
+  collisions/junctions and mid-guide rollback. Renderer failure retains the
+  INITIALIZATION_FAILED contract. Existing init/store/concurrent-file failure
+  tests remain in the verification path.
+- Development checks found and fixed a test snapshot-restoration error and a
+  lint-unsafe matcher assignment. Two earlier sandbox CLI journeys exceeded their
+  existing five-second timeouts; the same focused suites passed outside it with
+  no timeout changes. Vite/tsx also encountered sandbox spawn EPERM; required
+  process checks and the final full run execute outside that sandbox.
+
+Content was checked against installed help, implemented controls and existing
+semantic tests, including 0028 creation/confirmation/dependency-rejection flows.
+No domain, SQLite schema or web implementation files changed. Linux and a separate
+interactive human/Obsidian session were not tested. No refresh/backfill, store
+migration, release, CI service or independent review is claimed. PR #35 remains
+the implementation/review handoff; both increment statuses stay in_progress.
 
 ## Decision changes and follow-up
 
