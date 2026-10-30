@@ -42,10 +42,35 @@ test('fresh initialized guidance has bounded entry point, Knowledge roles, insta
   writeFileSync(
     topic,
     readFileSync(topic, 'utf8') +
-      '\n[Root](/index.md)\n[Encoded](%C5%BDivot%20%23%20%25.md)\n[Reference][ref]\n\n[ref]: views.md\n\n[Online](https://example.invalid/absent.md)\n\n```md\n[Example](absent.md)\n```\n',
+      '\n[Root](/index.md)\n[Parent](../../AGENTS.md)\n[Normalized](../owf/./views.md)\n[Encoded](%C5%BDivot%20%23%20%25.md)\n[Reference][ref]\n\n[ref]: views.md\n\n[Online](https://example.invalid/absent.md)\n\n```md\n[Example](absent.md)\n```\n',
   );
   auditWorkspaceGuidance(root, version);
 });
+
+test.each([
+  '../../../AGENTS.md',
+  '/../AGENTS.md',
+  '%2e%2e/%2e%2e/%2e%2e/AGENTS.md',
+])(
+  'guidance gate rejects a local link outside the Workspace: %s',
+  (destination) => {
+    const base = directory();
+    const root = join(base, 'workspace');
+    mkdirSync(root);
+    initialize(root, 'Link boundary');
+    // An existing outside file must not be confused with root/AGENTS.md or
+    // accepted as Workspace navigation, even after URL dot-segment decoding.
+    writeFileSync(join(base, 'AGENTS.md'), '# Outside instructions\n');
+    const topic = join(root, '_knowledge/owf/actions.md');
+    writeFileSync(
+      topic,
+      readFileSync(topic, 'utf8').replace('(deletion.md)', `(${destination})`),
+    );
+    expect(() => auditWorkspaceGuidance(root, version)).toThrow(
+      /local link outside Workspace/u,
+    );
+  },
+);
 
 test.each([
   [

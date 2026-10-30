@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Parser } from 'commonmark';
 import { parseDocument } from 'yaml';
 
@@ -77,10 +78,23 @@ export function auditWorkspaceGuidance(root: string, version: string): void {
       if (node.type !== 'link' || !node.destination) continue;
       const destination = node.destination;
       if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/iu.test(destination)) continue;
-      const url = new URL(destination, `https://workspace.invalid/${name}`);
-      const target = decodeURIComponent(url.pathname.slice(1));
+      // Resolve against physical files so excess parent segments cannot be
+      // clamped to a fictitious web-origin root and mistaken for valid links.
+      // A leading slash explicitly starts at the Workspace, not the disk root.
+      const rooted = destination.startsWith('/');
+      const url = new URL(
+        rooted ? `.${destination}` : destination,
+        pathToFileURL(join(root, rooted ? 'index.md' : name)),
+      );
+      const path = fileURLToPath(url);
+      const local = relative(root, path);
       assert.ok(
-        statSync(join(root, target), { throwIfNoEntry: false })?.isFile(),
+        local !== '..' && !local.startsWith(`..${sep}`) && !isAbsolute(local),
+        `${name}: local link outside Workspace ${destination}`,
+      );
+      const target = local.split(sep).join('/');
+      assert.ok(
+        statSync(path, { throwIfNoEntry: false })?.isFile(),
         `${name}: broken local link ${destination}`,
       );
       links.push(target);

@@ -313,10 +313,14 @@ duplicate titles include IDs. A full reload returns to Default Kanban.
 Refresh and returning to the tab reload data, definitions and inventory without
 polling. Refresh after CLI changes; no server restart is needed.
 
-Failed reads retain the selected board's last successful cards, marked stale,
-with writes disabled until successful refresh. Confirmed saves followed by failed
-refresh are reported separately: do not repeat the save. Uncertain transport
-outcomes require refreshing before deciding what happened. No writes retry
+Failed reads retain the selected board's last successful cards, marked stale.
+Views disable creation, movement and detail saves until successful refresh.
+This is not a global write lock: Default Kanban keeps creation and state moves
+available, and both modes still offer deletion in detail. Refresh stale data
+before deciding what to change or delete; server validation still applies.
+Confirmed saves followed by failed refresh are reported separately: do not repeat
+the save. Uncertain transport outcomes require refreshing before deciding what
+happened. No writes retry
 automatically. Missing instances/definitions show explicit errors; Default Kanban
 remains selectable for a broken View.
 
@@ -361,8 +365,9 @@ Refresh is queued during movement and required-reason input.
 ## Delete globally
 
 Both modes expose Delete Action in detail with confirmation identifying the
-Action and warning of permanent global removal. Cancel preserves it; confirmation
-deletes it from every View. Incoming dependencies reject deletion, including from
+Action and warning of permanent global removal and loss of unsaved edits.
+Cancel preserves it; confirmation deletes it from every View.
+Incoming dependencies reject deletion, including from
 terminal Actions; the dialog reports referring Actions for explicit edge removal
 or redirection. Refresh after confirmed deletion; do not repeat after refresh failure.
 

@@ -185,7 +185,9 @@ record the resolution explicitly.
 Treat URLs, filesystem paths and identifiers according to their semantics.
 Convert explicitly at adapter boundaries using standard conversion APIs; do not
 pass an encoded URL directly to filesystem operations. Test representative
-encoding cases where these boundaries are crossed.
+encoding cases where these boundaries are crossed. Documentation link checks must
+resolve relative paths from the document and Workspace-rooted paths from the
+Workspace, rejecting paths that escape it rather than clamping them to a web root.
 
 When an evaluation combines mutable store data from multiple queries, read those
 facts from one database snapshot. A shared evaluator or a single Action query
