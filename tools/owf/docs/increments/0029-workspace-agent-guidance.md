@@ -262,7 +262,9 @@ of the baseline, not a pending dependency.
 
 ## Implementation and review outcome
 
-Implemented for independent review; status remains in_progress. Fresh init emits
+Implemented and independently reviewed; status remains in_progress as explicitly
+requested. The subsequent authorization covers corrective commits and merge.
+Fresh init emits
 the compact entry point, six Knowledge topics and two Knowledge navigation indexes.
 Content is compiled with the CLI and uses the same installed package-version
 source as --version. Generation uses the existing application/file-port ownership
@@ -291,8 +293,8 @@ Removed implementation detail retains these repository authorities:
 - [Operational Store design](../../../../docs/design/operational-store-notes.md)
   remains the authority for identity, dependency direction and atomic operations.
 
-No substantive design/scope deviation was required. Independent code review has
-not run; this handoff does not authorize completion or merge.
+No substantive design/scope deviation was required. The original handoff preceded
+independent code review; the review and corrective follow-up are recorded below.
 
 Verification on 2026-10-30:
 
@@ -334,8 +336,65 @@ Content was checked against installed help, implemented controls and existing
 semantic tests, including 0028 creation/confirmation/dependency-rejection flows.
 No domain, SQLite schema or web implementation files changed. Linux and a separate
 interactive human/Obsidian session were not tested. No refresh/backfill, store
-migration, release, CI service or independent review is claimed. PR #35 remains
-the implementation/review handoff; both increment statuses stay in_progress.
+migration, release or CI service was added. This paragraph records the original
+implementation handoff; subsequent review and verification evidence follow below.
+
+### Independent review and corrective follow-up
+
+Independent review of PR #35 at `787950b27f7f04698772a78e06512a227f02f5d1`
+against current main `ed4c597ba888a10224953df2a4e48caa783481b2` found two P2 issues:
+
+- The local-link audit resolved relative paths against an artificial HTTPS root.
+  It accepted `../../../AGENTS.md` from the Actions topic by checking the Workspace
+  entry point instead of the nonexistent file outside the Workspace.
+- Browser guidance incorrectly promised that every failed board read disables
+  all writes. Default Kanban still permits creation/state moves, and both board
+  modes retain detail deletion. The existing component regression reproduced
+  creation after a failed Default Kanban refresh.
+
+Both are corrected in `7615b78d043d5cca9598274c9071c8710eb033e2`:
+
+- The audit resolves file URLs from the document location, explicitly maps leading
+  slashes to the Workspace root, then rejects resolved paths outside it. Valid
+  parent-relative, normalized, encoded and Workspace-rooted links remain usable.
+- The browser topic distinguishes View creation/movement/save restrictions from
+  other available operations and recommends refreshing stale data before choosing
+  changes/deletion. It also states the confirmation's unsaved-edit loss warning.
+  No browser behavior changed.
+- The existing boundary discipline now covers relative versus Workspace-rooted
+  documentation links and forbids web-root clamping in their validation.
+
+Three permanent regression probes cover relative escape, Workspace-rooted escape
+and encoded parent segments, including an existing file outside the Workspace.
+All three failed against the original audit and pass with the fix. The focused
+initialization/guidance/rollback run passed 47 tests. Before correction, the
+independent review also passed 44 initialization/integration tests, 32 built CLI
+tests and one focused Default Kanban component test; standalone probes rejected
+4097 UTF-8 bytes at 3600 characters and a missing topic filename. The generated
+entry point remains unchanged at 3103 UTF-8 bytes.
+
+The final complete **`npm run verify` passed, exit 0**, against corrective revision
+`7615b78d043d5cca9598274c9071c8710eb033e2` on **Windows, Node 24.21.0,
+npm 11.4.1 and headless Chromium**, 2026-10-30:
+
+- Typecheck, ESLint, Prettier, architecture (62 modules / 207 dependencies) and
+  production TypeScript/Vite build passed.
+- Unit/component: **203 tests passed**.
+- SQLite/HTTP/proxy/guidance integration: **291 tests passed**.
+- Acceptance: **40 scenarios / 222 steps passed**.
+- Built CLI: **32 tests passed**, including installed-package offline guidance.
+- Chromium: **29 tests passed**, including existing creation/deletion, stale-read,
+  focus, movement and responsive-layout journeys.
+
+All checks passed on the first full corrective run without retries or weakened
+timeouts/gates. Only this review/evidence documentation follows that verified
+revision; its formatting and `git diff --check` were checked separately.
+
+The review's optional suggestion to validate heading fragments remains deferred;
+the gate checks local file targets and generated navigation currently uses no
+heading fragments. Linux and a separate interactive human/Obsidian check remain
+unperformed. No additional independent reviewer of the corrective commit is
+claimed. The human explicitly authorized fixes, commits and merge of PR #35.
 
 ## Decision changes and follow-up
 
