@@ -44,7 +44,7 @@ test.each(['render', 'store', 'write'])(
     expect(() => initializeWorkspace(root, 'Test', ports)).toThrow(
       expect.objectContaining({
         code: 'INITIALIZATION_FAILED',
-        message: expect.stringContaining('Injected'),
+        message: `Injected ${failure} failure; created artifacts removed.`,
       }),
     );
     expect(readdirSync(root)).toEqual(['keep.txt']);
