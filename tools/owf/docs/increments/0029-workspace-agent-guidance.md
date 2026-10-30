@@ -1,6 +1,6 @@
 # 0029 — Progressive Workspace agent guidance
 
-> Status: draft
+> Status: reviewed
 > Description: Generate a compact Workspace AGENTS.md with linked offline topic guides and enforce rules that prevent renewed growth.
 > Depends on: Existing Workspace initialization and completed operational increments through [0028](0028-web-action-create-delete.md), merged into main through [PR #34](https://github.com/tomas-machacek/open-work-format/pull/34).
 
@@ -266,6 +266,9 @@ Not implemented. This document specifies the proposed increment; no implementati
 automated verification or independent code review is claimed.
 
 ## Decision changes and follow-up
+
+- 2026-10-30: The human reviewed and approved this proposal for implementation.
+  Status is reviewed; implementation and independent code review remain pending.
 
 - 2026-10-30: Rebased the proposal onto main after completion and merge of 0028.
   Updated dependency, browser-guidance scope and index; the proposed 0029 scope
