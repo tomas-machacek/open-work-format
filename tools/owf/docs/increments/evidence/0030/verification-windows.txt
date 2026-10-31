@@ -1,0 +1,104 @@
+
+> @owf/tool@0.0.0 verify
+> npm run typecheck && npm run lint && npm run format:check && npm run architecture:check && npm run build && npm test && npm run test:integration && npm run test:acceptance && npm run test:e2e
+
+
+> @owf/tool@0.0.0 typecheck
+> tsc --noEmit && tsc -p src/web/tsconfig.json
+
+
+> @owf/tool@0.0.0 lint
+> eslint .
+
+
+> @owf/tool@0.0.0 format:check
+> prettier --check .
+
+Checking formatting...
+All matched files use Prettier code style!
+
+> @owf/tool@0.0.0 architecture:check
+> depcruise src --config .dependency-cruiser.cjs
+
+
+✔ no dependency violations found (65 modules, 225 dependencies cruised)
+
+
+> @owf/tool@0.0.0 build
+> tsc -p tsconfig.build.json && vite build
+
+vite v8.3.1 building client environment for production...
+transforming...
+✓ 131 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/web/index.html                   0.44 kB │ gzip:   0.29 kB
+dist/web/assets/index-bp-P7DuQ.css   19.14 kB │ gzip:   4.54 kB
+dist/web/assets/index-Byrlawok.js   419.36 kB │ gzip: 126.48 kB
+
+✓ built in 522ms
+
+> @owf/tool@0.0.0 test
+> vitest run src
+
+
+ RUN  v5.0.1 C:/Users/tomas/Projects/open-work-format/tools/owf
+
+
+ Test Files  15 passed (15)
+      Tests  213 passed (213)
+   Start at  17:52:07
+   Duration  7.35s (tests 45%, environment 35%, transform 10%, import 10%)
+
+
+> @owf/tool@0.0.0 test:integration
+> vitest run tests/integration
+
+
+ RUN  v5.0.1 C:/Users/tomas/Projects/open-work-format/tools/owf
+
+
+ Test Files  18 passed (18)
+      Tests  291 passed (291)
+   Start at  17:52:16
+   Duration  9.92s (tests 76%, import 13%, transform 11%)
+
+
+> @owf/tool@0.0.0 test:acceptance
+> node --import tsx node_modules/@cucumber/cucumber/bin/cucumber.js
+
+..............................................................................................................................................................................................................................
+
+40 scenarios (40 passed)
+222 steps (222 passed)
+0m 5.995s (0m 5.864s executing your code)
+
+> @owf/tool@0.0.0 test:e2e
+> vitest run tests/e2e --no-file-parallelism && playwright test
+
+
+ RUN  v5.0.1 C:/Users/tomas/Projects/open-work-format/tools/owf
+
+ ❯ tests/e2e/delete-cli.test.ts (2 tests | 1 failed) 7720ms
+   × built CLI reports invalid arguments, missing/repeated IDs and incoming references with agreed codes and no mutation 5120ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/e2e/delete-cli.test.ts > built CLI reports invalid arguments, missing/repeated IDs and incoming references with agreed codes and no mutation
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ tests/e2e/delete-cli.test.ts:137:1
+    135| });
+    136|
+    137| test('built CLI reports invalid arguments, missing/repeated IDs and in…
+       | ^
+    138|   const { root, child, store, run } = setup();
+    139|   const target = createAction(root, {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  1 failed | 31 passed (32)
+   Start at  17:52:35
+   Duration  109.00s (tests 99%, import 1%, transform 1%)

@@ -1,3 +1,9 @@
+import type { ComponentProps } from 'react';
+import {
+  Notifications,
+  NotificationSurface,
+  useFeedback,
+} from './Notifications.js';
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type {
   BoardAction,
@@ -12,15 +18,16 @@ import { useView } from './useView.js';
 import type { BoardNavigation } from './ViewSelector.js';
 import styles from './Board.module.css';
 
-export function ViewBoard({
+function ViewBoardContent({
   selected,
   navigation,
   onRefresh,
 }: {
   selected: StoredView;
   navigation: BoardNavigation;
-  onRefresh: () => void;
+  onRefresh: (automatic?: boolean) => void;
 }) {
+  const feedback = useFeedback();
   const frozen = useRef(false);
   const alive = useRef(true);
   const submitting = useRef(false);
@@ -33,7 +40,6 @@ export function ViewBoard({
   const [reason, setReason] = useState('');
   const reasonHeadingId = useId();
   const reasonAction = useRef<string | undefined>(undefined);
-  const [moveNotice, setMoveNotice] = useState<string>();
   const { data, loading, error, refresh, accept } = useView(
     selected.id,
     onRefresh,
@@ -73,18 +79,26 @@ export function ViewBoard({
     submitting.current = true;
     setPendingMove(true);
     lock();
-    let notice: string;
+    feedback.clear();
+    let completed = false;
     try {
       await moveViewAction(selected.id, input);
-      notice = 'Move succeeded.';
+      completed = true;
     } catch (failure) {
-      notice = failure instanceof Error ? failure.message : 'Move failed.';
+      if (alive.current) {
+        const title =
+          data?.columns
+            .flatMap((column) => column.members)
+            .find((action) => action.id === input.action)?.title ?? 'Action';
+        feedback.report(
+          `Move “${title}”: ${failure instanceof Error ? failure.message : 'Move failed.'}`,
+        );
+      }
     }
     if (!alive.current) return;
     setReasonMove(undefined);
-    setMoveNotice(notice);
     frozen.current = false;
-    await refresh();
+    await refresh(true, completed ? 'Move' : undefined);
     if (!alive.current) return;
     submitting.current = false;
     setPendingMove(false);
@@ -104,14 +118,13 @@ export function ViewBoard({
     ) {
       if (reasonAction.current !== input.action) setReason('');
       reasonAction.current = input.action;
-      setMoveNotice(undefined);
+      feedback.clear();
       setReasonMove(input);
       return;
     }
     void submit(input);
   }
   const [detail, setDetail] = useState<BoardAction>();
-  const [saved, setSaved] = useState<BoardAction>();
   const editorNavigation = useRef<EditorNavigation>(null);
   const refreshButton = useRef<HTMLButtonElement>(null);
   const reasonDialog = useRef<HTMLElement>(null);
@@ -141,17 +154,6 @@ export function ViewBoard({
       (card ?? refreshButton.current)?.focus();
     }
   }, [data]);
-  const notice = saved
-    ? `${saved.title}: saved successfully.${
-        loading
-          ? ' Checking current View membership…'
-          : error
-            ? ' Displayed membership could not be refreshed. Do not repeat the save.'
-            : members.some((action) => action.id === saved.id)
-              ? ''
-              : ' The Action is no longer in the selected View.'
-      }`
-    : undefined;
   return (
     <main className={styles.page}>
       <header className={styles.header}>
@@ -198,34 +200,11 @@ export function ViewBoard({
               : `${members.length} Actions · up to date`}
         </p>
       </div>
-      {error && (
-        <div role="alert" className={styles.error}>
-          {data
-            ? 'This View is stale. Saving is disabled until a successful refresh.'
-            : 'View could not be loaded.'}{' '}
-          {error} Use Retry or select Default Kanban.
-        </div>
-      )}
-      {notice && (
-        <p role="status" className={styles.scope}>
-          {notice}
-        </p>
-      )}
       {data && !error && !loading && members.length === 0 && (
         <p className={styles.emptyBoard}>
           {data.columns.length === 0
             ? 'This View has no configured columns.'
             : 'No Actions are eligible for this View.'}
-        </p>
-      )}
-      {moveNotice && (
-        <p role="status">
-          {moveNotice}
-          {loading
-            ? ' Checking current View membership…'
-            : error
-              ? ' Display could not be refreshed; movement and saves are disabled until refresh succeeds.'
-              : ''}
         </p>
       )}
       {data && (
@@ -253,6 +232,7 @@ export function ViewBoard({
                       busy || !!detail || !!error || loading || !!creating
                     }
                     onClick={() => {
+                      feedback.clear();
                       frozen.current = true;
                       setCreating(column.id);
                     }}
@@ -280,8 +260,7 @@ export function ViewBoard({
                               : c,
                           ),
                         }));
-                        setSaved(action);
-                        void refresh();
+                        void refresh(false, `Create “${action.title}”`);
                       }}
                       onClose={() => {
                         frozen.current = false;
@@ -303,10 +282,18 @@ export function ViewBoard({
               !!creating
             }
             onOpen={(action) => {
-              if (!creating && !busy && !frozen.current && !submitting.current)
+              if (
+                !creating &&
+                !busy &&
+                !frozen.current &&
+                !submitting.current
+              ) {
+                feedback.clear();
                 setDetail(action);
+              }
             }}
             onStart={(id) => {
+              feedback.clear();
               if (alive.current && !submitting.current) lock(id);
             }}
             onCancel={cancel}
@@ -353,6 +340,7 @@ export function ViewBoard({
               }
             }}
           >
+            <NotificationSurface />
             <h2 id={reasonHeadingId}>Manual blocking reason</h2>
             {pendingMove && <p role="status">Submitting move…</p>}
             <form
@@ -378,7 +366,6 @@ export function ViewBoard({
                 </button>
               </div>
             </form>
-            {moveNotice && <p role="alert">{moveNotice}</p>}
           </section>
         </div>
       )}
@@ -389,7 +376,7 @@ export function ViewBoard({
           passive
           factsStale={!!error || loading || busy}
           save={editBoardAction}
-          refresh={() => refresh()}
+          refresh={(automatic) => refresh(automatic)}
           navigationRef={editorNavigation}
           navigation={navigation(editorNavigation, busy || !!creating)}
           onDeleted={(id) => {
@@ -400,12 +387,19 @@ export function ViewBoard({
                 members: c.members.filter((a) => a.id !== id),
               })),
             }));
-            setMoveNotice('Action deleted permanently.');
-            void refresh();
+            void refresh(false, 'Deletion');
           }}
           onSaved={(action) => {
-            setSaved(action);
-            void refresh();
+            accept((current) => ({
+              ...current,
+              columns: current.columns.map((column) => ({
+                ...column,
+                members: column.members.map((member) =>
+                  member.id === action.id ? action : member,
+                ),
+              })),
+            }));
+            void refresh(false, `Save “${action.title}”`);
           }}
           onClose={() => {
             setDetail(undefined);
@@ -418,5 +412,13 @@ export function ViewBoard({
         changes appear when you return to this tab or refresh.
       </footer>
     </main>
+  );
+}
+
+export function ViewBoard(props: ComponentProps<typeof ViewBoardContent>) {
+  return (
+    <Notifications>
+      <ViewBoardContent {...props} />
+    </Notifications>
   );
 }

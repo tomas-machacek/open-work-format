@@ -11,7 +11,7 @@ import {
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest';
 import type { BoardAction, BoardResponse } from '../contracts/index.js';
 import { ActionEditor } from './ActionEditor.js';
-import { fetchBoard } from './client.js';
+import { fetchBoard, StateUpdateError } from './client.js';
 
 vi.mock('./client.js', async (original) => ({
   ...(await original<typeof import('./client.js')>()),
@@ -1065,4 +1065,57 @@ test('delete confirmation preserves invalid drafts on cancel/rejection and holds
   expect(screen.getByRole('alert').textContent).toContain('ACTION_IN_USE');
   expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe('');
   expect(onClose).not.toHaveBeenCalled();
+});
+
+test('uncertain-save notification expires without discarding the draft or unlocking another save', async () => {
+  const save = vi
+    .fn()
+    .mockRejectedValue(
+      new StateUpdateError(
+        'Save outcome unknown. Inspect before retrying.',
+        'UNCERTAIN',
+      ),
+    );
+  const refresh = vi.fn().mockResolvedValue(false);
+  render(
+    <ActionEditor
+      action={action}
+      current={action}
+      save={save}
+      refresh={refresh}
+      onSaved={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  await act(async () => {
+    await Promise.resolve();
+  });
+  vi.useFakeTimers();
+  try {
+    change('Title', 'Preserved uncertain draft');
+    await act(async () => {
+      submit();
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Save outcome unknown',
+    );
+    act(() => {
+      vi.advanceTimersByTime(8000);
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
+      'Preserved uncertain draft',
+    );
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Save changes' })
+        .disabled,
+    ).toBe(true);
+    expect(screen.getByRole('button', { name: 'Refresh board' })).toBeTruthy();
+    submit();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.useRealTimers();
+  }
 });

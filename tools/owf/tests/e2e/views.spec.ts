@@ -210,7 +210,9 @@ for (const width of [1440, 390]) {
       ).toHaveCount(8);
       writeFileSync(file, 'Broken definition');
       await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-      await expect(page.getByRole('alert')).toContainText('This View is stale');
+      await expect(
+        page.getByRole('status', { name: 'View refresh' }),
+      ).toContainText('Stale · refresh failed');
       await selector.focus();
       await page.keyboard.press('Home');
       await page.keyboard.press('Enter');

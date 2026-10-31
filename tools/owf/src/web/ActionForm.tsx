@@ -1,9 +1,12 @@
+import type { ComponentProps } from 'react';
+import { Notifications, useFeedback } from './Notifications.js';
 import { useEffect, useRef, useState } from 'react';
 import type { BoardAction, CreateActionRequest } from '../contracts/index.js';
 import { OwnerPicker } from './OwnerPicker.js';
+import { StateUpdateError } from './client.js';
 import styles from './Board.module.css';
 
-export function ActionForm({
+function ActionFormContent({
   state,
   label,
   save,
@@ -16,30 +19,31 @@ export function ActionForm({
   onSaved: (action: BoardAction) => void;
   onClose: () => void;
 }) {
+  const feedback = useFeedback();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [owner, setOwner] = useState('/');
   const [waitingFor, setWaitingFor] = useState('');
-  const [error, setError] = useState<string>();
+  const [validate, setValidate] = useState(false);
   const [pending, setPending] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   const saving = useRef(false);
   const titleInput = useRef<HTMLInputElement>(null);
   useEffect(() => titleInput.current?.focus(), []);
   async function submit() {
     if (saving.current) return;
+    feedback.clear();
     if (
       !title.trim() ||
       !owner.trim() ||
       (waitingFor !== '' && !waitingFor.trim())
     ) {
-      setError(
-        'Enter a title and select an owner. Waiting for must contain text when supplied.',
-      );
+      setValidate(true);
       return;
     }
     saving.current = true;
     setPending(true);
-    setError(undefined);
+    setValidate(false);
     try {
       const action = await save({
         title,
@@ -51,9 +55,15 @@ export function ActionForm({
       onSaved(action);
       onClose();
     } catch (failure) {
-      setError(
-        failure instanceof Error ? failure.message : 'Unable to save Action.',
+      feedback.report(
+        `Create “${title}”: ${failure instanceof Error ? failure.message : 'Unable to save Action.'}`,
       );
+      if (
+        (failure instanceof StateUpdateError && failure.code === 'UNCERTAIN') ||
+        (failure instanceof Error &&
+          /could not be confirmed/.test(failure.message))
+      )
+        setUncertain(true);
     } finally {
       saving.current = false;
       setPending(false);
@@ -80,6 +90,11 @@ export function ActionForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
+        {validate && !title.trim() && (
+          <p role="alert" className={styles.formError}>
+            Enter a title.
+          </p>
+        )}
         <label htmlFor="action-description">
           Description <span>optional · Markdown</span>
         </label>
@@ -90,6 +105,11 @@ export function ActionForm({
           onChange={(e) => setDescription(e.target.value)}
         />
         <OwnerPicker value={owner} onChange={setOwner} disabled={pending} />
+        {validate && !owner.trim() && (
+          <p role="alert" className={styles.formError}>
+            Select an owner.
+          </p>
+        )}
         {state === 'waiting' && (
           <>
             <label htmlFor="action-waiting">
@@ -101,6 +121,11 @@ export function ActionForm({
               value={waitingFor}
               onChange={(e) => setWaitingFor(e.target.value)}
             />
+            {validate && waitingFor !== '' && !waitingFor.trim() && (
+              <p role="alert" className={styles.formError}>
+                Waiting for must contain text when supplied.
+              </p>
+            )}
           </>
         )}
         <div className={styles.formButtons}>
@@ -110,16 +135,25 @@ export function ActionForm({
           </button>
         </div>
       </fieldset>
-      {error && (
-        <p className={styles.formError} role="alert">
-          {error}
-        </p>
-      )}
       {pending && (
         <p className={styles.hint} role="status">
           Saving Action…
         </p>
       )}
+      {uncertain && !pending && (
+        <p className={styles.hint} role="status">
+          Creation outcome unconfirmed. Refresh and inspect the board before
+          deliberately submitting again.
+        </p>
+      )}
     </form>
+  );
+}
+
+export function ActionForm(props: ComponentProps<typeof ActionFormContent>) {
+  return (
+    <Notifications>
+      <ActionFormContent {...props} />
+    </Notifications>
   );
 }

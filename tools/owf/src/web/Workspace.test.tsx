@@ -192,7 +192,7 @@ test('failed inventory and first evaluation remain errors; empty inventory and z
   await screen.findByRole('option', { name: 'Same title · a' });
   vi.mocked(fetchView).mockRejectedValueOnce(new Error('Missing definition'));
   select('a');
-  await screen.findByText(/View could not be loaded/);
+  await screen.findByText(/Unable to load View/);
   expect(screen.queryByRole('article')).toBeNull();
   vi.mocked(fetchView).mockResolvedValueOnce({ ...result(), columns: [] });
   fireEvent.click(screen.getByRole('button', { name: /Retry/ }));
@@ -207,7 +207,7 @@ test('same-View refresh retains stale content, prevents saves, retries, and coal
   await openView();
   vi.mocked(fetchView).mockRejectedValueOnce(new Error('Definition broken'));
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-  await screen.findByText(/This View is stale/);
+  await screen.findByText(/Stale · refresh failed/);
   fireEvent.keyDown(screen.getByRole('article'), { key: 'Enter' });
   const detail = screen.getByRole('dialog');
   expect(
@@ -218,7 +218,7 @@ test('same-View refresh retains stale content, prevents saves, retries, and coal
   fireEvent.click(within(detail).getByRole('button', { name: 'Cancel' }));
   fireEvent.click(screen.getByRole('button', { name: /Retry/ }));
   await waitFor(() =>
-    expect(screen.queryByText(/This View is stale/)).toBeNull(),
+    expect(screen.queryByText(/Stale · refresh failed/)).toBeNull(),
   );
   const count = vi.mocked(fetchView).mock.calls.length;
   const inventoryCount = vi.mocked(fetchViews).mock.calls.length;
@@ -264,7 +264,7 @@ test('dirty switch cancellation preserves selection and draft; pending save prev
     await Promise.resolve();
   });
   await screen.findByText(
-    /saved successfully. Displayed membership could not be refreshed/,
+    /completed.*Do not repeat the write.*View refresh failed/,
   );
   expect(editBoardAction).toHaveBeenCalledTimes(1);
   select('');
@@ -273,7 +273,7 @@ test('dirty switch cancellation preserves selection and draft; pending save prev
   );
 });
 
-test('confirmed save re-evaluates membership without pinning or guessing and reports departure', async () => {
+test('confirmed save re-evaluates membership without pinning or guessing and silently reflects departure', async () => {
   await openView();
   fireEvent.click(screen.getByRole('article'));
   const detail = screen.getByRole('dialog');
@@ -288,7 +288,8 @@ test('confirmed save re-evaluates membership without pinning or guessing and rep
   });
   vi.mocked(fetchView).mockResolvedValueOnce(result(a, []));
   fireEvent.click(within(detail).getByRole('button', { name: 'Save changes' }));
-  await screen.findByText(/no longer in the selected View/);
+  await screen.findByText('No Actions are eligible for this View.');
+  expect(screen.queryByText(/saved successfully/)).toBeNull();
   expect(screen.queryByRole('article')).toBeNull();
   expect(vi.mocked(editBoardAction).mock.calls[0]?.[1]).toMatchObject({
     manualBlock: 'Outside scope',
@@ -426,4 +427,39 @@ test('detail navigation cannot bypass an open creation form or discard its draft
   expect(nextSelector.disabled).toBe(false);
   fireEvent.change(nextSelector, { target: { value: 'a' } });
   await screen.findByText('State · waiting');
+});
+
+test('inventory background failures expire without renewal while explicit board refresh reports a new failed attempt', async () => {
+  vi.useFakeTimers();
+  vi.mocked(fetchViews).mockRejectedValue(new Error('Inventory unavailable'));
+  try {
+    render(<Workspace />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Inventory unavailable',
+    );
+    act(() => {
+      vi.advanceTimersByTime(8000);
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByText('Views not current')).toBeTruthy();
+    fireEvent.focus(window);
+    await act(async () => {
+      vi.advanceTimersByTime(100);
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Inventory unavailable',
+    );
+  } finally {
+    cleanup();
+    vi.useRealTimers();
+  }
 });

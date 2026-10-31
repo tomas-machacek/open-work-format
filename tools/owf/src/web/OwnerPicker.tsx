@@ -2,18 +2,23 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { AvailableOwner } from '../contracts/index.js';
 import { fetchOwners } from './client.js';
 import styles from './Board.module.css';
+import { Notifications, useFeedback } from './Notifications.js';
+import type { ComponentProps } from 'react';
 
-export function OwnerPicker({
+function OwnerPickerContent({
   value,
   onChange,
   disabled = false,
   allowAll = false,
+  active: surfaceActive = true,
 }: {
   value: string;
   onChange: (url: string) => void;
   disabled?: boolean;
   allowAll?: boolean;
+  active?: boolean;
 }) {
+  const { clear, report } = useFeedback();
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   const [owners, setOwners] = useState<AvailableOwner[]>([]);
@@ -24,6 +29,7 @@ export function OwnerPicker({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   useEffect(() => {
+    if (!surfaceActive) return;
     let current = true;
     setLoading(true);
     setError(undefined);
@@ -33,12 +39,14 @@ export function OwnerPicker({
         if (current) setOwners(result);
       })
       .catch((failure: unknown) => {
-        if (current)
-          setError(
+        if (current) {
+          const message =
             failure instanceof Error
               ? failure.message
-              : 'Unable to read owners.',
-          );
+              : 'Unable to read owners.';
+          setError(message);
+          report(`Owners could not be loaded: ${message} Use Retry owners.`);
+        }
       })
       .finally(() => {
         if (current) setLoading(false);
@@ -46,7 +54,7 @@ export function OwnerPicker({
     return () => {
       current = false;
     };
-  }, [revision]);
+  }, [revision, report, surfaceActive]);
   const choices = allowAll
     ? [
         {
@@ -164,16 +172,14 @@ export function OwnerPicker({
             ? 'Owners could not be loaded. Your selection is retained.'
             : `${matches.length} ${matches.length === 1 ? 'owner' : 'owners'} found${matches.length ? '.' : ' · No matches.'}`}
       </div>
-      {error && (
-        <p role="alert" className={styles.formError}>
-          {error}
-        </p>
-      )}
       <button
         type="button"
         className={styles.ownerRefresh}
         disabled={disabled || loading}
-        onClick={() => setRevision((previous) => previous + 1)}
+        onClick={() => {
+          clear();
+          setRevision((previous) => previous + 1);
+        }}
       >
         {error ? 'Retry owners' : 'Refresh owners'}
       </button>
@@ -207,5 +213,13 @@ export function OwnerPicker({
         </ul>
       )}
     </div>
+  );
+}
+
+export function OwnerPicker(props: ComponentProps<typeof OwnerPickerContent>) {
+  return (
+    <Notifications>
+      <OwnerPickerContent {...props} />
+    </Notifications>
   );
 }

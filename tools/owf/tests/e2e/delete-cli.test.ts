@@ -134,15 +134,20 @@ test('built deletion commands execute noninteractively from root/descendants wit
   }
 });
 
-test('built CLI reports invalid arguments, missing/repeated IDs and incoming references with agreed codes and no mutation', () => {
-  const { root, child, store, run } = setup();
-  const target = createAction(root, {
+function referencedAction() {
+  const workspace = setup();
+  const target = createAction(workspace.root, {
     title: 'Prerequisite',
     state: 'completed',
   }).result.action;
-  const source = createAction(root, { title: 'Referring source' }).result
-    .action;
-  setAction(root, source.id, { addDependency: [target.id] });
+  const source = createAction(workspace.root, { title: 'Referring source' })
+    .result.action;
+  setAction(workspace.root, source.id, { addDependency: [target.id] });
+  return { ...workspace, target, source };
+}
+
+test('built CLI refuses referenced Action deletion in human/JSON output without mutation, then permits it after dependency removal', () => {
+  const { root, child, store, run, target, source } = referencedAction();
   for (const json of [false, true]) {
     const before = semanticSnapshot(root, store);
     const result = run(
@@ -163,32 +168,65 @@ test('built CLI reports invalid arguments, missing/repeated IDs and incoming ref
       });
     expect(semanticSnapshot(root, store)).toEqual(before);
   }
+  expect(
+    run(child, 'set', 'action', source.id, '--remove-dependency', target.id)
+      .status,
+  ).toBe(0);
+  expect(run(child, 'delete', 'action', target.id).status).toBe(0);
+});
+
+test.each(['action', 'view'] as const)(
+  'built CLI rejects invalid delete %s arguments with INVALID_ARGUMENT and no mutation',
+  (type) => {
+    const { root, child, store, run, target } = referencedAction();
+    const invalidArgs =
+      type === 'action'
+        ? [
+            ['delete', 'action'],
+            ['delete', 'action', 'title'],
+            ['delete', 'action', `owf:action:${target.id}?x`],
+            ['delete', 'action', target.id, 'extra'],
+            ['delete', 'action', target.id, '--force'],
+          ]
+        : [
+            ['delete', 'view', '/_views/board.md'],
+            ['delete', 'view', 'Default Kanban'],
+            ['delete', 'view', `owf:action:${target.id}`],
+          ];
+    for (const args of invalidArgs) {
+      const before = semanticSnapshot(root, store);
+      const result = run(child, ...args, '--json');
+      expect(result.status, result.stdout + result.stderr).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        ok: false,
+        error: { code: 'INVALID_ARGUMENT' },
+      });
+      expect(semanticSnapshot(root, store)).toEqual(before);
+    }
+  },
+);
+
+test('built CLI reports missing Action and View IDs with precise codes and no mutation', () => {
+  const { root, child, store, run } = referencedAction();
   const absent = '00000000-0000-4000-8000-000000000000';
-  for (const [args, status, code] of [
-    [['delete', 'action'], 2, 'INVALID_ARGUMENT'],
-    [['delete', 'action', 'title'], 2, 'INVALID_ARGUMENT'],
-    [['delete', 'action', `owf:action:${target.id}?x`], 2, 'INVALID_ARGUMENT'],
-    [['delete', 'action', target.id, 'extra'], 2, 'INVALID_ARGUMENT'],
-    [['delete', 'action', target.id, '--force'], 2, 'INVALID_ARGUMENT'],
-    [['delete', 'view', '/_views/board.md'], 2, 'INVALID_ARGUMENT'],
-    [['delete', 'view', 'Default Kanban'], 2, 'INVALID_ARGUMENT'],
-    [['delete', 'view', `owf:action:${target.id}`], 2, 'INVALID_ARGUMENT'],
-    [['delete', 'action', absent], 1, 'ACTION_NOT_FOUND'],
-    [['delete', 'view', absent], 1, 'VIEW_NOT_FOUND'],
+  for (const [type, code] of [
+    ['action', 'ACTION_NOT_FOUND'],
+    ['view', 'VIEW_NOT_FOUND'],
   ] as const) {
     const before = semanticSnapshot(root, store);
-    const result = run(child, ...args, '--json');
-    expect(result.status, result.stdout + result.stderr).toBe(status);
+    const result = run(child, 'delete', type, absent, '--json');
+    expect(result.status, result.stdout + result.stderr).toBe(1);
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: false,
       error: { code },
     });
     expect(semanticSnapshot(root, store)).toEqual(before);
   }
-  expect(
-    run(child, 'set', 'action', source.id, '--remove-dependency', target.id)
-      .status,
-  ).toBe(0);
+});
+
+test('built CLI rejects repeated Action deletion with ACTION_NOT_FOUND and no mutation', () => {
+  const { root, child, store, run, target, source } = referencedAction();
+  setAction(root, source.id, { removeDependency: [target.id] });
   expect(run(child, 'delete', 'action', target.id).status).toBe(0);
   const before = semanticSnapshot(root, store);
   const repeated = run(child, 'delete', 'action', target.id, '--json');

@@ -1,3 +1,9 @@
+import type { ComponentProps } from 'react';
+import {
+  Notifications,
+  useFeedback,
+  NotificationSurface,
+} from './Notifications.js';
 import {
   useEffect,
   useLayoutEffect,
@@ -28,7 +34,7 @@ export interface EditorNavigation {
   requestClose: (afterClose: () => void) => void;
 }
 
-export function ActionEditor({
+function ActionEditorContent({
   action,
   current,
   factsStale = false,
@@ -46,7 +52,7 @@ export function ActionEditor({
   current: BoardAction | undefined;
   factsStale?: boolean;
   save: (id: string, input: EditActionRequest) => Promise<BoardAction>;
-  refresh: () => Promise<boolean>;
+  refresh: (automatic?: boolean) => Promise<boolean>;
   onSaved: (action: BoardAction) => void;
   onClose: () => void;
   onDeleted?: (id: string) => void;
@@ -55,6 +61,7 @@ export function ActionEditor({
   navigation?: ReactNode;
   passive?: boolean;
 }) {
+  const feedback = useFeedback();
   const confirmation = useRef<HTMLDialogElement>(null);
   const deleteButton = useRef<HTMLButtonElement>(null);
   const cancelDelete = useRef<HTMLButtonElement>(null);
@@ -77,19 +84,20 @@ export function ActionEditor({
     deleting.current = true;
     setDeletePending(true);
     setSaving(true);
+    feedback.clear();
     setError(undefined);
     try {
       await remove(action.id);
       onDeleted?.(action.id);
       onClose();
     } catch (failure) {
-      setError(
-        failure instanceof Error ? failure.message : 'Unable to delete Action.',
+      feedback.report(
+        `Delete “${baseline.title}”: ${failure instanceof Error ? failure.message : 'Unable to delete Action.'}`,
       );
       setConfirmDelete(false);
       if (failure instanceof StateUpdateError && failure.code === 'UNCERTAIN') {
         setBlocked(true);
-        void checkCurrent();
+        void checkCurrent(true);
       }
       requestAnimationFrame(() => deleteButton.current?.focus());
     } finally {
@@ -172,15 +180,26 @@ export function ActionEditor({
     setDiscard(false);
     titleInput.current?.focus();
   }
-  async function checkCurrent() {
-    setInspected(await refresh());
+  async function checkCurrent(automatic = false) {
+    setInspected(await refresh(automatic));
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (saving || blocked || stale || (passive && factsStale)) return;
+    feedback.clear();
+    if (!title.trim()) {
+      setError('Enter a nonblank title.');
+      titleInput.current?.focus();
+      return;
+    }
     if (manual && !manualReason.trim()) {
       setError('Enter a nonblank manual blocking reason.');
       // An unchanged message does not rerun the error effect on another submit.
+      errorMessage.current?.scrollIntoView?.({ block: 'nearest' });
+      return;
+    }
+    if (baseline.state === 'waiting' && reason !== '' && !reason.trim()) {
+      setError('Waiting for must contain nonblank text.');
       errorMessage.current?.scrollIntoView?.({ block: 'nearest' });
       return;
     }
@@ -241,13 +260,13 @@ export function ActionEditor({
     } catch (failure) {
       const message =
         failure instanceof Error ? failure.message : 'Unable to save Action.';
-      setError(message);
+      feedback.report(`Save “${baseline.title}”: ${message}`);
       if (
         failure instanceof StateUpdateError &&
         ['ACTION_CONFLICT', 'UNCERTAIN'].includes(failure.code)
       ) {
         setBlocked(true);
-        void checkCurrent();
+        void checkCurrent(true);
       }
     } finally {
       setSaving(false);
@@ -270,6 +289,7 @@ export function ActionEditor({
         if (event.target === dialog.current) requestClose();
       }}
     >
+      <NotificationSurface />
       <form
         className={`${styles.editorCard} ${styles.editorLayout}`}
         onSubmit={(event) => {
@@ -347,9 +367,21 @@ export function ActionEditor({
                 ref={titleInput}
                 id="edit-title"
                 value={title}
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={(event) => {
+                  setTitle(event.target.value);
+                  if (
+                    error === 'Enter a nonblank title.' &&
+                    event.target.value.trim()
+                  )
+                    setError(undefined);
+                }}
                 disabled={saving}
               />
+              {error === 'Enter a nonblank title.' && (
+                <p className={styles.formError} role="alert">
+                  {error}
+                </p>
+              )}
               <label htmlFor="edit-description">
                 Description <span>(Markdown)</span>
               </label>
@@ -401,8 +433,20 @@ export function ActionEditor({
                       rows={3}
                       value={manualReason}
                       disabled={saving || !manualEligible}
-                      onChange={(event) => setManualReason(event.target.value)}
+                      onChange={(event) => {
+                        setManualReason(event.target.value);
+                        if (event.target.value.trim()) setError(undefined);
+                      }}
                     />
+                    {error === 'Enter a nonblank manual blocking reason.' && (
+                      <p
+                        ref={errorMessage}
+                        className={styles.formError}
+                        role="alert"
+                      >
+                        {error}
+                      </p>
+                    )}
                   </>
                 )}
                 {manualDirty && (
@@ -422,9 +466,21 @@ export function ActionEditor({
                     id="edit-reason"
                     rows={2}
                     value={reason}
-                    onChange={(event) => setReason(event.target.value)}
+                    onChange={(event) => {
+                      setReason(event.target.value);
+                      if (event.target.value.trim()) setError(undefined);
+                    }}
                     disabled={saving}
                   />
+                  {error === 'Waiting for must contain nonblank text.' && (
+                    <p
+                      ref={errorMessage}
+                      className={styles.formError}
+                      role="alert"
+                    >
+                      {error}
+                    </p>
+                  )}
                 </>
               )}
               <dl className={styles.editorMeta}>
@@ -445,11 +501,6 @@ export function ActionEditor({
                   <dd>{baseline.updated_at}</dd>
                 </div>
               </dl>
-              {error && (
-                <p ref={errorMessage} className={styles.formError} role="alert">
-                  {error}
-                </p>
-              )}
               {saving && (
                 <p role="status" className={styles.hint}>
                   Saving Action…
@@ -495,6 +546,7 @@ export function ActionEditor({
             cancelDeletion();
           }}
         >
+          <NotificationSurface />
           <section className={styles.editorCard}>
             <h2 id="delete-heading">Delete action permanently?</h2>
             <p>{current?.title ?? baseline.title}</p>
@@ -526,5 +578,15 @@ export function ActionEditor({
         </dialog>
       )}
     </dialog>
+  );
+}
+
+export function ActionEditor(
+  props: ComponentProps<typeof ActionEditorContent>,
+) {
+  return (
+    <Notifications>
+      <ActionEditorContent {...props} />
+    </Notifications>
   );
 }

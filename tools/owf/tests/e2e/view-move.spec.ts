@@ -313,7 +313,7 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('Space');
     await expect(
-      page.getByRole('status').filter({ hasText: /unresolved/i }),
+      page.getByRole('alert').filter({ hasText: /unresolved/i }),
     ).toBeVisible();
     await expect(region('Blocked').getByRole('article')).toContainText(
       last.title,

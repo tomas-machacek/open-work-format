@@ -6,18 +6,21 @@ import type {
 } from '../contracts/index.js';
 import { boardAction } from '../contracts/index.js';
 import { fetchBoard } from './client.js';
+import { useFeedback } from './Notifications.js';
 
 export function useBoard(
   load: (query: BoardQuery) => Promise<BoardResponse> = fetchBoard,
   active = true,
-  onRefresh?: () => void,
+  onRefresh?: (automatic?: boolean) => void,
 ) {
+  const { clear, report } = useFeedback();
+  const lastFailure = useRef<string | undefined>(undefined);
+  const completedWritePending = useRef<string | undefined>(undefined);
   const [query, setQuery] = useState<BoardQuery>({});
   const scope = useRef<BoardQuery>({});
   const resultScope = useRef<BoardQuery>({});
   const [resultQuery, setResultQuery] = useState<BoardQuery>({});
   const tracked = useRef<string | undefined>(undefined);
-  const latest = useRef<BoardResponse | undefined>(undefined);
   const [current, setCurrent] = useState<BoardAction>();
   const track = (action: BoardAction | undefined) => {
     tracked.current = action?.id;
@@ -90,18 +93,22 @@ export function useBoard(
   const inFlight = useRef(false);
   const pendingReturn = useRef(false);
   const refresh = useCallback(
-    async function refresh(automatic = false) {
-      if (automatic && inFlight.current) {
+    async function refresh(automatic = false, completedWrite?: string) {
+      if (completedWrite) completedWritePending.current = completedWrite;
+      // A confirmed write needs a new snapshot immediately; only background
+      // refreshes can wait for an existing read to finish.
+      if (automatic && !completedWrite && inFlight.current) {
         pendingReturn.current = true;
         return false;
       }
       pendingReturn.current = false;
+      if (!automatic) clear();
       const request = ++generation.current;
       const revision = writes.current;
       const selection = scope.current;
       inFlight.current = true;
       setLoading(true);
-      onRefresh?.();
+      onRefresh?.(automatic);
       try {
         const next = await load(selection);
         if (request !== generation.current || pendingReturn.current)
@@ -159,33 +166,39 @@ export function useBoard(
             newer.map((entry) => entry.action),
           ),
         };
-        latest.current = resolved;
         setData(resolved);
         setResultQuery(selection);
         resultScope.current = selection;
         setMembershipPending(false);
         setError(undefined);
+        lastFailure.current = undefined;
+        completedWritePending.current = undefined;
         return true;
       } catch (failure) {
         if (request !== generation.current || pendingReturn.current)
           return false;
-        setError(
+        const message =
           failure instanceof Error
             ? failure.message
-            : 'Unable to read Actions.',
-        );
+            : 'Unable to read Actions.';
+        setError(message);
+        if (!automatic || message !== lastFailure.current)
+          report(
+            `${completedWritePending.current ? `${completedWritePending.current} completed. Do not repeat the write. ` : ''}Board refresh failed: ${message} Use Retry to read the Workspace again.`,
+          );
+        lastFailure.current = message;
         return false;
       } finally {
         if (request === generation.current) {
           inFlight.current = false;
           // A return can follow a CLI write after this request read its snapshot.
           // Keep the cards and progress state until that return has its own read.
-          if (pendingReturn.current) void refresh();
+          if (pendingReturn.current) void refresh(true, completedWrite);
           else setLoading(false);
         }
       }
     },
-    [load, onRefresh],
+    [load, onRefresh, clear, report],
   );
   const apply = (next: BoardQuery) => {
     scope.current = next;
@@ -227,10 +240,6 @@ export function useBoard(
     apply,
     track,
     current,
-    isFiltered: () =>
-      scope.current.search !== undefined || scope.current.owner !== undefined,
-    includes: (id: string) =>
-      latest.current?.actions.some((action) => action.id === id) ?? false,
   };
 }
 

@@ -426,8 +426,9 @@ for (const blocked of [false, true])
       ).toBeDisabled();
       release();
       await expect(
-        page.getByRole('status').filter({ hasText: 'Move succeeded.' }),
-      ).toBeVisible();
+        page.getByRole('status', { name: 'View refresh' }),
+      ).toContainText('up to date');
+      await expect(page.getByText('Move succeeded.')).toHaveCount(0);
       await expect(
         page.getByRole('combobox', { name: 'Display' }),
       ).toBeEnabled();
