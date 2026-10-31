@@ -1,12 +1,12 @@
 # 0030 — Quiet web operation feedback
 
-> Status: in_progress
+> Status: completed
 > Description: Remove visible success confirmations and show operation failures as temporary, dismissible notifications without shifting board layout.
 > Depends on: [0028 — Create and delete Actions in web Views](0028-web-action-create-delete.md).
 
 Scope and direction agreed on 2026-10-30. The user reviewed and approved this
-document for implementation on 2026-10-30. Implementation is in progress; independent code
-review is pending. Increment 0029 is completed and merged into main;
+document for implementation on 2026-10-30. The user confirmed completion and
+authorized merge on 2026-10-31. Increment 0029 is completed and merged into main;
 it is not a functional prerequisite for this frontend increment.
 
 ## Goal and scope
@@ -193,6 +193,16 @@ positioning and remaining styling details are routine implementation choices
 within the constraints above.
 
 ## Implementation and review outcome
+
+### Completion on 2026-10-31
+
+The user confirmed implementation was complete and authorized marking this
+increment completed and merging PR #36. The recorded full verification after
+the confirmed-move refresh repair passed. No additional code changes or test
+runs were performed for this documentation-only closure. A separate independent
+review report is not attached to the PR; this record does not claim an additional
+review was performed during closure. The handoff notes below retain their
+historical review/status statements as recorded before user acceptance.
 
 Original frontend implementation/test revision: `8e7237597131eaeaae761eebdadaffe97ccd8139`.
 Independent code review is pending; the increment and index remain `in_progress`.
@@ -386,8 +396,9 @@ No unresolved frontend failure was observed in the final component/browser
 checks. Documentation/evidence updates follow their verified source revisions;
 their formatting and `git diff --check` are checked separately.
 
-Independent review is the next step. The increment remains `in_progress`; it has
-not been marked completed, merged or released.
+At the implementation handoff, independent review was the next step and the
+increment remained `in_progress`. Subsequent user-authorized completion is
+recorded above. No release was requested or published.
 
 ## Decision changes and follow-up
 
