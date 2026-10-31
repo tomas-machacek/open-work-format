@@ -271,7 +271,9 @@ test('required reason is sent once, confirmed commit followed by failed read dis
     confirm(result);
     await Promise.resolve();
   });
-  await screen.findByText(/Move succeeded.*Display could not be refreshed/);
+  await screen.findByText(
+    /Move completed.*Do not repeat the write.*Read unavailable/,
+  );
   expect(moveViewAction).toHaveBeenCalledTimes(1);
   expect(moveViewAction).toHaveBeenCalledWith('v', {
     action: 'a',
@@ -291,7 +293,7 @@ test('required reason is sent once, confirmed commit followed by failed read dis
   await screen.findByText('1 Actions · up to date');
   expect(screen.queryByText(/Display could not be refreshed/)).toBeNull();
   expect(screen.getByText<HTMLButtonElement>('Pick up').disabled).toBe(false);
-  expect(screen.getByText('Move succeeded.')).toBeTruthy();
+  expect(screen.queryByText(/Move succeeded/)).toBeNull();
 });
 test('pending ordinary move rejects another gesture or cancellation and keeps navigation locked through refresh', async () => {
   await setup();
@@ -342,8 +344,12 @@ test('pending ordinary move rejects another gesture or cancellation and keeps na
   );
 });
 
-for (const fails of [false, true])
-  test(`superseded post-move read does not report failure when queued refresh succeeds (failure=${fails})`, async () => {
+for (const [fails, refreshFails] of [
+  [false, false],
+  [true, false],
+  [true, true],
+])
+  test(`superseded post-move read preserves confirmed write context (superseded failure=${fails}, refresh failure=${refreshFails})`, async () => {
     await setup();
     vi.mocked(moveViewAction).mockResolvedValue({
       source: 'source',
@@ -362,7 +368,11 @@ for (const fails of [false, true])
           fail = reject;
         }),
       )
-      .mockResolvedValue(inNext);
+      .mockImplementation(() =>
+        refreshFails
+          ? Promise.reject(new Error('Queued refresh failed'))
+          : Promise.resolve(inNext),
+      );
     fireEvent.click(screen.getByText('Pick up'));
     fireEvent.click(screen.getByText('Drop next'));
     await waitFor(() => expect(fetchView).toHaveBeenCalledTimes(2));
@@ -373,6 +383,17 @@ for (const fails of [false, true])
       else finish(data);
       await Promise.resolve();
     });
+    if (refreshFails) {
+      await screen.findByText(
+        /Move completed.*Do not repeat the write.*Queued refresh failed/,
+      );
+      expect(fetchView).toHaveBeenCalledTimes(3);
+      expect(moveViewAction).toHaveBeenCalledTimes(1);
+      expect(screen.getByText<HTMLButtonElement>('Pick up').disabled).toBe(
+        true,
+      );
+      return;
+    }
     await screen.findByText('1 Actions · up to date');
     expect(fetchView).toHaveBeenCalledTimes(3);
     expect(
@@ -380,7 +401,7 @@ for (const fails of [false, true])
         /Display could not be refreshed|Superseded read error/,
       ),
     ).toBeNull();
-    expect(screen.getByText('Move succeeded.')).toBeTruthy();
+    expect(screen.queryByText(/Move succeeded/)).toBeNull();
     expect(moveViewAction).toHaveBeenCalledTimes(1);
   });
 for (const message of [
@@ -392,7 +413,7 @@ for (const message of [
     vi.mocked(moveViewAction).mockRejectedValue(new Error(message));
     fireEvent.click(screen.getByText('Pick up'));
     fireEvent.click(screen.getByText('Drop next'));
-    await screen.findByText(message);
+    await screen.findByText(new RegExp(message));
     expect(fetchView).toHaveBeenCalledTimes(2);
     expect(moveViewAction).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText<HTMLSelectElement>('Display').disabled).toBe(

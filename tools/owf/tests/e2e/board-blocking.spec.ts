@@ -210,7 +210,8 @@ for (const viewport of [
         page.getByRole('region', { name: 'Completed', exact: true }),
       ).toHaveAttribute('class', /dropTarget/);
       await page.keyboard.press('Space');
-      await expect(card.getByRole('alert')).toContainText(
+      await expect(card.getByRole('alert')).toHaveCount(0);
+      await expect(page.getByRole('alert')).toContainText(
         'Action detail and save',
       );
       expect(

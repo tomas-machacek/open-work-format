@@ -6,17 +6,17 @@ import styles from './Board.module.css';
 export function MovableCard({
   action,
   pending,
-  error,
+  movementDisabled = false,
   onOpen,
 }: {
   action: BoardAction;
   pending: boolean;
-  error?: string | undefined;
+  movementDisabled?: boolean;
   onOpen: (action: BoardAction) => void;
 }) {
   const { listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: action.id,
-    disabled: pending,
+    disabled: pending || movementDisabled,
     data: { state: action.state },
   });
   return (
@@ -50,11 +50,6 @@ export function MovableCard({
       {pending && (
         <p className={styles.cardStatus} role="status">
           Moving…
-        </p>
-      )}
-      {error && (
-        <p className={styles.cardError} role="alert">
-          {error}
         </p>
       )}
     </article>

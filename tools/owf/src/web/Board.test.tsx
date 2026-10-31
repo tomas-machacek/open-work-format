@@ -307,11 +307,17 @@ test.each([false, true])(
     });
     if (fails) load.mockRejectedValueOnce(new Error('Membership unavailable'));
     fireEvent.submit(form);
-    await screen.findByText(
-      fails
-        ? /saved successfully.*refresh could not be confirmed/
-        : /saved successfully but the Action does not match/,
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('form', { name: 'Add Action to Open' }),
+      ).toBeNull(),
     );
+    if (fails)
+      await screen.findByText(
+        /completed.*Do not repeat the write.*Membership unavailable/,
+      );
+    else await screen.findByText(/Actions · up to date/);
+    expect(screen.queryByText(/saved successfully/)).toBeNull();
     expect(save).toHaveBeenCalledExactlyOnceWith({
       title: 'Excluded',
       owner: '/',
@@ -349,7 +355,8 @@ test('an editor retains drafts and an authoritative snapshot when filtered refre
   );
   expect(within(dialog).queryByText(/changed on the board/)).toBeNull();
   fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
-  await screen.findByText(/saved successfully but the Action does not match/);
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(screen.queryByText(/saved successfully/)).toBeNull();
   expect(edit).toHaveBeenCalledTimes(1);
 });
 
@@ -441,7 +448,7 @@ test('a confirmed filtered move survives failed membership reads and older respo
   ).toBe(false);
 });
 
-test('save membership notices follow the latest refresh instead of superseded reads', async () => {
+test('silent saves reconcile membership from the latest refresh instead of superseded reads', async () => {
   const old = deferred();
   const load = vi
     .fn<(query: BoardQuery) => Promise<BoardResponse>>()
@@ -462,22 +469,17 @@ test('save membership notices follow the latest refresh instead of superseded re
     target: { value: 'Excluded' },
   });
   fireEvent.submit(form);
-  await screen.findByText(/Excluded: saved successfully. Checking/);
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(3));
+  expect(screen.queryByText(/saved successfully/)).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-  await screen.findByText(
-    /Excluded: saved successfully but the Action does not match/,
-  );
+  await screen.findByText(/3 matching Actions · up to date/);
   await act(async () => {
     old.resolve(data);
     await old.promise;
   });
-  expect(screen.queryByText(/Board refresh could not be confirmed/)).toBeNull();
-  expect(
-    screen.getByText(
-      /Excluded: saved successfully but the Action does not match/,
-    ),
-  ).toBeTruthy();
-  // A later successful scope change reconciles the notice as well as the cards.
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(document.querySelector('[data-action-id="new"]')).toBeNull();
+  // A later successful scope change reconciles cards without a success notice.
   load.mockResolvedValue({
     ...data,
     actions: [
@@ -486,7 +488,7 @@ test('save membership notices follow the latest refresh instead of superseded re
     ],
   });
   fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
-  await screen.findByText('Excluded: saved successfully.');
+  await screen.findByText('Excluded');
   expect(screen.queryByText(/does not match current filters/)).toBeNull();
 });
 
@@ -671,7 +673,9 @@ test('refresh retains card nodes and order, marks failed data stale, retries and
     pending.reject(new Error('Store unavailable'));
     await pending.promise.catch(() => undefined);
   });
-  expect(screen.getByRole('alert').textContent).toContain('out of date');
+  expect(
+    screen.getByRole('status', { name: 'Board refresh' }).textContent,
+  ).toContain('Not current');
   expect(screen.getByText('First').closest('article')).toBe(cards[0]);
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -843,7 +847,7 @@ test('draft survives validation, refresh and failed save, and Cancel restores fo
   );
   expect(screen.getByRole('form', { name: /Add Action/ })).toBe(form);
   fireEvent.submit(form);
-  await screen.findByText('Owner does not exist.');
+  await screen.findByText(/Owner does not exist\./);
   expect(save).toHaveBeenCalledWith({
     title: 'My draft',
     owner: '/_projects/missing/',
@@ -953,7 +957,9 @@ test('confirmed create keeps stale warning until GET succeeds; uncertain failure
   });
   fireEvent.submit(screen.getByRole('form', { name: /Add Action/ }));
   await screen.findByText('Saved work');
-  expect(screen.getByRole('alert').textContent).toContain('out of date');
+  expect(
+    screen.getByRole('status', { name: 'Board refresh' }).textContent,
+  ).toContain('Not current');
   openForm();
   fireEvent.change(screen.getByLabelText('Title'), {
     target: { value: 'Uncertain work' },
@@ -1047,11 +1053,11 @@ test('same-column or outside drop writes nothing; conflict refreshes and uncerta
   dropCard('one', null);
   expect(move).not.toHaveBeenCalled();
   dropCard('one', 'completed');
-  await within(card).findByText('Action changed.');
+  await screen.findByText(/Move “First”: Action changed\./);
   await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
   expect(screen.getByText('First').closest('article')).toBe(card);
   dropCard('one', 'waiting');
-  await within(card).findByText('Check before retrying.');
+  await screen.findByText(/Move “First”: Check before retrying/);
   expect(move).toHaveBeenCalledTimes(2);
   expect(
     within(screen.getByRole('region', { name: 'Open' })).getByText('First'),
@@ -1249,7 +1255,7 @@ test('conflict keeps draft, refreshes current values and requires an explicit re
     target: { value: 'My draft' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-  await screen.findByText('The Action changed.');
+  await screen.findByText(/The Action changed\./);
   await screen.findByText('Changed elsewhere');
   expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe(
     'My draft',
@@ -1284,7 +1290,7 @@ test('empty description sends a clear, and an uncertain save keeps the draft unt
     target: { value: '' },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-  await screen.findByText('Save could not be confirmed.');
+  await screen.findByText(/Save could not be confirmed\./);
   expect(edit).toHaveBeenCalledWith(
     'one',
     expect.objectContaining({
@@ -1300,4 +1306,47 @@ test('empty description sends a clear, and an uncertain save keeps the draft unt
   expect(edit).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole('button', { name: 'Use current values' }));
   expect(screen.getByLabelText<HTMLInputElement>('Title').value).toBe('First');
+});
+
+test('uncertain movement remains guarded after its notification expires and recovers only after a read', async () => {
+  vi.useFakeTimers();
+  const load = vi.fn<() => Promise<BoardResponse>>().mockResolvedValue(data);
+  const move = vi
+    .fn<(id: string, input: UpdateActionStateRequest) => Promise<BoardAction>>()
+    .mockRejectedValue(
+      new StateUpdateError('Move outcome unknown.', 'UNCERTAIN'),
+    );
+  try {
+    render(<Board load={load} move={move} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    dropCard('one', 'completed');
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Move outcome unknown',
+    );
+    act(() => {
+      vi.advanceTimersByTime(8000);
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(
+      screen.getByRole('status', { name: 'Board refresh' }).textContent,
+    ).toContain('Move outcome unconfirmed');
+    dropCard('one', 'completed');
+    expect(move).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(
+      screen.getByRole('status', { name: 'Board refresh' }).textContent,
+    ).toContain('up to date');
+    expect(move).toHaveBeenCalledTimes(1);
+  } finally {
+    cleanup();
+    vi.useRealTimers();
+  }
 });

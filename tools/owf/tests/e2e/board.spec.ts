@@ -173,9 +173,8 @@ test('search and recursive owner scope match CLI; excluded writes and keyboard m
     const detail = page.getByRole('dialog', { name: 'Edit Action' });
     await detail.getByLabel(/Description/).fill('No selected text');
     await detail.getByRole('button', { name: 'Save changes' }).click();
-    await expect(
-      page.getByText(/saved successfully but the Action does not match/),
-    ).toBeVisible();
+    await expect(detail).toHaveCount(0);
+    await expect(page.getByText(/saved successfully/)).toHaveCount(0);
     await expect(page.locator(`[data-action-id="${direct.id}"]`)).toHaveCount(
       0,
     );
@@ -184,11 +183,8 @@ test('search and recursive owner scope match CLI; excluded writes and keyboard m
     const form = open.getByRole('form');
     await form.getByLabel('Title', { exact: true }).fill('Excluded creation');
     await form.getByRole('button', { name: 'Save', exact: true }).click();
-    await expect(
-      page.getByText(
-        'Excluded creation: saved successfully but the Action does not match current filters.',
-      ),
-    ).toBeVisible();
+    await expect(form).toHaveCount(0);
+    await expect(page.getByText(/saved successfully/)).toHaveCount(0);
     await expect(page.getByRole('article')).toHaveCount(1);
     await page.locator(`[data-action-id="${nested.id}"]`).focus();
     await page.keyboard.press('Space');

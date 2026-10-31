@@ -248,7 +248,7 @@ for (const viewport of [
         await expect(detail).toBeVisible();
         expect(writes).toHaveLength(mode === 'default' ? 0 : 1);
 
-        // Submit from the fixed bar: feedback near the bottom must become visible.
+        // Submit from the fixed bar: validation beside the invalid field must be visible.
         await detail.getByLabel('Manual block', { exact: true }).check();
         await save.click();
         const error = detail.getByRole('alert');
@@ -260,13 +260,17 @@ for (const viewport of [
         await page.screenshot({
           path: testInfo.outputPath(`${mode}-validation.png`),
         });
-        // Returning to the invalid field hides the feedback. The same local
-        // rejection must reveal it again even when its message is unchanged.
+        // Validation stays beside the invalid field. Repeated submission must
+        // keep it readable even when the message is unchanged.
         const manualReason = detail.getByLabel('Manual blocking reason', {
           exact: true,
         });
         await manualReason.fill('   ');
-        await expect(error).not.toBeInViewport();
+        await expect(error).toBeVisible();
+        const reasonBox = await box(manualReason);
+        expect((await box(error)).y).toBeGreaterThanOrEqual(
+          reasonBox.y + reasonBox.height,
+        );
         await save.click();
         await expect(error).toBeInViewport({ ratio: 1 });
         await expect(manualReason).toHaveValue('   ');

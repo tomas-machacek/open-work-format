@@ -1,12 +1,12 @@
 # 0030 — Quiet web operation feedback
 
-> Status: reviewed
+> Status: in_progress
 > Description: Remove visible success confirmations and show operation failures as temporary, dismissible notifications without shifting board layout.
 > Depends on: [0028 — Create and delete Actions in web Views](0028-web-action-create-delete.md).
 
 Scope and direction agreed on 2026-10-30. The user reviewed and approved this
-document for implementation on 2026-10-30. Implementation and independent code
-review have not started. Increment 0029 is completed and merged into main;
+document for implementation on 2026-10-30. Implementation is in progress; independent code
+review is pending. Increment 0029 is completed and merged into main;
 it is not a functional prerequisite for this frontend increment.
 
 ## Goal and scope
@@ -89,13 +89,13 @@ without introducing visible IDs.
 
 Separate a transient error event from facts that remain true after it expires:
 
-| Situation | Required presentation |
-| --- | --- |
-| Invalid form input, such as blank title or manual blocking reason | Keep validation next to the relevant form/input until corrected or the form is closed; do not auto-dismiss it. |
-| Rejected or failed mutation | Temporary error notification; preserve draft, confirmed data and existing retry/recovery rules. |
-| Confirmed mutation followed by failed refresh | Temporary refresh-error notification explaining that the write completed and must not be repeated merely because refresh failed. |
-| Uncertain mutation result | Temporary error notification explaining uncertainty; preserve reconciliation and guards against unsafe repetition. |
-| Unavailable or stale board/View/inventory | Temporary detailed error notification plus compact persistent availability/freshness state and existing Retry/Refresh control until recovery. |
+| Situation                                                         | Required presentation                                                                                                                         |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Invalid form input, such as blank title or manual blocking reason | Keep validation next to the relevant form/input until corrected or the form is closed; do not auto-dismiss it.                                |
+| Rejected or failed mutation                                       | Temporary error notification; preserve draft, confirmed data and existing retry/recovery rules.                                               |
+| Confirmed mutation followed by failed refresh                     | Temporary refresh-error notification explaining that the write completed and must not be repeated merely because refresh failed.              |
+| Uncertain mutation result                                         | Temporary error notification explaining uncertainty; preserve reconciliation and guards against unsafe repetition.                            |
+| Unavailable or stale board/View/inventory                         | Temporary detailed error notification plus compact persistent availability/freshness state and existing Retry/Refresh control until recovery. |
 
 Persistent state indicators explain the current condition; they do not retain a
 full operation-error banner. Reuse the existing refresh/status area and editor
@@ -194,8 +194,15 @@ within the constraints above.
 
 ## Implementation and review outcome
 
-Not implemented. Code checks, visual verification and independent review have
-not run. This change currently defines the increment only.
+Implementation is delivered for verification. Default Kanban and Views now use
+silent successful Action operations and one shared floating error notification.
+Field validation stays inline; stale/unavailable and uncertain recovery state
+remains independent of notification expiry. The notification uses the active
+modal surface, pauses expiry for hover/focus and restores focus on manual close.
+
+Verification is underway; final results, platform, revision and visual evidence
+will be recorded here before handoff. Independent code review is pending. The
+increment remains `in_progress`; this implementation does not authorize a release.
 
 ## Decision changes and follow-up
 

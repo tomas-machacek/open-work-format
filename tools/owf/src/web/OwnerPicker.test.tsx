@@ -79,7 +79,7 @@ test('filter owner discovery errors and missing rediscovered owners retain selec
   expect(screen.getAllByRole('option')).toHaveLength(2);
   vi.mocked(fetchOwners).mockRejectedValueOnce(new Error('Discovery failed'));
   fireEvent.click(screen.getByRole('button', { name: 'Refresh owners' }));
-  await screen.findByText('Discovery failed');
+  await screen.findByText(/Owners could not be loaded: Discovery failed/);
   expect(screen.getByText(/Selected: Ready/)).toBeTruthy();
   expect((input as HTMLInputElement).value).toBe('ready');
   vi.mocked(fetchOwners).mockResolvedValueOnce([]);
@@ -144,7 +144,7 @@ test.each(['create', 'edit'] as const)(
         name: mode === 'create' ? 'Save' : 'Save changes',
       }),
     );
-    await screen.findByText('Selected owner became invalid.');
+    await screen.findByText(/Selected owner became invalid/);
     if (mode === 'create')
       expect(save).toHaveBeenLastCalledWith(
         expect.objectContaining({ owner: '/' }),
@@ -214,7 +214,9 @@ test.each(['create', 'edit'] as const)(
       refresh.reject(new Error('Cannot read README'));
       await refresh.promise.catch(() => {});
     });
-    expect(screen.getByRole('alert').textContent).toBe('Cannot read README');
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Cannot read README',
+    );
     expect(screen.queryByText(/Selected owner is unavailable/)).toBeNull();
     expect(screen.queryByRole('option')).toBeNull();
     vi.mocked(fetchOwners).mockResolvedValueOnce([owners[0]!]);
@@ -237,7 +239,7 @@ test.each(['create', 'edit'] as const)(
         name: mode === 'create' ? 'Save' : 'Save changes',
       }),
     );
-    await screen.findByText('Selected owner became invalid.');
+    await screen.findByText(/Selected owner became invalid/);
     expect(save.mock.calls[0]?.[mode === 'create' ? 0 : 1]).toMatchObject({
       owner: '/_projects/alpha/ready/',
       description: '**Draft notes**',
@@ -249,7 +251,7 @@ test.each(['create', 'edit'] as const)(
 test('missing original owner remains visible and title-only save omits owner even when discovery fails', async () => {
   vi.mocked(fetchOwners).mockRejectedValueOnce(new Error('Discovery failed'));
   const { save } = form('edit');
-  await screen.findByText('Discovery failed');
+  await screen.findByText(/Owners could not be loaded: Discovery failed/);
   expect(screen.getByText(/Selected: \/_projects\/missing\//u)).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Title'), {
     target: { value: 'Renamed' },

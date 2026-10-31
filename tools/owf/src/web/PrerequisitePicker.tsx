@@ -10,6 +10,7 @@ import type { BoardAction } from '../contracts/index.js';
 import { fetchBoard } from './client.js';
 import { ActionIdentity } from './ActionIdentity.js';
 import styles from './Board.module.css';
+import { useFeedback } from './Notifications.js';
 
 type TargetFact = BoardAction['blocking']['dependencies'][number];
 type Observations = Map<
@@ -74,6 +75,9 @@ export function PrerequisitePicker({
   onChange: (value: string[]) => void;
   children: ReactNode;
 }) {
+  const { clear, report } = useFeedback();
+  const lastTargetFailure = useRef<string | undefined>(undefined);
+  const targetRequest = useRef(0);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -106,10 +110,13 @@ export function PrerequisitePicker({
   }, []);
   const lookupTargets = useCallback(async () => {
     const request = ++requests.current;
+    targetRequest.current = request;
     setTargetRefresh({ request, stale: true, loading: true });
     try {
       const result = await fetchBoard();
       if (!alive.current) return;
+      if (targetRequest.current === request)
+        lastTargetFailure.current = undefined;
       setFacts((previous) =>
         rememberFacts(previous, result.actions, request, true),
       );
@@ -118,15 +125,23 @@ export function PrerequisitePicker({
           ? { request, stale: false, loading: false }
           : previous,
       );
-    } catch {
-      if (alive.current)
+    } catch (failure) {
+      if (alive.current && targetRequest.current === request) {
+        const message =
+          failure instanceof Error
+            ? failure.message
+            : 'Unable to read prerequisite facts.';
+        if (message !== lastTargetFailure.current)
+          report(`Prerequisite facts could not be refreshed: ${message}`);
+        lastTargetFailure.current = message;
         setTargetRefresh((previous) =>
           previous.request === request
             ? { request, stale: true, loading: false }
             : previous,
         );
+      }
     }
-  }, []);
+  }, [report]);
   // Source projections omit owner. They can refresh target facts, but never
   // advance the owner observation's own timestamp or erase a known path.
   useEffect(() => {
@@ -135,6 +150,7 @@ export function PrerequisitePicker({
   }, [current, lookupTargets]);
   useEffect(() => {
     if (!open) return;
+    clear();
     let active = true;
     const request = ++requests.current;
     setLoading(true);
@@ -152,18 +168,19 @@ export function PrerequisitePicker({
       },
       (failure: unknown) => {
         if (!active) return;
-        setError(
+        const message =
           failure instanceof Error
             ? failure.message
-            : 'Unable to find Actions.',
-        );
+            : 'Unable to find Actions.';
+        setError(message);
+        report(`Lookup failed: ${message}`);
         setLoading(false);
       },
     );
     return () => {
       active = false;
     };
-  }, [open, search, attempt]);
+  }, [open, search, attempt, clear, report]);
   function closePicker(focus = false) {
     setOpen(false);
     setSearch('');
@@ -209,6 +226,8 @@ export function PrerequisitePicker({
   }, [open, loading, error]);
   async function refreshAll() {
     if (refreshLock.current) return;
+    clear();
+    lastTargetFailure.current = undefined;
     refreshLock.current = true;
     if (open) searchInput.current?.focus();
     setRefreshing(true);
@@ -412,7 +431,7 @@ export function PrerequisitePicker({
             {loading && <p role="status">Finding Actions…</p>}
             {error && (
               <>
-                <p role="alert">Lookup failed: {error}</p>
+                <p role="status">Prerequisite lookup unavailable.</p>
                 <button
                   className={styles.compactButton}
                   type="button"

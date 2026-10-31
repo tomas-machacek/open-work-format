@@ -1,3 +1,5 @@
+import type { ComponentProps } from 'react';
+import { Notifications, useFeedback } from './Notifications.js';
 import { useEffect, useRef, useState } from 'react';
 import {
   DndContext,
@@ -81,7 +83,7 @@ const keyboardCoordinates: KeyboardCoordinateGetter = (event, { context }) => {
       }
     : undefined;
 };
-export function Board({
+function BoardContent({
   load,
   save = saveAction,
   move = updateActionState,
@@ -96,8 +98,9 @@ export function Board({
   editAction?: (id: string, input: EditActionRequest) => Promise<BoardAction>;
   active?: boolean;
   navigation?: BoardNavigation;
-  onRefresh?: () => void;
+  onRefresh?: (automatic?: boolean) => void;
 }) {
+  const feedback = useFeedback();
   const {
     data,
     error,
@@ -111,25 +114,18 @@ export function Board({
     apply,
     track,
     current,
-    includes,
-    isFiltered,
   } = useBoard(load, active, onRefresh);
+  const activeSurface = useRef(active);
+  useEffect(() => {
+    activeSurface.current = active;
+    return () => {
+      activeSurface.current = false;
+    };
+  }, [active]);
   const editorNavigation = useRef<EditorNavigation>(null);
   const [search, setSearch] = useState('');
   const [owner, setOwner] = useState('');
   const [recursive, setRecursive] = useState(false);
-  const [savedAction, setSavedAction] = useState<BoardAction>();
-  const saveNotice = savedAction
-    ? loading
-      ? `${savedAction.title}: saved successfully. Checking current board selection…`
-      : error
-        ? `${savedAction.title}: saved successfully. Board refresh could not be confirmed; refresh the board. Do not repeat the save.`
-        : includes(savedAction.id)
-          ? `${savedAction.title}: saved successfully.`
-          : isFiltered()
-            ? `${savedAction.title}: saved successfully but the Action does not match current filters.`
-            : `${savedAction.title}: saved successfully. The Action is no longer in the board results.`
-    : undefined;
   const draft: BoardQuery = {
     ...(search.trim() ? { search: search.trim() } : {}),
     ...(owner ? { owner, recursive } : {}),
@@ -153,23 +149,23 @@ export function Board({
   }, []);
   function saved(action: BoardAction) {
     accept(action);
-    setSavedAction(action);
-    void refresh();
+    void refresh(false, `Save “${action.title}”`);
   }
   const [editing, setEditing] = useState<BoardAction['state']>();
   const [detail, setDetail] = useState<BoardAction>();
   const [dragging, setDragging] = useState(false);
   const suppressOpen = useRef(new Set<string>());
   const [pending, setPending] = useState<Set<string>>(new Set());
+  const [uncertainMove, setUncertainMove] = useState(false);
+  useEffect(() => {
+    if (!loading && !error) setUncertainMove(false);
+  }, [loading, error]);
   const navigationDisabled =
     editing !== undefined || pending.size > 0 || dragging;
   const [pendingActions, setPendingActions] = useState<
     Map<string, { action: BoardAction; scope: string }>
   >(new Map());
   const moving = useRef(new Set<string>());
-  const [moveErrors, setMoveErrors] = useState<Record<string, string>>({});
-  const [deletionNotice, setDeletionNotice] = useState<string>();
-  const [moveNotice, setMoveNotice] = useState<string>();
   const [announcement, setAnnouncement] = useState('');
   useEffect(() => {
     if (
@@ -208,7 +204,12 @@ export function Board({
     }),
   );
   async function changeState(action: BoardAction, state: BoardAction['state']) {
-    if (!active || state === action.state || moving.current.has(action.id))
+    if (
+      !active ||
+      uncertainMove ||
+      state === action.state ||
+      moving.current.has(action.id)
+    )
       return;
     const hadFocus =
       document.activeElement
@@ -222,12 +223,7 @@ export function Board({
         scope: JSON.stringify(resultQuery),
       }),
     );
-    setMoveErrors((old) => {
-      const next = { ...old };
-      delete next[action.id];
-      return next;
-    });
-    setMoveNotice(undefined);
+    feedback.clear();
     try {
       const saved = await move(action.id, {
         state,
@@ -239,13 +235,15 @@ export function Board({
             : { waiting_for: action.waiting_for }),
         },
       });
+      if (!activeSurface.current) return;
       if (hadFocus) setFocusAfterMove(saved.id);
       accept(saved);
-      void refresh();
+      void refresh(false, `Move “${action.title}”`);
       setAnnouncement(
         `${action.title} moved to ${columns.find(([s]) => s === saved.state)?.[1]}.`,
       );
     } catch (failure) {
+      if (!activeSurface.current) return;
       let message =
         failure instanceof Error ? failure.message : 'Unable to move Action.';
       if (
@@ -254,20 +252,14 @@ export function Board({
       )
         message +=
           ' Resolve prerequisites or clear the manual block in Action detail and save before retrying the move.';
-      setMoveErrors((old) => ({ ...old, [action.id]: message }));
+      feedback.report(`Move “${action.title}”: ${message}`);
+      if (failure instanceof StateUpdateError && failure.code === 'UNCERTAIN')
+        setUncertainMove(true);
       if (
         failure instanceof StateUpdateError &&
         failure.code === 'ACTION_CONFLICT'
       )
-        setMoveNotice(
-          `${action.title}: ${message} The board is refreshing to show the current Action.`,
-        );
-      setAnnouncement(`${action.title}: ${message}`);
-      if (
-        failure instanceof StateUpdateError &&
-        failure.code === 'ACTION_CONFLICT'
-      )
-        void refresh();
+        void refresh(true);
     } finally {
       moving.current.delete(action.id);
       setPending(new Set(moving.current));
@@ -346,6 +338,7 @@ export function Board({
         </div>
         <OwnerPicker
           allowAll
+          active={active}
           value={owner}
           onChange={(value) => {
             setOwner(value);
@@ -399,44 +392,21 @@ export function Board({
           {data?.workspace.root ?? 'Connecting to local Workspace…'}
         </p>
         <p role="status" aria-label="Board refresh">
-          {error
-            ? data
-              ? 'Not current · refresh failed'
-              : 'Unable to load'
-            : loading
+          {uncertainMove
+            ? 'Move outcome unconfirmed · Refresh before moving again'
+            : error
               ? data
-                ? 'Refreshing…'
-                : 'Loading Actions…'
-              : pendingActions.size
-                ? `${visibleActions.length} displayed Actions · move pending (previous card snapshots)`
-                : `${data?.actions.length ?? 0} ${filtered ? 'matching Actions' : 'Actions'} · up to date`}
+                ? 'Not current · refresh failed'
+                : 'Unable to load'
+              : loading
+                ? data
+                  ? 'Refreshing…'
+                  : 'Loading Actions…'
+                : pendingActions.size
+                  ? `${visibleActions.length} displayed Actions · move pending (previous card snapshots)`
+                  : `${data?.actions.length ?? 0} ${filtered ? 'matching Actions' : 'Actions'} · up to date`}
         </p>
       </div>
-      {error && (
-        <div role="alert" className={styles.error}>
-          <strong>
-            {data
-              ? 'These Actions may be out of date.'
-              : 'Actions could not be loaded.'}
-          </strong>{' '}
-          {error} Use Retry to read the Workspace again.
-        </div>
-      )}
-      {deletionNotice && (
-        <p role="status" className={styles.scope}>
-          {deletionNotice}
-        </p>
-      )}
-      {moveNotice && (
-        <div role="alert" className={styles.error}>
-          {moveNotice}
-        </div>
-      )}
-      {saveNotice && (
-        <p role="status" className={styles.scope}>
-          {saveNotice}
-        </p>
-      )}
       {data && visibleActions.length === 0 && !loading && !error && (
         <p className={styles.emptyBoard}>
           {filtered
@@ -464,6 +434,7 @@ export function Board({
           setAnnouncement('Move cancelled.');
         }}
         onDragStart={(event) => {
+          feedback.clear();
           setDragging(true);
           suppressOpen.current.add(String(event.active.id));
           const action = data?.actions.find(
@@ -499,7 +470,10 @@ export function Board({
                   onClick={() => {
                     if (editing === state)
                       document.getElementById('action-title')?.focus();
-                    else setEditing(state);
+                    else {
+                      feedback.clear();
+                      setEditing(state);
+                    }
                   }}
                 >
                   + Add Action
@@ -522,9 +496,10 @@ export function Board({
                       key={action.id}
                       action={action}
                       pending={pending.has(action.id)}
-                      error={moveErrors[action.id]}
+                      movementDisabled={uncertainMove}
                       onOpen={(selected) => {
                         if (!suppressOpen.current.has(selected.id) && !detail) {
+                          feedback.clear();
                           track(selected);
                           setDetail(selected);
                         }
@@ -548,13 +523,12 @@ export function Board({
           current={current}
           factsStale={!!error || loading}
           save={editAction}
-          refresh={async () => {
-            return refresh();
+          refresh={async (automatic) => {
+            return refresh(automatic);
           }}
           onDeleted={(id) => {
             remove(id);
-            setDeletionNotice('Action deleted permanently.');
-            void refresh();
+            void refresh(false, 'Deletion');
           }}
           onSaved={saved}
           onClose={() => {
@@ -583,4 +557,12 @@ export function Board({
 
 function describeScope(query: BoardQuery) {
   return `${query.search === undefined ? 'All text' : `Search “${query.search}”`} · ${query.owner ?? 'All owners'}${query.owner ? (query.recursive ? ' including descendant Outcomes' : ' directly owned') : ''}`;
+}
+
+export function Board(props: ComponentProps<typeof BoardContent>) {
+  return (
+    <Notifications>
+      <BoardContent {...props} />
+    </Notifications>
+  );
 }

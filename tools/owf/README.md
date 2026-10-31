@@ -731,11 +731,19 @@ control drafts; a page reload restores defaults. Previous results are labeled
 while a different scope loads, and read errors retain the last successful scope.
 Creation still defaults to Workspace and the chosen column. After a filtered
 create/edit, the server determines membership again. A save outside the selection
-is announced as successful; a failed membership read is reported separately and
+has no success confirmation; a failed membership read is reported separately and
 must not prompt repeating the save. Editor drafts survive selection exclusion.
 Already displayed cards retain confirmed saved values if the subsequent read
 fails; their filter membership is marked unconfirmed until a successful refresh.
-Save notices follow the latest board selection and refresh outcome.
+Successful create, edit, delete, state changes, View moves and reorders are silent.
+Errors appear one at a time in a floating notification for eight seconds, with a
+**Dismiss notification** control. Hovering or focusing it pauses expiry; leaving
+resumes the remaining time. A new explicit attempt or board/View selection clears
+old feedback. Editor errors appear inside the active dialog and preserve drafts.
+Field validation stays beside its input. Expiring or dismissing an error leaves
+stale/unavailable indicators, Retry/Refresh controls and uncertain-write recovery
+restrictions in place. A confirmed write followed by a failed refresh explicitly
+says the write completed; refresh instead of repeating the write.
 
 Click a card (or press Enter while it is focused) to open its detail editor.
 Blocked cards show a compact **Blocked** badge with `manual`, the unresolved
