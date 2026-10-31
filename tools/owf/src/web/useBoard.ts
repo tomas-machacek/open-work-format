@@ -95,7 +95,9 @@ export function useBoard(
   const refresh = useCallback(
     async function refresh(automatic = false, completedWrite?: string) {
       if (completedWrite) completedWritePending.current = completedWrite;
-      if (automatic && inFlight.current) {
+      // A confirmed write needs a new snapshot immediately; only background
+      // refreshes can wait for an existing read to finish.
+      if (automatic && !completedWrite && inFlight.current) {
         pendingReturn.current = true;
         return false;
       }

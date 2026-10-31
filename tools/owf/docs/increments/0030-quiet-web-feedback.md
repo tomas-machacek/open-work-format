@@ -264,6 +264,38 @@ Only documentation/evidence changes follow this verified revision; their
 formatting and `git diff --check` are checked separately. Independent code review
 is still pending, and the increment/index remain `in_progress`.
 
+### Confirmed-move refresh repair on 2026-10-31
+
+The user reported a failing `npm run verify` after revision
+`cd64869fcf312d66f301edd3c8fa0cf0817df9ff`. The failure was reproduced in the
+component regression for a confirmed filtered move with an older read still
+pending. The move's refresh was incorrectly coalesced behind that read, delaying
+the post-write snapshot and its failure feedback.
+
+`useBoard` now starts a new snapshot immediately when a refresh carries confirmed
+write context. Ordinary automatic refreshes still coalesce, and superseded
+responses still cannot replace confirmed data or publish stale errors. The
+existing regression now explicitly checks that the new read starts before the
+older read finishes and that its failure identifies the completed move and warns
+against repeating the write (AC6–AC7).
+
+Focused verification: `npx vitest run src/web/Board.test.tsx
+src/web/Notifications.test.tsx` passed all 38 tests. Local diff review checked
+request supersession, retained write context and unchanged background-refresh
+coalescing. This repair does not complete the pending independent review of the
+whole increment; its status and index remain `in_progress`.
+
+Full `npm run verify` passed with exit 0 on Windows x64, Node 24.21.0,
+npm 11.4.1 and headless Chromium against that base revision plus this repair.
+Typecheck, ESLint, formatting, architecture and production build passed, as did
+213 unit/component tests, 291 integration tests, 40 acceptance scenarios / 222
+steps, 36 CLI end-to-end tests and 31 Chromium tests. Vite encountered sandbox
+`spawn EPERM` during the first post-fix aggregate attempt; the successful full
+run used execution outside that sandbox. The complete successful log is retained
+in [verification-refresh-fix-windows.txt](evidence/0030/verification-refresh-fix-windows.txt).
+Only documentation/evidence updates follow this verification; their formatting
+and `git diff --check` are checked separately. Linux was not tested.
+
 ### Initial handoff verification on 2026-10-31
 
 Platform: Windows x64 (NT 10.0.26300), PowerShell 7.6.9, Node 24.21.0,

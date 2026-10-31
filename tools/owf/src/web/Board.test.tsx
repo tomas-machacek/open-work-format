@@ -423,11 +423,14 @@ test('a confirmed filtered move survives failed membership reads and older respo
       /membership in the current filters has not been confirmed/,
     ),
   ).toBeTruthy();
+  await waitFor(() => expect(load).toHaveBeenCalledTimes(4));
   await act(async () => {
     membership.reject(new Error('Membership unavailable'));
     await membership.promise.catch(() => undefined);
   });
-  await screen.findByText(/Membership unavailable/);
+  await screen.findByText(
+    /Move “First” completed\. Do not repeat the write\. Board refresh failed: Membership unavailable/,
+  );
   await act(async () => {
     old.resolve(data);
     await old.promise;
