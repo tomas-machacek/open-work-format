@@ -194,7 +194,7 @@ within the constraints above.
 
 ## Implementation and review outcome
 
-Implementation/test revision: `8e7237597131eaeaae761eebdadaffe97ccd8139`.
+Original frontend implementation/test revision: `8e7237597131eaeaae761eebdadaffe97ccd8139`.
 Independent code review is pending; the increment and index remain `in_progress`.
 
 ### Delivered behavior
@@ -220,18 +220,63 @@ Independent code review is pending; the increment and index remain `in_progress`
 - The web README explains the feedback policy. No domain, HTTP contract, CLI,
   store, schema, migration, dependency or release behavior changes.
 
-### Verification on 2026-10-31
+### CLI test split and follow-up verification
+
+After the initial handoff, the user approved splitting the timing-sensitive CLI
+deletion test. This is a test-organization follow-up; production behavior and all
+existing timeout settings remain unchanged.
+
+Test revision: `460991b5ac4daf053b1cbb65418359b55745e0c6`.
+
+The former combined rejection case is now five independently reported cases:
+incoming-reference refusal and recovery; invalid Action arguments; invalid View
+arguments; missing identities; and repeated deletion. Each has an isolated
+Workspace. The populated Action/dependency fixture and all exit-code, error-output
+and filesystem/SQLite preservation assertions are retained, including surviving
+Action data in the repeated-deletion case. The original successful-deletion
+journey is unchanged. No test is disabled and no assertion, timeout or retry gate
+was relaxed.
+
+Focused verification on the same Windows/Node/npm platform below:
+`npm run typecheck`, `npm run lint` and
+`npx vitest run tests/e2e/delete-cli.test.ts --reporter=verbose` passed. All six
+cases in the file passed; the five new cases took 0.81–1.73 seconds each in that
+run, while the unchanged successful-deletion case took 2.61 seconds.
+
+The full **`npm run verify` passed, exit 0**, against that committed revision on
+Windows x64, Node 24.21.0, npm 11.4.1 and headless Chromium:
+
+| Check                                                          | Actual result                   |
+| -------------------------------------------------------------- | ------------------------------- |
+| Typecheck, ESLint, Prettier, architecture and production build | Passed                          |
+| Unit/component                                                 | 213 tests passed                |
+| Integration                                                    | 291 tests passed                |
+| Acceptance                                                     | 40 scenarios / 222 steps passed |
+| Built CLI end-to-end                                           | 36 tests passed, five files     |
+| Chromium end-to-end                                            | 31 tests passed                 |
+
+The aggregate command now reaches and passes Chromium, resolving the initial
+handoff's CLI timeout limitation in this run. The CLI count increased from 32 to
+36 because one combined test became five focused tests. The full log is retained
+in [verification-after-cli-split-windows.txt](evidence/0030/verification-after-cli-split-windows.txt).
+The earlier failed-run log and results below remain historical evidence.
+Only documentation/evidence changes follow this verified revision; their
+formatting and `git diff --check` are checked separately. Independent code review
+is still pending, and the increment/index remain `in_progress`.
+
+### Initial handoff verification on 2026-10-31
 
 Platform: Windows x64 (NT 10.0.26300), PowerShell 7.6.9, Node 24.21.0,
 npm 11.4.1, Playwright 1.63.0 with headless Chromium. Vite/Playwright initially
 encountered sandbox `spawn EPERM`; actual build/test runs used execution outside
 that sandbox.
 
-The final `npm run verify` exited **1** in the unchanged CLI deletion test:
+At the initial handoff, `npm run verify` exited **1** in the unchanged CLI deletion test:
 its second case took 5.12 seconds against the existing five-second timeout.
 All preceding gates passed. The aggregate command therefore did not reach
 Chromium; `npm run test:browser` was run separately against this revision.
-The aggregate verification gate is **not green**. The separate complete Chromium
+That initial aggregate verification gate was **not green**; this is historical
+evidence, separate from the follow-up result above. The separate complete Chromium
 run exited **0** with all **31 tests passed**. Raw results are retained in
 [verification-windows.txt](evidence/0030/verification-windows.txt) and
 [browser-windows.txt](evidence/0030/browser-windows.txt).
@@ -294,9 +339,10 @@ For controlled errors run `npm run test:browser -- quiet-feedback.spec.ts` from
 
 ### Deviations, limitations and review state
 
-The unresolved verification limitation is the timing-sensitive CLI gate above;
-its existing timeouts and checks were preserved. This handoff is for independent
-review with that limitation explicitly open, not a claim of a green aggregate.
+The initial handoff's CLI timeout limitation is resolved by the user-authorized
+test split and passing full verification recorded above. The original failed-run
+evidence remains available for history. No verification failure remains in this
+final run; independent code review is pending.
 
 No substantive scope or design deviation was required. No new domain acceptance
 scenarios or generated Workspace guidance changes were needed for this frontend
@@ -305,13 +351,17 @@ not tested. Keyboard/live-region behavior is covered through component and
 Chromium checks; no human try-out or independent code review is claimed.
 
 No unresolved frontend failure was observed in the final component/browser
-checks. The final documentation/evidence update follows the verified source;
-its formatting and `git diff --check` are checked separately.
+checks. Documentation/evidence updates follow their verified source revisions;
+their formatting and `git diff --check` are checked separately.
 
 Independent review is the next step. The increment remains `in_progress`; it has
 not been marked completed, merged or released.
 
 ## Decision changes and follow-up
+
+The user approved the CLI deletion test split after the initial handoff, to keep
+its distinct safety checks within independently reported cases rather than
+disabling them or increasing timeouts. This changes test organization only.
 
 This increment replaces persistent visible operation confirmations with silent
 success and temporary errors. Field validation, loading state and persistent
