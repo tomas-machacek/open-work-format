@@ -1,0 +1,42 @@
+
+> @owf/tool@0.0.0 test:browser
+> playwright test
+
+
+Running 31 tests using 1 worker
+
+(node:27832) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 tests\e2e\board-blocking.spec.ts:24:3 › blocking across filtered Projects with keyboard at 1440px (22.6s)
+  ok  2 tests\e2e\board-blocking.spec.ts:24:3 › blocking across filtered Projects with keyboard at 390px (19.2s)
+  ok  3 tests\e2e\board.spec.ts:9:1 › search and recursive owner scope match CLI; excluded writes and keyboard movement stay usable (6.9s)
+  ok  4 tests\e2e\board.spec.ts:248:1 › built board quietly reflects a CLI change on return to the tab (3.3s)
+  ok  5 tests\e2e\board.spec.ts:372:1 › create a Waiting Action with Outcome owner and verify persisted values through CLI (3.8s)
+  ok  6 tests\e2e\board.spec.ts:465:1 › drag an Action into Waiting without a reason, then complete and reopen it (7.9s)
+  ok  7 tests\e2e\board.spec.ts:690:1 › edit a Waiting Action in detail and still move its card by dragging (3.8s)
+  ok  8 tests\e2e\layout.spec.ts:27:3 › board width, horizontal columns and persistent editor controls at 1920x1080 (10.3s)
+  ok  9 tests\e2e\layout.spec.ts:27:3 › board width, horizontal columns and persistent editor controls at 390x844 (9.8s)
+  ok 10 tests\e2e\layout.spec.ts:27:3 › board width, horizontal columns and persistent editor controls at 1280x600 (8.2s)
+  ok 11 tests\e2e\quiet-feedback.spec.ts:18:3 › quiet feedback geometry, modal focus and recovery at 1920x1080 (4.1s)
+  ok 12 tests\e2e\quiet-feedback.spec.ts:18:3 › quiet feedback geometry, modal focus and recovery at 390x844 (3.9s)
+  ok 13 tests\e2e\view-create-delete.spec.ts:42:1 › View creation restores keyboard focus after render while refresh is held or fails (2.5s)
+  ok 14 tests\e2e\view-create-delete.spec.ts:128:1 › View deletion updates the retained Default Kanban even when its next read fails (902ms)
+  ok 15 tests\e2e\view-create-delete.spec.ts:189:3 › create, cancel and globally delete in both modes at 1920x1080 (2.1s)
+  ok 16 tests\e2e\view-create-delete.spec.ts:189:3 › create, cancel and globally delete in both modes at 390x844 (1.9s)
+  ok 17 tests\e2e\view-create-delete.spec.ts:189:3 › create, cancel and globally delete in both modes at 1280x600 (1.9s)
+  ok 18 tests\e2e\view-move-interaction.spec.ts:68:1 › compact board has stable generous insertion regions; pointer moves preserve explicit and append semantics (5.8s)
+  ok 19 tests\e2e\view-move-interaction.spec.ts:234:1 › native text selection and copy, click/detail, cancellation and controls stay distinct from background drag (6.0s)
+  ok 20 tests\e2e\view-move-interaction.spec.ts:349:3 › pending ordinary move blocks cancellation, another drag, detail and navigation (1.2s)
+  ok 21 tests\e2e\view-move-interaction.spec.ts:349:3 › pending reason move blocks cancellation, another drag, detail and navigation (1.3s)
+  ok 22 tests\e2e\view-move-interaction.spec.ts:453:1 › keyboard announces exact insertion and append, restores focus and keeps Enter distinct from Space (1.6s)
+  ok 23 tests\e2e\view-move-interaction.spec.ts:504:1 › narrow touch scrolls long columns and the horizontal board; text holds never pick up, background holds reorder (4.2s)
+  ok 24 tests\e2e\view-move-interaction.spec.ts:583:1 › Home, End and pointer scrolling reach visible targets in a long column and persist positions (2.2s)
+  ok 25 tests\e2e\view-move-interaction.spec.ts:671:3 › independent review regressions › keyboard Blocked entry keeps focus and Tab inside its dialog; Escape cancels without writes (990ms)
+  ok 26 tests\e2e\view-move-interaction.spec.ts:698:3 › independent review regressions › reason cancellation restores the visible View card even when refresh fails (890ms)
+  ok 27 tests\e2e\view-move-interaction.spec.ts:718:3 › independent review regressions › completion restores the moved View card after Tab during a pending write (944ms)
+  ok 28 tests\e2e\view-move-interaction.spec.ts:754:3 › independent review regressions › a new text selection cancels another card's deferred click and remains copyable (1.7s)
+  ok 29 tests\e2e\view-move.spec.ts:10:1 › CLI and web View organization persist; pointer, keyboard and Blocked reason flow (12.4s)
+  ok 30 tests\e2e\views.spec.ts:15:3 › Views, shared edits and default return at 1440px (10.6s)
+  ok 31 tests\e2e\views.spec.ts:15:3 › Views, shared edits and default return at 390px (10.6s)
+
+  31 passed (3.0m)
