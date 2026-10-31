@@ -198,6 +198,11 @@ function ActionEditorContent({
       errorMessage.current?.scrollIntoView?.({ block: 'nearest' });
       return;
     }
+    if (baseline.state === 'waiting' && reason !== '' && !reason.trim()) {
+      setError('Waiting for must contain nonblank text.');
+      errorMessage.current?.scrollIntoView?.({ block: 'nearest' });
+      return;
+    }
     const changes: Omit<EditActionRequest, 'expected'> = {};
     if (manualDirty) {
       if (manual) changes.manualBlock = manualReason;
@@ -461,9 +466,21 @@ function ActionEditorContent({
                     id="edit-reason"
                     rows={2}
                     value={reason}
-                    onChange={(event) => setReason(event.target.value)}
+                    onChange={(event) => {
+                      setReason(event.target.value);
+                      if (event.target.value.trim()) setError(undefined);
+                    }}
                     disabled={saving}
                   />
+                  {error === 'Waiting for must contain nonblank text.' && (
+                    <p
+                      ref={errorMessage}
+                      className={styles.formError}
+                      role="alert"
+                    >
+                      {error}
+                    </p>
+                  )}
                 </>
               )}
               <dl className={styles.editorMeta}>

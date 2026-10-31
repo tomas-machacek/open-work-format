@@ -157,9 +157,6 @@ function BoardContent({
   const suppressOpen = useRef(new Set<string>());
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [uncertainMove, setUncertainMove] = useState(false);
-  useEffect(() => {
-    if (!loading && !error) setUncertainMove(false);
-  }, [loading, error]);
   const navigationDisabled =
     editing !== undefined || pending.size > 0 || dragging;
   const [pendingActions, setPendingActions] = useState<
@@ -238,7 +235,7 @@ function BoardContent({
       if (!activeSurface.current) return;
       if (hadFocus) setFocusAfterMove(saved.id);
       accept(saved);
-      void refresh(false, `Move “${action.title}”`);
+      void refresh(true, `Move “${action.title}”`);
       setAnnouncement(
         `${action.title} moved to ${columns.find(([s]) => s === saved.state)?.[1]}.`,
       );
@@ -253,8 +250,9 @@ function BoardContent({
         message +=
           ' Resolve prerequisites or clear the manual block in Action detail and save before retrying the move.';
       feedback.report(`Move “${action.title}”: ${message}`);
-      if (failure instanceof StateUpdateError && failure.code === 'UNCERTAIN')
+      if (failure instanceof StateUpdateError && failure.code === 'UNCERTAIN') {
         setUncertainMove(true);
+      }
       if (
         failure instanceof StateUpdateError &&
         failure.code === 'ACTION_CONFLICT'
@@ -314,7 +312,9 @@ function BoardContent({
         </div>
         <button
           onClick={() => {
-            void refresh();
+            void refresh().then((current) => {
+              if (current) setUncertainMove(false);
+            });
           }}
         >
           {error ? 'Retry' : 'Refresh'} <span aria-hidden="true">↻</span>
