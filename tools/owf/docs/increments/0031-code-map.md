@@ -1,11 +1,11 @@
 # 0031 — Code map and agent navigation
 
-> Status: draft
+> Status: reviewed
 > Description: Provide a compact map of current implementation entry points and task-specific reading and verification paths.
 > Depends on: [0030 — Quiet web operation feedback](0030-quiet-web-feedback.md).
 
-Scope and sequencing were agreed on 2026-11-02. This document proposes the
-detailed design and acceptance criteria; implementation has not started.
+Scope and sequencing were agreed on 2026-11-02. The user confirmed design review
+and approved this document for implementation on 2026-11-02.
 Planning branch: `increment/0031-code-map`, based on main at `b1a5761`.
 
 ## Goal and scope
@@ -123,8 +123,8 @@ guides, CLI help or Workspace examples.
 
 ## Open questions
 
-None blocking the proposed design. Wording and section organization are routine
-editorial choices within this scope. The detailed proposal remains draft.
+None blocking implementation. Wording and section organization are routine
+editorial choices within the reviewed scope.
 
 ## Implementation and review outcome
 
