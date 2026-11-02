@@ -51,6 +51,7 @@ link and a one-line description; keep its status in sync.
 | [0029 — Progressive Workspace agent guidance](0029-workspace-agent-guidance.md)        | Generate a compact agent entry point, linked offline Knowledge guides and enforce guidance maintenance checks.     | completed |
 | [0030 — Quiet web operation feedback](0030-quiet-web-feedback.md)                      | Remove visible success confirmations and show temporary errors without shifting board layout.                      | completed |
 | [0031 — Code map and agent navigation](0031-code-map.md)                               | Map current implementation entry points and guide task-specific reading and verification.                          | completed |
+| [0033 — Web coordination modularity brief](0033-web-coordination.md)                   | Outline refresh and confirmed-write modularity for detailed design after 0032.                                     | draft     |
 
 0022 depends on completed [0021](0021-view-evaluation-cli.md), merged through [PR #27](https://github.com/tomas-machacek/open-work-format/pull/27).
 
