@@ -1,7 +1,7 @@
 # 0032 — Measured and focused verification workflow
 
 > Status: draft
-> Description: Measure verification stages, document focused checks and optimize demonstrated test overhead while preserving complete handoff verification.
+> Description: Measure verification stages, document focused checks, keep the code map compact and optimize demonstrated test overhead while preserving complete handoff verification.
 > Depends on: Completion of 0031 — Code map and agent navigation.
 
 Scope and sequencing were agreed on 2026-11-02. This document proposes the
@@ -9,6 +9,8 @@ detailed design and acceptance criteria; implementation has not started.
 Planning branch: `increment/0032-verification-workflow`, independently based on
 main at `b1a5761`. The 0031 proposal is in `increment/0031-code-map`; integrate
 completed 0031 before implementation and add its document link at that point.
+On 2026-11-02 the user also agreed to include a code-map size check and maintenance
+instructions preserving essential navigation and readable text.
 
 ## Goal and scope
 
@@ -25,8 +27,9 @@ account for approximately 90% of recorded test-group duration. This is historica
 Windows evidence, not a new benchmark or proof of redundant tests. Whole-file CLI
 parallelism is disabled and Playwright uses one worker.
 
-Scope includes portable verification timing, a task-to-check guide, an audit of
-the expensive journeys and evidence-backed improvements to test setup or execution.
+Scope includes portable verification timing, a task-to-check guide, a code-map
+word budget with maintenance instructions, an audit of the expensive journeys
+and evidence-backed improvements to test setup or execution.
 Preserve all required checks and the observable CLI, HTTP, domain and UI behavior.
 Frontend production restructuring is reserved for the later 0033 brief.
 
@@ -42,8 +45,9 @@ References: [development guidelines](../development-guidelines.md),
 Use a small portable Node runner under `scripts/` behind `npm run verify`. Keep
 the existing required stages and their order: typecheck, lint, formatting,
 architecture, build, unit/component, integration, acceptance, CLI E2E and browser
-E2E. Invoke the existing npm scripts as child processes, streaming their output;
-do not build a second test discovery or selection system.
+E2E. Add the code-map check described below after formatting, keeping the relative
+order of the existing stages. Invoke npm scripts as child processes, streaming
+their output; do not build a second test discovery or selection system.
 
 Expose CLI E2E as a named `test:cli` script so it can be timed and selected
 independently. Retain `test:e2e` as the aggregate CLI-plus-browser command and
@@ -75,6 +79,46 @@ Selection is a development aid, not an automatic proof of change impact. Explain
 how to inspect adjacent callers and nonlocal effects. Full `npm run verify`
 remains required for code handoff. Reuse verification of an unchanged revision
 during independent review; a concrete changed risk determines further checks.
+
+### Code-map size and maintenance discipline
+
+Add a lightweight `npm run code-map:check` command for `docs/code-map.md`, delivered
+by 0031, and include it as a timed required stage of `npm run verify`. Set a maximum
+of **1,500 counted words**, including the boundary value. Keep the limit in one
+authoritative location in the checker, document it and add no dependency.
+
+Use a deterministic count of whitespace-separated Markdown source tokens that
+contain at least one Unicode letter or digit. Headings, table content, code and
+path/link text count; standalone punctuation and table separators do not. Extra
+table padding, line wrapping and LF versus CRLF must not change the count. This
+is an approximate word budget, not a measurement of model tokens or reading time.
+
+The command reports the path, actual count when readable and ceiling, and fails
+when the count exceeds the ceiling or the file cannot be read. Read failures have
+an explicit diagnostic. The oversize failure message directs the
+agent to preserve useful navigation while moving excess detail to its primary
+documentation home. Documentation-only recipes include this command whenever
+the map changes, alongside formatting, link and diff checks.
+
+Extend the code-map maintenance guidance introduced by 0031 in
+`docs/development-guidelines.md` and the map's Maintenance section with these rules:
+
+- Preserve important entry-point names, task routes, authoritative rule/test
+  links, nonlocal-effect warnings and verification/build prerequisites. Retain
+  enough explanation for an unfamiliar agent to choose the correct route.
+- When the budget is exceeded, first remove duplication or stale material and
+  move detailed explanations to their primary architecture, topic or increment
+  document, retaining a concise useful summary and direct link in the map.
+- Keep natural, readable prose. Do not delete important words or links, use opaque
+  abbreviations, concatenate words, or relocate essential orientation into another
+  mandatory map merely to satisfy the numeric check.
+- Do not raise or bypass the ceiling silently. If essential navigation cannot fit
+  after sensible editing, record the trade-off for a separately agreed budget or
+  navigation-design change instead of weakening the map.
+
+The automated check measures size only. Review must also verify that the selected
+task routes remain discoverable and their important links remain intact; a smaller
+file alone is not a successful outcome.
 
 ### Measure first, then make bounded improvements
 
@@ -130,6 +174,14 @@ examples and the generated AGENTS.md ceiling are unaffected.
 - **AC6 — Complete handoff:** full `npm run verify` passes on the final code/test/
   configuration revision; focused checks and historical evidence are distinguished
   from that result. The outcome supplies findings useful for detailing 0033.
+- **AC7 — Bounded code map:** `npm run code-map:check` accepts at most 1,500 counted
+  words, reports path/count/ceiling, rejects oversize or unreadable input and runs
+  once within the timed full verification. Its counting rules are documented and
+  unaffected by table padding, wrapping or line-ending differences.
+- **AC8 — Useful maintenance:** the guidelines and map explain how to reduce size
+  while retaining essential words, names, links, routes and readable explanations.
+  The four representative 0031 navigation routes remain usable after any map
+  edits. Passing the size check does not substitute for navigation/link review.
 
 ## Verification plan
 
@@ -145,12 +197,25 @@ examples and the generated AGENTS.md ceiling are unaffected.
   Where parallelism changes, test concurrent execution with separate resources
   and demonstrate cleanup after a controlled failure. Do not enable concurrency
   solely because one successful run happened to pass.
+- For AC7, exercise counts below, exactly at and above 1,500, Unicode text,
+  Markdown table padding/wrapping, LF/CRLF and missing/unreadable input. Check
+  diagnostics and nonzero propagation through the aggregate. Demonstrate a
+  representative oversize map fails without weakening the limit, then remove the
+  temporary probe. Keep tests focused on the contractual boundary and failure
+  behavior, not implementation call sequences.
+- For AC8, inspect the maintenance instructions and repeat 0031's CLI Action,
+  View ordering, web refresh and generated-guidance navigation walkthroughs.
+  Check important rule/test links and summaries against the pre-edit map. Confirm
+  any size reduction came from removing duplication/stale material or extracting
+  detail with retained summaries/links, rather than losing essential orientation.
 - Run applicable focused checks during implementation and full `npm run verify`
   before handoff. Record actual Windows results; command design must remain
   portable without claiming an unperformed Linux run. Keep benchmark evidence
   under `docs/increments/evidence/0032/` and link it from the outcome.
 - Human check: choose a changed area in the guide, run its focused command, then
   run the aggregate and inspect the stage summary and exit status.
+  For a map edit, also run `npm run code-map:check` and review retained task routes
+  and links; a passing count alone does not establish useful navigation.
 
 ## Open questions
 
@@ -166,6 +231,12 @@ actual checks/platform, failure-probe results and review findings. Do not claim
 reduced overall agent implementation time from test timings alone.
 
 ## Decision changes and follow-up
+
+On 2026-11-02, the user expanded 0032 to include the 1,500-word code-map gate and
+explicit maintenance instructions protecting useful prose, names and links.
+This adds a documentation check to the verification workflow; it does not extend
+the separate generated Workspace AGENTS.md ceiling to repository files or change
+0031's delivered documentation scope. Detailed implementation remains pending.
 
 After 0032 is completed, revisit the 0033 frontend-coordination brief using the
 current source tree, navigation map and verification evidence. Agree its detailed
