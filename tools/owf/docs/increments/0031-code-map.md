@@ -1,11 +1,12 @@
 # 0031 — Code map and agent navigation
 
-> Status: reviewed
+> Status: in_progress
 > Description: Provide a compact map of current implementation entry points and task-specific reading and verification paths.
 > Depends on: [0030 — Quiet web operation feedback](0030-quiet-web-feedback.md).
 
 Scope and sequencing were agreed on 2026-11-02. The user confirmed design review
 and approved this document for implementation on 2026-11-02.
+Implementation started on 2026-11-02; independent implementation review is pending.
 Planning branch: `increment/0031-code-map`, based on main at `b1a5761`.
 
 ## Goal and scope
@@ -128,9 +129,77 @@ editorial choices within the reviewed scope.
 
 ## Implementation and review outcome
 
-Pending implementation and review. The audit's successful architecture check is
-historical evidence, not verification of this future change. Record the delivered
-navigation routes, changed reading set, checks, platform and review outcome here.
+Design review and implementation approval were confirmed by the user on
+2026-11-02 and recorded separately in commit `67898aa`. Documentation implementation
+is delivered on `increment/0031-code-map`; independent implementation review is
+pending, so the document and index remain `in_progress`.
+
+### Delivered navigation and architecture alignment
+
+- `docs/code-map.md` provides current layer/public-entry navigation, CLI/HTTP/web
+  execution paths, task-to-code/rules/tests routes and existing focused commands.
+  It identifies transactional Action/View effects, differing refresh policies,
+  retained Default-board state and API-client event producers/consumers (AC1).
+- Repository `AGENTS.md` starts with the current increment and map, then relevant
+  sections. Authority, scope, architecture boundaries, meaningful tests and full
+  code-handoff verification remain mandatory. The guidelines document map
+  maintenance and the developer README links to it (AC2, AC5).
+- Architecture now separates the implemented baseline, deferred capabilities and
+  historical delivery decisions. It corrects stale View/read-only claims, current
+  schema and HTTP protection status, and the unimplemented React Router/URI-handler
+  paths. Decision rationale links to owning increments and domain documents (AC3).
+- Changes are confined to seven repository Markdown documents; production source,
+  generated Workspace instructions/guides, dependencies and test configuration
+  are unchanged. No substantive design deviation was needed (AC5).
+
+### Reading-set evidence
+
+Using non-trailing-blank physical lines, the baseline common reading at main
+`b1a5761` was 1,133 lines: repository AGENTS.md 58, architecture 448, guidelines
+322, increment index 60 and MVP scope 245. The new common orientation is 179
+lines: AGENTS.md 67 and code map 112. Both counts exclude the current increment
+and task-specific reading; the index is now conditional on locating/checking the
+increment. This measures the prescribed reading set, not actual agent reads,
+tokens, implementation time or guaranteed savings.
+
+### Local navigation walkthrough
+
+Starting from the new entry point and task map, a source-backed local walkthrough
+located the following routes and existing checks (AC4). This was the implementer's
+walkthrough; a separate reviewer should repeat it independently.
+
+| Task                      | Located starting code and rules                                                                                                                                                      | Focused verification route                                                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CLI Action change         | Action and CLI task rows → `domain/actions`, `application/actions`, `interfaces/cli`, contracts/bootstrap; Core Action and store operation contract                                  | `npx vitest run src/domain/actions`; CLI journey selection in the map after a current build, plus affected integration tests from the row.                       |
+| View ordering change      | View movement/order row → `moveViewAction`, `insertViewMember`, `recordViewOrder`, `moveAction`, `reconcilePlacements`; Views profile manual order and current architecture boundary | `npx vitest run src/domain/views tests/integration/view-order.test.ts`; acceptance name selection is a narrower development aid, not the full gate.              |
+| Web refresh regression    | Default refresh and View interaction rows → `Board`, `useBoard`, `useView`, `Workspace`; lifecycle and UI-test guidelines, including hidden-board events                             | `npx vitest run src/web/Board.test.tsx src/web/Notifications.test.tsx`; the View row identifies additional ViewBoard/Workspace coverage when its policy changes. |
+| Generated-guidance change | Guidance row → `markdown/agents.ts`, `guides.ts`, `workspaceDocuments.render`, application initialization; guidance policy                                                           | `npx vitest run tests/integration/workspace-guidance.test.ts`; row also identifies `tests/support/guidance.ts` and the built-CLI guidance journey.               |
+
+### Verification and limitations
+
+Verification platform: Windows 10.0.26300, PowerShell 7.6.9, Node 24.21.0,
+npm 11.4.1. Checks performed:
+
+- Parsed local Markdown links and heading anchors in all seven changed documents
+  using the installed CommonMark parser; targets resolved. Also checked 26
+  shorthand test names, 17 named entry-point symbols and 13 public module paths
+  against source. The first run reached the source-inventory step and hit sandbox
+  `spawnSync git EPERM`; the successful rerun used approved execution outside the
+  sandbox. No permanent validator or gate was added.
+- Inspected the four navigation routes, source wiring, event producers/consumers,
+  SQLite schema/snapshot boundaries, package scripts and runner discovery. Focused
+  command examples were checked against those definitions; behavior suites were
+  not executed or claimed as passing.
+- Focused Prettier validation of the seven changed Markdown documents and
+  `git diff --check` passed. Diff scope was checked for repository prose only.
+- Full `npm run verify` was not run for this documentation-only increment, as
+  specified in its verification plan. The earlier audit architecture result is
+  historical evidence and is not presented as a new check of this change.
+
+Human check: open `AGENTS.md`, select one of the four tasks and follow the code
+map to the named source, rule section and existing focused command. No unresolved
+documentation error was found in the local checks; independent implementation
+review remains outstanding. No merge or release is claimed.
 
 ## Decision changes and follow-up
 

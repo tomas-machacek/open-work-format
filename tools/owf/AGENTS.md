@@ -3,56 +3,65 @@
 These instructions apply under tools/owf/. Human supervision sets direction and
 scope; AI agents implement and review changes.
 
-## Read before work
+## Start here
 
-- [Architecture](docs/architecture.md): structure, dependencies and technology choices.
-- [Development guidelines](docs/development-guidelines.md): tests, lint, review and releases.
-- [Increment index](docs/increments/README.md) and the agreed document for the current increment.
-- [MVP scope](../../docs/design/mvp-scope.md): included and deferred capabilities.
-- Relevant [Core specification](../../spec/core-v0.md) and
-  [Operational Store design](../../docs/design/operational-store-notes.md) sections.
+1. Read the agreed document for the current increment; use the
+   [increment index](docs/increments/README.md) to locate it or check status.
+2. Read the [code map](docs/code-map.md) for current entry points, task routes,
+   important nonlocal effects and focused checks.
+3. Follow the relevant task links to rules, code and tests before changing them.
+   Inspect adjacent callers and contracts when the change crosses boundaries.
+   Read completed increments when their decisions or regressions are relevant.
 
-Use the increment document as the implementation and review brief. Keep its
-status and index row current and record the actual outcome, verification and
-review evidence at completion. Existing conversational agreement does not need
-to be requested again just to update the document.
+Common orientation is this entry point, the map and the current increment;
+architecture, guidelines, MVP and historical documents are read by relevant
+section, not in full for every task. Their applicable rules still govern the work.
 
-Follow the agreed increment and its acceptance criteria. Consult the increment index for current status; subsequent implementation requires an agreed increment.
+## Scope and authority
 
-## Implementation
+Follow the agreed increment and acceptance criteria. Keep its status and index
+row current; record actual delivery, verification and review evidence at handoff.
+Existing conversational agreement does not need duplicate approval to update them.
+Subsequent implementation requires an agreed increment.
 
-Keep domain rules in the domain and orchestration in the application.
-Respect public module boundaries. Do not add unrelated abstractions,
-dependencies, refactors or features.
-Follow the development guidelines' Workspace guidance policy: update relevant
-topics, help and examples; justify cross-cutting entry-point changes and retain
-the 4096-byte ceiling. Repository and generated instructions serve different audiences.
-Develop meaningful tests alongside behavior; use the guidelines rather than
-a test-count or coverage quota.
-Apply the guidelines' boundary and verification discipline: preserve URL/path
-semantics, derive changing expectations from their source, and validate new gates
-with forbidden examples.
-Distinguish mandatory rules, recommendations, examples and open decisions.
-Report semantic conflicts rather than silently changing agreed requirements.
+[Core](../../spec/core-v0.md) and the agreed
+[Operational Store](../../docs/design/operational-store-notes.md) and
+[Views](../../docs/design/views-profile-notes.md) designs own semantics;
+[MVP scope](../../docs/design/mvp-scope.md) selects capabilities.
+[Architecture](docs/architecture.md#purpose-and-authority) owns structural decisions;
+[guidelines](docs/development-guidelines.md#working-model-and-document-ownership)
+own engineering practice. Increments do not override these documents.
+Distinguish rules, recommendations, examples and open decisions. Report conflicts.
 
-Run focused checks while working and the planned npm run verify before a code
-handoff once that command exists. Never claim unavailable commands or unrun
-tests succeeded. Do not weaken checks or acceptance criteria to obtain a pass.
-Local validation is the current workflow; do not add GitHub Actions or automatic
-release publishing without a new decision.
+## Implementation and verification
+
+Keep domain rules in domain, orchestration in application and wiring in bootstrap.
+Respect [public boundaries](docs/architecture.md#dependency-boundaries); no production
+cycles or concrete adapters in application. Avoid unrelated abstractions,
+dependencies, refactors and features.
+
+Develop [meaningful tests](docs/development-guidelines.md#tests-and-acceptance-criteria)
+with behavior. Apply [boundary and verification discipline](docs/development-guidelines.md#boundary-and-verification-discipline)
+and the [lint baseline](docs/development-guidelines.md#lint-and-architecture-rules).
+Use focused checks while working and full `npm run verify` before code handoff.
+For documentation-only work, follow the increment's documentation checks.
+Never weaken gates or claim unrun/unavailable checks passed. Validation is local;
+do not add GitHub Actions or automatic publishing without a new decision.
+
+When commands or generated guidance change, follow the
+[Workspace guidance policy](docs/development-guidelines.md#workspace-agent-guidance):
+update relevant topics, help and examples; justify cross-cutting entry changes
+and retain the generated AGENTS.md 4096-byte ceiling. Repository and generated
+instructions serve different audiences.
 
 ## Review and handoff
 
-For review, read the diff and acceptance criteria independently of the
-implementer's explanation. Check domain correctness, architecture, errors,
-atomicity and test value. Prefer a separate review session.
-Reuse applicable verification evidence; rerun checks for a concrete reason.
+Read the diff and acceptance criteria independently of the implementer's account.
+Check correctness, boundaries, errors, atomicity and test value; prefer a separate
+review session. Reuse applicable evidence and rerun checks for a concrete reason.
+Follow the [review and handoff rules](docs/development-guidelines.md#independent-review-and-handoff)
+for findings, increment outcome and consistent PR metadata.
 
-Keep PR metadata and increment outcome consistent with the actual changes.
-Turn review findings into proportionate fixes, tests and reusable guidance as
-specified in the development guidelines.
-
-Report observable changes, how the human can try them, checks actually run,
-platform, limitations and unresolved findings. Follow the development
-guidelines for version commits/tags; a task to implement code does not itself
-request a release.
+Report changes, how to try them, checks actually run, platform and unresolved findings.
+Follow [release rules](docs/development-guidelines.md#local-releases) when releasing;
+implementation alone does not request a release.
