@@ -1,12 +1,12 @@
 # 0031 — Code map and agent navigation
 
-> Status: in_progress
+> Status: completed
 > Description: Provide a compact map of current implementation entry points and task-specific reading and verification paths.
 > Depends on: [0030 — Quiet web operation feedback](0030-quiet-web-feedback.md).
 
 Scope and sequencing were agreed on 2026-11-02. The user confirmed design review
 and approved this document for implementation on 2026-11-02.
-Implementation started on 2026-11-02; independent implementation review is pending.
+Implementation and independent implementation review completed on 2026-11-02.
 Planning branch: `increment/0031-code-map`, based on main at `b1a5761`.
 
 ## Goal and scope
@@ -131,8 +131,8 @@ editorial choices within the reviewed scope.
 
 Design review and implementation approval were confirmed by the user on
 2026-11-02 and recorded separately in commit `67898aa`. Documentation implementation
-is delivered on `increment/0031-code-map`; independent implementation review is
-pending, so the document and index remain `in_progress`.
+is delivered on `increment/0031-code-map`. Independent implementation review
+completed without findings; the document and index are `completed`.
 
 ### Delivered navigation and architecture alignment
 
@@ -198,8 +198,12 @@ npm 11.4.1. Checks performed:
 
 Human check: open `AGENTS.md`, select one of the four tasks and follow the code
 map to the named source, rule section and existing focused command. No unresolved
-documentation error was found in the local checks; independent implementation
-review remains outstanding. No merge or release is claimed.
+documentation error was found in the local checks. Independent review on
+2026-11-02 checked the actual diff, four navigation routes against source and test
+configuration, and 178 local links including heading anchors. Focused Prettier
+and `git diff --check` passed; no findings required correction. Runtime suites
+and full verify were not run for this documentation-only change. The user
+accepted the review and authorized PR creation and merge. No release is claimed.
 
 ## Decision changes and follow-up
 
