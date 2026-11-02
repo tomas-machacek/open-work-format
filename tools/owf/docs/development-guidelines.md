@@ -10,6 +10,14 @@ scope and observable behavior. Architecture owns structural decisions and
 technology choices; this document owns development, testing and release practice.
 AGENTS.md is the short entry point, not a duplicate specification.
 
+[Code map](code-map.md) owns current implementation navigation: module entry
+points, task routes, tests and important nonlocal effects. Start with AGENTS.md,
+the map and the current increment, then read relevant rule sections for the task.
+The narrower reading path does not waive applicable rules or document authority.
+Update the map in the same increment when entry points, responsibilities or
+cross-module effects change; routine internal edits do not require map churn.
+Keep detailed decisions here or in architecture and outcomes in their increments.
+
 Mandatory rules use "must"; recommendations use "should". Open decisions are
 explicitly labeled. Examples do not create requirements. Record substantive
 changes to agreed decisions; do not silently invent missing domain semantics.
@@ -254,8 +262,11 @@ No dependency or configuration may bypass a layer check to make a build pass.
 | npm run verify             | All applicable required checks above |
 | npm run release            | Local version commit and tag         |
 
-Use focused checks during development, then verify before handoff. Suites are
-introduced with the behavior they cover; do not claim nonexistent tests ran.
+Use focused checks during development, then full verify before code handoff.
+Documentation-only increments follow their documented formatting, link and diff
+checks; they do not require runtime suites solely for repository prose changes.
+Suites are introduced with the behavior they cover; do not claim nonexistent
+tests ran.
 There are no GitHub Actions, automatic push-triggered reruns or mandatory hooks.
 A future CI workflow may call the same commands if explicitly adopted.
 

@@ -315,6 +315,7 @@ Kanban interface are implementation decisions, not OWF Core requirements.
 
 ## Development documents
 
+- [Code map](docs/code-map.md) — current entry points, task-specific reading and focused checks.
 - [Architecture](docs/architecture.md) — layers, processes, persistence and technologies.
 - [Development guidelines](docs/development-guidelines.md) — testing, lint, local verification and releases.
 - [Increment index](docs/increments/README.md) — individual designs and implementation outcomes.

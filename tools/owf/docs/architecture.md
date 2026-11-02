@@ -1,28 +1,24 @@
 # OWF Tool Architecture
 
-> Status: Agreed implementation baseline, 2026-09-15.
-> View architecture direction simplified 2026-10-11; definition validation and
-> CLI instance create/list/get implemented in 0020; read-only evaluation in 0021.
-> Web View inventory, passive display and shared Action editing delivered in 0022.
-> CLI View moves, instance placement and write reconciliation delivered in 0023.
-> Persistent instance-local column order and CLI positions delivered in 0024.
-> Permanent CLI Action and View instance deletion delivered in 0027.
+> Status: Agreed implementation baseline, established 2026-09-15.
+> Current-state documentation aligned through increment 0030 on 2026-11-02.
+> Historical delivery decisions and deferred capabilities are separated below.
 
 ## Purpose and authority
 
-This document records how the first tool implements the
-[MVP scope](../../../docs/design/mvp-scope.md). Its technology choices are not
-requirements on other OWF implementations.
+This document records structural decisions for the first tool, not requirements
+on other OWF implementations. [Core v0](../../../spec/core-v0.md), the agreed
+[Operational Store design](../../../docs/design/operational-store-notes.md) and
+[Views profile](../../../docs/design/views-profile-notes.md) own domain semantics.
+[MVP scope](../../../docs/design/mvp-scope.md) selects capabilities; it does not
+redefine semantics or imply that all selected capabilities are already delivered.
+[Development guidelines](development-guidelines.md) own engineering practice.
 
-Domain semantics come from [Core v0](../../../spec/core-v0.md) and the agreed
-[Operational Store design](../../../docs/design/operational-store-notes.md).
-The MVP scope selects capabilities; it does not redefine their semantics.
-[Development guidelines](development-guidelines.md) define engineering practice.
-The [Views profile](../../../docs/design/views-profile-notes.md) owns the
-agreed definition/instance and first Kanban contract. Its implementation requires
-separately agreed code increments after the specification and design are reviewed.
-Unresolved conflicts must be reported rather than silently resolved by changing
-the specification.
+Use the [code map](code-map.md) for current implementation entry points and test
+routes. Read the relevant sections here for decisions; consult
+[delivery history](#historical-delivery-decisions) for their rationale and owning
+increments. Report semantic conflicts rather than silently changing requirements.
+Only an agreed increment authorizes its implementation scope.
 
 ## Package and directory structure
 
@@ -30,39 +26,16 @@ Use one npm package and lockfile under tools/owf/. Keeping specification and
 implementation together allows related changes to be reviewed together.
 Separate packages are deferred until distribution or reuse needs justify them.
 
-Planned layout; directories and abstractions are created only when needed:
+The [code map's layer table](code-map.md#layers-and-entry-points) owns the current
+source inventory. Organize by domain responsibility within layers; avoid global
+entities/services folders, generic utils/common dumping grounds and speculative
+base classes. Create directories and abstractions only when needed.
 
-| Path                              | Responsibility                                                                               |
-| --------------------------------- | -------------------------------------------------------------------------------------------- |
-| src/domain/workspaces/            | Workspace metadata/name rules; no filesystem access                                          |
-| src/application/workspaces/       | Workspace initialization and discovery use cases                                             |
-| src/domain/actions/               | Action aggregate, value objects and domain rules                                             |
-| src/domain/inbox/                 | Inbox Item aggregate and rules                                                               |
-| src/domain/references/            | Shared domain identifiers and references                                                     |
-| src/application/actions/          | Action use cases                                                                             |
-| src/application/inbox/            | Inbox use cases                                                                              |
-| src/domain/views/                 | View validation, placement eligibility, routing, move effects and persistent column ordering |
-| src/application/views/            | View instance reads/creation, moves and transactional placement/order reconciliation         |
-| src/application/ports/            | Repositories, transactions, Markdown lookup, clock and ID generation interfaces              |
-| src/infrastructure/sqlite/        | SQL, mapping, migrations and repository/transaction implementations                          |
-| src/infrastructure/markdown/      | Reading Markdown objects and metadata                                                        |
-| src/infrastructure/configuration/ | Workspace configuration and registration storage                                             |
-| src/interfaces/cli/               | Argument parsing, use-case invocation and output                                             |
-| src/interfaces/http/              | HTTP requests, use-case invocation and responses                                             |
-| src/interfaces/uri/               | Incoming OWF URI handling and navigation coordination                                        |
-| src/contracts/                    | Transport schemas and types, without domain rules                                            |
-| src/bootstrap/                    | Entry points and concrete dependency wiring                                                  |
-| src/web/                          | Browser UI and API client                                                                    |
-| tests/acceptance/features/        | Gherkin acceptance scenarios                                                                 |
-| tests/acceptance/steps/           | Scenario bindings to application operations                                                  |
-| tests/integration/                | Technical integration tests                                                                  |
-| tests/e2e/                        | CLI process and browser journeys                                                             |
-| tests/support/                    | Small genuinely shared test fixtures                                                         |
-| scripts/                          | Portable development/release support when needed                                             |
-
-Unit tests live beside the code as *.test.ts. Other tests live under tests/.
-Organize by domain responsibility within layers, not global entities/services
-folders. Avoid generic utils/common dumping grounds and speculative base classes.
+Unit/component tests live beside source as *.test.ts or *.test.tsx. Technical
+integration, acceptance and CLI/browser journeys live under tests/integration/,
+tests/acceptance/ and tests/e2e/; tests/support/ holds genuinely shared fixtures.
+Inbox, dedicated shared-reference modules, URI handling and a scripts/ directory
+are illustrative future paths, not existing implementation modules.
 
 ## Dependency boundaries
 
@@ -79,370 +52,227 @@ folders. Avoid generic utils/common dumping grounds and speculative base classes
 Each layer has designated public exports. Cross-layer imports must use them;
 relative paths, aliases and re-exports must not bypass the boundaries.
 Production module cycles are forbidden. Test composition may use concrete
-adapters when testing integration; this does not permit production shortcuts.
+adapters for integration without permitting production shortcuts.
 
 Domain code has no filesystem, network, database, environment, framework,
 console, current-clock or random-ID access. Time and IDs are supplied as values.
-Application code coordinates through ports and does not import concrete adapters.
+Application coordinates through ports without importing concrete adapters.
 CLI and HTTP handlers do not access the database directly or implement OWF rules.
+Concrete infrastructure adapters are isolated from one another.
 
-dependency-cruiser enforces the dependency graph and public entry points;
-ESLint handles prohibited runtime usage. Configuration must cover aliases and
-relative imports. Wiring belongs in bootstrap, without a DI container.
+dependency-cruiser owns the dependency graph and public-entry checks, including
+aliases and relative imports; ESLint handles prohibited runtime usage. SQLite
+access belongs only in its persistence adapter. Wiring belongs in bootstrap,
+without a DI container.
 
 ## Domain and application model
 
-Action and Inbox Item are separate aggregate roots. An Action includes its owner
-reference, outgoing dependencies and state-related values. Workspace is the
-operation context, not an aggregate containing every object.
+Workspace is the operation context, not an aggregate containing every object.
+An Action includes its owner reference, outgoing dependencies and state-related
+values. Independent View instances reference reusable Markdown definitions;
+instance identity, explicit placement and order are not fields on Action.
 
-The next View stage introduces independent operational instances referencing
-reusable Markdown definitions. Instance identity, explicit placement, and order
-are not fields on Action. A command can coordinate an Action and View
-instance without turning Workspace into an aggregate or copying Action data.
+Domain operations express intent and validate transitions rather than accepting
+arbitrary replacement. Application loads related facts through purpose-specific
+ports and domain evaluates them; domain objects never fetch their dependencies.
+Cross-object coordination must preserve the transaction boundary below.
 
-Domain operations express intent, such as complete or archive, rather than
-allowing arbitrary state replacement. For cross-object rules, the application
-loads the relevant Action/Outcome facts and the domain evaluates them. Domain
-objects never fetch their own dependencies.
-
-Repositories are purpose-specific application ports; do not start with a generic
-Repository<T> or use-case framework. Persistence replacement also requires
-equivalent query and transaction behavior and a data migration; interfaces alone
-do not make it automatic.
+Do not start with a generic Repository<T> or use-case framework. Replacing
+persistence also needs equivalent query/transaction behavior and a data migration;
+interfaces alone do not make it automatic. The planned Inbox Item is a separate
+aggregate root, with implementation still deferred.
 
 ## Execution and persistence
 
-CLI directly invokes the shared application library in its own process.
-The web server invokes the same library through HTTP handlers. CLI operations
-must work without the web server. Future tools can use the library or the CLI's
-structured output.
+CLI directly invokes the shared application library in its own process and must
+work without the web server. HTTP invokes the same use cases. Both use one local
+SQLite database per Workspace, located inside it by default. This local placement
+is an implementation choice, not a general OWF restriction.
 
-Use one local SQLite database per Workspace, located inside it by default.
-Both processes use the same Workspace configuration and store. Local placement
-is an implementation choice, not a restriction on the general OWF model.
+Use node:sqlite and parameterized SQL, without an ORM. Its isolation and pinned
+Node runtime retain the accepted trade-off of avoiding a separate native npm
+driver on Windows. The current store is schema 9, initialized and validated by the
+SQLite adapter. Unsupported versions fail without mutation or replacement;
+implicit migrations during reads, writes or repeat initialization are forbidden.
+Compatibility and migrations need a separately agreed design. The original
+no-migration rationale is in [0003](increments/0003-action-create-get.md).
 
-Use node:sqlite and parameterized SQL, without ORM. The store has an explicit
-schema version. At this early PoC stage, backward compatibility and migrations
-are deferred: initialize new Workspaces with the supported schema and reject
-unsupported versions without mutation. Do not upgrade implicitly during reads,
-writes or repeat initialization. This decision was agreed during
-[increment 0003 design](increments/0003-action-create-get.md); migration mechanics
-require a later explicit design when compatibility becomes necessary.
-Node 24's SQLite API is Release Candidate: this trade-off is accepted for the
-MVP in exchange for avoiding a separate native npm driver on Windows. Pin the
-runtime and isolate the API in the SQLite adapter.
+Calls are synchronous. Keep queries and transactions short, with bounded lock
+waiting. CLI and server access must not corrupt the store. HTTP Action edits
+already compare expected snapshots inside write transactions; advanced conflict
+merging remains deferred.
 
-Database calls are synchronous. Keep queries and write transactions short and
-bound lock waiting. Normal access by CLI and server must not corrupt the store.
-Advanced stale-edit detection and conflict merging remain deferred.
+Operational data and its Operational Event Log entries commit in one transaction.
+Action writes reconcile affected View placement/order and dependent routing in
+that transaction; failed operations leave no partial data or events. View reads
+obtain Action projections, placements and order from one read-only store snapshot.
+Do not imply a consistent snapshot across SQLite and externally edited Markdown.
 
-An application operation saves the affected operational data and its Operational
-Event Log entries in one transaction. For View moves this includes affected
-Action data and instance placement and order, followed by result
-validation before commit. Failed operations do not leave partial changes.
-This transaction does not extend to externally edited Markdown documents;
-do not imply a consistent snapshot across the filesystem and SQLite.
-
-Inbox processing remains a sequence of individual operations. Resolve only after
-the intended results succeed; a later failure does not roll back earlier results.
-No event sourcing, broker, correlated dual logs or distributed transactions.
-
-Markdown remains authoritative for Projects, Outcomes, Knowledge, and reusable
-View definitions. Read it through a separate port to validate owners, obtain
-Outcome dependency facts, and load current definitions. View instance data is
-authoritative in the same Workspace Operational Store.
-An unavailable store must be reported, never treated as empty or silently replaced.
-Retain the paused-write backup/restore requirement in the MVP scope.
+Markdown remains authoritative for Projects, Outcomes, Knowledge and reusable
+View definitions. Read it through ports for owner validation and definitions.
+Operational Actions, View instances and their organization/history belong in the
+store. An unavailable store is an error, never an empty Workspace. Retain the
+MVP's paused-write backup/restore requirement. No event sourcing, broker,
+correlated dual logs or distributed transactions are introduced.
 
 ## View evaluation and write command boundary
 
-Delivered in 0021: CLI `show view VIEW_ID [--json]` coordinates instance and
-current definition reads with the existing Action repository through ports.
-Domain code routes unplaced Actions uniquely and orders members by fixed ascending
-ID; every definition column remains visible. All Workspace Actions are candidates,
-without contextual owner narrowing. Existing blocking projection reads candidate
-and prerequisite facts from one SQLite statement; it validates before routing.
-Get remains configuration-only and list remains definition-independent inventory.
-Reads save no placement, rank, timestamps or events. Same-definition instances
-show the same content and retain distinct identities. Schema 6 and its five
-Action states are unchanged; archival is not available in this tool version.
-Effective state defaults win when eligible, otherwise the first eligible ordinary
-column in definition order; Blocked takes precedence for blocked non-terminals.
-The fallback member order is not persisted manual order. These were the 0021
-read-only capabilities; 0023 extends them with current placement below.
+Current CLI supports instance creation, inventory, configuration reads, read-only
+evaluation, moves, positional order and deletion. HTTP and web expose inventory,
+display, shared Action editing, View moves/reordering and creation in ordinary
+columns. View-instance deletion remains CLI-only. Default Kanban is not a stored
+View instance. The [Views profile](../../../docs/design/views-profile-notes.md)
+owns the full contract; the following locates current implementation boundaries.
 
-Delivered in 0022: `displayView` shares the evaluation read with `showView`,
-joining evaluated member IDs to complete existing Action projections from that
-same repository result. CLI output remains minimal and unchanged. HTTP exposes
-read-only `/api/views` inventory and `/api/views/:id` evaluation, validates their
-contracts and binds reads to the server's original Workspace. No per-card browser
-fetches or second Action snapshot are used to build View content.
+Definitions are data, not executable filters, sorting functions or transition
+hooks. Domain owns validation, eligibility, unique routing, move effects and
+instance/column-local manual order. Application obtains current facts through
+ports; adapters and React do not independently implement routing semantics.
 
-The browser starts in Default Kanban and offers stored instances in a sticky
-selector. View boards reuse compact card content and the existing editor, show
-actual state, and have no drag/create/reorder controls. The hidden default board
-retains in-page filters while its automatic reads and drag sensors are suspended.
-All selectors share navigation restrictions for open creation forms, active drags
-and pending moves; inactive boards cannot submit state changes. View selection
-mounts an isolated read lifecycle; superseded responses cannot change another
-selection. Manual and coalesced tab-return refreshes also refresh inventory.
-Confirmed edits trigger evaluation without speculative placement. Retained View
-content after read failure is stale with saves disabled; draft protection applies
-to navigation, including selection from the modal editor. Schema 6 is unchanged.
+Evaluation retains eligible placement, otherwise applies blocked/state routing.
+All Workspace Actions are candidates; Default-board filters do not narrow Views.
+Every configured column remains visible. Current placement/order reads are
+write-free: continuing entries retain order, unrecorded arrivals append by ID,
+and the next relevant write records evaluated organization. Removed referenced
+column IDs fail explicitly. Reads do not remember unobserved arrival chronology.
 
-Delivered in 0023: noninteractive `move action ACTION_ID --view VIEW_ID --column
-COLUMN_ID [--reason TEXT] [--waiting-for TEXT] [--json]` works without a server.
-Domain movement reuses Action editing/completion rules and the shared column
-eligibility/evaluator. The application determines evaluated source from current
-transaction facts, validates all destination effects and requests explicit placement
-only in the selected instance. Same-column requests are entirely write-free,
-preserve actual state and reject either reason option. Cross-column ordinary
-moves use the effective destination default. Blocked entry preserves state and
-requires/reuses a manual reason; Blocked exit requires no unresolved dependencies
-and explicitly clears manual blocking. Ordinary-to-ordinary movement retains it.
-Optional waiting text is literal and nonblank and applies only to an ordinary
-Waiting default: preserve/replace between Waiting columns and clear on departure.
-Reason-only edits emit `action.updated`, without a fictitious state transition.
+Writes evaluate the complete candidate/destination before commit. Cross-column
+ordinary moves use the destination default; entering Blocked preserves state and
+requires/reuses a manual reason, while leaving requires resolved dependencies
+and clears the manual reason. Same-column positional movement preserves Action
+data and placement; same-position requests are write-free. Placement/order-only
+writes do not update Action timestamps or invent Action events.
 
-Schema 7 adds `view_placements`, unique by instance and Action, storing only a
-column ID, and `view.placement_changed` events with Action and old/new columns.
-New Workspaces use schema 7; schema 6 and all other versions fail without mutation
-or implicit migration. The SQLite Action update transaction supplies coherent
-before/after Action projections, instances and placements through its application
-port. Application reconciliation loads definitions only for affected placements
-and uses the domain eligibility implementation against both fact sets, including
-direct dependents across instances. Action updates, placement changes and both
-event streams commit atomically. Placement-only movement never updates Action
-timestamps or emits Action events. Existing HTTP stale-edit checks remain in force.
+Reconciliation includes affected instances and potential arrivals. A required
+broken definition rejects the whole transaction with context; content changes
+can skip instances proven unrelated. Pure reordering examines only the selected
+instance. New instances record initial ID order; later writes append arrivals
+while retaining continuing members. Independent instances organize shared Actions.
 
-CLI show and passive web display retain eligible stored placement before normal
-routing, including blocked Actions placed in ordinary include_blocked columns.
-They keep ascending Action ID order and perform no semantic writes. Known
-ineligibility falls back on reads; a relevant successful write removes it.
-Temporary external incompatibility reverted before such a write can restore
-eligibility even after a read; there are no durable read observations or cached
-definitions. Removed referenced column IDs fail explicitly and require restoring
-the stable ID. A broken required definition rejects the whole write with context;
-unrelated broken Views without affected placements do not block writes. Inventory
-remains definition-independent. Browser Refresh sees CLI moves without restart.
-Manual ordering, append-on-arrival, View move endpoints/controls, creation in a
-column and non-default destination state selection remain deferred. The following
-full-profile design also describes those future capabilities; it does not claim
-their delivery in 0023.
+Creation in an ordinary View column derives its default state and verifies the
+current definition precondition, then commits Action, placement, order and events
+together. Blocked-column creation is not supported. Global Action deletion rejects
+surviving incoming dependencies, including terminal referrers, and cleans up all
+organization atomically. View deletion removes its instance/organization without
+loading the definition or deleting Actions. Historical events survive deletion.
 
-Delivered in 0024: `move action` accepts optional `--position N`, a positive safe
-decimal integer denoting the final one-based destination index after removal.
-Same-column bounds are 1..K including the moved card; cross-column entry to K
-cards allows 1..K+1. Omission preserves same-column no-op compatibility and appends
-on entry. Same-column reorder preserves all Action data and inferred/explicit
-placement, including non-default state and dependency-only blocking; reason
-options remain forbidden. Same-position requests write nothing, including no
-normalization. Only the selected instance receives a requested order.
+## Browser read and write lifecycle
 
-Schema 8 adds `view_order`, unique by instance/Action and instance/column/rank,
-with current dense internal ranks independent from `view_placements`. Contradictory
-order fails explicitly. No state copies, dormant ranks or previous-column history
-are stored. New instances record initial ascending Action ID order within creation.
-Supported CLI/HTTP Action creation and edits reconcile pre/post routing inside the
-same transaction as Action data, placements, order and events. Continuing members
-retain order; departures discard it and arrivals append. Simultaneous arrivals use
-ascending ID; successive commits retain arrival order regardless of ID. One
-`view.order_changed` event per changed instance records organization; normalization
-never pretends each shifted rank was a user move. Order-only changes produce no
-Action update timestamp/event. Schema 7 and all other versions are rejected without
-mutation; older Workspaces need a separately designed migration, not supplied here.
+The browser starts in Default Kanban. Workspace retains that board and its filter
+drafts while a selected View mounts its own lifecycle. Hidden Default-board reads
+and drag sensors are suspended. API-client creation/deletion events update retained
+board data; see the [code map](code-map.md#nonlocal-effects-to-inspect) for producers
+and consumers.
 
-Affected-data analysis now includes order-only instances and potential arrivals.
-Membership-changing writes, including creation, load all potentially affected
-instance definitions, even without placement references; a required broken
-definition rejects the whole transaction with instance/definition context. Content
-changes can skip an instance proven unrelated by placement/order references.
-Pure reorder examines only its selected instance. Existing HTTP stale-edit
-protections and bounded SQLite concurrency remain unchanged.
+Manual Refresh and coalesced return-to-tab reads obtain current data and View
+inventory. There is no polling or push channel. Superseded responses cannot
+replace newer confirmed data or publish obsolete errors. Confirmed Action
+snapshots and server-confirmed filter membership are separate concerns.
 
-One shared ordered evaluator serves CLI show, HTTP and passive web cards; React
-preserves received order. Its Action projections, placements and order come from
-one short read-only SQLite transaction, so concurrent commits cannot mix older
-Action facts with newer organization data. Markdown remains outside this snapshot.
-CLI members expose numeric positions restarting per column, and move results
-expose nullable `source_position` and committed
-`destination_position`. Reads never write: logically invalid order is ignored,
-continuing entries retained and unrecorded members appended by ID. The next
-relevant write records evaluated order. External arrivals between writes have no
-recoverable chronology; changes reverted before a relevant write can restore
-stored eligibility/order even after observation. Removed column IDs referenced
-by order remain configuration errors. Default Kanban retains its own behavior;
-View web movement, creation in a chosen column and state choice remain deferred.
+View gestures and required Blocked-reason input freeze reads and queue refresh.
+Navigation guards cover forms, pending moves and drafts, including modal selectors.
+Pointer, touch and keyboard movement preserve native text selection and focus.
+Retained stale View content disables movement and saves until refresh succeeds.
 
-Definitions are data: state mappings, per-state default columns, target default
-states, and blocking inclusion. Domain rules determine eligibility and unique
-placement; application code obtains current Workspace/instance facts through
-ports. There is no capability registry, executable filter, sorting function,
-transition hook, or generic instance-parameter machinery in this stage.
-Web/CLI adapters do not implement their own routing or movement semantics.
-
-Evaluation reads the current shared definition. Retain a valid current placement;
-otherwise route a blocked Action to the special Blocked column when present,
-then use eligible state defaults. Multiple columns accepting a state are normal.
-Missing or invalid definitions and contradictory instance data fail evaluation.
-Retained GUI data is marked stale with writes disabled; CLI reports structured
-failure. Read evaluation never mutates Actions, placements, order, or logs.
-
-Fixed commands coordinate state changes, manual blocking, placement, ordering,
-and events. Entering Blocked requires a non-empty manual reason and preserves
-execution state. Leaving clears the manual reason only if no dependency block
-remains, even for a target that accepts blocked cards. Ordinary destinations
-set their default state. Creation uses the target default, or Open plus a reason
-in Blocked. Shared domain rules and required state data always apply.
-
-Evaluate the complete candidate and destination within the store transaction
-before committing. Any failure rolls back all related writes and events.
-The contract excludes Markdown writes and external effects. Reading editable
-Markdown is not a distributed snapshot guarantee. Manual/dependency blocking
-support must be implemented before the full workflow is advertised.
-
-Order is exclusively manual and instance/column-local. Reordering does not
-mutate Action. New arrivals append; neither past positions nor former
-organizational columns are restored. Implementation must define write-side
-invalidation/reconciliation without writes on reads or reconstruction of
-unobserved history. Current placement preserves choices among same-state columns.
-
-No separate planning set or flag is introduced. Snapshot scope chooses the
-whole instance or explicit columns; runtime capture remains deferred.
-Physical schema, newcomer tie-breaking, required-input UI, concurrency, and
-command shapes belong to later implementation increments. The earlier generic
-capability design is deferred for complexity and may be revisited for a concrete
-need; it is not an extension framework to implement preemptively.
+Successful Action mutations are silent. Failures use one transient floating
+notification on the active surface, including native dialogs. Validation stays
+beside fields; persistent stale/uncertain indicators and recovery restrictions
+outlive notification expiry. Confirmed writes followed by failed refreshes remain
+confirmed writes and must not be repeated. Mutations are never retried automatically.
+See [0030](increments/0030-quiet-web-feedback.md) for the feedback contract and
+[UI test discipline](development-guidelines.md#tests-and-acceptance-criteria).
 
 ## Application technologies
 
-| Area             | Decision and rationale                                                 |
-| ---------------- | ---------------------------------------------------------------------- |
-| Core             | Plain TypeScript; no application framework or DI container             |
-| Persistence      | node:sqlite; embedded and supplied with Node                           |
-| HTTP             | Fastify; thin HTTP adapter with TypeScript support and test facilities |
-| CLI              | Commander.js; commands, options and help                               |
-| Input validation | Zod; boundary schemas and inferred transport types                     |
-| Browser          | React + Vite; interactive UI and development/production build          |
-| Routing          | React Router; explicit board, Inbox and Action URLs                    |
-| Drag and drop    | dnd-kit; card movement, with an alternative state control              |
-| Styling          | CSS Modules                                                            |
-| HTTP client      | Native fetch in a small shared frontend data-access layer              |
-| Frontend state   | Local React state; no global state framework initially                 |
-| Metadata         | yaml frontmatter, commonmark Markdown parsing; Node filesystem APIs    |
+| Area             | Current decision and rationale                                        |
+| ---------------- | --------------------------------------------------------------------- |
+| Core             | Plain TypeScript; no application framework or DI container            |
+| Persistence      | node:sqlite; embedded and supplied with the pinned Node runtime       |
+| HTTP             | Fastify; thin adapter, loopback hosting and test facilities           |
+| CLI              | Commander.js; commands, options and help                              |
+| Input validation | Zod; boundary schemas and inferred transport types                    |
+| Browser          | React + Vite; local component state, production assets and dev server |
+| Drag and drop    | dnd-kit; mouse, touch and keyboard movement                           |
+| Styling          | CSS Modules                                                           |
+| HTTP client      | Native fetch in a shared frontend client                              |
+| Metadata         | yaml frontmatter, commonmark parsing and Node filesystem APIs         |
 
-Zod checks external shapes, not OWF business rules. Keep transport schemas in
-contracts where shared. Do not maintain a second handwritten HTTP schema set.
-The domain does not depend on Zod. The same domain rules apply to all callers.
+Zod checks external shapes, not OWF business rules. Keep shared transport schemas
+in contracts, not a second handwritten HTTP schema set. Domain does not depend on
+Zod; every caller uses the same domain rules.
 
-The browser imports contracts, not application code or domain entities.
-After a mutation, display the actual accepted result or explain failure.
-The first read-only board refreshes on return to the window/tab and by manual
-Refresh, coalescing focus/visibility events. Polling and push updates are deferred
-by increment 0006; CLI changes are not immediately synchronized while visible.
-
-The production Fastify process serves API and built frontend assets on
-127.0.0.1 by default. Vite's server is development-only. LAN hosting is outside
-this MVP. CLI JSON output must be machine-readable, with diagnostics on stderr
-and consistent exit codes; noninteractive calls must not unexpectedly prompt.
+Production Fastify serves API and built frontend assets on 127.0.0.1. Vite is
+development-only, with a local API proxy. Same-origin JSON writes use Host/Origin
+checks and strict request shapes. CLI JSON is machine-readable; diagnostics go
+to stderr with consistent exit codes and noninteractive behavior.
+Exact endpoint shapes and user operations are documented in the [tool README](../README.md).
 
 ## Navigation
 
-MarkdownObjectReference remains Workspace-rooted url plus optional id, with the
-existing consistency rules. Derive Obsidian URLs at the navigation boundary.
-The tool does not render or edit Markdown.
+Current browser selection uses component state, starts at Default Kanban after
+reload and offers independent stored View instances. No React Router dependency
+or dedicated board/Inbox/Action URL routing is implemented. The tool does not
+render or edit Markdown; MarkdownObjectReference remains a Workspace-rooted URL
+plus optional ID, with its agreed consistency rules.
 
-The Windows handler accepts owf:action:<id> without a Workspace parameter.
-One registered Workspace is selected automatically; multiple Workspaces require
-selection; none offers registration. A missing Action is reported with a way to
-choose another Workspace. Never infer the Workspace from handler working directory.
-
-The handler opens the selected Action in the browser UI. Exact server startup,
-discovery, port selection and shutdown behavior remain open; CLI independence
-must be preserved when these are designed.
+Planned Windows protocol navigation accepts owf:action:<id> without a Workspace
+parameter and derives Obsidian URLs at the navigation boundary. One registered
+Workspace would be selected automatically, multiple would require selection, and
+none would offer registration. Never infer the Workspace from handler working
+directory. Handler installation and its server discovery/startup/selection
+lifecycle are deferred; this describes the agreed direction, not delivered code.
 
 ## Open details and next gate
 
-Still to define when relevant: physical schema, ID encoding, exact CLI/API
-contracts, server lifecycle, migration/backup mechanics, optional Markdown-ID
-lookup capability, HTTP-local-access protection details, dependency patch
-versions and distribution packaging.
+Deferred implementation includes Inbox capture/processing, Workspace registration,
+Windows URI dispatch and explicit browser URLs (React Router remains the planned
+routing choice when those URLs are implemented). Other deferred work includes
+Action archiving, View editing in the browser, Snapshots, broader View capabilities,
+Markdown-ID lookup, advanced concurrency, migrations, backup/restore tooling,
+LAN hosting and distribution packaging. Implement only a separately agreed scope.
 
-The technology choices and directory responsibilities are agreed. None of the
-open details or illustrative paths authorizes additional MVP features.
-The approved first increment establishes Workspace initialization and CLI tooling.
+The planned Inbox processing contract is a sequence of individual operations:
+resolve after intended results succeed; later failures do not roll back earlier
+results. No Inbox aggregate is embedded in Workspace.
+
+Physical schema, ID encoding, current CLI/API contracts, the loopback serve command,
+HTTP-local-access checks and pinned dependency versions are already implemented;
+they are not open foundational tasks. The [increment index](increments/README.md)
+records delivery and the next agreed increment rather than a stale first-increment gate.
+
+## Historical delivery decisions
+
+These notes explain the sequence; earlier schema numbers and read-only phases
+are historical, not the current feature set. Detailed contracts, rationale and
+verification stay with the linked increments.
+
+| Increment                                               | Decision and resulting boundary                                                                                                                                                        |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [0020](increments/0020-view-instance-cli-foundation.md) | Introduced validated Markdown definitions and independent operational instances, avoiding generic capability/parameter machinery.                                                      |
+| [0021](increments/0021-view-evaluation-cli.md)          | Added read-only evaluation with deterministic ID fallback and no read-side repairs; schema 6 predates placement/order.                                                                 |
+| [0022](increments/0022-web-view-display.md)             | Shared evaluation supplies complete Action projections in one result, avoiding per-card reads and a second Action snapshot. Retained Default Kanban preserves filters.                 |
+| [0023](increments/0023-view-move-cli.md)                | Schema 7 added explicit placement and atomic Action/placement/event reconciliation. Placement is instance-local, not Action data; same-column requests originally remained write-free. |
+| [0024](increments/0024-view-order-cli.md)               | Schema 8 added order separately from placement, append-on-arrival and coherent read snapshots; pure reorders preserve Action data and do not pin inferred cards.                       |
+| [0025](increments/0025-web-view-moves.md)               | Added web movement and insertion regions without sacrificing text selection, touch scrolling, keyboard/focus handling or authoritative server ordering.                                |
+| [0027](increments/0027-delete-action-view-cli.md)       | Schema 9 added deletion events and retained historical identities while keeping live organization references constrained. Deletion does not require routing evaluation.                |
+| [0028](increments/0028-web-action-create-delete.md)     | Added ordinary-column creation and global web deletion using shared transactions, definition preconditions and retained-board notifications.                                           |
+| [0029](increments/0029-workspace-agent-guidance.md)     | Replaced a growing generated entry point with compact instructions and offline topic guides; repository development guidance has a different audience.                                 |
+| [0030](increments/0030-quiet-web-feedback.md)           | Separated temporary operation feedback from persistent recovery state, preserving confirmed writes across refresh races and failures.                                                  |
+
+Earlier full-profile discussion included Blocked-column creation, configurable
+state choice and Snapshot capture; those broader capabilities remain deferred.
+The simplified data-driven View model replaced a proposed generic capability
+framework to limit complexity; revisit extensibility only for a concrete need.
+The original decisions are retained in the [Views profile](../../../docs/design/views-profile-notes.md)
+and owning increments, not treated as permission to implement the full profile.
 
 ## Technology references
 
-- [Node 24 SQLite](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html)
+- [Node SQLite](https://nodejs.org/api/sqlite.html)
 - [Fastify](https://fastify.dev/docs/latest/)
 - [Commander.js](https://github.com/tj/commander.js)
 - [Zod](https://zod.dev/)
 - [React with Vite](https://react.dev/learn/build-a-react-app-from-scratch)
-- [React Router](https://reactrouter.com/start/declarative/installation)
+- [React Router (deferred)](https://reactrouter.com/start/declarative/installation)
 - [dnd-kit](https://dndkit.com/)
 - [yaml](https://eemeli.org/yaml/)
-
-## Web View movement (0025)
-
-The browser uses dnd-kit mouse, touch and keyboard sensors with invisible insertion
-regions and natural content-area append. Only the current destination is indicated;
-stable card geometry and a thin line preserve compact resting layout. Background
-and padding activate dragging, while native text selection and interactive controls
-do not. Focusable cards use Enter for detail and Space for movement; touch swipes
-scroll and a background hold activates dragging. The Workspace-bound
-`POST /api/views/:id/moves` adapter validates shared
-contracts and invokes the same single-transaction move operation as CLI. Schema 8,
-coherent evaluation snapshots and write reconciliation are unchanged. Evaluation
-also supplies the configured Blocked column ID for the reason-only dialog.
-
-The browser freezes reads during a gesture or required Blocked reason dialog,
-queues tab refresh, guards navigation and prevents duplicate submissions. Waiting
-requires no prompt. Numeric insertion positions use execute-time membership;
-concurrent CLI organization does not imply neighbour anchoring. Every outcome
-refreshes authoritative membership/order. Rejection, unknown transport outcome and
-confirmed commit with read failure have distinct feedback; stale content disables
-movement and saves. There is no automatic mutation retry or board revision.
-
-## Permanent CLI deletion (0027)
-
-Shared application operations expose `delete action` and `delete view` without a
-server or prompt. The Action repository supplies validated stored Action facts
-to the domain reference guard inside the same `BEGIN IMMEDIATE` transaction as
-deletion. Every surviving incoming Action edge rejects deletion, regardless of
-state or owner; outgoing/self edges disappear with their source record.
-
-The domain removes the target's stored placements/order and closes affected rank
-gaps, retaining surviving relative order. This path uses no routing evaluation,
-Markdown owner resolution or definition loading. The View operation deletes only
-its stored instance and owned organization; other instances, Actions and shared
-definitions remain untouched, including when definitions are broken.
-
-Schema 9 adds deletion event kinds and title fields and removes foreign keys
-from historical Action/View event identities, including View events' Action IDs.
-Current placements/order retain their foreign keys. Existing history is retained;
-one deletion event records ID, title and time. Action cleanup reuses actual
-placement/order events, while View deletion needs only `view.deleted`. Object,
-organization and event writes commit or roll back together. Older stores,
-including schema 8, fail explicitly without migration or replacement.
-Existing web reads reflect CLI deletion; there are no deletion endpoints or
-browser controls. The user confirmed successful independent review of 0027 on
-2026-10-29.
-
-## Web creation and deletion (0028)
-
-View evaluation exposes each ordinary column's default status and a serialized
-validated definition precondition. `createActionInView` derives the initial state
-and reuses Action creation, checking the selected instance and definition again
-inside the store transaction. Shared View reconciliation explicitly places the
-new Action and appends it after evaluated implicit/explicit members. Action,
-organization and events commit atomically. Markdown is outside the SQLite snapshot.
-
-The shared editor invokes the existing global Action deletion use case through
-`DELETE /api/actions/:id`; HTTP and React do not duplicate dependency/cleanup rules.
-Native modal confirmation contains keyboard focus and preserves editor drafts on
-cancel/rejection. Confirmed mutations invalidate older reads and update retained
-board data before refreshing. Hidden Default Kanban observes confirmed deletion
-notifications so returning after a failed read cannot resurrect deleted cards.
-No schema, dependency or CLI behavior changes are introduced.
