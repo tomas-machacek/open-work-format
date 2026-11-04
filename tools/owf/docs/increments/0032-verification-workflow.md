@@ -1,35 +1,49 @@
-# 0032 — Measured and focused verification workflow
+# 0032 — Native session analysis and focused verification
 
 > Status: in_progress
-> Description: Measure verification stages, document focused checks, keep the code map compact and optimize demonstrated test overhead while preserving complete handoff verification.
-> Depends on: Completion of 0031 — Code map and agent navigation.
+> Description: Diagnose agent overhead from existing Codex sessions, retain lightweight verification timing and focused checks, and preserve a compact, useful code map.
+> Depends on: 0031 — Code map and agent navigation (completed).
 
-Scope and sequencing were agreed on 2026-11-02. The user approved implementation on 2026-11-04; implementation is in progress.
-Planning branch: `increment/0032-verification-workflow`, independently based on
-main at `b1a5761`. Completed [0031](0031-code-map.md) is integrated through commit `8c0b972`.
-On 2026-11-02 the user also agreed to include a code-map size check and maintenance
-instructions preserving essential navigation and readable text.
+The initial scope was agreed on 2026-11-02 and revised on 2026-11-04 to start
+with existing local Codex session evidence before selecting optimizations.
+The user approved implementation on 2026-11-04; implementation is delivered for independent review.
+Planning branch: `increment/0032-verification-workflow`.
+Dependency [0031 — Code map and agent navigation](0031-code-map.md) is completed
+and its code map is present on this branch.
 
 ## Goal and scope
 
-The cost of an increment includes orientation, implementation, verification and
-repair. Repository history alone cannot establish how much code an agent reads
-or how those phases contribute to elapsed implementation time. This increment
-makes verification cost observable and makes focused development checks easier
-to choose without treating them as complete handoff evidence.
+Investigate the suspicion that agent implementation time grows with successive
+increments. Separate orientation, editing, verification and repair overhead before
+choosing changes. Neither repository growth nor longer elapsed sessions alone
+establishes inefficient navigation: task complexity, model/settings, environment
+and human waiting can change.
+
+Start with a one-off retrospective of existing local Codex sessions. Use the
+agent's native records rather than instrumenting each read/edit or introducing a
+monitoring system. The analysis is diagnostic evidence, not an agent efficiency
+score or a mandatory process for every future increment.
+
+Retain a small portable verifier with per-stage timings, a task-to-check guide
+and the agreed code-map word budget with maintenance instructions. Stage timing
+answers how long checks take inside a single aggregate command; session analysis
+answers how often the agent invokes them and what else happens around them.
+Preserve all required checks and observable CLI, HTTP, domain and UI behavior.
 
 The stored [0030 verification log](evidence/0030/verification-refresh-fix-windows.txt)
 records about 6.5 seconds for unit/component tests, 10.2 for integration, 5.9 for
 acceptance, 82.9 for built-CLI E2E and 2.3 minutes for Chromium. The latter two
-account for approximately 90% of recorded test-group duration. This is historical
-Windows evidence, not a new benchmark or proof of redundant tests. Whole-file CLI
-parallelism is disabled and Playwright uses one worker.
+account for approximately 90% of recorded test-group duration, not 90% of agent
+implementation time. This historical Windows evidence identifies candidates for
+investigation, not proof of redundant tests or the cause of overall slowdown.
 
-Scope includes portable verification timing, a task-to-check guide, a code-map
-word budget with maintenance instructions, an audit of the expensive journeys
-and evidence-backed improvements to test setup or execution.
-Preserve all required checks and the observable CLI, HTTP, domain and UI behavior.
-Frontend production restructuring is reserved for the later 0033 brief.
+A detailed expensive-test audit and test execution/setup optimization are
+conditional on the retrospective demonstrating material verification overhead.
+Orientation and repair findings may instead justify documentation improvements
+within this scope or recommendations for separately agreed work. Production
+restructuring, including the later 0033 frontend brief, is outside this increment.
+No service, dashboard, database, OTel collector, per-action instrumentation,
+new framework or dependency is introduced.
 
 References: [development guidelines](../development-guidelines.md),
 [architecture](../architecture.md), [package scripts](../../package.json),
@@ -37,6 +51,67 @@ References: [development guidelines](../development-guidelines.md),
 [Playwright configuration](../../playwright.config.ts).
 
 ## Proposed solution
+
+### Start with native Codex session evidence
+
+Analyze 3–5 completed increments where logs are available, preferring tasks of
+roughly comparable scope and identifying why each was selected. Use local
+`rollout-*.jsonl` session records under `$CODEX_HOME/sessions/`
+(`~/.codex` is the default home). Locate records in the environment that actually
+ran Codex: native Windows, WSL and containers can have different homes.
+Check the installed `codex --version` and inspect one representative record before
+assuming which events, timestamps, usage fields or durations are available.
+Internal rollout formats may vary by version or include compressed records;
+document supported inputs and gaps rather than assuming a stable parser API.
+Do not treat `history.jsonl` as a complete tool execution trace.
+
+Keep the normal interactive workflow. For future non-interactive runs,
+`codex exec --json` is an optional event source, not a required migration or
+replacement for missing historical evidence. Do not enable OTel export or
+diagnostic logging solely to satisfy this retrospective.
+
+First inspect records directly. Add a small offline, dependency-free analysis
+script only if repeated extraction warrants it and the actual format is known.
+Such a script reads explicitly selected files and writes a local report; it is
+not an OWF product feature, a full log viewer, a new verification gate or an
+ongoing telemetry pipeline. Preserve original logs. Save only a concise,
+sanitized findings report in the repository, not raw prompts, source dumps,
+credentials or complete session transcripts.
+
+Record increment/revision, selected sessions and relevant turn ranges, task
+scope, Codex version, model and reasoning effort, platform and machine/cache
+conditions where known. Mark unknown metadata explicitly. Account for resumed
+sessions and delegated work where present, avoiding duplicate shared history.
+Separate implementation from independent review, user waiting and unrelated work.
+
+Use available evidence to examine:
+
+| Question              | Diagnostic evidence                                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Orientation overhead  | Time and search/read commands before the first relevant edit; explain planning mixed into this interval.        |
+| Repeated navigation   | Repeated searches or reads of unchanged regions, interpreted in their task context.                             |
+| Verification overhead | Focused/full check invocations, observed durations and repetitions on unchanged revisions.                      |
+| Repair overhead       | Edit → failure → repair → recheck cycles and their concrete failure causes.                                     |
+| Context growth        | Available input/cached/output token usage and compaction events, without equating tokens with unique code read. |
+
+Distinguish measured values, manual classifications and estimates. Do not
+invent unavailable command durations or phase boundaries. Timestamp gaps can
+contain model/service latency, waiting or overlapping work; they are not direct
+measurements of model thinking. Count resumed/delegated activity and cumulative
+token counters without double counting. When calculating elapsed tool time,
+account for overlapping intervals rather than adding parallel durations.
+A repeated read or a long planning interval is not automatically waste.
+
+If the records cannot support a metric, report that limitation. If fewer than
+three usable increments are available, analyze those available and document the
+shortfall; do not manufacture comparability, rerun completed implementations or
+build infrastructure to fill the gap. When local records are inaccessible,
+identify the missing inputs and defer the empirical conclusion and conditional
+optimizations; repository history alone is not a substitute.
+
+Conclude which overhead is demonstrated, which remains uncertain and which
+bounded action follows. A small observational sample cannot establish a causal
+trend across all increments or prove that a larger codebase caused slowdown.
 
 ### Stage timing with complete verification
 
@@ -118,28 +193,35 @@ The automated check measures size only. Review must also verify that the selecte
 task routes remain discoverable and their important links remain intact; a smaller
 file alone is not a successful outcome.
 
-### Measure first, then make bounded improvements
+### Select improvements from demonstrated overhead
 
-Capture a baseline on the implementation checkout before optimization, identifying
-the source revision, exact command/configuration, Node/npm/browser versions,
-platform and relevant machine/cache conditions. Compare with a final complete
-run under comparable conditions. Separate instrumentation changes from actual
-speed improvements; record noise and limitations rather than asserting a precise
-improvement from incomparable runs. Additional benchmark repetitions need a
-concrete uncertainty to resolve.
+Use the retrospective findings to decide whether expensive CLI/browser journeys
+need a detailed audit in this increment. Record the decision and evidence.
+Do not audit every expensive journey or change parallelism simply because its
+historical duration is high. If verification is not demonstrated as material
+overhead, deliver the diagnostic findings, lightweight timing, focused guide and
+code-map discipline, and defer test optimizations with a reason.
 
-Inspect the most expensive CLI and browser journeys and record which distinct
-process, integration or browser risk each protects. Prefer cheaper fixture setup
-when it does not remove the CLI boundary being exercised, reduce repeated setup,
-and consider parallelism only after checking independent Workspaces, ports,
-cleanup and process ownership. The fixed-port proxy integration test is an
-example of a shared resource that must be considered.
+When a test optimization is justified, capture a baseline before that change,
+identifying source revision, exact command/configuration, Node/npm/browser
+versions, platform and relevant machine/cache conditions. Compare with a final
+complete run under comparable conditions. Separate instrumentation changes from
+speed improvements. Additional benchmark repetitions need a concrete uncertainty
+to resolve; there is no required speedup or mandatory benchmark campaign when
+no execution/setup optimization is made. The final timed verification still
+provides a reference observation.
 
-Implement safe, measured improvements found within this test/tooling scope.
-Retain serial execution where isolation or available resources do not support
-parallelism. A documented finding that an apparent optimization is unsafe is a
-valid audit result, not a reason to weaken the gate. Record remaining expensive
-but necessary journeys and any work deferred to a separately scoped increment.
+Limit the audit to implicated journeys and record the distinct process,
+integration or browser risk each protects. Prefer cheaper fixture setup only
+when the exercised boundary remains covered; consider parallelism only after
+checking independent Workspaces, ports, cleanup and process ownership, including
+shared resources such as the fixed-port proxy integration test.
+
+Implement only safe, bounded test/tooling improvements supported by these
+findings. Retain serial execution where isolation or resources do not support
+parallelism. A finding that an apparent optimization is unsafe is a valid result.
+Defer broader architecture or workflow changes for separate agreement; findings
+do not authorize production refactoring.
 
 Do not remove acceptance obligations, skip tests, relax assertions, raise existing
 timeouts or add retries to improve timing. Moving a technical assertion to a
@@ -160,11 +242,12 @@ examples and the generated AGENTS.md ceiling are unaffected.
 - **AC3 — Focused recipes:** `docs/verification.md` covers the listed change
   categories with valid commands, test paths, prerequisites and reasons to broaden
   selection. The 0031 map and developer entry points link to this primary guide.
-- **AC4 — Evidence-backed audit:** baseline and final stage timings identify their
-  revisions and environment. The expensive-journey audit records protected risks,
-  retained coverage, implemented improvements and justified deferrals. Timing
-  claims distinguish observed results from noise and projections; no fixed speedup
-  percentage is required.
+- **AC4 — Evidence-led optimization decision:** the outcome explains whether
+  session evidence warrants an expensive-test audit. If warranted, the bounded
+  audit records protected risks, retained coverage, improvements and deferrals;
+  execution/setup optimizations have comparable before/after timing evidence.
+  Otherwise the audit and optimization are explicitly deferred. Final stage
+  timings identify revision/environment; no fixed speedup is required.
 - **AC5 — Preserved confidence:** required checks and acceptance behavior remain
   intact. Any execution/setup optimization demonstrates isolation, cleanup and
   retained boundary coverage. No skipped checks, relaxed assertions, timeout
@@ -180,6 +263,13 @@ examples and the generated AGENTS.md ceiling are unaffected.
   while retaining essential words, names, links, routes and readable explanations.
   The four representative 0031 navigation routes remain usable after any map
   edits. Passing the size check does not substitute for navigation/link review.
+- **AC9 — Native-session retrospective:** a sanitized report analyzes 3–5
+  selected completed increments, or explicitly records unavailable inputs and a
+  smaller sample/deferred conclusion. It separates implementation/review/waiting,
+  reports available navigation, verification, repair and context signals, and
+  distinguishes observations from estimates and causal claims. It records
+  versions/settings, comparison limits and a justified next action. No ongoing
+  monitoring infrastructure or mandatory non-interactive workflow is added.
 
 ## Verification plan
 
@@ -191,10 +281,17 @@ examples and the generated AGENTS.md ceiling are unaffected.
 - For AC3, inspect package scripts and test paths, resolve documentation links,
   and exercise representative focused recipes. Document build prerequisites and
   preserve the distinction between selected checks and complete verification.
-- For AC4–AC5, review before/after evidence and changes to test risk coverage.
-  Where parallelism changes, test concurrent execution with separate resources
-  and demonstrate cleanup after a controlled failure. Do not enable concurrency
-  solely because one successful run happened to pass.
+- For AC4–AC5, check the optimization decision against the retrospective.
+  If no optimization is warranted, verify the reason for deferral rather than
+  requiring a test audit or before/after benchmark. For execution/setup changes,
+  review comparable timing evidence and retained risk coverage. Where parallelism
+  changes, demonstrate isolated resources and cleanup after a controlled failure;
+  one successful concurrent run is insufficient.
+- For AC9, trace representative reported observations back to local source events.
+  Check turn boundaries, missing data, cumulative usage and overlapping commands.
+  Verify that the committed report contains only sanitized findings. If an offline
+  script is added, use small sanitized fixtures to verify the supported format
+  and meaningful missing-data/aggregation cases; do not add a generic log platform.
 - For AC7, exercise counts below, exactly at and above 1,500, Unicode text,
   Markdown table padding/wrapping, LF/CRLF and missing/unreadable input. Check
   diagnostics and nonzero propagation through the aggregate. Demonstrate a
@@ -208,8 +305,8 @@ examples and the generated AGENTS.md ceiling are unaffected.
   detail with retained summaries/links, rather than losing essential orientation.
 - Run applicable focused checks during implementation and full `npm run verify`
   before handoff. Record actual Windows results; command design must remain
-  portable without claiming an unperformed Linux run. Keep benchmark evidence
-  under `docs/increments/evidence/0032/` and link it from the outcome.
+  portable without claiming an unperformed Linux run. Keep sanitized retrospective
+  and applicable timing evidence under `docs/increments/evidence/0032/` and link it from the outcome.
 - Human check: choose a changed area in the guide, run its focused command, then
   run the aggregate and inspect the stage summary and exit status.
   For a map edit, also run `npm run code-map:check` and review retained task routes
@@ -217,9 +314,11 @@ examples and the generated AGENTS.md ceiling are unaffected.
 
 ## Open questions
 
-None blocking the proposed design. The measured bottlenecks determine the exact
-safe setup/execution optimizations during implementation. Parallel worker counts
-and test consolidation are not pre-approved outcomes. Implementation follows the approved design.
+Availability and detail of historical local Codex records must be established
+during the retrospective. Missing records limit conclusions and conditional
+optimizations, but do not justify new monitoring infrastructure. No specific
+parallel worker count, test consolidation or production restructuring is
+pre-approved. Implementation follows the approved design.
 
 ## Implementation and review outcome
 
@@ -249,13 +348,27 @@ results are recorded in the linked evidence. Independent review, actual Windows
 console Ctrl+C delivery and Linux execution remain outstanding; completion awaits
 independent review and resolution of any findings.
 
+During push, two remote design commits were discovered and integrated. They add
+AC9 and make the detailed audit conditional. The current retrospective records
+aggregate local-session format/count evidence and its limitations; it does not
+complete the revised 3–5-increment selection, turn-range classification or
+per-increment version/model/settings attribution. AC9 therefore remains open for
+follow-up before completion. The recorded test audit is supplementary and does
+not establish material verification overhead in the historical sessions.
+
 ## Decision changes and follow-up
 
 On 2026-11-02, the user expanded 0032 to include the 1,500-word code-map gate and
 explicit maintenance instructions protecting useful prose, names and links.
 This adds a documentation check to the verification workflow; it does not extend
 the separate generated Workspace AGENTS.md ceiling to repository files or change
-0031's delivered documentation scope. Implementation is recorded above; independent review remains pending.
+0031's delivered documentation scope. Implementation is recorded above; review remains pending.
+
+On 2026-11-04, the scope was revised to diagnose overhead from existing native
+Codex records first. Lightweight stage timing, focused checks and the code-map
+budget remain; the detailed test audit and optimizations depend on demonstrated
+overhead. This replaces the unconditional expensive-test audit and baseline/final
+optimization exercise, without creating a monitoring system.
 
 After 0032 is completed, revisit the 0033 frontend-coordination brief using the
 current source tree, navigation map and verification evidence. Agree its detailed
