@@ -1,14 +1,12 @@
 # 0032 — Measured and focused verification workflow
 
-> Status: draft
+> Status: in_progress
 > Description: Measure verification stages, document focused checks, keep the code map compact and optimize demonstrated test overhead while preserving complete handoff verification.
 > Depends on: Completion of 0031 — Code map and agent navigation.
 
-Scope and sequencing were agreed on 2026-11-02. This document proposes the
-detailed design and acceptance criteria; implementation has not started.
+Scope and sequencing were agreed on 2026-11-02. The user approved implementation on 2026-11-04; implementation is in progress.
 Planning branch: `increment/0032-verification-workflow`, independently based on
-main at `b1a5761`. The 0031 proposal is in `increment/0031-code-map`; integrate
-completed 0031 before implementation and add its document link at that point.
+main at `b1a5761`. Completed [0031](0031-code-map.md) is integrated through commit `8c0b972`.
 On 2026-11-02 the user also agreed to include a code-map size check and maintenance
 instructions preserving essential navigation and readable text.
 
@@ -221,14 +219,35 @@ examples and the generated AGENTS.md ceiling are unaffected.
 
 None blocking the proposed design. The measured bottlenecks determine the exact
 safe setup/execution optimizations during implementation. Parallel worker counts
-and test consolidation are not pre-approved outcomes. The proposal remains draft.
+and test consolidation are not pre-approved outcomes. Implementation follows the approved design.
 
 ## Implementation and review outcome
 
-Pending implementation and review. Record baseline/final revisions and timings,
-the expensive-test risk mapping, implemented changes or justified deferrals,
-actual checks/platform, failure-probe results and review findings. Do not claim
-reduced overall agent implementation time from test timings alone.
+Implementation is delivered for independent review; status remains `in_progress`.
+The user approved implementation on 2026-11-04. Local session availability/format
+was inspected first; only [sanitized findings and verification evidence](evidence/0032/findings.md)
+are retained. Historical phase timings cannot be reliably reconstructed.
+
+Delivered: portable timed fail-fast Node runner; named CLI suite with unchanged
+aggregate E2E coverage; Unicode-aware inclusive code-map budget; process/budget
+regression probes; focused verification guide linked from developer entry points;
+readable map maintenance rules and retained navigation routes. No production or
+test-journey assertions were relaxed; worker counts, timeouts, retries and
+dependencies are unchanged. A discovered keyboard test race now waits for the
+existing target announcement before the second drop, retaining all outcome checks.
+The audit justified retaining expensive boundaries and existing serial execution;
+no suite speedup or reduced overall agent implementation time is claimed.
+
+The original full Windows gate passed at baseline. The final complete Windows
+`npm run verify` passed in 283.646s (exit 0): 213 unit/component tests, 295 integration
+tests, 40 acceptance scenarios, 36 CLI tests and 31 Chromium tests. The map has
+924 counted words. Failure probes, focused checks and one intermediate browser
+failure with its synchronization correction are recorded in the evidence. Its missing per-stage timing
+instrumentation is an explicit evidence limitation. Final full-gate results,
+source identity, environment, focused checks, navigation walkthrough and probe
+results are recorded in the linked evidence. Independent review, actual Windows
+console Ctrl+C delivery and Linux execution remain outstanding; completion awaits
+independent review and resolution of any findings.
 
 ## Decision changes and follow-up
 
@@ -236,7 +255,7 @@ On 2026-11-02, the user expanded 0032 to include the 1,500-word code-map gate an
 explicit maintenance instructions protecting useful prose, names and links.
 This adds a documentation check to the verification workflow; it does not extend
 the separate generated Workspace AGENTS.md ceiling to repository files or change
-0031's delivered documentation scope. Detailed implementation remains pending.
+0031's delivered documentation scope. Implementation is recorded above; independent review remains pending.
 
 After 0032 is completed, revisit the 0033 frontend-coordination brief using the
 current source tree, navigation map and verification evidence. Agree its detailed

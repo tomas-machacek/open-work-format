@@ -20,7 +20,8 @@
     "*.mjs",
     "*.cjs",
     ".dependency-cruiser.cjs",
-    "*.ts"
+    "*.ts",
+    "scripts/**/*.mjs"
   ],
   "exclude": ["src/web"]
 }

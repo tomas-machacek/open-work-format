@@ -17,6 +17,15 @@ The narrower reading path does not waive applicable rules or document authority.
 Update the map in the same increment when entry points, responsibilities or
 cross-module effects change; routine internal edits do not require map churn.
 Keep detailed decisions here or in architecture and outcomes in their increments.
+The map has an inclusive 1,500-word budget enforced by `npm run code-map:check`;
+[counting rules and recipes](verification.md) own focused verification guidance.
+Preserve important entry names, task routes, rule/test links, nonlocal warnings and
+build prerequisites in readable explanations. Remove duplication/stale material
+first and move detail to its primary home, retaining useful summaries/direct links.
+Do not remove essential words/links, use opaque abbreviations, concatenate words,
+or create another mandatory orientation map to meet the ceiling. Never silently
+raise or bypass it; record a trade-off for a separately agreed budget/navigation
+change if useful orientation cannot fit. Review routes and links, not size alone.
 
 Mandatory rules use "must"; recommendations use "should". Open decisions are
 explicitly labeled. Examples do not create requirements. Record substantive
@@ -253,6 +262,9 @@ No dependency or configuration may bypass a layer check to make a build pass.
 | npm run typecheck          | Types including tests                |
 | npm run lint               | ESLint                               |
 | npm run format:check       | Formatting                           |
+| npm run code-map:check     | Code-map word budget                 |
+| npm run test:cli           | Built CLI journeys (build first)     |
+| npm run test:browser       | Browser journeys (build first)       |
 | npm run architecture:check | Module boundaries and cycles         |
 | npm test                   | Unit tests                           |
 | npm run test:integration   | Technical integration                |
@@ -262,7 +274,11 @@ No dependency or configuration may bypass a layer check to make a build pass.
 | npm run verify             | All applicable required checks above |
 | npm run release            | Local version commit and tag         |
 
-Use focused checks during development, then full verify before code handoff.
+Use [focused verification recipes](verification.md) during development, then full
+`npm run verify` before code handoff. The gate times each required stage, builds
+once and stops on failure. `npm run test:cli` and `npm run test:browser` are separate
+built-output suites; both require a current build. `npm run test:e2e` aggregates
+them. `npm run code-map:check` enforces the map budget after formatting.
 Documentation-only increments follow their documented formatting, link and diff
 checks; they do not require runtime suites solely for repository prose changes.
 Suites are introduced with the behavior they cover; do not claim nonexistent
