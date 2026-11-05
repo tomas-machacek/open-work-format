@@ -5,6 +5,35 @@ full `npm run verify` is required before code handoff. Inspect the selected
 [code-map route](code-map.md), adjacent callers, shared contracts and nonlocal
 consumers before choosing checks. A file selection is not an impact proof.
 
+## Working loop
+
+1. Before editing, choose the relevant recipe below and inspect its broader
+   effects. Add adjacent suites when the actual change crosses their boundaries.
+2. While editing, run affected tests. On failure, diagnose and repeat the affected
+   test or suite; include a fresh build before built-CLI/browser checks when
+   relevant source changed.
+3. Prepare the handoff: run `npm run typecheck`, `npm run lint` and
+   `npm run format:check` on the prepared changes, reusing valid unchanged-input
+   results. Fix these failures and known affected-test failures first. Inspect
+   the final diff and acceptance criteria before launching the complete gate.
+4. Run `npm run verify` before code handoff. On failure, inspect the failed
+   stage, fix the cause and confirm it with focused checks before the next full
+   gate. A focused pass alone does not complete code handoff.
+5. During review, match existing passing evidence to the reviewed revision and
+   run additional checks for a concrete risk. Starting review does not itself
+   invalidate an unchanged-revision result.
+
+For example, if a browser journey fails, diagnose it and use the relevant
+`test:browser` file/test selection after the correction, rebuilding when needed.
+Once the correction and cheap checks pass, run the full gate on the final
+code/test/configuration revision. Do not repeatedly launch the aggregate merely
+to discover a known local type, lint, formatting or affected-test error.
+
+Repository prose-only work follows the documentation recipe below. Full-gate
+stages remain unchanged even when preliminary checks have passed.
+The [guidelines](development-guidelines.md#development-verification-workflow)
+own the verification and evidence-reuse rules.
+
 ## Select checks during development
 
 | Changed area                       | Focused command                                                                                                                                                            | Why broaden selection                                                                                                                                        |
@@ -55,7 +84,13 @@ not a speed threshold. No retry or telemetry store is involved.
 
 Reuse a passing run for an unchanged code/test/configuration revision in independent
 review; rerun checks for a concrete changed risk. Record platform, exact revision
-(or base plus working diff), commands, results and limitations. Full verification
+(or base plus identified working diff), commands, full-gate result and limitations
+in the existing increment outcome. For additional full runs, briefly record the
+reason (for example a changed test or an investigated failure) and outcome;
+failed attempts are not complete passing runs. No separate per-run report or
+fixed run limit is required. After code, tests, dependencies or configuration
+change, obtain a full passing result for the final revision; prose-only follow-ups
+use documentation checks and preserve the identity of earlier runtime evidence. Full verification
 does not replace independent diff/criteria review.
 
 ## Code-map budget and navigation review

@@ -286,6 +286,29 @@ tests ran.
 There are no GitHub Actions, automatic push-triggered reruns or mandatory hooks.
 A future CI workflow may call the same commands if explicitly adopted.
 
+## Development verification workflow
+
+Before editing, select checks from the [verification recipes](verification.md)
+and inspect adjacent callers, shared contracts and nonlocal effects. During
+development, use affected tests and broaden selection when a boundary or shared
+behavior changes.
+
+Before launching the full handoff gate, resolve known failures with focused
+checks and ensure typecheck, lint and formatting pass on the prepared changes.
+Do not mechanically repeat already-passing checks when their inputs are unchanged.
+Inspect the final diff and acceptance criteria, then run full `npm run verify`.
+The full gate still runs all required stages; preliminary checks do not replace
+or remove its stages.
+
+If the gate fails, diagnose the failing stage and verify the correction with
+focused checks before another full run. After code, tests, dependencies or
+configuration change, the final revision must pass the full gate. Repository
+prose-only follow-ups use formatting, link, applicable map and diff checks and
+may reuse the previous runtime evidence. An unchanged-revision rerun must address
+a concrete failure or uncertainty; there is no maximum run count and no automatic
+retry-until-green policy. Record a short reason for additional full runs in the
+existing increment outcome, not a separate monitoring report.
+
 ## Independent review and handoff
 
 Review should happen in a separate agent session, based on the agreed increment,
@@ -306,10 +329,15 @@ Each handoff records:
 
 - What changed and which agreed behavior it implements.
 - A short way for the human to try it.
-- Checks actually executed, their outcome and platform.
+- Checks actually executed, their outcome, platform and verified revision
+  (commit or base plus identified working diff).
+- Full-gate result and short reasons for additional full runs; distinguish failed
+  attempts from complete passing runs.
 - Known limitations, unperformed checks and unresolved findings.
 
-Reuse relevant verification results when the reviewed code has not changed.
+Reuse a passing full-gate result when the reviewed code, tests, dependencies and
+configuration match its identified revision. Check the diff since that result;
+repository prose-only changes need their documentation checks.
 Run additional checks to resolve concrete uncertainty; do not repeat the entire
 suite merely because a second agent is reviewing it.
 

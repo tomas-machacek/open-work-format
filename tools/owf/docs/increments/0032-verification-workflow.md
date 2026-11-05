@@ -377,6 +377,20 @@ claimed. For 00xx, concrete refresh/notification repair examples supplement the
 preserved coordination-risk map. All review findings are resolved; platform and
 manual-check limitations remain explicit in the evidence.
 
+Documentation follow-up on 2026-11-05: the user authorized making the observed
+workflow explicit in developer guidance. Guidelines now own focused development,
+cheap preflight checks, failure diagnosis, final-revision full verification and
+unchanged-revision review reuse; verification.md gives the practical loop and
+AGENTS.md links to it. Handoff records the verified revision and reasons for
+additional full gates in the existing outcome. No runtime gate, test, dependency
+or monitoring infrastructure changes in this follow-up. Earlier runtime evidence
+remains scoped to its recorded revision; this prose follow-up requires
+documentation checks and is not included in the earlier independent review.
+Follow-up validation: diff whitespace and changed-link/anchor inspection passed.
+Prettier was unavailable in the editing environment (offline package cache miss);
+formatting verification remains outstanding. Runtime suites were not rerun for
+these repository prose changes.
+
 ## Decision changes and follow-up
 
 On 2026-11-02, the user expanded 0032 to include the 1,500-word code-map gate and
