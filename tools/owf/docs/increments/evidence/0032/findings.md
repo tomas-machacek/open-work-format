@@ -77,7 +77,7 @@ The delivered improvements are direct stage diagnostics, independently selectabl
 CLI checks and documented selections; no percentage speedup is claimed. Additional
 benchmark repetitions would not resolve the missing historical phase labels.
 
-For 0033: frontend interaction and refresh coordination have substantial real
+For 00xx: frontend interaction and refresh coordination have substantial real
 browser coverage and differing read/gesture policies. Preserve the map's hidden
 Default-board events, queued View reads and focus/recovery risks when agreeing its
 design. Browser fixture setup is already cheap in the geometry/interaction suites;
