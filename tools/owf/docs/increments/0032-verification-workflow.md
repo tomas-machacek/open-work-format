@@ -41,7 +41,7 @@ A detailed expensive-test audit and test execution/setup optimization are
 conditional on the retrospective demonstrating material verification overhead.
 Orientation and repair findings may instead justify documentation improvements
 within this scope or recommendations for separately agreed work. Production
-restructuring, including the later 0033 frontend brief, is outside this increment.
+restructuring, including the later 00xx frontend brief, is outside this increment.
 No service, dashboard, database, OTel collector, per-action instrumentation,
 new framework or dependency is introduced.
 
@@ -254,7 +254,7 @@ examples and the generated AGENTS.md ceiling are unaffected.
   increases or automatic retries are introduced.
 - **AC6 — Complete handoff:** full `npm run verify` passes on the final code/test/
   configuration revision; focused checks and historical evidence are distinguished
-  from that result. The outcome supplies findings useful for detailing 0033.
+  from that result. The outcome supplies findings useful for detailing 00xx.
 - **AC7 — Bounded code map:** `npm run code-map:check` accepts at most 1,500 counted
   words, reports path/count/ceiling, rejects oversize or unreadable input and runs
   once within the timed full verification. Its counting rules are documented and
@@ -370,7 +370,9 @@ budget remain; the detailed test audit and optimizations depend on demonstrated
 overhead. This replaces the unconditional expensive-test audit and baseline/final
 optimization exercise, without creating a monitoring system.
 
-After 0032 is completed, revisit the 0033 frontend-coordination brief using the
-current source tree, navigation map and verification evidence. Agree its detailed
-scope and acceptance criteria before implementation. Other backend/file splitting
+The frontend-coordination brief is parked as 00xx on branch
+`increment/00xx-web-coordination`; it reserves no implementation number.
+Revisit it only when findings justify selecting that work, using the current
+source tree, navigation map and verification evidence. Assign an available number
+and agree detailed scope and acceptance criteria before implementation. Other backend/file splitting
 remains deferred until a concrete change justifies it.
