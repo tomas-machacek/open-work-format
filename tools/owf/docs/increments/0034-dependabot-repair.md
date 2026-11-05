@@ -1,8 +1,10 @@
 # 0034 — Repair Dependabot dependency findings
 
-> Status: draft
+> Status: reviewed
 > Description: Repair the reported dependency vulnerabilities while preserving OWF behavior and the local development and release workflows.
 > Depends on: [0015 — Development dependency audit repair](0015-dependency-audit.md).
+
+Approved for implementation by the user on 2026-11-05.
 
 ## Goal and scope
 
