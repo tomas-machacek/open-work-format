@@ -1,6 +1,6 @@
 # 0034 — Repair Dependabot dependency findings
 
-> Status: in_progress
+> Status: completed
 > Description: Repair the reported dependency vulnerabilities while preserving OWF behavior and the local development and release workflows.
 > Depends on: [0015 — Development dependency audit repair](0015-dependency-audit.md).
 
@@ -176,8 +176,8 @@ revision. Review formatting, relative links, table continuity and the final diff
 ## Implementation and review outcome
 
 Implemented on `increment/0034-dependabot-repair`, based on
-`ad1cbcba086440e6c6333da90555aa70847bcb44`. Status remains `in_progress` pending
-independent implementation review. Runtime evidence below identifies that base
+`ad1cbcba086440e6c6333da90555aa70847bcb44`. Independent review completed with no
+findings, as confirmed by the user on 2026-11-05. Runtime evidence below identifies that base
 plus the `package.json` / npm-generated `package-lock.json` repair in this branch;
 no application, test, verification or release configuration changed.
 
@@ -289,14 +289,18 @@ deduplicated override conflict. The final version-range override eliminated it;
 normal npm 11.4.1 revalidated the lock, clean-installed it and passed the whole
 dependency-tree check. Temporary probes and baseline copies are removed at handoff.
 
-### Open review and post-merge confirmation
+### Review and post-merge confirmation
 
-Independent code review: **pending**. The increment and index remain
-`in_progress`; implementation alone does not complete them.
+Independent code review: **completed with no findings**, as confirmed by the user
+on 2026-11-05. The user authorized completion and merge. The reviewed branch head
+was `56962f8cd064e65992e701d03f1e8b28f522cd4b`; its manifest and lockfile blob IDs
+match the passing full-gate inputs recorded above. Completion changes only
+repository prose and reuses that runtime evidence.
 
 GitHub closure of all 30 baseline alerts after merge and dependency-graph
-processing: **pending**. No merge, release, tag, publishing or alert dismissal
-was performed. Local audit evidence does not claim default-branch alerts closed.
+processing: **pending**. This follow-up remains separate from implementation and
+review completion. No release, tag, publishing or alert dismissal is part of this
+increment. Local audit evidence does not claim default-branch alerts closed.
 
 Validation is Windows-only. Probes exercised local plain HTTP, redirects, gzip,
 jsdom resource loading and static files; external proxy/PAC, TLS attack scenarios,
