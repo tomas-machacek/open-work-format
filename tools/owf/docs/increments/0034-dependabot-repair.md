@@ -1,6 +1,6 @@
 # 0034 — Repair Dependabot dependency findings
 
-> Status: reviewed
+> Status: in_progress
 > Description: Repair the reported dependency vulnerabilities while preserving OWF behavior and the local development and release workflows.
 > Depends on: [0015 — Development dependency audit repair](0015-dependency-audit.md).
 
@@ -171,12 +171,135 @@ behavioral tests; do not add tests that merely assert package version strings.
 
 Human trial from `tools/owf/`: `npm ci`, `npm audit`,
 `npm audit --omit=dev`, `npm run verify`. Record actual results and the verified
-revision. Review formatting, relative links, table continuity and the final diff
-for this documentation-only proposal; runtime suites are required for the later
-dependency implementation.
+revision. Review formatting, relative links, table continuity and the final diff.
 
 ## Implementation and review outcome
 
-Design baseline and repair targets are recorded. Not implemented; dependency files
-are unchanged. npm audit, compatibility probes, full runtime verification and
-independent implementation review have not run.
+Implemented on `increment/0034-dependabot-repair`, based on
+`ad1cbcba086440e6c6333da90555aa70847bcb44`. Status remains `in_progress` pending
+independent implementation review. Runtime evidence below identifies that base
+plus the `package.json` / npm-generated `package-lock.json` repair in this branch;
+no application, test, verification or release configuration changed.
+
+### Refreshed findings and resolved paths
+
+On 2026-11-05, `gh api
+repos/tomas-machacek/open-work-format/dependabot/alerts?state=open&per_page=100`
+returned the same 30 open alerts and advisory minimums as the baseline; none were
+added, removed or dismissed. The first sandbox audit reported zero without useful
+online evidence. Repeating it with network access returned 21 vulnerable package
+entries (3 high, 17 moderate, 1 low, including propagated parent findings).
+The authenticated GitHub inventory and online audit are the implementation-start
+snapshot; the sandbox result is not evidence that the original graph was safe.
+
+Every baseline alert maps to the following final graph. Paths shared with the
+baseline retain their intermediate parent versions unless explicitly shown.
+
+| Baseline alerts         | Implemented repair and resolved path                                                                                                           |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1–#6                   | Direct `vite@8.3.3`, also shared by Vitest/mocker; includes the bundled editor fixes.                                                          |
+| #7–#8                   | Direct `vitest@5.0.3 → @vitest/mocker@5.0.3 → @vitest/spy@5.0.3`.                                                                              |
+| #10                     | Direct `fastify@5.12.6`.                                                                                                                       |
+| #11                     | Direct `zod@4.6.6`.                                                                                                                            |
+| #12, #14, #16, #18      | All three Ajv 8.20.0 paths under `@fastify/ajv-compiler`, `ajv-formats` and `fast-json-stringify` resolve `fast-uri@3.1.9`.                    |
+| #13, #15, #17, #19      | `fastify → @fastify/ajv-compiler@4.0.6` and `fast-json-stringify@7.0.1` share `fast-uri@4.2.3`. Ajv stays on 3.x.                              |
+| #24, #28, #30, #32, #34 | `release-it@21.0.3 → undici@7.30.1`, through the revised release-it-scoped override.                                                           |
+| #25, #29, #31, #33, #35 | Unchanged parent `jsdom@30.1.1 → undici@8.12.4`, within its declared 8.x range.                                                                |
+| #36                     | Direct `@fastify/static@10.1.9 → glob@14.0.3 → path-scurry@3.0.0`; upstream 10.1.9 is the first inspected static patch declaring glob 14.      |
+| #37                     | `glob@14.0.3`, `eslint@10.10.0`, `@eslint/config-array@0.23.5` and `@typescript-eslint/typescript-estree@8.70.0` all share `minimatch@11.0.4`. |
+
+The online audit additionally reported undici advisories
+[GHSA-4qv8-2p9j-2685](https://github.com/advisories/GHSA-4qv8-2p9j-2685),
+[GHSA-f72v-6w45-q472](https://github.com/advisories/GHSA-f72v-6w45-q472) and
+[GHSA-55wc-3pg8-jfw6](https://github.com/advisories/GHSA-55wc-3pg8-jfw6),
+resolved by the same 7.30.1 / 8.12.4 updates. It also found
+[GHSA-rxp7-6hxx-x8q5](https://github.com/advisories/GHSA-rxp7-6hxx-x8q5):
+`release-it → proxy-agent@8.0.2 → socks-proxy-agent@10.1.0 → socks@2.8.10 →
+ip-address` now resolves 10.7.6 instead of 10.7.2 (fixed minimum 10.7.4).
+These were audit additions, not additional alerts in the refreshed GitHub list.
+
+The only new override is `minimatch@^10.2.2: 11.0.4`, restricted to the affected
+10.x declarations of the three lint consumers. Glob uses its upstream 11.x
+declaration. The consumers still use the named `minimatch` function and/or
+`Minimatch` class; local checks below cover those APIs. This crosses their 10.x
+ranges without refreshing the lint toolchain. All selected engines support the
+existing Node 24.21.0 prerequisite. Remove the override when upstream declarations
+adopt fixed minimatch, with fresh audit and compatibility evidence.
+
+Lockfile changes are confined to these repairs and required consequences:
+`@fastify/send@4.2.1`, the Vite rolldown/native-binding/Oxc family,
+`@vitest/spy`, Vitest's `why-is-node-running@3.2.1` (removing its obsolete
+siginfo/stackback dependencies), path-scurry and minimatch's nonrecursive matcher.
+The unrelated magic-string refresh was reverted before npm revalidated the lock.
+The 0015 get-uri 8.0.1/basic-ftp 6.2.1 chain, override and source-map-js 1.2.2
+entries are unchanged; its historical FTP/MLSD compatibility evidence is retained.
+No FTP probe was repeated because those inputs did not change.
+
+### Verification evidence
+
+Executed on Windows (`Windows_NT 10.0.26300`), Node.js `v24.21.0`, npm `11.4.1`:
+
+- Final clean `npm ci` passed: 571 installed packages, 572 audited.
+- Online `npm audit` and `npm audit --omit=dev` both passed with zero
+  vulnerabilities after that clean install.
+- `npm ls` / `npm explain` inspected the affected paths.
+  `npm ls --all --json` passed; a lockfile scan checked all 14 affected resolved copies against
+  their advisory minimums, including both fast-uri and undici lines.
+- `npm run typecheck` and `npm run lint` passed. `npm run build` passed outside
+  the sandbox after its first sandbox attempt failed with process `spawn EPERM`.
+- Disposable local Node probes passed HTTP status/content, redirects and exact
+  gzip decoding through each consumer's actual undici; `JSDOM.fromURL` followed
+  a redirect, parsed the document and loaded external CSS with the expected style.
+- A disposable copy of the built board served its index, JS and CSS byte for byte
+  through OWF's configured static root. An extra nested asset with spaces, `#`
+  and `%` also served correctly. Missing and encoded traversal requests could
+  not expose a sibling file outside that root.
+- Glob 13/14 produced identical raw Windows paths and file sets for the static
+  plugin's `**/**` options. Explicit `wildcard: false` route enumeration also
+  served the three built files. Its extra encoded-name fixture returned 404 in
+  both baseline and updated plugins; OWF's configured wildcard mode served it.
+  Initial probe attempts corrected the relocated baseline import, Windows path
+  normalization and that pre-existing explicit-route limitation before passing.
+- 576 old/new minimatch function/class comparisons passed for source/test,
+  brace/extension, dotfile, ignore and negation patterns. A negative ESLint probe
+  still rejected a floating promise with the type-aware rule. Vitest
+  `list --filesOnly --json` exactly matched the 39 intended source/integration/CLI
+  test files from an independent filesystem inventory.
+- `node node_modules/release-it/bin/release-it.js patch --dry-run --ci --no-git
+--no-npm --no-github --no-gitlab` passed; no release or version change occurred.
+- The single final `npm run verify` passed all stages in 277.878 seconds:
+  typecheck, lint, formatting, code-map budget (924/1500 words), architecture
+  (65 modules / 225 dependencies, no violations), build, 213 unit/component tests,
+  295 integration tests, 40 acceptance scenarios / 222 steps, 36 CLI tests and
+  all 31 Chromium browser tests. No full-gate failure or rerun occurred.
+- Full-gate dependency inputs are Git blobs
+  `9a5c04fcf6dbd360f81228e17032ae1ce10d0b91` (`package.json`) and
+  `b63bcd6282ccdc72160c43b97969b87c07b01a12` (`package-lock.json`). Subsequent
+  edits only record the result in repository prose and reuse this runtime evidence.
+- Formatting and `git diff --check` passed; all 41 repository-relative links in
+  the changed documents resolve within the repository. Documentation checks were
+  repeated after recording the full-gate result.
+
+npm 11.4.1 twice failed during initial lockfile generation with an internal
+Arborist `edgesOut` error while resolving Vitest peers, including without the old
+node_modules. Temporary npm 11.21.2 generated the lock with normal peer checks;
+no force/legacy-peer flags or project prerequisite changes were used. An initial
+set of three parent-specific minimatch overrides made npm 11.4.1 report a
+deduplicated override conflict. The final version-range override eliminated it;
+normal npm 11.4.1 revalidated the lock, clean-installed it and passed the whole
+dependency-tree check. Temporary probes and baseline copies are removed at handoff.
+
+### Open review and post-merge confirmation
+
+Independent code review: **pending**. The increment and index remain
+`in_progress`; implementation alone does not complete them.
+
+GitHub closure of all 30 baseline alerts after merge and dependency-graph
+processing: **pending**. No merge, release, tag, publishing or alert dismissal
+was performed. Local audit evidence does not claim default-branch alerts closed.
+
+Validation is Windows-only. Probes exercised local plain HTTP, redirects, gzip,
+jsdom resource loading and static files; external proxy/PAC, TLS attack scenarios,
+FTPS and remote release actions were not exercised. No application compatibility
+edits or concrete regression requiring a permanent new test were identified;
+existing behavioral suites remain the handoff gate.
