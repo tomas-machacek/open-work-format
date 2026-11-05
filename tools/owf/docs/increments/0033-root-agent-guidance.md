@@ -1,6 +1,6 @@
 # 0033 — Root agent orientation
 
-> Status: in_progress
+> Status: completed
 > Description: Give agents launched at the repository root a compact orientation and routes to existing authoritative guidance.
 > Depends on: [0031 — Code map and agent navigation](0031-code-map.md) (completed).
 
@@ -90,8 +90,8 @@ generated artifact; this increment introduces no new gate or runtime behavior.
 
 ## Implementation and review outcome
 
-Implemented on 2026-11-05. This document and its index remain `in_progress`
-pending independent implementation review; no design deviation was needed.
+Implemented and independently reviewed on 2026-11-05. No review findings or
+design deviations were identified; acceptance criteria AC1–AC4 are satisfied.
 
 ### Delivered guidance
 
@@ -125,7 +125,7 @@ Starting at root `AGENTS.md`, the implementer followed two routes:
   The source and test entry points were inspected for navigation only; this
   hypothetical task is outside 0033 and that runtime test was not executed.
 
-### Verification and limitations
+### Implementation verification and limitations
 
 Platform: Windows 10.0.26300, PowerShell 7.6.9, Node 24.21.0, npm 11.4.1.
 Checks actually performed:
@@ -151,5 +151,47 @@ Runtime suites and full `npm run verify` were not run, as specified for this
 documentation-only increment. The human check of launching a new agent from the
 root has not been performed or observed. To try it, launch an agent at the root,
 give it a small tool task and confirm it reads `tools/owf/AGENTS.md` first.
-Independent implementation review is pending. No unresolved implementation
-finding or blocking question was identified by the implementer.
+No unresolved implementation finding or blocking question was identified by the
+implementer.
+
+### Independent review and rebase
+
+Independent review assessed `483f33c` against the agreed scope and AC1–AC4 using
+`main...HEAD` from common ancestor `8c0b972`, without treating the implementer's
+summary as proof. No findings required correction. The reviewer walked both task
+routes, read both entry points together and confirmed documentation-only scope.
+On the same Windows/PowerShell/Node platform recorded above, a one-off CommonMark
+check resolved 69 local links and 10 anchors across the four changed documents
+and nested AGENTS.md. Both `git diff --check main...HEAD` and
+`git diff --check main HEAD` passed. The unchanged formatting inputs reused the
+implementation's recorded Prettier result; runtime suites were not run.
+
+At the user's request, the branch was rebased onto `main` at `5faed41`, which
+already contains increment 0032. Rebase conflicts were confined to the increment
+index; both 0032 and 0033 were retained. Rebased delivery `cdef45d` preserves the
+reviewed root guidance and ownership note, together with 0032's existing tool
+instructions, code map, verification guidance and implementation. This completion
+record and the matching index status are documentation-only follow-ups.
+
+Post-rebase checks cover `cdef45d` plus these completion/index follow-ups on the
+same recorded Windows platform. They were rerun because rebase changed the
+guidelines and nested entry point and required index conflict resolution:
+
+- The one-off CommonMark check via `node --input-type=module` from `tools/owf/`
+  resolved all 75 local links and 11 anchors across the four changed documents
+  and nested AGENTS.md. Root guidance still has 32 lines and no frontmatter.
+- Both task routes were rechecked. Tool navigation now continues from the code
+  map to `docs/verification.md` for the generated-guidance focused command,
+  preserving increment 0032's navigation changes.
+- From `tools/owf/`,
+  `npx prettier --write ../../AGENTS.md docs/development-guidelines.md docs/increments/0033-root-agent-guidance.md docs/increments/README.md`
+  normalized only the index row. The corresponding `npx prettier --check` with
+  the same four paths passed on the final documentation.
+- From the repository root, `git diff --check main` and `git diff --check`
+  passed. Final scope inspection confirmed four documentation files; source,
+  tests, dependencies, generated guidance and verification tooling match `main`.
+- Runtime suites and full `npm run verify` were not run: this remains a
+  documentation-only increment under its agreed verification plan.
+
+The human check of launching a new agent remains unperformed. There are no
+unresolved review findings.
