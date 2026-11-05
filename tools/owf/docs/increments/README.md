@@ -52,7 +52,7 @@ link and a one-line description; keep its status in sync.
 | [0030 — Quiet web operation feedback](0030-quiet-web-feedback.md)                        | Remove visible success confirmations and show temporary errors without shifting board layout.                      | completed |
 | [0031 — Code map and agent navigation](0031-code-map.md)                                 | Map current implementation entry points and guide task-specific reading and verification.                          | completed |
 | [0032 — Native session analysis and focused verification](0032-verification-workflow.md) | Diagnose overhead from native Codex sessions, time verification and retain focused checks and a compact code map.  | completed |
-| [0033 — Root agent orientation](0033-root-agent-guidance.md) | Add a compact repository-root agent entry point with routes to specification, design and tool guidance. | reviewed |
+| [0033 — Root agent orientation](0033-root-agent-guidance.md) | Add a compact repository-root agent entry point with routes to specification, design and tool guidance. | in_progress |
 
 0022 depends on completed [0021](0021-view-evaluation-cli.md), merged through [PR #27](https://github.com/tomas-machacek/open-work-format/pull/27).
 

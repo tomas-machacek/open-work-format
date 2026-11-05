@@ -1,6 +1,6 @@
 # 0033 — Root agent orientation
 
-> Status: reviewed
+> Status: in_progress
 > Description: Give agents launched at the repository root a compact orientation and routes to existing authoritative guidance.
 > Depends on: [0031 — Code map and agent navigation](0031-code-map.md) (completed).
 
@@ -90,5 +90,66 @@ generated artifact; this increment introduces no new gate or runtime behavior.
 
 ## Implementation and review outcome
 
-Not implemented. Record delivered guidance, verification and independent review
-at handoff; keep this document and its index status consistent.
+Implemented on 2026-11-05. This document and its index remain `in_progress`
+pending independent implementation review; no design deviation was needed.
+
+### Delivered guidance
+
+- Root `AGENTS.md` is an English, frontmatter-free entry point with project
+  context, the four-directory map and task routes (AC1, AC2). It explicitly
+  requires reading `tools/owf/AGENTS.md` for tool planning, implementation and
+  review, including before changing files in that subtree.
+- It links to existing authorities and the increment index, leaves code-map and
+  engineering navigation to the nested entry point, and distinguishes repository
+  development from generated Workspace operational guidance (AC3).
+- The guidelines' working-model/document-ownership section records both entry
+  points' ownership, primary-document maintenance and when root guidance changes
+  (AC4). Root guidance has 32 readable physical lines, within the 20–40-line
+  editorial target. No size gate was added.
+
+### Local navigation walkthrough
+
+Starting at root `AGENTS.md`, the implementer followed two routes:
+
+- Core/design clarification: the specification/design route leads to
+  `spec/core-v0.md`, section 7.3, for normative blocking/executability semantics,
+  and `docs/design/operational-store-notes.md`, section 9.2, for Action storage
+  fields. Both establish that Blocked is derived rather than an intrinsic state;
+  the root entry point keeps those rules in their authoritative documents.
+- Tool change, using generated-guidance maintenance as a representative task:
+  root → `tools/owf/AGENTS.md` → increment index → this current increment, plus
+  `tools/owf/docs/code-map.md`. The map's generated-guidance row locates
+  `src/infrastructure/markdown/agents.ts`, the guidelines' Workspace guidance
+  policy and `tests/integration/workspace-guidance.test.ts`; its focused-check
+  route gives `npx vitest run tests/integration/workspace-guidance.test.ts`.
+  The source and test entry points were inspected for navigation only; this
+  hypothetical task is outside 0033 and that runtime test was not executed.
+
+### Verification and limitations
+
+Platform: Windows 10.0.26300, PowerShell 7.6.9, Node 24.21.0, npm 11.4.1.
+Checks actually performed:
+
+- A one-off PowerShell here-string piped to `node --input-type=module`, run from
+  `tools/owf/`, used the installed CommonMark parser to resolve all local Markdown
+  links in the four changed documents and the unchanged nested `AGENTS.md`.
+  All 69 local links, including 10 section anchors, resolved within the repository;
+  the root document was also checked for absent frontmatter and line count.
+  An initial parser import failed; rerunning with the named `Parser` export passed.
+  No validator file or automated gate was added.
+- Both entry points were read together: no duplicated tool rules or conflicting
+  guidance was found. The two routes above reached the relevant authorities.
+- From `tools/owf/`,
+  `npx prettier --check ../../AGENTS.md docs/development-guidelines.md docs/increments/0033-root-agent-guidance.md docs/increments/README.md`
+  passed. Prettier also normalized the index table when its status was updated.
+- From the repository root, `git diff --check` passed. Diff/content inspection
+  confirmed only the root entry point, ownership note and increment/index records
+  changed; generated guidance, source, dependencies and verification configuration
+  are unchanged.
+
+Runtime suites and full `npm run verify` were not run, as specified for this
+documentation-only increment. The human check of launching a new agent from the
+root has not been performed or observed. To try it, launch an agent at the root,
+give it a small tool task and confirm it reads `tools/owf/AGENTS.md` first.
+Independent implementation review is pending. No unresolved implementation
+finding or blocking question was identified by the implementer.
