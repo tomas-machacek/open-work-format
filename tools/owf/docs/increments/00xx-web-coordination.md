@@ -1,14 +1,15 @@
-# 0033 — Web coordination modularity brief
+# 00xx — Web coordination modularity brief
 
 > Status: draft
 > Description: Outline a bounded frontend refactor of refresh and confirmed-write coordination for detailed design after 0032.
 > Depends on: Completion of 0031 — Code map and agent navigation, and 0032 — Measured and focused verification workflow.
 
-Brief requested on 2026-11-02. Detailed design and acceptance criteria are
+Brief requested on 2026-11-02. Parked under placeholder 00xx on 2026-11-05;
+no implementation number is reserved. Detailed design and acceptance criteria are
 deliberately deferred until 0032 is completed. This is a planning brief, not an
 implementation-ready increment.
 
-Planning branch: `increment/0033-web-coordination`, independently based on main at
+Planning branch: `increment/00xx-web-coordination`, independently based on main at
 `b1a5761`. Earlier proposals are in `increment/0031-code-map` and
 `increment/0032-verification-workflow`. Integrate their completed work and add
 document links when elaborating this brief.
@@ -60,7 +61,8 @@ choose a generic hook API or commit to merging `useBoard` and `useView` in advan
 
 ## Elaboration and verification direction
 
-After 0032, turn this brief into a standard increment with concrete module
+When this work is selected after evaluating 0032 and subsequent evidence, assign
+an available increment number and turn this brief into a standard increment with concrete module
 responsibilities, the selected mutation/synchronization flow, stable acceptance
 criteria, compatibility constraints and a focused/full verification plan. Split
 the work further if the selected boundary cannot be changed and reviewed without
