@@ -1,8 +1,10 @@
 # 0033 — Root agent orientation
 
-> Status: draft
+> Status: reviewed
 > Description: Give agents launched at the repository root a compact orientation and routes to existing authoritative guidance.
 > Depends on: [0031 — Code map and agent navigation](0031-code-map.md) (completed).
+
+Design reviewed and approved for implementation by the user on 2026-11-05.
 
 ## Goal and scope
 
@@ -11,7 +13,7 @@ instructions currently exist only under `tools/owf/`. Add a root `AGENTS.md`
 that explains the repository and directs agents to the guidance relevant to
 their task without copying tool instructions.
 
-This is a documentation-only increment. It does not depend on pending 0032.
+This is a documentation-only increment. It does not depend on 0032.
 Scope is the root entry point and minimal maintenance guidance needed to keep it
 small. Runtime behavior, generated Workspace AGENTS.md and Knowledge guides,
 dependencies, test configuration and verification workflows are unchanged.
