@@ -8,7 +8,12 @@
 AI agents implement code and perform code review; the human supervises direction,
 scope and observable behavior. Architecture owns structural decisions and
 technology choices; this document owns development, testing and release practice.
-AGENTS.md is the short entry point, not a duplicate specification.
+
+The [root AGENTS.md](../../../AGENTS.md) owns repository orientation and task
+routing; [tools/owf/AGENTS.md](../AGENTS.md) owns tool-development orientation.
+Keep both entry points small: new detail belongs in its primary document and
+entry points link to it. Change root guidance only when common orientation or
+routing changes.
 
 [Code map](code-map.md) owns current implementation navigation: module entry
 points, task routes, tests and important nonlocal effects. Start with AGENTS.md,
