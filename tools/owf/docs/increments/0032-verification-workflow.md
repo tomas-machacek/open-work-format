@@ -387,9 +387,14 @@ or monitoring infrastructure changes in this follow-up. Earlier runtime evidence
 remains scoped to its recorded revision; this prose follow-up requires
 documentation checks and is not included in the earlier independent review.
 Follow-up validation: diff whitespace and changed-link/anchor inspection passed.
-Prettier was unavailable in the editing environment (offline package cache miss);
-formatting verification remains outstanding. Runtime suites were not rerun for
-these repository prose changes.
+Prettier was unavailable in the editing environment (offline package cache miss).
+On 2026-11-05 the user subsequently reported that local `npm run verify` passed
+in approximately 140 seconds and authorized merging this branch into main.
+This user-reported full-gate result covers the documentation follow-up, including
+formatting; no raw output or additional environment details were supplied.
+The remote branch head at authorization was `f969fb7`; the exact local working-tree
+identity was not supplied. The 140-second observation is not a controlled speedup
+comparison with earlier runs. This evidence update changes repository prose only.
 
 ## Decision changes and follow-up
 
