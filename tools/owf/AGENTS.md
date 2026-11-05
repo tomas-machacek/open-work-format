@@ -43,7 +43,9 @@ dependencies, refactors and features.
 Develop [meaningful tests](docs/development-guidelines.md#tests-and-acceptance-criteria)
 with behavior. Apply [boundary and verification discipline](docs/development-guidelines.md#boundary-and-verification-discipline)
 and the [lint baseline](docs/development-guidelines.md#lint-and-architecture-rules).
-Use focused checks while working and full `npm run verify` before code handoff.
+Use the [verification workflow](docs/development-guidelines.md#development-verification-workflow)
+and [focused recipes](docs/verification.md) while working; run full `npm run verify`
+before code handoff.
 For documentation-only work, follow the increment's documentation checks.
 Never weaken gates or claim unrun/unavailable checks passed. Validation is local;
 do not add GitHub Actions or automatic publishing without a new decision.

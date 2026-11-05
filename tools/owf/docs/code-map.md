@@ -80,29 +80,11 @@ Acceptance bindings are in `tests/acceptance/steps/`; shared fixtures in `tests/
 
 ## Focused checks
 
-Run from `tools/owf/` after `npm ci`. Select the row's actual files; these examples
-are development checks, not a complete impact analysis or handoff verification:
-
-```sh
-npx vitest run src/domain/actions
-npx vitest run src/domain/views tests/integration/view-order.test.ts
-npx vitest run src/web/Board.test.tsx src/web/Notifications.test.tsx
-npx vitest run tests/integration/workspace-guidance.test.ts
-npm run test:acceptance -- --name "order"
-```
-
-Built-CLI and browser journeys require `npm run build` first (and an installed
-Chromium for browser checks); avoid reusing output older than relevant source changes:
-
-```sh
-npx vitest run tests/e2e/cli.test.ts --no-file-parallelism
-npm run test:browser -- view-move-interaction.spec.ts
-```
-
-Before code handoff run full `npm run verify`; reuse unchanged-revision evidence
-for review. See [verification commands](development-guidelines.md#planned-command-interface)
-and [handoff](development-guidelines.md#independent-review-and-handoff).
-Repository-doc-only changes use the increment's formatting, link and diff checks.
+Use [verification recipes](verification.md) for task-specific commands and reasons
+to broaden selection. Run from `tools/owf/` after `npm ci`. CLI/browser journeys
+require a current `npm run build` and browser tests require installed Chromium.
+Full `npm run verify` remains required before code handoff; selected checks are
+not a complete impact analysis. Reuse unchanged-revision evidence during review.
 
 ## Maintenance
 
@@ -110,3 +92,13 @@ Update this map in the same increment when entry points, responsibilities or
 important cross-module effects change. Routine internal edits need no map churn.
 Keep one primary home for details: [architecture](architecture.md) for decisions,
 [guidelines](development-guidelines.md) for practice and increment documents for history.
+
+The inclusive budget is 1,500 words as defined by `npm run code-map:check`;
+see [counting and review rules](verification.md#code-map-budget-and-navigation-review).
+Preserve entry-point names, routes, rule/test links, nonlocal warnings and build
+prerequisites with enough explanation for an unfamiliar agent. Remove duplication
+or stale text first; move detail to its primary home with a useful summary/link.
+Keep readable prose: do not remove essential words/links, use opaque abbreviations,
+concatenate words or move essential orientation into another mandatory map.
+Never silently raise/bypass the ceiling; record any unresolved navigation trade-off
+for a separately agreed change. Review discoverability and links as well as size.

@@ -488,6 +488,7 @@ test('keyboard announces exact insertion and append, restores focus and keeps En
     page.getByLabel('Source: position 1', { exact: true }),
   ).toHaveAttribute('class', /activeSlot/);
   await page.keyboard.press('ArrowRight');
+  await expect(live).toContainText('Target, position 1');
   await page.keyboard.press('Space');
   await expect(
     page

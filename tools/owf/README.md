@@ -879,3 +879,6 @@ an empty JSON object and returns `{ id, status: "deleted" }`. Both use the exist
 Host/Origin, JSON, strict shape and development proxy boundary. Missing targets
 return 404, dependency/precondition conflicts 409, invalid input 400 and store
 failure 503 with structured diagnostics. No new schema or dependencies are needed.
+
+For development checks and complete handoff verification, use the
+[verification recipes](docs/verification.md).
