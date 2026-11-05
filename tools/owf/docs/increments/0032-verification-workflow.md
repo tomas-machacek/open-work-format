@@ -1,12 +1,13 @@
 # 0032 — Native session analysis and focused verification
 
-> Status: in_progress
+> Status: completed
 > Description: Diagnose agent overhead from existing Codex sessions, retain lightweight verification timing and focused checks, and preserve a compact, useful code map.
 > Depends on: 0031 — Code map and agent navigation (completed).
 
 The initial scope was agreed on 2026-11-02 and revised on 2026-11-04 to start
 with existing local Codex session evidence before selecting optimizations.
-The user approved implementation on 2026-11-04; implementation is delivered for independent review.
+The user approved implementation on 2026-11-04. Independent code review and its
+AC9 evidence follow-up were completed on 2026-11-05.
 Planning branch: `increment/0032-verification-workflow`.
 Dependency [0031 — Code map and agent navigation](0031-code-map.md) is completed
 and its code map is present on this branch.
@@ -322,10 +323,12 @@ pre-approved. Implementation follows the approved design.
 
 ## Implementation and review outcome
 
-Implementation is delivered for independent review; status remains `in_progress`.
+Implementation and independent review are complete; status is `completed`.
 The user approved implementation on 2026-11-04. Local session availability/format
 was inspected first; only [sanitized findings and verification evidence](evidence/0032/findings.md)
-are retained. Historical phase timings cannot be reliably reconstructed.
+are retained. The [per-increment retrospective](evidence/0032/retrospective.md)
+analyzes four completed increments with source-traceable observations and explicit
+limits; historical active-work phase totals cannot be reliably reconstructed.
 
 Delivered: portable timed fail-fast Node runner; named CLI suite with unchanged
 aggregate E2E coverage; Unicode-aware inclusive code-map budget; process/budget
@@ -341,20 +344,38 @@ The original full Windows gate passed at baseline. The final complete Windows
 `npm run verify` passed in 283.646s (exit 0): 213 unit/component tests, 295 integration
 tests, 40 acceptance scenarios, 36 CLI tests and 31 Chromium tests. The map has
 924 counted words. Failure probes, focused checks and one intermediate browser
-failure with its synchronization correction are recorded in the evidence. Its missing per-stage timing
-instrumentation is an explicit evidence limitation. Final full-gate results,
+failure with its synchronization correction are recorded in the evidence. The
+original baseline's missing per-stage timing instrumentation is an explicit
+evidence limitation. Final full-gate results,
 source identity, environment, focused checks, navigation walkthrough and probe
-results are recorded in the linked evidence. Independent review, actual Windows
-console Ctrl+C delivery and Linux execution remain outstanding; completion awaits
-independent review and resolution of any findings.
+results are recorded in the linked evidence. Independent review confirmed no
+concrete implementation defect and identified one P1 evidence gap in AC9. A
+controlled Windows console Ctrl+C probe returned 130, stopped later stages and
+terminated the checked descendant. Linux execution, a physical-keyboard Ctrl+C
+check and the human recipe walkthrough remain unperformed; none is claimed passed.
+The unchanged code/test/configuration fingerprint matches the recorded full gate,
+which was reused rather than rerun for the documentation-only follow-up.
 
 During push, two remote design commits were discovered and integrated. They add
-AC9 and make the detailed audit conditional. The current retrospective records
-aggregate local-session format/count evidence and its limitations; it does not
-complete the revised 3–5-increment selection, turn-range classification or
-per-increment version/model/settings attribution. AC9 therefore remains open for
-follow-up before completion. The recorded test audit is supplementary and does
-not establish material verification overhead in the historical sessions.
+AC9 and make the detailed audit conditional. The first report's aggregate counts
+were insufficient; independent review explicitly kept AC9 open. The user then
+authorized the recommended correction. The 2026-11-05 follow-up analyzes 0028,
+0029, 0030 and 0031 individually, with selection reasons, session/turn/line aliases,
+implementation/review/waiting boundaries, known settings, navigation examples,
+failure/repair/recheck cycles, observed suite times and token endpoint differences.
+Source checks verified 12 token ranges, 29 full-gate launch sites and 16 selected
+output anchors, including one unchanged-revision rerun. This resolves the AC9
+finding without inventing historical active-phase durations or cache conditions.
+
+The sample demonstrates material CLI/browser verification and repair activity,
+especially in 0030, warranting the retained bounded journey-risk audit. That audit
+supports keeping required process/browser boundaries and serial settings; it
+does not justify an execution/setup speed optimization. The delivered timing,
+focused recipes and public-entry navigation address the observed costs. No causal
+trend from repository growth, suite speedup or production-refactor benefit is
+claimed. For 00xx, concrete refresh/notification repair examples supplement the
+preserved coordination-risk map. All review findings are resolved; platform and
+manual-check limitations remain explicit in the evidence.
 
 ## Decision changes and follow-up
 
@@ -362,7 +383,8 @@ On 2026-11-02, the user expanded 0032 to include the 1,500-word code-map gate an
 explicit maintenance instructions protecting useful prose, names and links.
 This adds a documentation check to the verification workflow; it does not extend
 the separate generated Workspace AGENTS.md ceiling to repository files or change
-0031's delivered documentation scope. Implementation is recorded above; review remains pending.
+0031's delivered documentation scope. Implementation, review and the evidence
+correction are recorded above.
 
 On 2026-11-04, the scope was revised to diagnose overhead from existing native
 Codex records first. Lightweight stage timing, focused checks and the code-map

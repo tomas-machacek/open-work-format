@@ -1,35 +1,28 @@
-# 0032 sanitized evidence — 2026-11-04
+# 0032 sanitized evidence — 2026-11-04, updated 2026-11-05
 
-## Local session retrospective (before optimization decisions)
+## Local session retrospective
 
-Read-only inspection found 23 local session JSONL files, of which 21 had session
-metadata identifying this repository as cwd. All inspected records parsed without
-JSON errors. No raw conversations, session identifiers, personal paths, credentials
-or raw logs are committed. Counts are a snapshot taken during this active session.
+The initial 2026-11-04 inspection established local JSONL format and availability,
+but its aggregate command-text counts did not satisfy AC9. Independent review on
+2026-11-05 identified that evidence gap. The follow-up
+[native-session retrospective](retrospective.md) selects and individually analyzes
+completed increments 0028–0031, with sanitized session aliases, UTC turn/line
+ranges, revision metadata, model/settings, resumed/aborted work and explicit
+separation of implementation, independent review and inter-turn waiting.
 
-Format: timestamped records with `type` and `payload`; session metadata includes
-cwd/git/runtime information. Tool traffic uses both custom_tool_call/output and
-function_call/output response items, including JavaScript orchestration rather
-than only direct shell commands. Task start/complete/abort and token-usage events
-are present. The initial schema inspection found 47 task starts, 42 completions,
-4 aborts; these do not define implementation/verification phases.
+It records concrete navigation and failure → repair → recheck examples, observed
+suite durations and an unchanged-revision rerun, plus cumulative-token endpoint
+differences without double counting. Historical machine/cache attribution and
+active phase totals remain unavailable; those limitations do not prevent manual
+classification of the available events. No raw transcripts, personal paths,
+credentials, monitoring service or permanent analysis script are added.
 
-A second pass counted 1,164 exec, 143 wait, 62 sleep and 2 spawn_agent call records.
-Nonexclusive text matches in call inputs found 545 read/search, 102 `npm run verify`,
-156 selected-test and 360 polling/wait references. These are text occurrences,
-including nested commands and probes, **not executed command counts**. Outputs
-contained 186 Vitest duration occurrences ranging from 1.03 to 111.55 seconds;
-quoted/duplicated output and selections make these unsuitable for averages.
-
-Limitations: records do not label orientation, implementation, repair or waiting
-consistently. Exec can batch commands; a yielded call is not process completion.
-Repeated output and unavailable source/cache/machine-state attribution prevent
-reliable phase totals, read-volume estimates or claims about overall agent speed.
-No instrumentation database or persistent session collection was added.
-
-Decision: measure future verification directly and centralize focused recipes.
-Do not infer that repeated commands or long journeys are redundant. Inspect
-actual risk coverage and the fresh baseline before choosing execution changes.
+The sample demonstrates material CLI/browser verification and repair activity,
+especially in 0030, and bounded navigation costs. It does not establish a causal
+slowdown from repository growth. The resulting decision is to retain the bounded
+journey-risk audit below, timing, focused recipes and useful public-entry mapping;
+execution/setup optimizations remain deferred because no safe speed improvement
+is demonstrated. The initial aggregate text counts are superseded as AC9 evidence.
 
 ## Baseline
 
@@ -71,7 +64,9 @@ numbers directly with final stage wall times (which include npm startup).
 | views.spec.ts, view-move.spec.ts, view-create-delete.spec.ts | Cross-mode persistence/retained hidden-board state, CLI organization and browser creation/deletion                                                    | Retain boundary and cleanup coverage.                                                                                                              |
 | integration/board-proxy.test.ts                              | Real Vite proxy/Origin protection against a fixed backend port                                                                                        | Independent workspaces alone do not make concurrent whole-gate runs safe.                                                                          |
 
-No suite execution/setup speed optimization was justified by the initial audit. No
+The selected-session follow-up justifies auditing the implicated expensive
+CLI/browser boundaries; the retained risk mapping above supplies that bounded audit.
+No suite execution/setup speed optimization was justified. No
 concurrency, timeouts, retries, discovery or production code changed.
 The delivered improvements are direct stage diagnostics, independently selectable
 CLI checks and documented selections; no percentage speedup is claimed. Additional
@@ -151,7 +146,8 @@ and retains the persisted order, focus and UI assertions. No fixed delay, timeou
 increase, assertion relaxation or retry was added. The named risk is sequential
 keyboard target selection versus asynchronous render/drag processing. Production
 behavior is unchanged. A targeted browser check and another complete gate verify
-the correction; their results are recorded below. Independent review remains pending.
+the correction; their results are recorded below. Independent review was pending
+at that handoff.
 
 ## Instrumented baseline stage wall times
 
@@ -230,6 +226,39 @@ After this run only documentation evidence was updated and checked for formattin
 links/anchors, map size and diff whitespace. Source/configuration fingerprints
 identify the verified working revision without pretending it is a new commit.
 
-Independent review is pending. Linux execution, physical Windows console Ctrl+C
-and the human recipe walkthrough remain unperformed. Historical session data
-cannot provide reliable phase durations. Status remains `in_progress`.
+At the original handoff, independent review was pending. The follow-up below
+records its outcome. Linux execution, physical Windows console Ctrl+C and the
+human recipe walkthrough remain unperformed; controlled signal delivery is
+distinguished from a physical keyboard check. Historical phase totals remain
+unknown, with available per-increment evidence now analyzed separately.
+
+## Independent review and AC9 follow-up — 2026-11-05
+
+Independent review compared the actual diff with main and the acceptance
+criteria. It found one P1 evidence gap: the original aggregate session report
+did not fulfill AC9. No concrete implementation defect was confirmed. The four
+code-map routes remained usable; 104 relative links/anchors in the developer
+entry documents and 20 explicit recipe paths resolved, and the map check passed
+at 924 words. Required checks, fail-fast ordering and test assertions were retained.
+
+The code/test/configuration fingerprint was independently recomputed as
+`cc64826ecfbfa2a90d8cf20bb64f3e481f67f2129109722c018a7da16bb4325b`,
+and the native source output confirmed the original 283.646s full-gate pass.
+That unchanged-revision result was reused. A controlled Windows console probe
+delivered Ctrl+C to an isolated console/process tree: the runner returned 130,
+did not start the later stage and left the checked descendant terminated.
+This is one controlled delivery/cleanup case, not a Linux or physical-keyboard test.
+
+The user authorized the recommended evidence correction. The linked retrospective
+now provides four selected completed increments and source-traceable observations,
+including specific unavailable metrics and justified next actions. The follow-up
+changes repository documentation only; no production, test, runner, configuration
+or dependency changed. Its source references, token arithmetic, links and
+formatting are checked separately from the reused full gate.
+
+Follow-up verification on Windows: source checks passed for 12 token ranges,
+29 full-gate launch sites, 16 selected output anchors, the unchanged-rerun edit
+interval and the original source fingerprint. All 50 relative links/anchors in
+the four changed/new increment documents resolved. Focused Prettier checks and
+`git diff --check` passed. The document and index now both record `completed`;
+the AC9 finding is resolved, with the stated historical/platform limits retained.
