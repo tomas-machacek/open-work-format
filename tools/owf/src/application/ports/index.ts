@@ -169,3 +169,28 @@ export interface WorkspacePorts {
   store: WorkspaceStore;
   today(): string;
 }
+
+import type { InboxItem } from '../../domain/inbox/index.js';
+
+export interface InboxRepository {
+  capture(path: string, item: InboxItem): void;
+  get(path: string, id: string): InboxItem | undefined;
+  list(path: string): InboxItem[];
+  update(
+    path: string,
+    id: string,
+    change: (current: InboxItem) => InboxItem,
+    time: string,
+  ): { item: InboxItem; changed: boolean };
+  consume(
+    path: string,
+    id: string,
+    outcome: 'resolved' | 'discarded',
+    time: string,
+  ): void;
+}
+export interface InboxPorts extends WorkspacePorts {
+  inbox: InboxRepository;
+  newId(): string;
+  now(): string;
+}

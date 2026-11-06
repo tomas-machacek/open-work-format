@@ -2,6 +2,12 @@
 import { toolVersion } from '../infrastructure/runtime/index.js';
 import { runCli } from '../interfaces/cli/index.js';
 import {
+  captureInbox,
+  getInbox,
+  listInbox,
+  setInbox,
+  resolveInbox,
+  discardInbox,
   initialize,
   create,
   createAction,
@@ -45,6 +51,14 @@ await runCli(
     list: () => listViews(process.cwd()),
     show: (id) => showView(process.cwd(), id),
     move: (id, input) => moveAction(process.cwd(), id, input),
+  },
+  {
+    capture: (text) => captureInbox(process.cwd(), text),
+    get: (id) => getInbox(process.cwd(), id),
+    list: () => listInbox(process.cwd()),
+    set: (id, text) => setInbox(process.cwd(), id, text),
+    resolve: (id) => resolveInbox(process.cwd(), id),
+    discard: (id) => discardInbox(process.cwd(), id),
   },
   {
     action: (id) => deleteAction(process.cwd(), id),

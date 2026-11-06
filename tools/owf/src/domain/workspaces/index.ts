@@ -1,4 +1,7 @@
 export type ErrorCode =
+  | 'INBOX_NOT_FOUND'
+  | 'INBOX_READ_FAILED'
+  | 'INBOX_WRITE_FAILED'
   | 'ACTION_IN_USE'
   | 'ACTION_DELETE_FAILED'
   | 'VIEW_DELETE_FAILED'

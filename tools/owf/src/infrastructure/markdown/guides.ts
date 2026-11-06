@@ -5,7 +5,7 @@ const workspace = `## Layout, authority and navigation
 README.md holds Workspace metadata, index.md navigation, log.md Markdown history,
 AGENTS.md agent integration instructions, and _store/owf.sqlite the default store.
 Projects and Outcomes provide authoritative Markdown work context. Knowledge and
-reusable View definitions are Markdown. Actions, independent View instances,
+reusable View definitions are Markdown. Inbox Items, Actions, independent View instances,
 their placement/order and operational history are authoritative in the store.
 
 Projects live under _projects/; Outcomes nest under Projects or other Outcomes.
@@ -66,7 +66,60 @@ refresh, force-overwrite, migration or upgrade command.
 AGENTS.md is an integration artifact outside the Knowledge envelope. The
 knowledge/document subset targets OKF compatibility; the whole tree including
 AGENTS.md is not a strict OKF bundle.
-See [Actions](actions.md), [Views](views.md) and [deletion](deletion.md).
+See [Inbox](inbox.md), [Actions](actions.md), [Views](views.md) and [deletion](deletion.md).
+`;
+
+const inbox = `## Capture unresolved input
+
+\`\`\`sh
+owf capture inbox --text "Check the supplier terms: https://example.com/terms" --json
+owf list inbox --json
+owf get inbox {id} --json
+owf set inbox {id} --text "Compare the supplier terms with our current contract" --json
+\`\`\`
+
+Replace {id} with the returned Inbox Item UUID, without braces. No separate
+Inbox URI scheme is provided. All operations work without a running server and
+use the current Workspace, regardless of its Project/Outcome subdirectory.
+
+Content is one nonblank plain-text field. Newlines, Unicode, whitespace, URLs and
+Markdown-looking characters are preserved literally; no rendering, URL detection
+or extraction is performed. --text accepts a literal shell argument; use your
+shell's normal quoting for multiline text. No separate URL/title/owner, attachment,
+stdin/file mode or editor is supported. Editing preserves identity and original
+capture time. An identical replacement succeeds unchanged without a new event.
+
+List returns current items oldest first, then by ID. JSON contains full text,
+ID and capture time. Empty listing succeeds; unavailable or unsupported storage
+fails. Known executable work can still be created directly as an Action.
+
+## Clarify, organize and consume explicitly
+
+Read the input and decide its meaning, then perform the intended operations
+individually using existing commands. It may produce several Actions, Outcomes
+or knowledge updates, not only a single Action. Preserve any content that must
+survive in suitable resulting objects first. Creating an Action never consumes
+the Inbox Item automatically.
+
+\`\`\`sh
+owf create action --title "Compare supplier terms" --json
+owf resolve inbox {id} --json
+owf discard inbox {other-id} --json
+\`\`\`
+
+Invoke resolve only after ALL intended operations succeeded. This command accepts
+your explicit assertion of completion; it cannot prove arbitrary prior operations
+succeeded. If a later operation fails, earlier successful results remain saved
+and the item stays available. Inspect saved results before continuing to avoid
+creating duplicates. Discard means you explicitly decided nothing needs retaining.
+Do not discard merely because processing failed.
+
+Resolve and discard consume the current persistent item; these are operations,
+not states or archival. They are noninteractive, have no undo and reject missing
+or already consumed IDs. Historical events remain, but are not durable knowledge
+storage. No automated conversion or all-or-nothing processing transaction exists.
+The browser does not yet display Inbox Items.
+See [Actions](actions.md) and [Workspace recovery](workspace.md).
 `;
 
 const actions = `## Create and retrieve
@@ -419,6 +472,12 @@ and [Views](views.md).
 `;
 
 const topics = [
+  [
+    'inbox',
+    'Inbox',
+    'Capture and clarify plain text; explicitly resolve or discard.',
+    inbox,
+  ],
   [
     'workspace',
     'Workspace and owners',

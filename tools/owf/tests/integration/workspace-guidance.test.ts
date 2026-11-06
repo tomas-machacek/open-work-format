@@ -125,7 +125,11 @@ test.each([
   writeFileSync(file, corrupt(original.toString('utf8')));
   // Remove the cross-topic links as well to create a real navigation orphan.
   if (_label === 'orphaned topic') {
-    for (const name of ['AGENTS.md', '_knowledge/owf/workspace.md']) {
+    for (const name of [
+      'AGENTS.md',
+      '_knowledge/owf/workspace.md',
+      '_knowledge/owf/inbox.md',
+    ]) {
       const other = join(root, name);
       writeFileSync(
         other,

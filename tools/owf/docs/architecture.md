@@ -1,7 +1,7 @@
 # OWF Tool Architecture
 
 > Status: Agreed implementation baseline, established 2026-09-15.
-> Current-state documentation aligned through increment 0030 on 2026-11-02.
+> Current-state documentation includes CLI Inbox support from increment 0035.
 > Historical delivery decisions and deferred capabilities are separated below.
 
 ## Purpose and authority
@@ -34,8 +34,8 @@ base classes. Create directories and abstractions only when needed.
 Unit/component tests live beside source as *.test.ts or *.test.tsx. Technical
 integration, acceptance and CLI/browser journeys live under tests/integration/,
 tests/acceptance/ and tests/e2e/; tests/support/ holds genuinely shared fixtures.
-Inbox, dedicated shared-reference modules, URI handling and a scripts/ directory
-are illustrative future paths, not existing implementation modules.
+Dedicated shared-reference modules and URI handling remain deferred. Inbox has
+separate domain/application modules and a SQLite adapter; scripts/ owns verification tooling.
 
 ## Dependency boundaries
 
@@ -79,8 +79,10 @@ Cross-object coordination must preserve the transaction boundary below.
 
 Do not start with a generic Repository<T> or use-case framework. Replacing
 persistence also needs equivalent query/transaction behavior and a data migration;
-interfaces alone do not make it automatic. The planned Inbox Item is a separate
-aggregate root, with implementation still deferred.
+interfaces alone do not make it automatic. An Inbox Item is a separate aggregate root with immutable ID/capture time
+and literal plain-text content. CLI capture/edit/resolve/discard use application
+ports and share current-data/event transactions, independently of Action/View
+reconciliation. Consumption removes the current item while preserving history.
 
 ## Execution and persistence
 
@@ -91,7 +93,7 @@ is an implementation choice, not a general OWF restriction.
 
 Use node:sqlite and parameterized SQL, without an ORM. Its isolation and pinned
 Node runtime retain the accepted trade-off of avoiding a separate native npm
-driver on Windows. The current store is schema 9, initialized and validated by the
+driver on Windows. The current store is schema 10, initialized and validated by the
 SQLite adapter. Unsupported versions fail without mutation or replacement;
 implicit migrations during reads, writes or repeat initialization are forbidden.
 Compatibility and migrations need a separately agreed design. The original
@@ -110,7 +112,7 @@ Do not imply a consistent snapshot across SQLite and externally edited Markdown.
 
 Markdown remains authoritative for Projects, Outcomes, Knowledge and reusable
 View definitions. Read it through ports for owner validation and definitions.
-Operational Actions, View instances and their organization/history belong in the
+Operational Inbox Items, Actions, View instances and their organization/history belong in the
 store. An unavailable store is an error, never an empty Workspace. Retain the
 MVP's paused-write backup/restore requirement. No event sourcing, broker,
 correlated dual logs or distributed transactions are introduced.
@@ -224,14 +226,14 @@ lifecycle are deferred; this describes the agreed direction, not delivered code.
 
 ## Open details and next gate
 
-Deferred implementation includes Inbox capture/processing, Workspace registration,
+Deferred implementation includes browser Inbox, Workspace registration,
 Windows URI dispatch and explicit browser URLs (React Router remains the planned
 routing choice when those URLs are implemented). Other deferred work includes
 Action archiving, View editing in the browser, Snapshots, broader View capabilities,
 Markdown-ID lookup, advanced concurrency, migrations, backup/restore tooling,
 LAN hosting and distribution packaging. Implement only a separately agreed scope.
 
-The planned Inbox processing contract is a sequence of individual operations:
+The CLI Inbox processing contract is a sequence of individual operations:
 resolve after intended results succeed; later failures do not roll back earlier
 results. No Inbox aggregate is embedded in Workspace.
 
@@ -246,18 +248,19 @@ These notes explain the sequence; earlier schema numbers and read-only phases
 are historical, not the current feature set. Detailed contracts, rationale and
 verification stay with the linked increments.
 
-| Increment                                               | Decision and resulting boundary                                                                                                                                                        |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [0020](increments/0020-view-instance-cli-foundation.md) | Introduced validated Markdown definitions and independent operational instances, avoiding generic capability/parameter machinery.                                                      |
-| [0021](increments/0021-view-evaluation-cli.md)          | Added read-only evaluation with deterministic ID fallback and no read-side repairs; schema 6 predates placement/order.                                                                 |
-| [0022](increments/0022-web-view-display.md)             | Shared evaluation supplies complete Action projections in one result, avoiding per-card reads and a second Action snapshot. Retained Default Kanban preserves filters.                 |
-| [0023](increments/0023-view-move-cli.md)                | Schema 7 added explicit placement and atomic Action/placement/event reconciliation. Placement is instance-local, not Action data; same-column requests originally remained write-free. |
-| [0024](increments/0024-view-order-cli.md)               | Schema 8 added order separately from placement, append-on-arrival and coherent read snapshots; pure reorders preserve Action data and do not pin inferred cards.                       |
-| [0025](increments/0025-web-view-moves.md)               | Added web movement and insertion regions without sacrificing text selection, touch scrolling, keyboard/focus handling or authoritative server ordering.                                |
-| [0027](increments/0027-delete-action-view-cli.md)       | Schema 9 added deletion events and retained historical identities while keeping live organization references constrained. Deletion does not require routing evaluation.                |
-| [0028](increments/0028-web-action-create-delete.md)     | Added ordinary-column creation and global web deletion using shared transactions, definition preconditions and retained-board notifications.                                           |
-| [0029](increments/0029-workspace-agent-guidance.md)     | Replaced a growing generated entry point with compact instructions and offline topic guides; repository development guidance has a different audience.                                 |
-| [0030](increments/0030-quiet-web-feedback.md)           | Separated temporary operation feedback from persistent recovery state, preserving confirmed writes across refresh races and failures.                                                  |
+| Increment                                               | Decision and resulting boundary                                                                                                                                                                           |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [0020](increments/0020-view-instance-cli-foundation.md) | Introduced validated Markdown definitions and independent operational instances, avoiding generic capability/parameter machinery.                                                                         |
+| [0021](increments/0021-view-evaluation-cli.md)          | Added read-only evaluation with deterministic ID fallback and no read-side repairs; schema 6 predates placement/order.                                                                                    |
+| [0022](increments/0022-web-view-display.md)             | Shared evaluation supplies complete Action projections in one result, avoiding per-card reads and a second Action snapshot. Retained Default Kanban preserves filters.                                    |
+| [0023](increments/0023-view-move-cli.md)                | Schema 7 added explicit placement and atomic Action/placement/event reconciliation. Placement is instance-local, not Action data; same-column requests originally remained write-free.                    |
+| [0024](increments/0024-view-order-cli.md)               | Schema 8 added order separately from placement, append-on-arrival and coherent read snapshots; pure reorders preserve Action data and do not pin inferred cards.                                          |
+| [0025](increments/0025-web-view-moves.md)               | Added web movement and insertion regions without sacrificing text selection, touch scrolling, keyboard/focus handling or authoritative server ordering.                                                   |
+| [0027](increments/0027-delete-action-view-cli.md)       | Schema 9 added deletion events and retained historical identities while keeping live organization references constrained. Deletion does not require routing evaluation.                                   |
+| [0028](increments/0028-web-action-create-delete.md)     | Added ordinary-column creation and global web deletion using shared transactions, definition preconditions and retained-board notifications.                                                              |
+| [0029](increments/0029-workspace-agent-guidance.md)     | Replaced a growing generated entry point with compact instructions and offline topic guides; repository development guidance has a different audience.                                                    |
+| [0030](increments/0030-quiet-web-feedback.md)           | Separated temporary operation feedback from persistent recovery state, preserving confirmed writes across refresh races and failures.                                                                     |
+| [0035](increments/0035-inbox-cli.md)                    | Schema 10 adds literal-text Inbox Items and atomic capture/update/resolve/discard events. Explicit consumption is independent of resulting work operations; browser Inbox and migrations remain deferred. |
 
 Earlier full-profile discussion included Blocked-column creation, configurable
 state choice and Snapshot capture; those broader capabilities remain deferred.

@@ -1,6 +1,6 @@
 # 0035 — Plain-text Inbox through the CLI
 
-> Status: draft
+> Status: in_progress
 > Description: Capture, inspect, edit and explicitly consume plain-text Inbox Items through the CLI.
 > Depends on: [0001](0001-workspace-init.md), [0003](0003-action-create-get.md), [0029](0029-workspace-agent-guidance.md).
 
@@ -55,14 +55,14 @@ explicitly rather than succeeding as a repeated consumption.
 Use the existing Workspace discovery, command composition, error handling,
 exit-code and JSON envelope conventions. Commands run without the web server.
 
-| Command | Result |
-| --- | --- |
-| `capture inbox --text "input"` | Create an Inbox Item and return its identity and content. |
-| `get inbox ID` | Return one current item with full text and original capture time. |
-| `list inbox` | Return current items oldest first. |
-| `set inbox ID --text "replacement"` | Replace text while preserving identity and capture time. |
-| `resolve inbox ID` | Consume an item after the caller completed its intended processing. |
-| `discard inbox ID` | Consume an item after an explicit decision to retain nothing. |
+| Command                             | Result                                                              |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `capture inbox --text "input"`      | Create an Inbox Item and return its identity and content.           |
+| `get inbox ID`                      | Return one current item with full text and original capture time.   |
+| `list inbox`                        | Return current items oldest first.                                  |
+| `set inbox ID --text "replacement"` | Replace text while preserving identity and capture time.            |
+| `resolve inbox ID`                  | Consume an item after the caller completed its intended processing. |
+| `discard inbox ID`                  | Consume an item after an explicit decision to retain nothing.       |
 
 All commands support `--json`. Writes return the established success envelope
 with sufficient identity/result information to tell which operation completed.
@@ -166,36 +166,13 @@ Core semantics.
   capture, literal text and explicit resolution. Generated navigation is valid
   and AGENTS.md remains within its byte ceiling.
 
-Draft domain scenarios (replace with links to canonical executable scenarios
-during implementation):
+Canonical executable domain criteria are in
+[Inbox acceptance scenarios](../../tests/acceptance/features/inbox.feature):
 
-```gherkin
-Feature: Capture and process unresolved input
-  Scenario: Clarify a captured thought without resetting its age
-    Given an Inbox Item with its original capture time
-    When its text is clarified
-    Then its identity and original capture time are unchanged
-
-  Scenario: Resolve only after explicit caller completion
-    Given an unresolved Inbox Item
-    When an Action is successfully created from its meaning
-    Then the Inbox Item remains in the current Inbox
-    When the caller explicitly resolves the Inbox Item
-    Then it is absent from the current Inbox
-
-  Scenario: Preserve input after incomplete processing
-    Given an unresolved Inbox Item
-    And one intended result has been saved successfully
-    When a later intended operation fails
-    Then the earlier result remains saved
-    And the Inbox Item remains available
-
-  Scenario: Discard input that needs no retained result
-    Given an unresolved Inbox Item
-    When the caller explicitly discards it
-    Then it is absent from the current Inbox
-    And no resulting work object is created
-```
+- Clarify a captured thought without resetting its age (AC3).
+- Resolve only after explicit caller completion (AC4).
+- Preserve input after incomplete processing (AC6).
+- Discard input that needs no retained result (AC5).
 
 ## Verification plan
 
@@ -224,8 +201,8 @@ thought, edit it, create an Action using existing commands and verify the item
 still exists; resolve it and inspect the empty Inbox. Capture another item and
 discard it. Do not use an existing operational Workspace for the schema trial.
 
-For this design-only PR, check formatting, relative links, scope consistency and
-the final diff; runtime suites are not evidence of an unimplemented feature.
+For repository prose-only follow-ups, check formatting, relative links, scope
+consistency and the final diff; retain applicable runtime evidence.
 
 ## Open questions
 
@@ -234,8 +211,12 @@ are explicitly deferred.
 
 ## Implementation and review outcome
 
-Not implemented. This document is a proposal for review; runtime verification and
-independent code review are pending.
+Approved for development on 2026-11-06; implementation is in progress.
+The CLI/application/domain/SQLite paths, schema 10, generated Inbox topic and
+executable acceptance/CLI/integration tests have been implemented. Human list
+output includes full literal text, an allowed alternative to a preview. No scope
+expansion or dependency change was needed. Final verification and independent
+code review are pending; do not mark completed before both are satisfied.
 
 ## Decision changes and follow-up
 

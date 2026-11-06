@@ -1,5 +1,11 @@
+import type {
+  InboxResult,
+  ListInboxResult,
+  ConsumeInboxResult,
+} from '../../application/inbox/index.js';
 import { Command, CommanderError } from 'commander';
 import {
+  inboxTextOptions,
   initOptions,
   createOptions,
   createActionOptions,
@@ -75,6 +81,14 @@ export async function runCli(
     show(id: string): ShowViewResult;
     move(id: string, input: MoveActionInput): MoveActionResult;
   },
+  inbox: {
+    capture(text: string): InboxResult;
+    get(id: string): InboxResult;
+    list(): ListInboxResult;
+    set(id: string, text: string): InboxResult;
+    resolve(id: string): ConsumeInboxResult;
+    discard(id: string): ConsumeInboxResult;
+  },
   deletion: {
     action(id: string): DeleteActionResult;
     view(id: string): DeleteViewResult;
@@ -84,7 +98,7 @@ export async function runCli(
   const program = new Command()
     .name('owf')
     .description(
-      'Initialize an OWF Workspace; manage contexts, Actions and View instances',
+      'Initialize an OWF Workspace; manage contexts, Actions, Inbox and View instances',
     )
     .version(version)
     .exitOverride();
@@ -377,9 +391,10 @@ Examples (replace IDs with real UUIDs; columns must exist in your definition):
         json ? JSON.stringify({ ok: true, ...result }) : renderAction(result),
       );
     });
-  program
+  const setting = program
     .command('set')
-    .description('Change operational objects')
+    .description('Change operational objects');
+  setting
     .command('action')
     .description(
       'Edit Action content, owner, state, reasons or prerequisites atomically; identical requests succeed unchanged',
@@ -566,6 +581,115 @@ unresolved_dependencies, dependencies [{ uri, title, state, satisfied }].
                 .join('\n\n'),
       );
     });
+  const capture = program
+    .command('capture')
+    .description('Capture unresolved input');
+  capture
+    .command('inbox')
+    .description(
+      'Capture literal plain text, without an owner or separate URL field',
+    )
+    .requiredOption(
+      '--text <text>',
+      'Nonblank literal text, including newlines and URLs; no Markdown interpretation',
+      once('--text'),
+    )
+    .option(
+      '--json',
+      'Emit the captured item with ID and original capture time',
+    )
+    .action((options: unknown) => {
+      const parsed = inboxTextOptions.parse(options);
+      json = parsed.json ?? false;
+      const result = inbox.capture(parsed.text);
+      console.log(
+        json ? JSON.stringify({ ok: true, ...result }) : renderInbox(result),
+      );
+    });
+  setting
+    .command('inbox')
+    .description(
+      'Replace literal text, preserving ID and original capture time; identical text is a no-op',
+    )
+    .argument('<id>', 'Current Inbox Item UUID')
+    .requiredOption(
+      '--text <text>',
+      'Complete nonblank replacement text',
+      once('--text'),
+    )
+    .option('--json', 'Emit the updated or unchanged item')
+    .action((id: string, options: unknown) => {
+      const parsed = inboxTextOptions.parse(options);
+      json = parsed.json ?? false;
+      const result = inbox.set(id, parsed.text);
+      console.log(
+        json ? JSON.stringify({ ok: true, ...result }) : renderInbox(result),
+      );
+    });
+  get
+    .command('inbox')
+    .description('Read a current Inbox Item with its full literal text')
+    .argument('<id>', 'Current Inbox Item UUID')
+    .option('--json', 'Emit ID, original capture time and full literal text')
+    .action((id: string, options: { json?: boolean }) => {
+      json = options.json ?? false;
+      const result = inbox.get(id);
+      console.log(
+        json ? JSON.stringify({ ok: true, ...result }) : renderInbox(result),
+      );
+    });
+  list
+    .command('inbox')
+    .description(
+      'List the current Workspace Inbox oldest first, then by ID; no implicit owner scope',
+    )
+    .option('--json', 'Emit every current item with full literal text')
+    .action((options: { json?: boolean }) => {
+      json = options.json ?? false;
+      const result = inbox.list();
+      console.log(
+        json
+          ? JSON.stringify({ ok: true, ...result })
+          : result.result.items.length
+            ? result.result.items
+                .map(
+                  (item) =>
+                    `ID: ${item.id}\nCaptured: ${item.captured_at}\nText:\n${item.text}`,
+                )
+                .join('\n\n')
+            : 'Inbox is empty.',
+      );
+    });
+  for (const verb of ['resolve', 'discard'] as const) {
+    program
+      .command(verb)
+      .description(
+        verb === 'resolve'
+          ? 'Finish processing unresolved input'
+          : 'Consciously discard unresolved input',
+      )
+      .command('inbox')
+      .description(
+        verb === 'resolve'
+          ? 'Consume an item after ALL intended operations succeeded; caller asserts completion'
+          : 'Consume an item after deciding nothing needs to be retained',
+      )
+      .argument('<id>', 'Current Inbox Item UUID')
+      .option('--json', 'Emit the consumption outcome and item ID')
+      .addHelpText(
+        'after',
+        '\nExplicit and noninteractive; no undo. Preserve valuable content in resulting objects first.\nPerform intended operations separately and resolve only after ALL succeed. Earlier results\nsurvive later failures; the Inbox Item stays until explicitly resolved or discarded.\nNo automatic conversion, target catalogue or verification of prior operations.\n',
+      )
+      .action((id: string, options: { json?: boolean }) => {
+        json = options.json ?? false;
+        const result = inbox[verb](id);
+        console.log(
+          json
+            ? JSON.stringify({ ok: true, ...result })
+            : `${result.result.status} inbox item\nID: ${result.result.id}`,
+        );
+      });
+  }
   // Recognize output options, but do not mistake option values for flags.
   const operationalArgs = argv.slice(2);
   for (let index = 0; index < operationalArgs.length; index++) {
@@ -573,6 +697,7 @@ unresolved_dependencies, dependencies [{ uri, title, state, satisfied }].
     if (arg === '--') break;
     if (
       [
+        '--text',
         '--title',
         '--definition',
         '--view',
@@ -689,4 +814,8 @@ function renderBlocking(action: ActionProjection): string {
       : []),
   ];
   return `Blocked: ${blocking.blocked ? `yes (${reasons.join('; ')})` : 'no'}${action.manual_block === undefined ? '' : `\nManual block: ${action.manual_block}`}`;
+}
+
+function renderInbox({ result }: InboxResult): string {
+  return `${result.status} inbox item\nID: ${result.item.id}\nCaptured: ${result.item.captured_at}\nText:\n${result.item.text}\nRoot: ${result.root}`;
 }
