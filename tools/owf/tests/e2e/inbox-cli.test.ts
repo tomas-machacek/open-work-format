@@ -117,7 +117,7 @@ test('built CLI captures, lists, clarifies and explicitly consumes input indepen
     ok: false,
     error: { code: 'INBOX_NOT_FOUND' },
   });
-});
+}, 15_000);
 
 test('built Inbox help, validation, literal flags and human output follow CLI conventions', () => {
   const root = workspace();
@@ -170,4 +170,4 @@ test('built Inbox help, validation, literal flags and human output follow CLI co
   expect(error.status).toBe(2);
   expect(error.stdout).toBe('');
   expect(error.stderr).toContain('INVALID_ARGUMENT');
-});
+}, 15_000);

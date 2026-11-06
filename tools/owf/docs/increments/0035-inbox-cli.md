@@ -214,8 +214,9 @@ are explicitly deferred.
 Approved for development on 2026-11-06. Implementation is delivered in
 [c93d19e](https://github.com/tomas-machacek/open-work-format/commit/c93d19ef8daf594dd2dfcde2eae3867c40b4cb57)
 and [PR #42](https://github.com/tomas-machacek/open-work-format/pull/42).
-Status remains in_progress: independent code review and a complete passing gate
-are outstanding; this is not a completed increment or release.
+At implementation handoff, independent code review and a complete passing gate
+were outstanding. Status remains in_progress; review findings and current
+verification evidence are recorded below. This is not a completed increment or release.
 
 Delivered the six CLI operations, pure Inbox rules, application ports/use cases,
 SQLite schema 10 and atomic events, generated Inbox guidance, README/help and
@@ -248,9 +249,98 @@ unsupported-store byte preservation and Inbox independence from broken View
 references. Acceptance/CLI processing journeys exercise a real later Action
 creation failure and retain earlier results plus the Inbox Item.
 
-Before completion, make the matching Playwright Chromium available and obtain a
-full passing npm run verify, then complete independent diff/criteria review.
-This evidence update is prose-only and does not change the verified runtime.
+The browser-installation limitation above describes the Linux implementation
+handoff. Independent Windows review follows; all evidence updates are prose-only
+and do not change the verified runtime.
+
+### Independent review, 2026-11-06
+
+Reviewed all 28 changed files in `main...8cb5936`, against AC1–AC9 and the
+repository engineering/verification rules. The diff from `c93d19e` to `8cb5936`
+changes only this increment document, so the earlier runtime evidence remains
+applicable to the reviewed implementation. PR #42 identifies the same head/base
+and accurately describes its implementation and historical Linux verification.
+
+Findings at the reviewed revision, in severity order:
+
+- **P2 — Windows CLI test timeouts:** both new tests in
+  [inbox-cli.test.ts](../../tests/e2e/inbox-cli.test.ts) (lines 35 and 122) launch
+  many real CLI processes but retain Vitest's default 5,000 ms timeout. Both
+  repeatedly fail on the supported Windows platform (5.4–5.9 seconds), including
+  an isolated selection and the full CLI suite. No functional assertion failure
+  was reported. Give these process journeys a justified local timeout, following
+  existing CLI journeys; separate unrelated help/validation checks where useful.
+  Retain their behavioral checks and the normal verification gate.
+- **P3 — Stale compatibility documentation:** [README](../../README.md), line 708,
+  still says fresh initialization creates schema 9. The implementation and the
+  new compatibility section correctly use schema 10. Update that description,
+  including the new Inbox tables, to avoid conflicting store-version guidance.
+
+No additional implementation defect was found in domain behavior, application
+boundaries, transaction/rollback handling, consumption/history retention,
+Workspace isolation or unsupported-store preservation. The rollback cases protect
+distinct mutations; the acceptance and built-CLI journeys protect different
+boundaries. No additional redundant test was identified for removal.
+
+Review verification used Windows, Node 24.21.0 and npm 11.4.1, on `8cb5936` with
+no runtime/test/configuration changes. Dependencies were already installed;
+`npm ls --depth=0` matched the declared versions. A fresh `npm ci` was not rerun.
+Playwright Chromium v1243 was already installed. Its sandboxed launch failed
+with EPERM, while an approved launch outside the sandbox succeeded with browser
+version 153.0.8010.12; no browser installation was needed.
+
+- `npm run verify`: types, lint, formatting, code-map budget (965 words),
+  architecture, build, 213 unit/component tests, 308 integration tests and all
+  44 acceptance scenarios / 243 steps passed. CLI timeout failures were observed;
+  a tool-server restart interrupted the session before a final exit/summary could
+  be recovered. This is not a complete passing gate.
+- Focused rerun of the two Inbox tests and the initially failing existing Action
+  edit test: both Inbox tests failed only on the 5,000 ms timeout; the existing
+  Action test passed. No timeout/configuration override was used.
+- Complete `npm run test:cli` rerun, with default and JSON reporters for durable
+  diagnostics: **36 passed, 2 failed**, exit 1, 125.05 seconds. Only the two new
+  Inbox tests failed, both on the default timeout.
+- `npm run test:browser`: **31 passed**, exit 0, 3.4 minutes, using the matching
+  installed Chromium. The previous missing-browser limitation is resolved on this
+  Windows environment; CLI timeout failures still prevent a passing full gate.
+- Manual PowerShell trial in a disposable Workspace passed: capture, edit,
+  create Action, verify the Inbox Item remains, resolve, inspect empty Inbox,
+  capture another item and discard it. Generated AGENTS.md was 3,251 UTF-8 bytes.
+- Changed documentation links and the four code-map navigation routes were
+  inspected. Formatting and `git diff --check` passed, including the final
+  prose-only review record.
+
+The review itself made no implementation or test fix and performed no merge.
+The user subsequently authorized the corrections below, including commit/push.
+
+### Review corrections, 2026-11-06
+
+Both review findings are addressed. The two built Inbox CLI journeys now have a
+local 15-second timeout, following existing CLI journeys. Each starts many real
+Node processes and previously took 5.4–5.9 seconds on Windows; the timeout allows
+normal process-startup overhead while retaining every command and assertion.
+The global timeout and verification gate are unchanged. README now consistently
+describes schema 10 and includes Inbox Items in the initialized store contents.
+
+Verification on Windows, Node 24.21.0 and npm 11.4.1, against `8cb5936` plus
+the two local test-timeout changes in `tests/e2e/inbox-cli.test.ts` and the
+README/review documentation updates:
+
+- Focused Inbox CLI selection: both tests passed, 10.85 seconds.
+- Typecheck, lint, changed-file formatting and `git diff --check` passed before
+  the full run.
+- Full `npm run verify` passed, exit 0, **385.416 seconds**. All required stages
+  ran: types, lint, formatting, code-map budget (965 words), architecture, build,
+  **213 unit/component tests, 308 integration tests, 44 acceptance scenarios /
+  243 steps, 38 built CLI tests and 31 browser tests**. Chromium v1243 was already
+  installed. This run was required because the review corrections changed tests;
+  it supersedes the incomplete/failing gates above for the corrected revision.
+- The final verification-evidence update is prose-only. Changed-file formatting,
+  relative links and `git diff --check` were checked again before commit.
+
+Both review findings are resolved; no outstanding finding or environment blocker
+remains from this review. Status intentionally remains in_progress as requested;
+no merge or release is requested.
 
 ## Decision changes and follow-up
 

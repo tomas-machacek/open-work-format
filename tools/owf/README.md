@@ -704,8 +704,8 @@ tree does not claim strict OKF bundle conformance.
 
 The tool refuses target collisions and unavailable/unsupported stores. It does
 not rename, repair, overwrite, or create nested Workspaces. Fresh initialization
-creates `owf_metadata`, Actions, View instances, and the Operational Event Log with format
-`owf-tool-operational` and schema version `9`; profile version `0.1` and package
+creates `owf_metadata`, Inbox Items, Actions, View instances, and the Operational Event Log with format
+`owf-tool-operational` and schema version `10`; profile version `0.1` and package
 version `0.0.0` are independent. Older and unknown schema versions are rejected
 without upgrade. Use a fresh disposable directory to try this version; do not
 overwrite an existing Workspace. This is
