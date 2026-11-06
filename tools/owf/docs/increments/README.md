@@ -55,6 +55,7 @@ link and a one-line description; keep its status in sync.
 | [0033 — Root agent orientation](0033-root-agent-guidance.md)                             | Add a compact repository-root agent entry point with routes to specification, design and tool guidance.            | completed |
 | [0034 — Repair Dependabot dependency findings](0034-dependabot-repair.md)                | Repair reported dependency vulnerabilities and verify the resolved graph and existing workflows.                   | completed |
 | [0035 — Plain-text Inbox through the CLI](0035-inbox-cli.md)                             | Capture, read, edit, resolve and discard plain-text Inbox Items through the CLI.                                   | completed |
+| [0036 — Inbox in the web interface](0036-web-inbox.md) | Capture and process Inbox Items in a separate optional panel with oldest items first and permanent capture. | draft |
 
 0022 depends on completed [0021](0021-view-evaluation-cli.md), merged through [PR #27](https://github.com/tomas-machacek/open-work-format/pull/27).
 
