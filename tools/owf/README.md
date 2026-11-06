@@ -7,14 +7,69 @@ The local web interface offers Default Kanban and stored Views. Default Kanban
 supports Action creation, editing, state moves, filtering, manual blocking and
 Action prerequisites through the same operations. Views display evaluated columns
 and support View-local drag and drop, column creation and shared Action detail editing.
-Both modes support confirmed permanent Action deletion. Inbox
-operations are not yet implemented.
+Both modes support confirmed permanent Action deletion. The CLI supports
+plain-text Inbox capture, inspection, editing, resolution and discard; browser
+Inbox functionality remains deferred.
 
 The CLI creates, lists and retrieves independent View instances backed by
 validated shared Markdown definitions, and evaluates current Actions into their
 columns with read-only `show view`. `move action` atomically applies column effects
 and saves instance-local placement and order, with optional final one-based
 `--position N` for insertion or same-column reordering.
+
+## Plain-text Inbox through the CLI
+
+Capture thoughts before deciding their meaning or owner. Inbox Items contain
+only ID, original capture time and literal plain text. URLs can be part of text;
+there is no separate URL field, Markdown interpretation or attachment support.
+Known executable work can still be created directly as an Action.
+
+```sh
+owf capture inbox --text "Compare new terms: https://example.com/terms" --json
+owf list inbox --json
+owf get inbox INBOX_ID --json
+owf set inbox INBOX_ID --text "Compare the new terms with the current contract" --json
+owf create action --title "Compare supplier terms" --json
+owf resolve inbox INBOX_ID --json
+```
+
+Replace INBOX_ID with a returned UUID. Commands use the current Workspace even
+from a descendant directory and run without a web server. Text must be nonblank;
+accepted Unicode, whitespace and newlines remain unchanged. Use normal shell
+quoting for multiline arguments. There is no file/stdin mode or interactive editor.
+All six commands support human output, --json and --help. JSON follows the usual
+ok/result/warnings envelope: item results contain result.item; listing contains
+result.items; consumption returns status, type, root and id. Errors retain the
+usual ok:false/error envelope and nonzero exit status.
+
+List returns all current items oldest first, with ties ordered by ID; JSON includes
+full text. Editing preserves ID and original capture time. Identical text is an
+unchanged success without a new event. Empty listing succeeds. Missing/consumed
+IDs fail explicitly; no Inbox URI scheme or implicit owner scope is introduced.
+
+Processing consists of separate operations chosen by the caller. Create/update all
+intended results, preserve any valuable input in appropriate resulting objects,
+and invoke resolve only after ALL intended operations succeed. Creating an Action
+does not consume input. A later failure retains earlier successful results and
+the Inbox Item; inspect existing results before retrying to avoid duplicates.
+Resolve accepts the caller's explicit assertion of completion, with no required
+Action target or automatic proof of prior operations.
+
+Use `owf discard inbox INBOX_ID --json` only after deciding nothing needs retaining.
+Resolve and discard consume current items without undo or archival; they are
+noninteractive operations, not lifecycle states. Historical events survive but do
+not replace durable knowledge storage. No automatic conversion or multi-object
+transaction is provided. Browser Inbox support is deferred.
+
+### Store compatibility
+
+This version initializes schema 10. Older stores, including schema 9, are rejected
+without mutation, replacement or automatic migration, including repeat init. There
+is no upgrade command in this increment. Keep operational Workspaces intact; do
+not delete a store to bypass a version error. A data-preserving migration path
+requires separate work. Before any future upgrade, stop all writers and back up
+the complete Workspace and any external operational storage; an available backup
+is not itself a migration. Use a separate disposable Workspace to try Inbox.
 
 ## Views in the web interface
 
@@ -65,7 +120,7 @@ cancelling does not. A text click waits briefly to allow native double-click wor
 selection. Normal touch swipes scroll; hold on background to begin dragging.
 
 Entry into Blocked asks for a manual reason only when none exists; cancel writes
-nothing. Waiting never prompts. Moves use the shared CLI operation and schema 9.
+nothing. Waiting never prompts. Moves use the shared CLI operation and schema 10.
 Positions resolve against server facts at execution time, so concurrent CLI changes
 can change neighbours; an invalid position fails rather than being clamped.
 During dragging and required-reason input, refresh is queued and navigation is
@@ -87,7 +142,7 @@ backlog and Backlog belong only to the broader design example.
 
 ## View instances
 
-Use a fresh Workspace initialized by this version (Operational Store schema 9).
+Use a fresh Workspace initialized by this version (Operational Store schema 10).
 Prepare `_views/` manually with a navigation `index.md`, for example:
 
 ```markdown
@@ -494,7 +549,7 @@ transaction saves neither change nor event. `ACTION_NOT_FOUND` means the ID is
 absent; `ACTION_CONFLICT` reports a rejected conditional write;
 `ACTION_UPDATE_FAILED` reports a write failure or clock rollback. The browser preserves blocking data and enforces shared completion rules.
 
-Fresh PoC Workspaces use schema 9. Older stores (including schemas 6, 7 and 8) are refused with
+Fresh PoC Workspaces use schema 10. Older stores (including schemas 6, 7, 8 and 9) are refused with
 `UNSUPPORTED_STORE_VERSION` without migration or mutation;
 create a new disposable Workspace with `owf init` to try this increment. Never
 reset or overwrite an existing store.
@@ -649,8 +704,8 @@ tree does not claim strict OKF bundle conformance.
 
 The tool refuses target collisions and unavailable/unsupported stores. It does
 not rename, repair, overwrite, or create nested Workspaces. Fresh initialization
-creates `owf_metadata`, Actions, View instances, and the Operational Event Log with format
-`owf-tool-operational` and schema version `9`; profile version `0.1` and package
+creates `owf_metadata`, Inbox Items, Actions, View instances, and the Operational Event Log with format
+`owf-tool-operational` and schema version `10`; profile version `0.1` and package
 version `0.0.0` are independent. Older and unknown schema versions are rejected
 without upgrade. Use a fresh disposable directory to try this version; do not
 overwrite an existing Workspace. This is
@@ -786,7 +841,7 @@ Confirmed writes refresh dependents, including after target title edits. Target-
 refresh updates derived facts while preserving source drafts; source changes
 require explicit reload. Stale/unavailable facts are labeled. A successful save
 followed by refresh failure remains a successful save; do not repeat it. The
-board requires schema 9, with no migration or implicit store replacement.
+board requires schema 10, with no migration or implicit store replacement.
 
 The editor uses the same owner picker. An unavailable stored owner stays visible;
 editing other fields retains it without requiring its Markdown context. Selecting

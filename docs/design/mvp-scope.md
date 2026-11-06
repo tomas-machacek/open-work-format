@@ -5,7 +5,7 @@
 
 The original scope and acceptance scenarios below remain the baseline for
 capabilities not yet delivered, not a claim that every listed capability exists.
-The agreed current sequence is recorded in Section 6: Views precede Inbox.
+The development sequence and the proposed CLI Inbox stage are recorded in Section 6.
 Documentation alignment does not itself deliver View commands or UI.
 
 ## 1. Goal
@@ -44,14 +44,14 @@ empty Workspace or silently replaced with a new store.
 
 ### Capture and Inbox
 
-> Deferred in the current sequence. These original capability goals remain
-> valid, but Inbox is not a prerequisite for the Views stage.
+> CLI Inbox is proposed in [increment 0035](../../tools/owf/docs/increments/0035-inbox-cli.md).
+> Browser Inbox remains deferred; the proposal does not claim shipped functionality.
 
 Provide a quick capture entry point with a choice between a new Inbox Item and
 a direct Action. A short text is sufficient for an Inbox Item; a title is
-sufficient for an Action. Inbox capture also accepts an optional URL. Other
-locations, such as an email description or filesystem path, can be recorded
-as text.
+sufficient for an Action. Inbox content is plain text, including any URLs,
+email descriptions or filesystem paths. There is no separate URL field or
+Markdown interpretation. Richer content handling is deferred.
 
 Provide Inbox listing, detail, editing, discard, and explicit resolution.
 Processing happens through individual operations chosen by the user or agent.
@@ -175,11 +175,15 @@ The MVP is usable when the following flows work end to end:
 
 None of these original scenarios requires screenshot support.
 
-## 6. Current next stage: Views before Inbox
+## 6. Development sequence: Views, then CLI Inbox
 
 The user selected Views as the next development direction on 2026-10-08.
-Known Actions can already be created directly, so Inbox remains deferred without
-changing its Core semantics or cancelling its original scope.
+Known Actions could already be created directly, so Inbox was deferred without
+changing its Core semantics or cancelling its original scope. After delivery of
+the View increments, [0035](../../tools/owf/docs/increments/0035-inbox-cli.md)
+proposes plain-text Inbox capture and explicit processing through the CLI.
+Browser Inbox remains a later slice. This staging does not remove the eventual
+shared-semantics requirement for human and agent interfaces.
 
 The specification and design alignment is reviewed in PR #22, independently
 of tool implementation increments. Subsequent agreed code increments may deliver the

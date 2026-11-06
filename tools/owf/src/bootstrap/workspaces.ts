@@ -127,3 +127,31 @@ export const createActionInView = (
     ...actionPorts,
     ...viewPorts,
   });
+
+import { inboxRepository } from '../infrastructure/sqlite/index.js';
+import type { InboxPorts } from '../application/ports/index.js';
+import {
+  captureInbox as captureInboxUseCase,
+  getInbox as getInboxUseCase,
+  listInbox as listInboxUseCase,
+  setInbox as setInboxUseCase,
+  consumeInbox,
+} from '../application/inbox/index.js';
+
+export const inboxPorts: InboxPorts = {
+  ...workspacePorts,
+  inbox: inboxRepository,
+  newId: newActionId,
+  now: currentTimestamp,
+};
+export const captureInbox = (root: string, text: string) =>
+  captureInboxUseCase(root, text, inboxPorts);
+export const getInbox = (root: string, id: string) =>
+  getInboxUseCase(root, id, inboxPorts);
+export const listInbox = (root: string) => listInboxUseCase(root, inboxPorts);
+export const setInbox = (root: string, id: string, text: string) =>
+  setInboxUseCase(root, id, text, inboxPorts);
+export const resolveInbox = (root: string, id: string) =>
+  consumeInbox(root, id, 'resolved', inboxPorts);
+export const discardInbox = (root: string, id: string) =>
+  consumeInbox(root, id, 'discarded', inboxPorts);

@@ -9,7 +9,7 @@ for supported syntax. The linked guides work offline.
 
 Projects and nested Outcomes provide Markdown work context under \`_projects/\`.
 Knowledge in \`_knowledge/\` and reusable View definitions in \`_views/\` are
-Markdown too. Actions, View instances, their placement/order
+Markdown too. Inbox Items, Actions, View instances, their placement/order
 and operational history live in the Workspace Operational Store.
 
 Choose meaningful ownership: an Action advances its owner's work. Outcomes
@@ -45,6 +45,8 @@ Replace example placeholders such as \`{id}\` with returned IDs.
 
 - [Workspace and owners](_knowledge/owf/workspace.md): before creating Projects
   or Outcomes, choosing owners, navigating paths or handling initialization.
+- [Inbox](_knowledge/owf/inbox.md): to capture unresolved plain text, clarify it
+  and explicitly resolve or discard after processing.
 - [Actions](_knowledge/owf/actions.md): to create, find, edit or change execution
   state, including Waiting.
 - [Blocking and dependencies](_knowledge/owf/blocking-and-dependencies.md):

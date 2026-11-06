@@ -24,7 +24,7 @@ export const actionRepository: ActionRepository = {
       const version = db
         .prepare("SELECT value FROM owf_metadata WHERE key = 'schema_version'")
         .get()?.value;
-      if (version !== '9')
+      if (version !== '10')
         throw new WorkspaceError(
           'UNSUPPORTED_STORE_VERSION',
           `Unsupported store schema ${String(version)}: ${path}`,
@@ -78,7 +78,7 @@ export const actionRepository: ActionRepository = {
       const version = db
         .prepare("SELECT value FROM owf_metadata WHERE key = 'schema_version'")
         .get()?.value;
-      if (version !== '9')
+      if (version !== '10')
         throw new WorkspaceError(
           'UNSUPPORTED_STORE_VERSION',
           `Unsupported store schema ${String(version)}: ${path}`,

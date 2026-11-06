@@ -3,6 +3,15 @@ import { accessSync, constants, statSync } from 'node:fs';
 import type { WorkspaceStore } from '../../application/ports/index.js';
 import { WorkspaceError } from '../../domain/workspaces/index.js';
 
+const inboxTableSchema = `CREATE TABLE inbox_items (
+          id TEXT PRIMARY KEY NOT NULL, captured_at TEXT NOT NULL,
+          text TEXT NOT NULL CHECK(length(trim(text)) > 0)
+        )`;
+const inboxEventTableSchema = `CREATE TABLE inbox_events (
+          event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('inbox.captured','inbox.updated','inbox.resolved','inbox.discarded')),
+          inbox_id TEXT NOT NULL, created_at TEXT NOT NULL
+        )`;
+
 const eventTableSchema = `CREATE TABLE action_events (
           event_id INTEGER PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('action.created','action.state_changed','action.updated','action.deleted')),
           action_id TEXT NOT NULL, created_at TEXT NOT NULL, title TEXT,
@@ -49,7 +58,7 @@ export const workspaceStore: WorkspaceStore = {
         'INSERT INTO owf_metadata (key, value) VALUES (?, ?)',
       );
       insert.run('format', 'owf-tool-operational');
-      insert.run('schema_version', '9');
+      insert.run('schema_version', '10');
       db.exec(`
         CREATE TABLE actions (
           id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL CHECK(length(trim(title)) > 0),
@@ -59,6 +68,8 @@ export const workspaceStore: WorkspaceStore = {
           manual_block TEXT CHECK(manual_block IS NULL OR (state IN ('open','in_progress','waiting') AND length(trim(manual_block)) > 0)),
           depends_on TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(depends_on) AND json_type(depends_on) = 'array')
         ) STRICT;
+        ${inboxTableSchema} STRICT;
+        ${inboxEventTableSchema} STRICT;
         ${eventTableSchema} STRICT;
         ${viewTableSchema} STRICT;
         ${viewEventTableSchema} STRICT;
@@ -99,7 +110,7 @@ export const workspaceStore: WorkspaceStore = {
           'INVALID_STORE',
           `Unrecognized store: ${path}`,
         );
-      if (version !== '9')
+      if (version !== '10')
         throw new WorkspaceError(
           'UNSUPPORTED_STORE_VERSION',
           `Unsupported store schema ${version}: ${path}`,
@@ -143,6 +154,22 @@ export const workspaceStore: WorkspaceStore = {
           `${viewEventTableSchema} STRICT`.replace(/\s+/gu, ' ').trim()
       )
         throw new Error('Invalid View event table');
+      for (const [name, schema] of [
+        ['inbox_items', inboxTableSchema],
+        ['inbox_events', inboxEventTableSchema],
+      ]) {
+        const actual = db
+          .prepare(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+          )
+          .get(name!)?.sql;
+        if (
+          typeof actual !== 'string' ||
+          actual.replace(/\s+/gu, ' ').trim() !==
+            `${schema} STRICT`.replace(/\s+/gu, ' ').trim()
+        )
+          throw new Error('Invalid Inbox table');
+      }
       const integrity = db.prepare('PRAGMA quick_check').get();
       const placements = db
         .prepare(
@@ -181,3 +208,5 @@ export const workspaceStore: WorkspaceStore = {
 
 export { actionRepository } from './actions.js';
 export { viewRepository } from './views.js';
+
+export { inboxRepository } from './inbox.js';

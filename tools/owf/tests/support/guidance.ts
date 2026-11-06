@@ -7,6 +7,7 @@ import { parseDocument } from 'yaml';
 
 export const guideTopics = [
   'workspace',
+  'inbox',
   'actions',
   'blocking-and-dependencies',
   'views',

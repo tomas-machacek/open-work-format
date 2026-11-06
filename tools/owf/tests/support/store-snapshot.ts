@@ -24,6 +24,8 @@ export function semanticSnapshot(root: string, store: string) {
           .all(),
         tables: [
           'owf_metadata',
+          'inbox_items',
+          'inbox_events',
           'actions',
           'action_events',
           'views',

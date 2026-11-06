@@ -293,3 +293,8 @@ export const deleteActionResponse = z.object({
   id: z.string(),
   status: z.literal('deleted'),
 });
+
+export const inboxTextOptions = z.object({
+  text: z.string(),
+  json: z.boolean().optional(),
+});
