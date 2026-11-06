@@ -206,17 +206,51 @@ consistency and the final diff; retain applicable runtime evidence.
 
 ## Open questions
 
-None blocking the proposed slice. Schema migration and richer content handling
+None blocking the agreed slice. Schema migration and richer content handling
 are explicitly deferred.
 
 ## Implementation and review outcome
 
-Approved for development on 2026-11-06; implementation is in progress.
-The CLI/application/domain/SQLite paths, schema 10, generated Inbox topic and
-executable acceptance/CLI/integration tests have been implemented. Human list
-output includes full literal text, an allowed alternative to a preview. No scope
-expansion or dependency change was needed. Final verification and independent
-code review are pending; do not mark completed before both are satisfied.
+Approved for development on 2026-11-06. Implementation is delivered in
+[c93d19e](https://github.com/tomas-machacek/open-work-format/commit/c93d19ef8daf594dd2dfcde2eae3867c40b4cb57)
+and [PR #42](https://github.com/tomas-machacek/open-work-format/pull/42).
+Status remains in_progress: independent code review and a complete passing gate
+are outstanding; this is not a completed increment or release.
+
+Delivered the six CLI operations, pure Inbox rules, application ports/use cases,
+SQLite schema 10 and atomic events, generated Inbox guidance, README/help and
+implementation navigation. Human listing includes full literal text, an allowed
+alternative to a preview. No scope expansion or dependency change was needed.
+Existing schema-9 stores are deliberately rejected without mutation, consistent
+with the agreed compatibility boundary; no data-preserving upgrade is delivered.
+
+Verification on Linux, Node 24.21.0 and npm 11.9.0, against the implementation
+code/tests/configuration in c93d19e:
+
+| Check                                                                      | Actual result                                                                                                                       |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Clean npm ci                                                               | Passed; performed initially under host Node 24.22.1, with checks/build/tests subsequently run under pinned Node 24.21.0.            |
+| Typecheck, lint, formatting, architecture, code-map gate, production build | Passed. Code map: 965 words, within 1,500.                                                                                          |
+| Unit/component                                                             | 213 passed.                                                                                                                         |
+| SQLite/integration                                                         | 308 passed, including 13 Inbox cases and generated-guidance validation.                                                             |
+| Acceptance                                                                 | 44 scenarios / 243 steps passed, including all four Inbox scenarios.                                                                |
+| Built CLI                                                                  | 38 passed, including the two Inbox journeys.                                                                                        |
+| Full npm run verify                                                        | Ran once, 140.041 seconds, exit 1 at test:browser after all preceding stages passed.                                                |
+| Existing browser suite                                                     | All 31 cases failed at browser launch because Playwright Chromium v1243 was absent; no browser behavior was exercised.              |
+| Browser installation attempt                                               | npx playwright install chromium failed: the downloaded 0 MiB archives were invalid/truncated ZIPs. No gate was skipped or weakened. |
+| Changed documentation                                                      | Relative-file links inspected, formatting passed and git diff --check passed.                                                       |
+| Windows / independent review                                               | Not performed.                                                                                                                      |
+
+Focused checks also covered literal multiline text, blank rejection, unchanged
+updates, deterministic Inbox order, Workspace isolation, failed event-write
+rollback for each mutation, consumed-ID rejection/reuse, malformed stored data,
+unsupported-store byte preservation and Inbox independence from broken View
+references. Acceptance/CLI processing journeys exercise a real later Action
+creation failure and retain earlier results plus the Inbox Item.
+
+Before completion, make the matching Playwright Chromium available and obtain a
+full passing npm run verify, then complete independent diff/criteria review.
+This evidence update is prose-only and does not change the verified runtime.
 
 ## Decision changes and follow-up
 
