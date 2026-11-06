@@ -1,6 +1,6 @@
 # 0035 — Plain-text Inbox through the CLI
 
-> Status: in_progress
+> Status: completed
 > Description: Capture, inspect, edit and explicitly consume plain-text Inbox Items through the CLI.
 > Depends on: [0001](0001-workspace-init.md), [0003](0003-action-create-get.md), [0029](0029-workspace-agent-guidance.md).
 
@@ -215,8 +215,8 @@ Approved for development on 2026-11-06. Implementation is delivered in
 [c93d19e](https://github.com/tomas-machacek/open-work-format/commit/c93d19ef8daf594dd2dfcde2eae3867c40b4cb57)
 and [PR #42](https://github.com/tomas-machacek/open-work-format/pull/42).
 At implementation handoff, independent code review and a complete passing gate
-were outstanding. Status remains in_progress; review findings and current
-verification evidence are recorded below. This is not a completed increment or release.
+were outstanding. The review, corrections and successful final verification
+are recorded below; this increment is now completed. No release is created.
 
 Delivered the six CLI operations, pure Inbox rules, application ports/use cases,
 SQLite schema 10 and atomic events, generated Inbox guidance, README/help and
@@ -339,8 +339,17 @@ README/review documentation updates:
   relative links and `git diff --check` were checked again before commit.
 
 Both review findings are resolved; no outstanding finding or environment blocker
-remains from this review. Status intentionally remains in_progress as requested;
-no merge or release is requested.
+remains from this review. The corrected implementation and its successful
+verification are committed in
+[6304a90](https://github.com/tomas-machacek/open-work-format/commit/6304a90934ef4cf6d3bcb0e1fafe6aeadc4abf9a).
+
+### Closure, 2026-11-06
+
+The user confirmed completion of review/corrections and authorized marking this
+increment completed and merging PR #42 into main. All acceptance criteria are
+satisfied according to the implementation and Windows verification evidence
+above. This closure changes repository prose only; runtime checks are reused
+from the corrected revision. No release is created.
 
 ## Decision changes and follow-up
 
