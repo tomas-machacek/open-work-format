@@ -16,7 +16,18 @@ import type {
   DeleteActionResult,
 } from '../../application/actions/index.js';
 import { WorkspaceError } from '../../application/workspaces/index.js';
+import type {
+  InboxResult,
+  ListInboxResult,
+  ConsumeInboxResult,
+} from '../../application/inbox/index.js';
 import {
+  inboxTextRequest,
+  workspaceIdentityResponse,
+  inboxConsumeRequest,
+  inboxResponse,
+  inboxItemResponse,
+  inboxConsumedResponse,
   viewCreateRequest,
   type ViewCreateRequest,
   deleteActionResponse,
@@ -54,6 +65,17 @@ export function createBoardServer(
     display: (id: string) => DisplayViewResult;
   },
   remove?: (id: string) => DeleteActionResult,
+  inbox?: {
+    root: string;
+    list: () => ListInboxResult;
+    get: (id: string) => InboxResult;
+    capture: (text: string) => InboxResult;
+    set: (id: string, text: string) => InboxResult;
+    consume: (
+      id: string,
+      outcome: 'resolved' | 'discarded',
+    ) => ConsumeInboxResult;
+  },
 ) {
   const server = Fastify({ logger: false });
   server.get('/api/views', (_request, reply) => {
@@ -121,13 +143,17 @@ export function createBoardServer(
         code:
           status < 500
             ? 'INVALID_REQUEST'
-            : _request.method === 'PATCH'
-              ? 'ACTION_UPDATE_FAILED'
-              : 'ACTION_CREATE_FAILED',
+            : _request.url.startsWith('/api/inbox')
+              ? 'INBOX_OPERATION_FAILED'
+              : _request.method === 'PATCH'
+                ? 'ACTION_UPDATE_FAILED'
+                : 'ACTION_CREATE_FAILED',
         message:
           status < 500
-            ? 'Send a valid JSON Action request.'
-            : 'Unable to save Action.',
+            ? 'Send a valid JSON request.'
+            : _request.url.startsWith('/api/inbox')
+              ? 'Inbox write could not be confirmed.'
+              : 'Unable to save Action.',
       },
     });
   });
@@ -144,7 +170,7 @@ export function createBoardServer(
       reply.code(403).send({
         error: {
           code: 'ORIGIN_REJECTED',
-          message: 'Change Actions from this local board only.',
+          message: 'Make changes from this local Workspace only.',
         },
       });
       return Promise.resolve();
@@ -468,6 +494,100 @@ export function createBoardServer(
       });
     }
   });
+  function inboxError(error: unknown, reply: FastifyReply) {
+    const code =
+      error instanceof WorkspaceError ? error.code : 'INBOX_OPERATION_FAILED';
+    return reply
+      .code(
+        code === 'INBOX_NOT_FOUND'
+          ? 404
+          : code === 'INVALID_ARGUMENT'
+            ? 400
+            : 503,
+      )
+      .send({
+        error: {
+          code,
+          message:
+            error instanceof WorkspaceError
+              ? error.message
+              : 'Unable to access Inbox. Check the Workspace store.',
+        },
+      });
+  }
+  server.get('/api/workspace', (_request, reply) => {
+    if (!inbox)
+      return inboxError(new Error('Workspace identity unavailable'), reply);
+    return workspaceIdentityResponse.parse({ workspace: { root: inbox.root } });
+  });
+  server.get('/api/inbox', (_request, reply) => {
+    try {
+      if (!inbox) throw new Error('Inbox unavailable');
+      const { root, items } = inbox.list().result;
+      return inboxResponse.parse({ workspace: { root }, items });
+    } catch (error) {
+      return inboxError(error, reply);
+    }
+  });
+  server.get<{ Params: { id: string } }>('/api/inbox/:id', (request, reply) => {
+    try {
+      if (!inbox) throw new Error('Inbox unavailable');
+      return inboxItemResponse.parse({
+        item: inbox.get(request.params.id).result.item,
+      });
+    } catch (error) {
+      return inboxError(error, reply);
+    }
+  });
+  for (const method of ['POST', 'PATCH'] as const) {
+    server.route<{ Params: { id: string } }>({
+      method,
+      url: method === 'POST' ? '/api/inbox' : '/api/inbox/:id',
+      onRequest: trustedWrite,
+      handler: (request, reply) => {
+        const parsed = inboxTextRequest.safeParse(request.body);
+        if (!parsed.success)
+          return reply.code(400).send({
+            error: { code: 'INVALID_REQUEST', message: 'Supply text only.' },
+          });
+        try {
+          if (!inbox) throw new Error('Inbox unavailable');
+          const saved =
+            method === 'POST'
+              ? inbox.capture(parsed.data.text)
+              : inbox.set(request.params.id, parsed.data.text);
+          return reply
+            .code(method === 'POST' ? 201 : 200)
+            .send(inboxItemResponse.parse({ item: saved.result.item }));
+        } catch (error) {
+          return inboxError(error, reply);
+        }
+      },
+    });
+  }
+  for (const outcome of ['resolved', 'discarded'] as const) {
+    server.post<{ Params: { id: string } }>(
+      `/api/inbox/:id/${outcome === 'resolved' ? 'resolve' : 'discard'}`,
+      { onRequest: trustedWrite },
+      (request, reply) => {
+        if (!inboxConsumeRequest.safeParse(request.body).success)
+          return reply.code(400).send({
+            error: {
+              code: 'INVALID_REQUEST',
+              message: 'Supply an empty JSON object.',
+            },
+          });
+        try {
+          if (!inbox) throw new Error('Inbox unavailable');
+          return inboxConsumedResponse.parse(
+            inbox.consume(request.params.id, outcome).result,
+          );
+        } catch (error) {
+          return inboxError(error, reply);
+        }
+      },
+    );
+  }
   server.register(staticFiles, { root: assets, index: 'index.html' });
   return server;
 }

@@ -194,7 +194,10 @@ for (const viewport of [
         const position = await scroll.evaluate(
           (element: { scrollTop: number }) => element.scrollTop,
         );
-        const pagePosition = await page.evaluate<number>('window.scrollY');
+        const surface = page.locator('[class*="surface"]');
+        const pagePosition = await surface.evaluate(
+          (element: { scrollTop: number }) => element.scrollTop,
+        );
         const boardPosition = await board.boundingBox();
         await editor
           .getByRole('button', { name: 'Save changes', exact: true })
@@ -207,9 +210,11 @@ for (const viewport of [
             (element: { scrollTop: number }) => element.scrollTop,
           ),
         ).toBe(position);
-        expect(await page.evaluate<number>('window.scrollY')).toBe(
-          pagePosition,
-        );
+        expect(
+          await surface.evaluate(
+            (element: { scrollTop: number }) => element.scrollTop,
+          ),
+        ).toBe(pagePosition);
         expect(await board.boundingBox()).toEqual(boardPosition);
         const close = editor.getByRole('button', {
           name: 'Dismiss notification',

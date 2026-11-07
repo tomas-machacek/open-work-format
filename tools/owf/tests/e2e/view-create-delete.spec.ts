@@ -89,7 +89,7 @@ test('View creation restores keyboard focus after render while refresh is held o
     await expect(add).toBeDisabled();
     await expect(
       page
-        .getByRole('button', { name: 'Refresh', exact: false })
+        .getByRole('button', { name: 'Refresh', exact: true })
         .filter({ visible: true }),
     ).toBeFocused();
     release();

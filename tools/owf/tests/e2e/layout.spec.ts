@@ -104,7 +104,8 @@ for (const viewport of [
             boxes.every((rect, i) => i === 0 || rect.x > boxes[i - 1]!.x),
           ).toBe(true);
           expect((await box(board)).width).toBe(
-            viewport.width - (viewport.width > 1100 ? 80 : 32),
+            (await box(page.locator('[class*="surface"]'))).width -
+              (viewport.width > 1100 ? 80 : 32),
           );
         };
         await aligned();

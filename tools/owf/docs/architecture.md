@@ -1,7 +1,7 @@
 # OWF Tool Architecture
 
 > Status: Agreed implementation baseline, established 2026-09-15.
-> Current-state documentation includes CLI Inbox support from increment 0035.
+> Current-state documentation includes CLI and browser Inbox support through increment 0036.
 > Historical delivery decisions and deferred capabilities are separated below.
 
 ## Purpose and authority
@@ -80,7 +80,7 @@ Cross-object coordination must preserve the transaction boundary below.
 Do not start with a generic Repository<T> or use-case framework. Replacing
 persistence also needs equivalent query/transaction behavior and a data migration;
 interfaces alone do not make it automatic. An Inbox Item is a separate aggregate root with immutable ID/capture time
-and literal plain-text content. CLI capture/edit/resolve/discard use application
+and literal plain-text content. CLI and HTTP capture/edit/resolve/discard use application
 ports and share current-data/event transactions, independently of Action/View
 reconciliation. Consumption removes the current item while preserving history.
 
@@ -184,6 +184,30 @@ confirmed writes and must not be repeated. Mutations are never retried automatic
 See [0030](increments/0030-quiet-web-feedback.md) for the feedback contract and
 [UI test discipline](development-guidelines.md#tests-and-acceptance-criteria).
 
+Workspace also retains `Inbox` outside both board components. Its permanent
+capture/toggle and independently scrolling list occupy a right panel on wide
+screens and a bounded region above the board on narrow screens. The board scrolls
+inside its own work surface; its header and horizontal columns retain their behavior.
+Inbox visibility is an optional localStorage preference keyed by canonical Workspace
+root within the browser origin, never store data. A lightweight Workspace identity
+endpoint supplies the server-bound root independently of Inbox/board reads; Inbox
+responses also supply identity as a fallback. Storage failure falls back to session state.
+
+`useInbox` owns a separate read generation and pending-write guard. Manual refresh,
+opening a hidden list and coalesced focus/visibility events read only Inbox; hidden
+lists skip automatic return reads. Writes invalidate older reads, retain confirmed
+item snapshots/removals across failed follow-up reads and never retry mutations.
+Unknown outcomes preserve drafts and block writes until an explicit successful
+refresh and user inspection. Native detail dialogs guard unsaved edits and pending
+writes, preserve text across refresh/external consumption and restore focus to the
+originating row or permanent capture field. Editors compare retained baselines
+with refreshed item text; known external replacements block saves and consumption
+until explicitly reconciled, even if a later read fails. Narrow layout bounds the
+list independently of the capture area's intrinsic height; low-height board headers
+keep navigation compact so cards remain reachable below it. Inbox HTTP callbacks use shared
+application Inbox operations and Workspace validation without Action/View evaluation.
+See [0036](increments/0036-web-inbox.md) for scope and verification.
+
 ## Application technologies
 
 | Area             | Current decision and rationale                                        |
@@ -226,14 +250,14 @@ lifecycle are deferred; this describes the agreed direction, not delivered code.
 
 ## Open details and next gate
 
-Deferred implementation includes browser Inbox, Workspace registration,
+Deferred implementation includes Workspace registration,
 Windows URI dispatch and explicit browser URLs (React Router remains the planned
 routing choice when those URLs are implemented). Other deferred work includes
 Action archiving, View editing in the browser, Snapshots, broader View capabilities,
 Markdown-ID lookup, advanced concurrency, migrations, backup/restore tooling,
 LAN hosting and distribution packaging. Implement only a separately agreed scope.
 
-The CLI Inbox processing contract is a sequence of individual operations:
+The Inbox processing contract is a sequence of individual operations:
 resolve after intended results succeed; later failures do not roll back earlier
 results. No Inbox aggregate is embedded in Workspace.
 
@@ -261,6 +285,7 @@ verification stay with the linked increments.
 | [0029](increments/0029-workspace-agent-guidance.md)     | Replaced a growing generated entry point with compact instructions and offline topic guides; repository development guidance has a different audience.                                                    |
 | [0030](increments/0030-quiet-web-feedback.md)           | Separated temporary operation feedback from persistent recovery state, preserving confirmed writes across refresh races and failures.                                                                     |
 | [0035](increments/0035-inbox-cli.md)                    | Schema 10 adds literal-text Inbox Items and atomic capture/update/resolve/discard events. Explicit consumption is independent of resulting work operations; browser Inbox and migrations remain deferred. |
+| [0036](increments/0036-web-inbox.md)                    | Adds shared Inbox HTTP operations and a retained browser panel with permanent capture, optional list visibility and independent read/write recovery. Schema 10 remains unchanged.                         |
 
 Earlier full-profile discussion included Blocked-column creation, configurable
 state choice and Snapshot capture; those broader capabilities remain deferred.

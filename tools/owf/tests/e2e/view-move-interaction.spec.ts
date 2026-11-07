@@ -518,7 +518,10 @@ test('narrow touch scrolls long columns and the horizontal board; text holds nev
   const a = cardNamed(page, 'A');
   await a.scrollIntoViewIfNeeded();
   let rect = await box(a);
-  const before = await page.evaluate<number>('window.scrollY');
+  const surface = page.locator('[class*="surface"]');
+  const before = await surface.evaluate(
+    (element: { scrollTop: number }) => element.scrollTop,
+  );
   await touch('touchStart', rect.x + 5, rect.y + 60);
   for (let i = 1; i <= 6; i++) {
     await touch('touchMove', rect.x + 5, rect.y + 60 - i * 24);
@@ -526,7 +529,9 @@ test('narrow touch scrolls long columns and the horizontal board; text holds nev
   }
   await touch('touchEnd');
   await expect
-    .poll(() => page.evaluate<number>('window.scrollY'))
+    .poll(() =>
+      surface.evaluate((element: { scrollTop: number }) => element.scrollTop),
+    )
     .toBeGreaterThan(before);
   await expect(a).not.toHaveAttribute('data-dragging', 'true');
   await a.scrollIntoViewIfNeeded();
@@ -623,12 +628,17 @@ test('Home, End and pointer scrolling reach visible targets in a long column and
   await expect.poll(order).toEqual(['A', ...before.slice(0, -1)]);
   await expect(handle).toHaveAttribute('aria-disabled', 'false');
   await handle.scrollIntoViewIfNeeded();
-  const scrollBefore = await page.evaluate<number>('window.scrollY');
+  const surface = page.locator('[class*="surface"]');
+  const scrollBefore = await surface.evaluate(
+    (element: { scrollTop: number }) => element.scrollTop,
+  );
   await pickup(page, 'A');
   const from = await box(handle);
   await page.mouse.move(from.x + from.width / 2, 885, { steps: 12 });
   await expect
-    .poll(() => page.evaluate<number>('window.scrollY'))
+    .poll(() =>
+      surface.evaluate((element: { scrollTop: number }) => element.scrollTop),
+    )
     .toBeGreaterThan(scrollBefore);
   await page.mouse.wheel(0, 3000);
   await expect(last).toBeInViewport();
