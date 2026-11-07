@@ -262,7 +262,6 @@ touch-scroll issue; these were corrected and their focused checks rerun. Vite/Vi
 subprocess startup hit sandbox `spawn EPERM`; affected commands were rerun outside
 that sandbox. No verification gate was changed or bypassed.
 
-Full `npm run verify` evidence will be recorded below before handoff.
 The first full run on `289fefb` passed all stages through 38 built CLI tests,
 then ended with 31/33 browser tests passing (283.315 seconds, exit 1). It exposed
 an ambiguous Refresh selector after Inbox was added and an immediate keyboard
@@ -274,6 +273,28 @@ the second full gate. The final affected-browser selection (`inbox.spec.ts`,
 `view-move.spec.ts`) passed all 22 tests. The final narrow recovery screenshot
 was visually inspected and the added document-height assertion passed.
 No failing check was skipped or weakened.
+
+Final full `npm run verify` passed on 2026-11-07 against runtime/test/configuration
+revision `53fe53af6cdd5baa7bc15cb75b5dc8ebbd1326e0`: exit 0, total 283.160 seconds.
+
+| Gate stage                  | Result                            |
+| --------------------------- | --------------------------------- |
+| Typecheck, lint, formatting | Passed                            |
+| Code-map budget             | Passed, 986/1,500 words           |
+| Architecture                | Passed, no dependency violations  |
+| Production build            | Passed                            |
+| Unit/component              | 224 tests in 17 files passed      |
+| Integration                 | 310 tests in 21 files passed      |
+| Acceptance                  | 44 scenarios and 243 steps passed |
+| Built CLI                   | 38 tests in 6 files passed        |
+| Built Chromium              | All 33 browser tests passed       |
+
+The implementation diff and acceptance criteria were inspected by the implementer.
+Documentation checks also passed: 173 relative Markdown link targets across the
+five changed documents (fenced examples excluded), Prettier and `git diff --check`.
+After the passing full gate, only this verification record changed; runtime,
+tests, dependencies and configuration remain identical to the verified revision.
+
 Independent code review is pending in a separate session. Status deliberately
 remains `in_progress`; no merge or release is authorized by this delivery.
 
