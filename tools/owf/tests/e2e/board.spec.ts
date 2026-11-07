@@ -282,7 +282,11 @@ test('built board quietly reflects a CLI change on return to the tab', async ({
     await expect(
       page.getByText('No Actions yet.', { exact: false }),
     ).toBeVisible();
-    await expect(page.getByRole('heading', { level: 2 })).toHaveText([
+    await expect(
+      page
+        .getByLabel('Action board', { exact: true })
+        .getByRole('heading', { level: 2 }),
+    ).toHaveText([
       'Open0',
       'In Progress0',
       'Waiting0',
@@ -633,7 +637,11 @@ test('drag an Action into Waiting without a reason, then complete and reopen it'
         touchPoints: [],
       });
       await expect
-        .poll(() => mobile.evaluate('window.scrollY'))
+        .poll(() =>
+          mobile
+            .locator('[class*="surface"]')
+            .evaluate((element: { scrollTop: number }) => element.scrollTop),
+        )
         .toBeGreaterThan(0);
       expect(persisted().state).toBe('in_progress');
       await mobileCard.scrollIntoViewIfNeeded();

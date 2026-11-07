@@ -298,3 +298,24 @@ export const inboxTextOptions = z.object({
   text: z.string(),
   json: z.boolean().optional(),
 });
+
+export const inboxTextRequest = z.object({ text: z.string() }).strict();
+export const inboxConsumeRequest = z.object({}).strict();
+export const inboxItem = z.object({
+  id: z.uuid(),
+  captured_at: z.iso.datetime(),
+  text: z.string(),
+});
+export type InboxItem = z.infer<typeof inboxItem>;
+export const inboxResponse = z.object({
+  workspace: z.object({ root: z.string() }),
+  items: z.array(inboxItem),
+});
+export const inboxItemResponse = z.object({ item: inboxItem });
+export const workspaceIdentityResponse = inboxResponse.pick({
+  workspace: true,
+});
+export const inboxConsumedResponse = z.object({
+  id: z.uuid(),
+  status: z.enum(['resolved', 'discarded']),
+});

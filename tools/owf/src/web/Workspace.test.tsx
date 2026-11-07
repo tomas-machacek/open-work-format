@@ -10,6 +10,11 @@ import {
 } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { Workspace } from './Workspace.js';
+vi.mock('./inboxClient.js', () => ({
+  fetchWorkspaceIdentity: () => Promise.resolve('/work'),
+  fetchInbox: () =>
+    Promise.resolve({ workspace: { root: '/work' }, items: [] }),
+}));
 import {
   fetchBoard,
   fetchView,
@@ -125,7 +130,7 @@ test('default filters are restored, never passed to View evaluation; duplicate i
   expect(fetchView).toHaveBeenLastCalledWith('b');
   expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(b.title);
   expect(
-    screen
+    within(screen.getByLabelText('View board', { exact: true }))
       .getAllByRole('heading', { level: 2 })
       .map((node) => node.textContent),
   ).toEqual(['Active1', 'Empty0']);

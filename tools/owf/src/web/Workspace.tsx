@@ -6,6 +6,8 @@ import { Board } from './Board.js';
 import { ViewBoard } from './ViewBoard.js';
 import { ViewSelector, type BoardNavigation } from './ViewSelector.js';
 import styles from './Board.module.css';
+import { Inbox } from './Inbox.js';
+import inboxStyles from './Inbox.module.css';
 
 function WorkspaceContent() {
   const feedback = useFeedback();
@@ -92,23 +94,26 @@ function WorkspaceContent() {
     </div>
   );
   return (
-    <>
-      <div hidden={selected !== undefined}>
-        <Board
-          active={!selected}
-          navigation={navigation}
-          onRefresh={refreshInventory}
-        />
+    <div className={inboxStyles.workspace}>
+      <div className={inboxStyles.surface}>
+        <div hidden={selected !== undefined}>
+          <Board
+            active={!selected}
+            navigation={navigation}
+            onRefresh={refreshInventory}
+          />
+        </div>
+        {selected && (
+          <ViewBoard
+            key={selected.id}
+            selected={selected}
+            navigation={navigation}
+            onRefresh={refreshInventory}
+          />
+        )}
       </div>
-      {selected && (
-        <ViewBoard
-          key={selected.id}
-          selected={selected}
-          navigation={navigation}
-          onRefresh={refreshInventory}
-        />
-      )}
-    </>
+      <Inbox />
+    </div>
   );
 }
 

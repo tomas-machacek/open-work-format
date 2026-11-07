@@ -7,9 +7,8 @@ The local web interface offers Default Kanban and stored Views. Default Kanban
 supports Action creation, editing, state moves, filtering, manual blocking and
 Action prerequisites through the same operations. Views display evaluated columns
 and support View-local drag and drop, column creation and shared Action detail editing.
-Both modes support confirmed permanent Action deletion. The CLI supports
-plain-text Inbox capture, inspection, editing, resolution and discard; browser
-Inbox functionality remains deferred.
+Both modes support confirmed permanent Action deletion. The CLI and browser support
+plain-text Inbox capture, inspection, editing, resolution and discard.
 
 The CLI creates, lists and retrieves independent View instances backed by
 validated shared Markdown definitions, and evaluates current Actions into their
@@ -59,7 +58,56 @@ Use `owf discard inbox INBOX_ID --json` only after deciding nothing needs retain
 Resolve and discard consume current items without undo or archival; they are
 noninteractive operations, not lifecycle states. Historical events survive but do
 not replace durable knowledge storage. No automatic conversion or multi-object
-transaction is provided. Browser Inbox support is deferred.
+transaction is provided.
+
+### Inbox in the browser
+
+Run `owf serve` and open its local URL. **Capture a thought** and **Add to Inbox**
+remain available in Default Kanban and selected Views, even with the Inbox list
+hidden. **Show Inbox / Hide Inbox** changes only the list and preserves capture
+and board drafts. The preference is browser-local, scoped to the canonical Workspace
+root within the server origin, and defaults to shown. Disabled browser storage
+does not prevent capture or toggling.
+
+The separate right panel scrolls independently on wide screens; narrow screens
+use a bounded region above the scrollable board. Items are oldest first, with ID
+breaking capture-time ties. Open a preview to inspect/edit full literal text.
+**Save changes** replaces text without changing identity, time or position.
+**Cancel** and Escape ask before losing unsaved changes; native dialogs contain
+focus until closed. Resolve is available after saving edits and explicitly asserts
+that your intended processing is complete. **Discard** requires confirmation naming
+the item. Neither operation creates another object or an archived Inbox state.
+
+Use **Refresh Inbox**, return to the browser tab, or reopen the list to read CLI
+changes. Refresh never overwrites an open draft; external consumption leaves text
+available to copy for recovery. Hidden lists skip automatic return-to-tab reads.
+Successful writes are silent and remain confirmed if a following read fails.
+Failed writes retain drafts. An unknown outcome blocks writes until you explicitly
+refresh, inspect the list/current text and allow further writes; nothing retries
+automatically. No search, conversion, Markdown rendering or history UI is included.
+
+### Inbox HTTP operations
+
+Inbox endpoints use the same application operations and atomic events as the CLI,
+independently of board reads and View definitions. All responses use `no-store`.
+`GET /api/workspace` returns `{ workspace: { root } }`, the canonical root bound at
+server startup, allowing browser preferences to load even when item reads fail.
+
+| Operation                     | Request            | Successful response                                                         |
+| ----------------------------- | ------------------ | --------------------------------------------------------------------------- |
+| `GET /api/inbox`              | No body            | `{ workspace: { root }, items: [{ id, captured_at, text }] }`, oldest first |
+| `GET /api/inbox/:id`          | No body            | `{ item: { id, captured_at, text } }`                                       |
+| `POST /api/inbox`             | `{ text: string }` | `{ item }`, HTTP 201                                                        |
+| `PATCH /api/inbox/:id`        | `{ text: string }` | `{ item }`, HTTP 200, including unchanged text                              |
+| `POST /api/inbox/:id/resolve` | `{}`               | `{ id, status: "resolved" }`                                                |
+| `POST /api/inbox/:id/discard` | `{}`               | `{ id, status: "discarded" }`                                               |
+
+Write bodies reject unknown fields and require same-origin `application/json`
+at `http://127.0.0.1:<serve-port>`. Errors use `{ error: { code, message } }`:
+400 for malformed input, blank text or malformed UUID; 404 `INBOX_NOT_FOUND` for
+missing/consumed items; 403 for Host/Origin/fetch-site rejection; 415 for non-JSON;
+503 for store/application failure. Accepted text is not trimmed or interpreted.
+Read/validation failures and failed transactions leave items and events unchanged.
 
 ### Store compatibility
 
@@ -82,7 +130,7 @@ a View definition is broken. A full page reload returns to Default Kanban.
 
 Views show all configured columns and counts, including empty columns, in
 definition order. Members retain the evaluator's persistent instance/column order.
-Both boards use the available page width with ordinary outer gutters. Columns
+Both boards use the available work-surface width beside/below Inbox with ordinary outer gutters. Columns
 stay side by side at every window width; scroll the board horizontally to reach
 overflowing columns.
 Cards include owner, waiting reason, compact blocking information and the actual

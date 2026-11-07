@@ -1,6 +1,6 @@
 # 0036 — Inbox in the web interface
 
-> Status: reviewed
+> Status: in_progress
 > Description: Capture and process plain-text Inbox Items in a separate, optionally visible web panel with oldest items first and an always-visible capture form.
 > Depends on: [0035 — Plain-text Inbox through the CLI](0035-inbox-cli.md).
 
@@ -191,8 +191,6 @@ and refresh the browser. Try a narrow viewport and a multiline item.
 
 Before code handoff run full npm run verify on the final runtime revision and
 record platform, actual results and independent review outcome.
-For this documentation-only proposal, check links, scope consistency and diff;
-runtime checks are not claimed.
 
 ## Open questions
 
@@ -202,11 +200,73 @@ and Workspace-scoped local preference are approved.
 ## Implementation and review outcome
 
 Draft prepared on 2026-11-06 and approved for implementation on 2026-11-07.
-No runtime implementation or verification is claimed. Dependency 0035 is completed and merged into main through
+Dependency 0035 is completed and merged into main through
 [PR #42](https://github.com/tomas-machacek/open-work-format/pull/42).
 This increment is based on that completed CLI Inbox implementation.
 
+Implemented on 2026-11-07 in `increment/0036-web-inbox`, after fetching origin
+and fast-forward checking the clean branch at `a735f77`.
+
+- Added shared strict Inbox transport contracts, six HTTP operations and browser
+  client, wired to the existing 0035 application operations. `/api/workspace`
+  supplies the server-bound canonical root for preferences even if item reads
+  fail. Inbox operations validate Workspace availability without evaluating Views.
+- Workspace retains a separate Inbox panel across board modes. Permanent multiline
+  capture survives list toggles; browser-local visibility defaults to shown and
+  degrades to session state when storage is unavailable. Desktop uses a right
+  panel; narrow screens use a bounded region above the independently scrollable
+  board. Scroll padding keeps cards reachable below sticky board headers.
+- Added oldest-first previews, a literal-text native detail/editor, blank-input
+  validation, unsaved-edit guards, explicit resolution responsibility and named
+  destructive confirmation. Long text scrolls separately from controls. Focus is
+  contained and restored to the opening row or permanent capture field.
+- Inbox owns independent manual/open/return refresh, read supersession and
+  pending-write guards. Confirmed additions/edits/removals survive failed reads;
+  failed or unknown writes retain drafts. Unknown outcomes require explicit
+  refresh and inspection before writes are re-enabled. External consumption
+  retains the open text with a missing-item result.
+- Updated README, architecture and code map. No schema, migration, dependency,
+  CLI command or generated Workspace guidance changes were needed.
+
+Verification performed during implementation:
+
+- `npm ci`; Node `24.21.0`, npm `11.4.1`, Windows NT `10.0.26300.0`, PowerShell.
+- `npm run typecheck`, `npm run lint`, `npm run format:check` passed on the
+  prepared changes. Production `npm run build` passed.
+- Focused Vitest selection: `src/web/Inbox.test.tsx`, `inboxClient.test.ts`,
+  `Workspace.test.tsx` and `tests/integration/inbox-http.test.ts`: 25 tests passed.
+  Coverage includes literal payloads, HTTP access/shape checks, atomic event-write
+  failure rollback, broken Views, preference/read failures, pending writes,
+  superseded reads, failed follow-up reads, unknown outcomes and external consumption.
+- Built Chromium `inbox.spec.ts`: both 1440×1000 and 390×844 journeys passed,
+  including keyboard capture, focus containment/restoration, saved preference,
+  capture in both board modes, save/resolve/discard and real built-CLI capture,
+  replacement and resolution. Disposable schema-10 Workspaces were used.
+- Built layout journeys at 1920×1080, 390×844 and 1280×600 passed. View interaction
+  journeys passed after adapting assertions to the board's scrolling container
+  and fixing sticky-header scroll padding. Earlier affected-suite selections also
+  passed board, View and quiet-feedback journeys; these are not a full-gate result.
+- Visually inspected generated desktop/narrow Inbox layout and long-editor PNGs
+  in `test-results/inbox-*/inbox-layout.png` and `inbox-long-editor.png`: separate
+  regions, no overlap, reachable capture/toggle and visible editor controls.
+
+Initial focused attempts exposed fixture/selector assumptions and the sticky-header
+touch-scroll issue; these were corrected and their focused checks rerun. Vite/Vitest
+subprocess startup hit sandbox `spawn EPERM`; affected commands were rerun outside
+that sandbox. No verification gate was changed or bypassed.
+
+Full `npm run verify` evidence will be recorded below before handoff.
+Independent code review is pending in a separate session. Status deliberately
+remains `in_progress`; no merge or release is authorized by this delivery.
+
+Limitations: visual checks used Playwright Chromium on Windows, including emulated
+touch; no physical mobile device, other browser or second OS was checked. The
+browser trial was automated with visual inspection of its screenshots, not an
+additional interactive manual session. Existing schema-10/no-migration limits and
+all deferred features above remain unchanged.
+
 ## Decision changes and follow-up
 
-Initial proposal. Rich content support and conversion shortcuts remain separate
-future decisions, consistent with 0035.
+No scope changes. The lightweight identity endpoint and explicit unknown-outcome
+inspection are presentation/recovery details. Rich content support and conversion
+shortcuts remain separate future decisions, consistent with 0035.

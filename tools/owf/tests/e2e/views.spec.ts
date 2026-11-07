@@ -176,7 +176,11 @@ for (const width of [1440, 390]) {
       await board.evaluate((element: { scrollLeft: number }) => {
         element.scrollLeft = 0;
       });
-      await page.evaluate('window.scrollTo(0, 0)');
+      await page
+        .locator('[class*="surface"]')
+        .evaluate((element: { scrollTop: number }) => {
+          element.scrollTop = 0;
+        });
       await page.screenshot({
         path: testInfo.outputPath(`view-board-${width}.png`),
         fullPage: true,
@@ -186,7 +190,11 @@ for (const width of [1440, 390]) {
           element.scrollLeft = element.scrollWidth;
         },
       );
-      await page.evaluate('window.scrollTo(0, document.body.scrollHeight)');
+      await page
+        .locator('[class*="surface"]')
+        .evaluate((element: { scrollTop: number; scrollHeight: number }) => {
+          element.scrollTop = element.scrollHeight;
+        });
       const box = await selector.boundingBox();
       expect(box?.y).toBeGreaterThanOrEqual(0);
       expect((box?.y ?? 900) + (box?.height ?? 0)).toBeLessThan(900);

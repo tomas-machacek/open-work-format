@@ -1,6 +1,13 @@
 import { fileURLToPath } from 'node:url';
 import { createBoardServer } from '../interfaces/http/index.js';
 import {
+  listInbox,
+  getInbox,
+  captureInbox,
+  setInbox,
+  resolveInbox,
+  discardInbox,
+  workspacePorts,
   listActions,
   createAction,
   createActionInView,
@@ -11,6 +18,7 @@ import {
   displayView,
   moveAction,
 } from './workspaces.js';
+import { discoverWorkspace } from '../application/workspaces/index.js';
 
 export async function serve(start: string, port = 4317) {
   const { result } = listActions(start);
@@ -79,7 +87,36 @@ export async function serve(start: string, port = 4317) {
         throw new Error('The original Workspace is no longer available.');
       return deleteAction(result.root, id);
     },
+    {
+      root: result.root,
+      list: () => {
+        checkInboxWorkspace();
+        return listInbox(result.root);
+      },
+      get: (id) => {
+        checkInboxWorkspace();
+        return getInbox(result.root, id);
+      },
+      capture: (text) => {
+        checkInboxWorkspace();
+        return captureInbox(result.root, text);
+      },
+      set: (id, text) => {
+        checkInboxWorkspace();
+        return setInbox(result.root, id, text);
+      },
+      consume: (id, outcome) => {
+        checkInboxWorkspace();
+        return outcome === 'resolved'
+          ? resolveInbox(result.root, id)
+          : discardInbox(result.root, id);
+      },
+    },
   );
+  function checkInboxWorkspace() {
+    if (discoverWorkspace(result.root, workspacePorts)?.root !== result.root)
+      throw new Error('The original Workspace is no longer available.');
+  }
   try {
     await server.listen({ host: '127.0.0.1', port });
   } catch (error) {
