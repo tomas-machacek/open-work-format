@@ -1,6 +1,6 @@
 # 0036 — Inbox in the web interface
 
-> Status: draft
+> Status: reviewed
 > Description: Capture and process plain-text Inbox Items in a separate, optionally visible web panel with oldest items first and an always-visible capture form.
 > Depends on: [0035 — Plain-text Inbox through the CLI](0035-inbox-cli.md).
 
@@ -196,15 +196,15 @@ runtime checks are not claimed.
 
 ## Open questions
 
-None blocking review. Side-panel placement, shown-by-default behavior and
-Workspace-scoped local preference are proposed choices for this draft.
+None blocking implementation. Side-panel placement, shown-by-default behavior
+and Workspace-scoped local preference are approved.
 
 ## Implementation and review outcome
 
-Draft prepared on 2026-11-06. No runtime implementation or verification is
-claimed. Dependency 0035 is completed and merged into main through
+Draft prepared on 2026-11-06 and approved for implementation on 2026-11-07.
+No runtime implementation or verification is claimed. Dependency 0035 is completed and merged into main through
 [PR #42](https://github.com/tomas-machacek/open-work-format/pull/42).
-This draft is based on that completed CLI Inbox implementation.
+This increment is based on that completed CLI Inbox implementation.
 
 ## Decision changes and follow-up
 
