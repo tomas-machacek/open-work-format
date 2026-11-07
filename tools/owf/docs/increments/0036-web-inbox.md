@@ -249,6 +249,13 @@ Verification performed during implementation:
 - Visually inspected generated desktop/narrow Inbox layout and long-editor PNGs
   in `test-results/inbox-*/inbox-layout.png` and `inbox-long-editor.png`: separate
   regions, no overlap, reachable capture/toggle and visible editor controls.
+- Added built-browser unknown-capture recovery checks at both widths: retained
+  input, no overlapping recovery controls, explicit refresh/inspection and focus
+  restoration before deliberately allowing another write. Recovery instructions
+  are compact so the narrow list retains usable scrolling space.
+  Screenshot inspection also exposed outer vertical scrolling after dialog use
+  on narrow screens. The work surface now establishes a positioning context;
+  the browser journey rejects content escaping into document-level scrolling.
 
 Initial focused attempts exposed fixture/selector assumptions and the sticky-header
 touch-scroll issue; these were corrected and their focused checks rerun. Vite/Vitest
@@ -256,6 +263,17 @@ subprocess startup hit sandbox `spawn EPERM`; affected commands were rerun outsi
 that sandbox. No verification gate was changed or bypassed.
 
 Full `npm run verify` evidence will be recorded below before handoff.
+The first full run on `289fefb` passed all stages through 38 built CLI tests,
+then ended with 31/33 browser tests passing (283.315 seconds, exit 1). It exposed
+an ambiguous Refresh selector after Inbox was added and an immediate keyboard
+drop before the target indicator settled. The selector now names the exact board
+control and the journey waits for the intended drop target. Both cases and the
+new unknown-outcome layout/recovery journey were rerun with focused checks before
+the second full gate. The final affected-browser selection (`inbox.spec.ts`,
+`layout.spec.ts`, `view-create-delete.spec.ts`, `view-move-interaction.spec.ts`,
+`view-move.spec.ts`) passed all 22 tests. The final narrow recovery screenshot
+was visually inspected and the added document-height assertion passed.
+No failing check was skipped or weakened.
 Independent code review is pending in a separate session. Status deliberately
 remains `in_progress`; no merge or release is authorized by this delivery.
 

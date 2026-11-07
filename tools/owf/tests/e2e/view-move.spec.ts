@@ -152,6 +152,7 @@ test('CLI and web View organization persist; pointer, keyboard and Blocked reaso
     await expect(defaultCard).toHaveAttribute('class', /dragging/);
     await page.waitForTimeout(50);
     await page.keyboard.press('ArrowLeft');
+    await expect(region('In Progress')).toHaveAttribute('class', /dropTarget/);
     await page.keyboard.press('Space');
     await expect(region('In Progress').getByRole('article')).toContainText(
       action.title,

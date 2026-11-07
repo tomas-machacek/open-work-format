@@ -93,22 +93,32 @@ export function Inbox() {
           </button>
         </div>
         {inbox.uncertain && (
-          <div role="status">
-            Write outcome unknown. Refresh and inspect the list before trying
-            again. Your draft is retained.
+          <div role="status" className={styles.uncertain}>
+            Write outcome unknown.{' '}
+            {inbox.shown
+              ? 'Refresh Inbox and inspect the list.'
+              : 'Show Inbox to inspect the list.'}{' '}
+            Your draft is retained.
+          </div>
+        )}
+      </div>
+      <div id="inbox-list" className={styles.list} hidden={!inbox.shown}>
+        {inbox.uncertain && (
+          <div className={styles.uncertain}>
             <button
               type="button"
               disabled={
                 !inbox.shown || !inbox.inspected || inbox.stale || inbox.loading
               }
-              onClick={inbox.acknowledge}
+              onClick={() => {
+                inbox.acknowledge();
+                captureField.current?.focus();
+              }}
             >
               I inspected Inbox; allow writes
             </button>
           </div>
         )}
-      </div>
-      <div id="inbox-list" className={styles.list} hidden={!inbox.shown}>
         {!inbox.stale && inbox.items.length === 0 && <p>Inbox is empty.</p>}
         <ol aria-label="Inbox Items, oldest first">
           {inbox.items.map((item) => (
@@ -295,7 +305,13 @@ function InboxEditor({
                     {inbox.items.find((current) => current.id === item.id)
                       ?.text ?? 'Item no longer exists.'}
                   </pre>
-                  <button type="button" onClick={inbox.acknowledge}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      inbox.acknowledge();
+                      field.current?.focus();
+                    }}
+                  >
                     I inspected Inbox; allow writes
                   </button>
                 </>

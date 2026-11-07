@@ -5,6 +5,7 @@
   overflow: hidden;
 }
 .surface {
+  position: relative;
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -88,6 +89,10 @@
 .recovery {
   margin-top: 10px;
   font-size: 12px;
+}
+.uncertain {
+  font-size: 12px;
+  margin-top: 8px;
 }
 .list {
   min-height: 0;

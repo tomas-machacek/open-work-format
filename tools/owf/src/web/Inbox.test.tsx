@@ -299,6 +299,7 @@ test('unknown write outcome blocks resubmission until a successful explicit reco
     ).toBe(false),
   );
   fireEvent.click(button('I inspected Inbox; allow writes'));
+  expect(capture()).toBe(document.activeElement);
   expect((capture() as HTMLTextAreaElement).value).toBe('Possibly captured');
   expect((button('Add to Inbox') as HTMLButtonElement).disabled).toBe(false);
   expect(writeInbox).toHaveBeenCalledTimes(1);

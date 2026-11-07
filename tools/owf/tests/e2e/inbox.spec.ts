@@ -244,6 +244,45 @@ for (const viewport of [
         .getByRole('button', { name: 'Cancel', exact: true })
         .click();
       await expect(actionEditor).toBeHidden();
+      await page.route('**/api/inbox', async (route) => {
+        if (route.request().method() === 'POST') await route.abort('failed');
+        else await route.continue();
+      });
+      await capture.fill('Keep when outcome is unknown');
+      await inbox.getByRole('button', { name: 'Add to Inbox' }).click();
+      await expect(inbox.getByText(/Write outcome unknown/)).toBeVisible();
+      await expect(capture).toHaveValue('Keep when outcome is unknown');
+      await page.getByRole('button', { name: 'Dismiss notification' }).click();
+      expect(
+        await page.evaluate(
+          'document.documentElement.scrollHeight <= innerHeight',
+        ),
+      ).toBe(true);
+      const recoveryBox = (await inbox
+        .locator('[class*="capture"]')
+        .boundingBox())!;
+      const visibleSurface = (await surface.boundingBox())!;
+      if (viewport.width <= 1100)
+        expect(recoveryBox.y + recoveryBox.height).toBeLessThanOrEqual(
+          visibleSurface.y,
+        );
+      await page.screenshot({
+        path: testInfo.outputPath('inbox-uncertain-layout.png'),
+        fullPage: true,
+      });
+      await inbox.getByRole('button', { name: 'Refresh Inbox' }).click();
+      const allow = inbox.getByRole('button', {
+        name: 'I inspected Inbox; allow writes',
+      });
+      await expect(allow).toBeEnabled();
+      await allow.scrollIntoViewIfNeeded();
+      await expect(allow).toBeInViewport({ ratio: 1 });
+      await allow.click();
+      await expect(capture).toBeFocused();
+      await expect(capture).toHaveValue('Keep when outcome is unknown');
+      await expect(
+        inbox.getByRole('button', { name: 'Add to Inbox' }),
+      ).toBeEnabled();
     } finally {
       await server.close();
       cleanup(root);
