@@ -359,6 +359,10 @@ for (const viewport of [
         refreshCandidates.getByText('completed', { exact: true }),
       ).toBeVisible();
       await expect(refreshSearch).toHaveValue('Corrected prerequisite');
+      // Refreshed rows can move under the retained pointer. Identity disclosures
+      // own the first Escape; leave hover before testing picker dismissal.
+      await page.mouse.move(0, 0);
+      await expect(detail.getByRole('tooltip')).toHaveCount(0);
       await page.keyboard.press('Escape');
       await expect(add).toBeFocused();
       const blocking = detail.getByRole('region', {

@@ -77,7 +77,10 @@ beforeEach(() => {
     this.open = false;
   };
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 test('visibility persists per Workspace, capture survives toggling and unavailable browser storage', async () => {
   await start();
@@ -278,6 +281,94 @@ test('discard identifies the item, cancel is write-free and a pending consumptio
   expect(capture()).toBe(document.activeElement);
 });
 
+test('a refreshed external replacement blocks unchanged save and consumption until the user inspects current text', async () => {
+  const detail = await open();
+  const edit =
+    within(detail).getByLabelText<HTMLTextAreaElement>('Full Inbox text');
+  vi.mocked(fetchInbox).mockResolvedValue(
+    result([{ ...first, text: 'New external content' }, second]),
+  );
+  fireEvent.click(
+    within(detail).getByRole('button', { name: 'Refresh Inbox' }),
+  );
+  await within(detail).findByText('New external content');
+  expect(edit.value).toBe(first.text);
+  for (const name of ['Save changes', 'Resolve', 'Discard']) {
+    expect(
+      within(detail).getByRole<HTMLButtonElement>('button', {
+        name,
+      }).disabled,
+    ).toBe(true);
+  }
+  fireEvent.submit(edit.closest('form')!);
+  expect(writeInbox).not.toHaveBeenCalled();
+  // A failed later read must not clear a replacement already known to exist.
+  vi.mocked(fetchInbox).mockRejectedValue(new Error('Read failed'));
+  fireEvent.click(
+    within(detail).getByRole('button', { name: 'Refresh Inbox' }),
+  );
+  await within(detail).findByText(
+    'Inbox not current. Confirmed writes remain saved.',
+  );
+  expect((button('Resolve') as HTMLButtonElement).disabled).toBe(true);
+  expect(
+    (button('Replace draft with current text') as HTMLButtonElement).disabled,
+  ).toBe(true);
+  vi.mocked(fetchInbox).mockResolvedValue(
+    result([{ ...first, text: 'New external content' }, second]),
+  );
+  fireEvent.click(
+    within(detail).getByRole('button', { name: 'Refresh Inbox' }),
+  );
+  await waitFor(() =>
+    expect(
+      (button('Replace draft with current text') as HTMLButtonElement).disabled,
+    ).toBe(false),
+  );
+  fireEvent.click(button('Replace draft with current text'));
+  expect(edit.value).toBe('New external content');
+  expect(edit).toBe(document.activeElement);
+  expect((button('Resolve') as HTMLButtonElement).disabled).toBe(false);
+  expect(writeInbox).not.toHaveBeenCalled();
+});
+
+test('an external replacement preserves dirty text and requires deliberate reconciliation before saving it', async () => {
+  const detail = await open();
+  const edit =
+    within(detail).getByLabelText<HTMLTextAreaElement>('Full Inbox text');
+  fireEvent.change(edit, { target: { value: 'My unsaved draft' } });
+  vi.mocked(fetchInbox).mockResolvedValue(
+    result([{ ...first, text: 'External replacement' }, second]),
+  );
+  fireEvent.click(
+    within(detail).getByRole('button', { name: 'Refresh Inbox' }),
+  );
+  await within(detail).findByText('External replacement');
+  expect(edit.value).toBe('My unsaved draft');
+  fireEvent.submit(edit.closest('form')!);
+  expect(writeInbox).not.toHaveBeenCalled();
+  fireEvent.click(button('Keep my draft for saving'));
+  expect(edit.value).toBe('My unsaved draft');
+  expect(edit).toBe(document.activeElement);
+  expect((button('Resolve') as HTMLButtonElement).disabled).toBe(true);
+  vi.mocked(writeInbox).mockResolvedValue({
+    ...first,
+    text: 'My unsaved draft',
+  });
+  vi.mocked(fetchInbox).mockResolvedValue(
+    result([{ ...first, text: 'My unsaved draft' }, second]),
+  );
+  fireEvent.click(button('Save changes'));
+  await waitFor(() =>
+    expect((button('Resolve') as HTMLButtonElement).disabled).toBe(false),
+  );
+  expect(writeInbox).toHaveBeenCalledExactlyOnceWith(
+    'save',
+    'My unsaved draft',
+    first.id,
+  );
+});
+
 test('unknown write outcome blocks resubmission until a successful explicit reconciliation and inspection', async () => {
   await start();
   typeCapture('Possibly captured');
@@ -334,6 +425,8 @@ test('unknown save retains the draft and offers current persisted text and recon
       name: 'I inspected Inbox; allow writes',
     }),
   );
+  expect((button('Save changes') as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(button('Keep my draft for saving'));
   expect(
     within(detail).getByRole<HTMLButtonElement>('button', {
       name: 'Save changes',
@@ -344,19 +437,27 @@ test('unknown save retains the draft and offers current persisted text and recon
 
 test('return events coalesce, hidden lists do not refresh automatically and opening reads CLI changes', async () => {
   await start();
+  vi.useFakeTimers();
   const calls = vi.mocked(fetchInbox).mock.calls.length;
   fireEvent(window, new Event('focus'));
   fireEvent(document, new Event('visibilitychange'));
-  await waitFor(() => expect(fetchInbox).toHaveBeenCalledTimes(calls + 1));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(100);
+  });
+  expect(fetchInbox).toHaveBeenCalledTimes(calls + 1);
   fireEvent.click(button('Hide Inbox (2)'));
   fireEvent(window, new Event('focus'));
+  fireEvent(document, new Event('visibilitychange'));
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await vi.advanceTimersByTimeAsync(200);
   });
   expect(fetchInbox).toHaveBeenCalledTimes(calls + 1);
   vi.mocked(fetchInbox).mockResolvedValue(
     result([first, second, { ...second, id: 'external', text: 'From CLI' }]),
   );
   fireEvent.click(button('Show Inbox (2)'));
-  await screen.findByText('From CLI');
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  expect(screen.getByText('From CLI')).toBeDefined();
 });

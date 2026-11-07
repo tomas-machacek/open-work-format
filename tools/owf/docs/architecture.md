@@ -200,7 +200,11 @@ item snapshots/removals across failed follow-up reads and never retry mutations.
 Unknown outcomes preserve drafts and block writes until an explicit successful
 refresh and user inspection. Native detail dialogs guard unsaved edits and pending
 writes, preserve text across refresh/external consumption and restore focus to the
-originating row or permanent capture field. Inbox HTTP callbacks use shared
+originating row or permanent capture field. Editors compare retained baselines
+with refreshed item text; known external replacements block saves and consumption
+until explicitly reconciled, even if a later read fails. Narrow layout bounds the
+list independently of the capture area's intrinsic height; low-height board headers
+keep navigation compact so cards remain reachable below it. Inbox HTTP callbacks use shared
 application Inbox operations and Workspace validation without Action/View evaluation.
 See [0036](increments/0036-web-inbox.md) for scope and verification.
 

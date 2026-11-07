@@ -171,11 +171,12 @@ function InboxEditor({
   const [invalid, setInvalid] = useState(false);
   const [confirmation, setConfirmation] = useState<'close' | 'discard'>();
   const dirty = text !== baseline;
-  const missing =
-    !inbox.stale &&
-    !inbox.loading &&
-    !inbox.items.some((current) => current.id === item.id);
-  const blocked = inbox.pending || inbox.uncertain || missing;
+  const current = inbox.items.find((candidate) => candidate.id === item.id);
+  // Preserve the draft, but do not treat a refreshed replacement as the text
+  // the user has inspected. Keep this guard even if a later refresh fails.
+  const changed = current !== undefined && current.text !== baseline;
+  const missing = !inbox.stale && !inbox.loading && current === undefined;
+  const blocked = inbox.pending || inbox.uncertain || missing || changed;
   useEffect(() => {
     const node = dialog.current;
     node?.showModal();
@@ -286,6 +287,39 @@ function InboxEditor({
               Inbox not current. Confirmed writes remain saved.
             </p>
           )}
+          {changed && !inbox.uncertain && (
+            <div role="group" aria-label="External Inbox changes">
+              <p role="status">
+                This Inbox Item changed elsewhere. Your text is retained.
+                Inspect the current text before saving or consuming the item.
+              </p>
+              <pre className={styles.current}>{current.text}</pre>
+              <div className={styles.buttons}>
+                <button
+                  type="button"
+                  disabled={inbox.pending || inbox.loading || inbox.stale}
+                  onClick={() => {
+                    setBaseline(current.text);
+                    setText(current.text);
+                    setInvalid(false);
+                    field.current?.focus();
+                  }}
+                >
+                  Replace draft with current text
+                </button>
+                <button
+                  type="button"
+                  disabled={inbox.pending || inbox.loading || inbox.stale}
+                  onClick={() => {
+                    setBaseline(current.text);
+                    field.current?.focus();
+                  }}
+                >
+                  Keep my draft for saving
+                </button>
+              </div>
+            </div>
+          )}
           {inbox.uncertain && (
             <div role="status">
               Write outcome unknown. Refresh and inspect current Inbox text
@@ -302,8 +336,7 @@ function InboxEditor({
               {!inbox.stale && inbox.inspected && (
                 <>
                   <pre className={styles.current}>
-                    {inbox.items.find((current) => current.id === item.id)
-                      ?.text ?? 'Item no longer exists.'}
+                    {current?.text ?? 'Item no longer exists.'}
                   </pre>
                   <button
                     type="button"

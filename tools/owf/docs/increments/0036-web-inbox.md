@@ -274,7 +274,7 @@ the second full gate. The final affected-browser selection (`inbox.spec.ts`,
 was visually inspected and the added document-height assertion passed.
 No failing check was skipped or weakened.
 
-Final full `npm run verify` passed on 2026-11-07 against runtime/test/configuration
+The initial delivery's final full `npm run verify` passed on 2026-11-07 against runtime/test/configuration
 revision `53fe53af6cdd5baa7bc15cb75b5dc8ebbd1326e0`: exit 0, total 283.160 seconds.
 
 | Gate stage                  | Result                            |
@@ -292,11 +292,79 @@ revision `53fe53af6cdd5baa7bc15cb75b5dc8ebbd1326e0`: exit 0, total 283.160 secon
 The implementation diff and acceptance criteria were inspected by the implementer.
 Documentation checks also passed: 173 relative Markdown link targets across the
 five changed documents (fenced examples excluded), Prettier and `git diff --check`.
-After the passing full gate, only this verification record changed; runtime,
-tests, dependencies and configuration remain identical to the verified revision.
+At that handoff, only this verification record changed after the passing full
+gate; the review corrections below supersede that runtime revision.
 
-Independent code review is pending in a separate session. Status deliberately
-remains `in_progress`; no merge or release is authorized by this delivery.
+Independent review against fetched `main` (`cc6a279`) inspected the complete diff
+at `a75b2fd` and reproduced two findings: an open editor failed to expose refreshed
+external text, allowing unchanged Save to overwrite it or Resolve to consume it;
+and a 44dvh panel cap allowed capture/list content to escape into the board at
+low viewport heights. Review also identified a hidden-refresh test that waited
+20ms despite a 100ms debounce. These findings were confirmed independently of
+the passing implementation suites.
+
+Corrections authorized on 2026-11-07:
+
+- Preserve editor text and show a refreshed external replacement separately.
+  Save and consumption remain blocked until the user explicitly adopts current
+  text or retains the draft for saving. A later failed read retains that guard;
+  uncertain-write recovery still requires its own inspection first.
+- Bound the narrow list itself with usable minimum height, size capture from its
+  content and compact its controls. At very low heights, compact the sticky board
+  header while retaining View selection and inventory/retry controls.
+- Add component coverage for clean/dirty external replacements, deliberate
+  reconciliation and a subsequent failed refresh. The hidden-return test now
+  advances controlled timers beyond the full debounce interval.
+- Extend existing built browser journeys with real CLI replacements while the
+  editor is open. A separate emulated-touch layout journey checks 390×600,
+  844×390 and 390×400, independent scrolling, actual item/card taps, dialogs,
+  focus restoration and hide/show draft preservation.
+
+Focused verification: 11 Inbox component tests and the low-height touch journey
+passed. The existing desktop/narrow Inbox journeys with external replacement
+coverage also passed. Typecheck/lint initially exposed test-only typing and async
+callback errors; those were corrected before the full gate. The stronger card
+visibility check required explicit end alignment and subpixel rounding tolerance
+(99% of a short card, plus actual tap hit testing). Build and browser worker
+startup again required execution outside the sandbox after `spawn EPERM`.
+No production gate was changed.
+
+The first full verification of these corrections passed every stage through CLI,
+then ended with 33/34 browser tests passing (291.247 seconds, exit 1). The narrow
+`board-blocking.spec.ts` journey expected Escape to close the prerequisite picker
+while a hover identity disclosure was open after refreshed rows moved under the
+retained pointer. Trace snapshots immediately before/after Escape confirmed that
+the innermost identity tooltip correctly consumed that key. The failure reproduced
+in isolation. The test now moves the pointer out and asserts the disclosure is
+closed before testing picker dismissal; its focus assertion remains unchanged.
+Both desktop and narrow blocking journeys then passed (2/2), along with typecheck,
+lint and formatting. A second full gate is required because that test changed.
+
+The second full `npm run verify` passed on 2026-11-07: exit 0, total 285.744
+seconds. Verified revision: base `a75b2fd4d8b4364bc1c4957a8f8ca588ddefb6df`
+plus the six-file source/test working diff, identified by
+`git diff --binary HEAD -- tools/owf/src tools/owf/tests | git hash-object --stdin`
+from the repository root: `f8399201cf8c13af57d21aeaa206678eff999bc8`.
+Platform: Windows NT 10.0.26300.0, PowerShell, Node 24.21.0, npm 11.4.1.
+
+All stages passed: typecheck, lint, formatting, code-map budget (986/1,500 words),
+architecture, production build, 226 unit/component tests in 17 files, 310
+integration tests in 21 files, 44 acceptance scenarios/243 steps, 38 built CLI
+tests in 6 files and all 34 built Chromium tests. Low-height layout screenshots
+were visually inspected; tests additionally verified actual Inbox/Action taps
+and focus restoration. Only this documentation record changed after the passing
+gate; the source/test diff identity above remains unchanged.
+
+To try the corrections, open an Inbox Item, replace its text through CLI, and
+choose Refresh Inbox in the editor. The retained text and current persisted text
+are both available; choose whether to replace or retain the draft before saving
+or consuming. At 844×390 or 390×600, scroll Inbox and board separately and open
+both an Inbox Item and an Action. The editor guard detects observed external
+replacements; it does not add atomic optimistic concurrency to the 0035 write API.
+
+The reported review findings and test recommendation are addressed. The corrected
+diff has not received a further separate-session independent review. Status
+deliberately remains `in_progress`; no merge or release is authorized.
 
 Limitations: visual checks used Playwright Chromium on Windows, including emulated
 touch; no physical mobile device, other browser or second OS was checked. The

@@ -80,7 +80,9 @@ the item. Neither operation creates another object or an archived Inbox state.
 
 Use **Refresh Inbox**, return to the browser tab, or reopen the list to read CLI
 changes. Refresh never overwrites an open draft; external consumption leaves text
-available to copy for recovery. Hidden lists skip automatic return-to-tab reads.
+available to copy for recovery. An external text replacement appears beside the
+retained draft and blocks saves and consumption until you explicitly replace the
+draft with current text or keep your draft for saving. Hidden lists skip automatic return-to-tab reads.
 Successful writes are silent and remain confirmed if a following read fails.
 Failed writes retain drafts. An unknown outcome blocks writes until you explicitly
 refresh, inspect the list/current text and allow further writes; nothing retries

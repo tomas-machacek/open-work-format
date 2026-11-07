@@ -223,7 +223,51 @@ for (const viewport of [
         .getByRole('button')
         .filter({ hasText: 'CLI replacement' })
         .click();
+      cli(
+        'set',
+        'inbox',
+        current.id,
+        '--text',
+        'CLI changed while editor open',
+      );
+      await detail.getByRole('button', { name: 'Refresh Inbox' }).click();
+      await expect(
+        detail.getByRole('group', { name: 'External Inbox changes' }),
+      ).toContainText('CLI changed while editor open');
+      await expect(text).toHaveValue('CLI replacement\n  literal');
+      await expect(
+        detail.getByRole('button', { name: 'Save changes', exact: true }),
+      ).toBeDisabled();
+      await expect(
+        detail.getByRole('button', { name: 'Resolve', exact: true }),
+      ).toBeDisabled();
+      await detail
+        .getByRole('button', { name: 'Replace draft with current text' })
+        .click();
+      await expect(text).toHaveValue('CLI changed while editor open');
+      await expect(text).toBeFocused();
       await text.fill('Unsaved recovery draft');
+      cli(
+        'set',
+        'inbox',
+        current.id,
+        '--text',
+        'CLI replacement beside a draft',
+      );
+      await detail.getByRole('button', { name: 'Refresh Inbox' }).click();
+      await expect(
+        detail.getByRole('group', { name: 'External Inbox changes' }),
+      ).toContainText('CLI replacement beside a draft');
+      await expect(text).toHaveValue('Unsaved recovery draft');
+      await detail
+        .getByRole('button', { name: 'Keep my draft for saving' })
+        .click();
+      await expect(
+        detail.getByRole('button', { name: 'Save changes', exact: true }),
+      ).toBeEnabled();
+      await expect(
+        detail.getByRole('button', { name: 'Resolve', exact: true }),
+      ).toBeDisabled();
       cli('resolve', 'inbox', current.id);
       await detail.getByRole('button', { name: 'Refresh Inbox' }).click();
       await expect(
@@ -289,3 +333,115 @@ for (const viewport of [
     }
   });
 }
+
+test('low-height Inbox keeps capture and touchable rows above an independently scrolling board', async ({
+  browser,
+}, testInfo) => {
+  const root = temporaryDirectory();
+  initialize(root, 'Low-height Inbox');
+  for (let i = 0; i < 12; i++) {
+    captureInbox(root, `Thought ${i}\nText for inspection.`);
+    createAction(root, { title: `Action ${i}` });
+  }
+  const server = await serve(root, 0);
+  const context = await browser.newContext({ hasTouch: true });
+  try {
+    const page = await context.newPage();
+    const address = server.server.address();
+    if (!address || typeof address === 'string')
+      throw new Error('Missing port');
+    await page.goto(`http://127.0.0.1:${address.port}`);
+    const inbox = page.getByRole('complementary', { name: 'Inbox' });
+    const capture = page.getByLabel('Capture a thought');
+    const surface = page.locator('[class*="surface"]');
+    const list = inbox.locator('#inbox-list');
+    await expect(
+      inbox.getByRole('button', { name: 'Hide Inbox (12)' }),
+    ).toBeVisible();
+    for (const viewport of [
+      { width: 390, height: 600 },
+      { width: 844, height: 390 },
+      { width: 390, height: 400 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await surface.evaluate((element: { scrollTop: number }) => {
+        element.scrollTop = 400;
+      });
+      const captureBox = await capture.boundingBox();
+      const boardScroll = await surface.evaluate(
+        (element: { scrollTop: number }) => element.scrollTop,
+      );
+      await list.evaluate(
+        (element: { scrollTop: number; scrollHeight: number }) => {
+          element.scrollTop = element.scrollHeight;
+        },
+      );
+      await expect(capture).toBeInViewport({ ratio: 1 });
+      expect(await capture.boundingBox()).toEqual(captureBox);
+      expect(
+        await surface.evaluate(
+          (element: { scrollTop: number }) => element.scrollTop,
+        ),
+      ).toBe(boardScroll);
+      const region = (await inbox.boundingBox())!;
+      const work = (await surface.boundingBox())!;
+      const captureRegion = (await inbox
+        .locator('[class*="capture"]')
+        .boundingBox())!;
+      expect(captureRegion.y + captureRegion.height).toBeLessThanOrEqual(
+        work.y,
+      );
+      expect(region.y + region.height).toBeLessThanOrEqual(work.y);
+      const row = list.getByRole('button').last();
+      await row.scrollIntoViewIfNeeded();
+      await expect(row).toBeInViewport({ ratio: 1 });
+      await page.screenshot({
+        path: testInfo.outputPath(
+          `inbox-${viewport.width}x${viewport.height}.png`,
+        ),
+        fullPage: true,
+      });
+      // A real tap checks clipping and hit testing, not just an outer region's box.
+      await row.tap();
+      const detail = page.getByRole('dialog', {
+        name: 'Inbox Item',
+        exact: true,
+      });
+      await expect(detail).toBeVisible();
+      await detail.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect(row).toBeFocused();
+      const card = page.getByRole('article').last();
+      await card.evaluate(
+        (element: { scrollIntoView: (options: { block: 'end' }) => void }) =>
+          element.scrollIntoView({ block: 'end' }),
+      );
+      // Native scrolling rounds fractional grid geometry to device pixels.
+      // Allow less than one pixel on this short card; the tap still checks occlusion.
+      await expect(card).toBeInViewport({ ratio: 0.99 });
+      await card.tap();
+      const actionEditor = page.getByRole('dialog', { name: 'Edit Action' });
+      await expect(actionEditor).toBeVisible();
+      await actionEditor
+        .getByRole('button', { name: 'Cancel', exact: true })
+        .click();
+      await expect(actionEditor).toBeHidden();
+      await expect(capture).toBeInViewport({ ratio: 1 });
+      await capture.fill('Keep this draft');
+      await inbox.getByRole('button', { name: /Hide Inbox/ }).tap();
+      await expect(capture).toHaveValue('Keep this draft');
+      await expect(
+        inbox.getByRole('button', { name: 'Add to Inbox' }),
+      ).toBeInViewport({ ratio: 1 });
+      await inbox.getByRole('button', { name: /Show Inbox/ }).tap();
+      expect(
+        await page.evaluate(
+          'document.documentElement.scrollHeight <= innerHeight',
+        ),
+      ).toBe(true);
+    }
+  } finally {
+    await context.close();
+    await server.close();
+    cleanup(root);
+  }
+});

@@ -187,7 +187,6 @@
   .inbox {
     grid-column: 1;
     grid-row: 1;
-    max-height: 44dvh;
     border-left: 0;
     border-bottom: 1px solid #cad5cd;
   }
@@ -196,16 +195,60 @@
   }
   .capture {
     padding: 10px 16px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    align-items: start;
+  }
+  .heading {
+    grid-column: 1;
+    grid-row: 1;
   }
   .capture form {
-    margin-top: 8px;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+    margin: 0;
+  }
+  .capture label,
+  .capture form p {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  .capture textarea {
+    margin: 0;
+  }
+  .capture button[type='submit'] {
+    align-self: end;
   }
   .recovery {
-    margin-top: 6px;
+    display: contents;
+  }
+  .recovery button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .recovery span,
+  .capture > .uncertain {
+    grid-column: 1 / -1;
+  }
+  .list {
+    min-height: 96px;
+    max-height: clamp(96px, 18dvh, 200px);
   }
 }
 @media (max-width: 600px) {
   .surface {
     scroll-padding-top: 150px;
+  }
+}
+@media (max-width: 1100px) and (max-height: 500px) {
+  .capture {
+    padding-block: 8px;
+  }
+  .surface {
+    scroll-padding-top: 80px;
   }
 }
