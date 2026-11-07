@@ -1,6 +1,6 @@
 # 0036 — Inbox in the web interface
 
-> Status: in_progress
+> Status: completed
 > Description: Capture and process plain-text Inbox Items in a separate, optionally visible web panel with oldest items first and an always-visible capture form.
 > Depends on: [0035 — Plain-text Inbox through the CLI](0035-inbox-cli.md).
 
@@ -363,8 +363,15 @@ both an Inbox Item and an Action. The editor guard detects observed external
 replacements; it does not add atomic optimistic concurrency to the 0035 write API.
 
 The reported review findings and test recommendation are addressed. The corrected
-diff has not received a further separate-session independent review. Status
-deliberately remains `in_progress`; no merge or release is authorized.
+diff has not received a further separate-session independent review. On 2026-11-07,
+the user accepted the result and explicitly authorized completion and merge into
+main. Increment 0036 is completed; this does not authorize a release.
+
+At completion, the source/test diff from `a75b2fd` to `896a396` was checked against
+the recorded verification identity and matches
+`f8399201cf8c13af57d21aeaa206678eff999bc8`. The final branch diff passed
+`git diff --check`. Completion changes only repository documentation; the passing
+Windows full-gate evidence above is reused without claiming a new runtime run.
 
 Limitations: visual checks used Playwright Chromium on Windows, including emulated
 touch; no physical mobile device, other browser or second OS was checked. The
