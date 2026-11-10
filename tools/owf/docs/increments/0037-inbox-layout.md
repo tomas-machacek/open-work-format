@@ -1,6 +1,6 @@
 # 0037 — Inbox layout and reclaimed board space
 
-> Status: in_progress
+> Status: completed
 > Description: Place Inbox on the left and reclaim the full board width when its item list is hidden, while keeping capture available.
 > Depends on: [0036 — Inbox in the web interface](0036-web-inbox.md).
 
@@ -143,8 +143,10 @@ strip above the full-width work surface.
 Draft prepared on 2026-11-10. The user reviewed and approved the scope,
 solution and acceptance criteria for implementation on 2026-11-10.
 
-Implemented on 2026-11-10; the increment and index remain `in_progress` for
-independent code review through [PR #44](https://github.com/tomas-machacek/open-work-format/pull/44).
+Implemented on 2026-11-10 through
+[PR #44](https://github.com/tomas-machacek/open-work-format/pull/44).
+The user reported that independent review passed and authorized completion and
+merge into main on 2026-11-10. The increment and index are now `completed`.
 
 - Workspace now owns the existing `useInbox` lifecycle and passes it to one
   retained Inbox. Visibility changes the Workspace grid, preserving the capture
@@ -213,9 +215,16 @@ non-Chromium or non-Windows verification is claimed.
 
 ### Review handoff
 
-The implementer inspected the final diff against AC1–AC6. No known implementation
-finding remains; independent code review has not yet been performed and remains
-the next step. This handoff does not complete the increment or authorize merging.
+The implementer inspected the final diff against AC1–AC6 and reported no known
+implementation finding at handoff. Independent review subsequently passed, as
+reported by the user on 2026-11-10; the user explicitly authorized completion and
+merge. No separate reviewer report is stored in this document.
+
+At completion, the diff from verified runtime revision `ccbcc8f` to branch head
+`e953df3` contained only this increment's outcome documentation. Completion changes
+only this document and its index row, so the recorded passing Windows full-gate
+evidence is reused without claiming a new runtime run. Completion does not
+create a release.
 
 To try it, serve a disposable Workspace with Actions, Inbox Items and a View.
 Type a multiline thought, hide/show Inbox in each board mode and compare the work
