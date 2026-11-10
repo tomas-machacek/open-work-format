@@ -14,7 +14,9 @@ vi.mock('./inboxClient.js', () => ({
   fetchWorkspaceIdentity: () => Promise.resolve('/work'),
   fetchInbox: () =>
     Promise.resolve({ workspace: { root: '/work' }, items: [] }),
+  writeInbox: vi.fn(),
 }));
+import { writeInbox } from './inboxClient.js';
 import {
   fetchBoard,
   fetchView,
@@ -98,6 +100,7 @@ async function openView() {
   await screen.findByText('State · waiting');
 }
 beforeEach(() => {
+  localStorage.clear();
   vi.clearAllMocks();
   vi.mocked(fetchViews).mockReset().mockResolvedValue([a, b]);
   vi.mocked(fetchView)
@@ -107,6 +110,7 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ workspace: { root: '/work' }, actions: [action] });
   vi.mocked(editBoardAction).mockReset();
+  vi.mocked(writeInbox).mockReset();
   HTMLDialogElement.prototype.showModal = function () {
     this.open = true;
   };
@@ -125,9 +129,34 @@ test('default filters are restored, never passed to View evaluation; duplicate i
   await waitFor(() =>
     expect(fetchBoard).toHaveBeenLastCalledWith({ search: 'missing' }),
   );
+  const capture =
+    screen.getByLabelText<HTMLTextAreaElement>('Capture a thought');
+  fireEvent.change(capture, { target: { value: 'Retained\nthought' } });
+  const boardReads = vi.mocked(fetchBoard).mock.calls.length;
+  fireEvent.click(screen.getByRole('button', { name: /Hide Inbox/ }));
+  expect(fetchBoard).toHaveBeenCalledTimes(boardReads);
+  expect(screen.getByLabelText('Capture a thought')).toBe(capture);
   select('b');
   await screen.findByText('State · waiting');
   expect(fetchView).toHaveBeenLastCalledWith('b');
+  const viewReads = vi.mocked(fetchView).mock.calls.length;
+  fireEvent.click(screen.getByRole('button', { name: /Show Inbox/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Hide Inbox/ }));
+  expect(fetchView).toHaveBeenCalledTimes(viewReads);
+  expect(screen.getByLabelText('Capture a thought')).toBe(capture);
+  expect(capture.value).toBe('Retained\nthought');
+  vi.mocked(writeInbox).mockResolvedValue({
+    id: 'captured',
+    text: capture.value,
+    captured_at: '2026-11-10T10:00:00Z',
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Add to Inbox' }));
+  await waitFor(() => expect(capture.value).toBe(''));
+  expect(writeInbox).toHaveBeenCalledExactlyOnceWith(
+    'capture',
+    'Retained\nthought',
+    undefined,
+  );
   expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(b.title);
   expect(
     within(screen.getByLabelText('View board', { exact: true }))

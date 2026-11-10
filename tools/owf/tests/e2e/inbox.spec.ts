@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 import {
   initialize,
   createAction,
@@ -10,9 +10,182 @@ import {
   captureInbox,
   getInbox,
   listInbox,
+  showView,
 } from '../../src/bootstrap/workspaces.js';
 import { serve } from '../../src/bootstrap/server.js';
 import { cleanup, temporaryDirectory } from '../support/workspace.js';
+
+async function box(locator: Locator) {
+  const rect = await locator.boundingBox();
+  if (!rect) throw new Error('Missing Inbox layout geometry');
+  return rect;
+}
+
+test('Inbox reclaims board width in both modes and retains drafts through responsive layouts', async ({
+  page,
+}, testInfo) => {
+  const root = temporaryDirectory();
+  initialize(root, 'Inbox layout');
+  mkdirSync(join(root, '_views'));
+  copyFileSync(
+    new URL('../../docs/examples/work-board.md', import.meta.url),
+    join(root, '_views', 'board.md'),
+  );
+  const view = createView(root, {
+    title: 'Layout View',
+    definition: '/_views/board.md',
+  }).result.view;
+  for (let i = 0; i < 12; i++) {
+    captureInbox(root, `Thought ${i}`);
+    createAction(root, { title: `Layout Action ${i}` });
+  }
+  const server = await serve(root, 0);
+  try {
+    const address = server.server.address();
+    if (!address || typeof address === 'string')
+      throw new Error('Missing port');
+    const wide = { width: 1440, height: 1000 };
+    await page.setViewportSize(wide);
+    await page.goto(`http://127.0.0.1:${address.port}`);
+    const inbox = page.getByRole('complementary', { name: 'Inbox' });
+    const capture = page.getByLabel('Capture a thought');
+    const submit = inbox.getByRole('button', { name: 'Add to Inbox' });
+    const surface = page.locator('[class*="surface"]');
+    const workspace = page.locator('[class*="workspace"]');
+    const selector = page.getByRole('combobox', { name: 'Display' });
+    await expect(
+      inbox.getByRole('button', { name: 'Hide Inbox (12)' }),
+    ).toBeVisible();
+    const draft = 'Retained thought\nwith a second line';
+    await capture.fill(draft);
+    await page.getByLabel('Search title or description').fill('Layout');
+    await page.getByRole('button', { name: 'Apply filters' }).click();
+    await expect(page.getByRole('article')).toHaveCount(12);
+    await page.getByLabel('Search title or description').fill('Unsent filter');
+    const boardRequests: string[] = [];
+    const writes: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() !== 'GET') writes.push(request.url());
+      else if (/\/api\/(actions|views)(\/|\?|$)/.test(request.url()))
+        boardRequests.push(request.url());
+    });
+    for (const mode of ['default', 'view']) {
+      await selector.selectOption(mode === 'view' ? view.id : '');
+      const board = page.getByLabel(
+        mode === 'view' ? 'View board' : 'Action board',
+        { exact: true },
+      );
+      await expect(board.getByRole('article')).toHaveCount(12);
+      const reads = boardRequests.length;
+      const expanded = await box(surface);
+      const left = await box(inbox);
+      expect(left.x).toBe(0);
+      expect(left.x + left.width).toBe(expanded.x);
+      await page.screenshot({
+        path: testInfo.outputPath(`${mode}-expanded.png`),
+      });
+      await inbox.getByRole('button', { name: /Hide Inbox/ }).click();
+      const full = await box(surface);
+      const available = await box(workspace);
+      expect(full.x).toBe(available.x);
+      expect(full.width).toBe(available.width);
+      expect(full.width - expanded.width).toBe(left.width);
+      expect((await box(inbox)).y + (await box(inbox)).height).toBe(full.y);
+      await surface.evaluate((element: { scrollTop: number }) => {
+        element.scrollTop = 500;
+      });
+      for (const control of [
+        capture,
+        submit,
+        inbox.getByRole('button', { name: /Show Inbox/ }),
+      ])
+        await expect(control).toBeInViewport({ ratio: 1 });
+      await page.screenshot({
+        path: testInfo.outputPath(`${mode}-collapsed.png`),
+      });
+      for (const viewport of [
+        { width: 390, height: 844 },
+        { width: 844, height: 390 },
+        wide,
+      ]) {
+        await page.setViewportSize(viewport);
+        await expect(capture).toHaveValue(draft);
+        await expect(selector).toHaveValue(mode === 'view' ? view.id : '');
+        await expect(submit).toBeInViewport({ ratio: 1 });
+      }
+      await inbox.getByRole('button', { name: /Show Inbox/ }).click();
+      expect((await box(surface)).width).toBe(expanded.width);
+      expect(boardRequests).toHaveLength(reads);
+      expect(writes).toHaveLength(0);
+    }
+    // A pointer move uses geometry measured after the panel/strip transitions.
+    const source = page.getByRole('region', {
+      name: 'New to organize',
+      exact: true,
+    });
+    const card = source.getByRole('article').first();
+    const actionId = await card.getAttribute('data-action-id');
+    await card.scrollIntoViewIfNeeded();
+    const from = await box(card);
+    await page.mouse.move(from.x + 5, from.y + 5);
+    await page.mouse.down();
+    await page.mouse.move(from.x + 16, from.y + 5, { steps: 3 });
+    await expect(card).toHaveAttribute('data-dragging', 'true');
+    const target = page.getByLabel('Todo: append', { exact: true });
+    const to = await box(target);
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height - 20, {
+      steps: 12,
+    });
+    await expect(
+      page.getByLabel('Todo: position 1', { exact: true }),
+    ).toHaveAttribute('class', /activeSlot/);
+    await page.mouse.up();
+    await expect
+      .poll(() =>
+        showView(root, view.id)
+          .result.columns.find((column) => column.id === 'todo')
+          ?.members.some((action) => action.id === actionId),
+      )
+      .toBe(true);
+    await selector.selectOption('');
+    await expect(page.getByLabel('Search title or description')).toHaveValue(
+      'Unsent filter',
+    );
+    await expect(page.getByRole('article')).toHaveCount(12);
+    await expect(capture).toHaveValue(draft);
+    await inbox.getByRole('button', { name: /Hide Inbox/ }).click();
+    await submit.click();
+    await expect(capture).toHaveValue('');
+    expect(
+      listInbox(root).result.items.filter((item) => item.text === draft),
+    ).toHaveLength(1);
+    await page.reload();
+    await expect(
+      inbox.getByRole('button', { name: /Show Inbox/ }),
+    ).toBeVisible();
+    expect((await box(surface)).width).toBe(wide.width);
+    await submit.click();
+    await expect(inbox.getByRole('alert')).toHaveText(
+      'Enter nonblank Inbox text.',
+    );
+    await expect(inbox.getByRole('alert')).toBeInViewport({ ratio: 1 });
+    expect((await box(inbox)).height).toBe((await box(surface)).y);
+    await page.screenshot({
+      path: testInfo.outputPath('collapsed-validation.png'),
+    });
+    await inbox.getByRole('button', { name: /Show Inbox/ }).click();
+    await page.reload();
+    await expect(
+      inbox.getByRole('button', { name: /Hide Inbox/ }),
+    ).toBeVisible();
+    expect((await box(inbox)).x + (await box(inbox)).width).toBe(
+      (await box(surface)).x,
+    );
+  } finally {
+    await server.close();
+    cleanup(root);
+  }
+});
 
 for (const viewport of [
   { width: 1440, height: 1000 },
@@ -113,7 +286,7 @@ for (const viewport of [
       const inboxBox = (await inbox.boundingBox())!;
       const workBox = (await surface.boundingBox())!;
       if (viewport.width > 1100)
-        expect(workBox.x + workBox.width).toBeLessThanOrEqual(inboxBox.x);
+        expect(inboxBox.x + inboxBox.width).toBeLessThanOrEqual(workBox.x);
       else expect(inboxBox.y + inboxBox.height).toBeLessThanOrEqual(workBox.y);
       expect(
         await page.evaluate(
@@ -292,6 +465,7 @@ for (const viewport of [
         if (route.request().method() === 'POST') await route.abort('failed');
         else await route.continue();
       });
+      await inbox.getByRole('button', { name: /Hide Inbox/ }).click();
       await capture.fill('Keep when outcome is unknown');
       await inbox.getByRole('button', { name: 'Add to Inbox' }).click();
       await expect(inbox.getByText(/Write outcome unknown/)).toBeVisible();
@@ -315,6 +489,10 @@ for (const viewport of [
         fullPage: true,
       });
       await inbox.getByRole('button', { name: 'Refresh Inbox' }).click();
+      await expect(
+        inbox.getByRole('button', { name: 'Add to Inbox' }),
+      ).toBeDisabled();
+      await inbox.getByRole('button', { name: /Show Inbox/ }).click();
       const allow = inbox.getByRole('button', {
         name: 'I inspected Inbox; allow writes',
       });
@@ -428,11 +606,27 @@ test('low-height Inbox keeps capture and touchable rows above an independently s
       await expect(capture).toBeInViewport({ ratio: 1 });
       await capture.fill('Keep this draft');
       await inbox.getByRole('button', { name: /Hide Inbox/ }).tap();
+      const collapsed = await box(surface);
+      expect(collapsed.height - work.height).toBeGreaterThanOrEqual(96);
+      expect(collapsed.width).toBe(viewport.width);
+      expect(collapsed.y).toBe((await box(inbox)).height);
       await expect(capture).toHaveValue('Keep this draft');
       await expect(
         inbox.getByRole('button', { name: 'Add to Inbox' }),
       ).toBeInViewport({ ratio: 1 });
+      // Validation must fit above the board even in short landscape layouts.
+      await capture.fill('');
+      await inbox.getByRole('button', { name: 'Add to Inbox' }).tap();
+      await expect(inbox.getByRole('alert')).toBeInViewport({ ratio: 1 });
+      expect((await box(inbox)).height).toBe((await box(surface)).y);
+      await page.screenshot({
+        path: testInfo.outputPath(
+          `collapsed-validation-${viewport.width}x${viewport.height}.png`,
+        ),
+      });
+      await capture.fill('Keep this draft');
       await inbox.getByRole('button', { name: /Show Inbox/ }).tap();
+      expect((await box(surface)).height).toBe(work.height);
       expect(
         await page.evaluate(
           'document.documentElement.scrollHeight <= innerHeight',

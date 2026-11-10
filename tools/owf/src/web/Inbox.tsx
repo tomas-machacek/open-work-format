@@ -1,13 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { InboxItem } from '../contracts/index.js';
 import { NotificationSurface } from './Notifications.js';
-import { useInbox } from './useInbox.js';
+import type { useInbox } from './useInbox.js';
 import styles from './Inbox.module.css';
 
 type InboxState = ReturnType<typeof useInbox>;
 
-export function Inbox() {
-  const inbox = useInbox();
+export function Inbox({ inbox }: { inbox: InboxState }) {
   const [capture, setCapture] = useState('');
   const [invalid, setInvalid] = useState(false);
   const [selected, setSelected] = useState<InboxItem>();

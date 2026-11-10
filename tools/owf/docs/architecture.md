@@ -1,7 +1,7 @@
 # OWF Tool Architecture
 
 > Status: Agreed implementation baseline, established 2026-09-15.
-> Current-state documentation includes CLI and browser Inbox support through increment 0036.
+> Current-state documentation includes CLI and browser Inbox support through increment 0037.
 > Historical delivery decisions and deferred capabilities are separated below.
 
 ## Purpose and authority
@@ -184,9 +184,12 @@ confirmed writes and must not be repeated. Mutations are never retried automatic
 See [0030](increments/0030-quiet-web-feedback.md) for the feedback contract and
 [UI test discipline](development-guidelines.md#tests-and-acceptance-criteria).
 
-Workspace also retains `Inbox` outside both board components. Its permanent
-capture/toggle and independently scrolling list occupy a right panel on wide
-screens and a bounded region above the board on narrow screens. The board scrolls
+Workspace owns `useInbox` and retains one `Inbox` outside both board components.
+Its permanent capture/toggle and independently scrolling list occupy a left panel
+on wide screens and a bounded region above the board on narrow screens. Hiding
+the list changes the Workspace grid to a compact capture strip above a full-width
+work surface, releasing list height on narrow screens. CSS rearranges the retained
+components without remounting capture or boards or initiating board reads. The board scrolls
 inside its own work surface; its header and horizontal columns retain their behavior.
 Inbox visibility is an optional localStorage preference keyed by canonical Workspace
 root within the browser origin, never store data. A lightweight Workspace identity
@@ -206,7 +209,8 @@ until explicitly reconciled, even if a later read fails. Narrow layout bounds th
 list independently of the capture area's intrinsic height; low-height board headers
 keep navigation compact so cards remain reachable below it. Inbox HTTP callbacks use shared
 application Inbox operations and Workspace validation without Action/View evaluation.
-See [0036](increments/0036-web-inbox.md) for scope and verification.
+See [0036](increments/0036-web-inbox.md) for Inbox behavior and
+[0037](increments/0037-inbox-layout.md) for the revised layout and verification.
 
 ## Application technologies
 

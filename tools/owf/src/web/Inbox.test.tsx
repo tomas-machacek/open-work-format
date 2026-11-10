@@ -9,7 +9,8 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { Inbox } from './Inbox.js';
+import { Inbox as InboxContent } from './Inbox.js';
+import { useInbox } from './useInbox.js';
 import { Notifications } from './Notifications.js';
 import {
   fetchInbox,
@@ -51,6 +52,9 @@ const button = (name: string | RegExp) => screen.getByRole('button', { name });
 const capture = () => screen.getByLabelText('Capture a thought');
 const typeCapture = (text: string) =>
   fireEvent.change(capture(), { target: { value: text } });
+function Inbox() {
+  return <InboxContent inbox={useInbox()} />;
+}
 async function start() {
   render(
     <Notifications>

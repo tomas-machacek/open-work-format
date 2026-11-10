@@ -1,6 +1,6 @@
 # 0037 — Inbox layout and reclaimed board space
 
-> Status: reviewed
+> Status: in_progress
 > Description: Place Inbox on the left and reclaim the full board width when its item list is hidden, while keeping capture available.
 > Depends on: [0036 — Inbox in the web interface](0036-web-inbox.md).
 
