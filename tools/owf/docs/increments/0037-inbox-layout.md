@@ -142,4 +142,85 @@ strip above the full-width work surface.
 
 Draft prepared on 2026-11-10. The user reviewed and approved the scope,
 solution and acceptance criteria for implementation on 2026-11-10.
-Implementation and verification are pending.
+
+Implemented on 2026-11-10; the increment and index remain `in_progress` for
+independent code review through [PR #44](https://github.com/tomas-machacek/open-work-format/pull/44).
+
+- Workspace now owns the existing `useInbox` lifecycle and passes it to one
+  retained Inbox. Visibility changes the Workspace grid, preserving the capture
+  form, board components, preference key and existing recovery behavior.
+- The expanded desktop panel is on the left. Hidden-list capture becomes a
+  compact top strip above the full-width work surface. Narrow layouts retain
+  their stacked composition and release list height when hidden. Validation has
+  its own form row; short layouts use matching padding in both visibility states.
+- Extended Workspace component coverage and existing Inbox browser journeys for
+  measured geometry, responsive draft retention, unchanged board reads, saved
+  preferences, pointer movement after resizing, short-screen touch interaction,
+  validation and collapsed uncertain-write recovery. Existing Inbox operation,
+  editor guard and storage-fallback coverage is reused.
+- Updated the browser README, architecture and the code map's lifecycle ownership
+  note. No domain, HTTP, CLI, store, dependency or generated guidance changes.
+
+### Verification and visual inspection
+
+Platform: Windows x64 (OS build `10.0.26300`), Node.js `24.21.0`, npm `11.4.1`,
+Playwright `1.63.0` with Chromium. Runtime evidence identifies commit
+`ccbcc8f9a433a8a4b763552ba35188773a01c327`; subsequent outcome edits are prose only.
+
+- `npm ci` passed (572 packages audited, zero reported vulnerabilities).
+- Focused `npx vitest run src/web/Workspace.test.tsx src/web/Inbox.test.tsx`
+  passed: 23 tests in two files. Typecheck, lint and formatting passed before
+  launching the full gate; the code map measured 991 words against its 1,500-word
+  ceiling. Changed Markdown relative file links and `git diff --check` passed.
+- The first focused Chromium selection passed five of seven journeys. It caught
+  a four-pixel short-screen padding discrepancy and an incorrect test selector
+  for the empty View column's insertion indicator. Both were corrected before
+  the full gate. After rebuilding, `npm run test:browser -- inbox.spec.ts` passed
+  all four journeys (24.2 seconds).
+- At 1440×1000, both Default Kanban and a selected View gained exactly 340 pixels
+  of work-surface width (1100 → 1440) when hidden, then restored the original
+  width. Narrow/short journeys verified at least 96 pixels of recovered board
+  height, independent scrolling, actual Inbox/Action taps and reachable controls
+  at 390×600, 844×390 and 390×400. The new layout journey also retained a multiline
+  capture draft through 390×844 and 844×390 resizing and submitted it exactly
+  once; a pointer View move succeeded after returning to the desktop layout.
+- The first full `npm run verify` stopped in built CLI tests (254.408 seconds,
+  exit 1): three existing multi-process Action journeys exceeded Vitest's
+  unchanged 5,000 ms timeout (5.501–5.702 seconds); 35 CLI tests passed. All earlier
+  stages passed. An isolated diagnostic rerun of those three tests passed with
+  the same timeout and unchanged code/configuration (13.26 seconds total).
+  The second full gate resolved that timing uncertainty and passed all 11 stages
+  (458.291 seconds, exit 0): 226 unit/component tests in 17 files, 310 integration
+  tests in 21 files, 44 acceptance scenarios/243 steps, 38 built CLI tests in six
+  files and all 35 Chromium journeys. No timeout or gate was relaxed.
+
+Visually inspected generated PNGs under `test-results/inbox-*/`: desktop Default
+and View expanded/collapsed layouts, narrow stacked layout, 844×390 and 390×400
+layouts, collapsed validation and desktop/narrow uncertain-write recovery, plus
+the narrow long-text editor. The left panel is separate, the collapsed strip
+reserves its own height, multiline input and messages remain readable, and board
+content/control regions do not overlap capture. Geometry and real interaction
+assertions supplement the screenshots. Screenshots are local ignored test artifacts.
+
+Build and browser commands initially hit sandbox `spawn EPERM`; their reruns
+outside the sandbox succeeded. A separate interactive trial was attempted using
+a disposable Workspace, but Computer Use stopped before interacting with the app:
+it could not determine the Windows browser's current URL with enough confidence
+to enforce its policy. That trial is **not** recorded as passed. The automated
+Chromium journeys exercise the trial's hide/show, resize, capture, reload,
+scrolling, item/Action opening and View movement steps. No physical-device,
+non-Chromium or non-Windows verification is claimed.
+
+### Review handoff
+
+The implementer inspected the final diff against AC1–AC6. No known implementation
+finding remains; independent code review has not yet been performed and remains
+the next step. This handoff does not complete the increment or authorize merging.
+
+To try it, serve a disposable Workspace with Actions, Inbox Items and a View.
+Type a multiline thought, hide/show Inbox in each board mode and compare the work
+surface width; submit the retained thought once. Reload with the list hidden,
+resize to portrait and short landscape, scroll each region, open an Inbox Item
+and an Action, and move an Action in the View. The separate human trial remains
+available for review because the interactive tool trial was blocked as described
+above.
