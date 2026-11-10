@@ -57,6 +57,7 @@ link and a one-line description; keep its status in sync.
 | [0035 — Plain-text Inbox through the CLI](0035-inbox-cli.md)                             | Capture, read, edit, resolve and discard plain-text Inbox Items through the CLI.                                   | completed   |
 | [0036 — Inbox in the web interface](0036-web-inbox.md)                                   | Capture and process Inbox Items in a separate optional panel with oldest items first and permanent capture.        | completed   |
 | [0037 — Inbox layout and reclaimed board space](0037-inbox-layout.md)                    | Put Inbox on the left and reclaim board space when its list is hidden while retaining capture.                     | completed   |
+| [0038 — Compact Inbox capture and shared button styling](0038-inbox-capture-polish.md) | Unify button styling and place compact Inbox capture below the Workspace header. | draft |
 
 0022 depends on completed [0021](0021-view-evaluation-cli.md), merged through [PR #27](https://github.com/tomas-machacek/open-work-format/pull/27).
 
