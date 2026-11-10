@@ -64,13 +64,16 @@ transaction is provided.
 
 Run `owf serve` and open its local URL. **Capture a thought** and **Add to Inbox**
 remain available in Default Kanban and selected Views, even with the Inbox list
-hidden. **Show Inbox / Hide Inbox** changes only the list and preserves capture
+hidden. **Show Inbox / Hide Inbox** changes the layout and preserves capture
 and board drafts. The preference is browser-local, scoped to the canonical Workspace
 root within the server origin, and defaults to shown. Disabled browser storage
 does not prevent capture or toggling.
 
-The separate right panel scrolls independently on wide screens; narrow screens
-use a bounded region above the scrollable board. Items are oldest first, with ID
+The separate left panel scrolls independently on wide screens. Hiding the list
+moves capture into a compact strip above the full-width board; showing it restores
+the left panel. Narrow screens keep Inbox above the board, and hiding the list
+releases its height. Capture and visibility controls stay reachable while the
+board scrolls. Items are oldest first, with ID
 breaking capture-time ties. Open a preview to inspect/edit full literal text.
 **Save changes** replaces text without changing identity, time or position.
 **Cancel** and Escape ask before losing unsaved changes; native dialogs contain

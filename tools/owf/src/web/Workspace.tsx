@@ -7,9 +7,11 @@ import { ViewBoard } from './ViewBoard.js';
 import { ViewSelector, type BoardNavigation } from './ViewSelector.js';
 import styles from './Board.module.css';
 import { Inbox } from './Inbox.js';
+import { useInbox } from './useInbox.js';
 import inboxStyles from './Inbox.module.css';
 
 function WorkspaceContent() {
+  const inbox = useInbox();
   const feedback = useFeedback();
   const [views, setViews] = useState<StoredView[]>([]);
   const [selected, setSelected] = useState<StoredView>();
@@ -94,7 +96,10 @@ function WorkspaceContent() {
     </div>
   );
   return (
-    <div className={inboxStyles.workspace}>
+    <div
+      className={`${inboxStyles.workspace} ${inbox.shown ? '' : inboxStyles.collapsed}`}
+    >
+      <Inbox inbox={inbox} />
       <div className={inboxStyles.surface}>
         <div hidden={selected !== undefined}>
           <Board
@@ -112,7 +117,6 @@ function WorkspaceContent() {
           />
         )}
       </div>
-      <Inbox />
     </div>
   );
 }

@@ -63,7 +63,7 @@ Acceptance bindings are in `tests/acceptance/steps/`; shared fixtures in `tests/
 
 - Inbox writes commit current data and events together without Action/View reconciliation.
   Consumption preserves historical identity; new stores use schema 10 with no migration.
-  `useInbox` independently invalidates stale reads and retains confirmed writes and edit drafts;
+  Workspace owns `useInbox` for layout; it independently invalidates stale reads and retains confirmed writes and edit drafts;
   native dialogs guard navigation. Visibility preferences use browser storage only.
 - Action creation/state/blocking edits can affect membership and order in several
   Views and dependent Actions. [reconcilePlacements](../src/application/views/reconciliation.ts)

@@ -1,10 +1,12 @@
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: 340px minmax(0, 1fr);
   height: 100dvh;
   overflow: hidden;
 }
 .surface {
+  grid-column: 2;
+  grid-row: 1;
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -12,14 +14,14 @@
   scroll-padding-top: 100px;
 }
 .inbox {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
   background: #edf1ec;
-  border-left: 1px solid #cad5cd;
+  border-right: 1px solid #cad5cd;
 }
 .capture {
   padding: 18px;
@@ -85,6 +87,10 @@
   display: block;
   resize: none;
   margin-bottom: 8px;
+}
+.capture button[type='submit'] {
+  grid-column: 2;
+  grid-row: 2;
 }
 .recovery {
   margin-top: 10px;
@@ -179,21 +185,69 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* A hidden list releases the side column at every viewport width. */
+.workspace.collapsed {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.collapsed .inbox {
+  border-right: 0;
+  border-bottom: 1px solid #cad5cd;
+}
+.collapsed .surface {
+  grid-column: 1;
+  grid-row: 2;
+}
+/* Share the compact form between the top strip and narrow stacked layout. */
+.collapsed .capture {
+  padding: 10px 16px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  align-items: center;
+}
+.collapsed .capture form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 8px;
+  margin: 0;
+}
+.collapsed .capture label,
+.collapsed .capture form p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.collapsed .capture textarea {
+  margin: 0;
+}
+.collapsed .capture button[type='submit'] {
+  align-self: end;
+}
+.collapsed .recovery {
+  margin: 0;
+}
+.collapsed .capture > .uncertain {
+  grid-column: 1 / -1;
+}
 @media (max-width: 1100px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
   }
   .inbox {
-    grid-column: 1;
-    grid-row: 1;
-    border-left: 0;
+    border-right: 0;
     border-bottom: 1px solid #cad5cd;
   }
   .surface {
+    grid-column: 1;
     grid-row: 2;
   }
-  .capture {
+  .list {
+    min-height: 96px;
+    max-height: clamp(96px, 18dvh, 200px);
+  }
+  .capture,
+  .collapsed .capture {
     padding: 10px 16px;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
@@ -204,7 +258,8 @@
     grid-column: 1;
     grid-row: 1;
   }
-  .capture form {
+  .capture form,
+  .collapsed .capture form {
     grid-column: 1 / -1;
     grid-row: 2;
     display: grid;
@@ -223,7 +278,8 @@
   .capture button[type='submit'] {
     align-self: end;
   }
-  .recovery {
+  .recovery,
+  .collapsed .recovery {
     display: contents;
   }
   .recovery button {
@@ -234,10 +290,6 @@
   .capture > .uncertain {
     grid-column: 1 / -1;
   }
-  .list {
-    min-height: 96px;
-    max-height: clamp(96px, 18dvh, 200px);
-  }
 }
 @media (max-width: 600px) {
   .surface {
@@ -245,7 +297,8 @@
   }
 }
 @media (max-width: 1100px) and (max-height: 500px) {
-  .capture {
+  .capture,
+  .collapsed .capture {
     padding-block: 8px;
   }
   .surface {
