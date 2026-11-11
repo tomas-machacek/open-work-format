@@ -177,14 +177,82 @@ The increment and index remain `in_progress`; independent review is pending.
 
 ### Verification and visual inspection
 
-Focused checks and screenshot inspection have run; full-gate results and exact
-runtime revision will be recorded after the prepared implementation is committed.
+Platform: Windows x64 (OS build `10.0.26300`), Node.js `24.21.0`, npm `11.4.1`,
+Playwright `1.63.0` with Chromium. Runtime evidence identifies commit
+`51a6c1033fdaa026200a150d0c8968b7a354dd8a`; subsequent outcome edits are prose only.
+
+- `npm ci` passed: 572 packages audited, zero reported vulnerabilities.
+- Focused Workspace, Inbox, Board and ViewBoard component checks passed: 68 tests
+  in four files. Prepared typecheck, lint and formatting passed. Code map: 1,006
+  words against its 1,500-word ceiling. Markdown relative file links outside code
+  examples and `git diff --check` passed.
+- Initial focused browser runs caught an ambiguous Workspace selector and an
+  incorrect callback in the extended geometry test. Both were corrected before
+  the full gate. The broader Inbox/layout/View interaction/Views selection passed
+  19 of 20 journeys while that callback still needed correction. After correction,
+  `npm run test:browser -- inbox.spec.ts` passed all four journeys (26.8 seconds).
+- Both board modes measured a 560 px capture field at 1440 and 1920 px viewport
+  widths, aligned with the board content gutter. Adjacent controls stayed grouped;
+  hiding Inbox recovered the full 340 px side column. Narrow/short checks retained
+  list-height recovery, independent scrolling, actual item/Action taps and visible
+  validation at 390×600, 844×390 and 390×400. A multiline draft survived toggling,
+  mode changes and resizing, submitted once, and a pointer View move succeeded.
+  Native tab order, computed button appearance, hover, focus and disabled states
+  were checked alongside existing editor, pending-write and recovery journeys.
+- First full `npm run verify`: **failed**, 86.445 seconds, exit 1. All preceding
+  stages passed, including 226 unit/component tests. Integration had 309 passing
+  tests and one existing View HTTP test exceeding its unchanged 5,000 ms timeout
+  (5.127 seconds). Its unchanged seven-test file passed an isolated diagnostic
+  rerun (5.40 seconds total), motivating the second full run.
+- Second full `npm run verify`: **failed**, 257.228 seconds, exit 1. Types, lint,
+  formatting, code-map, architecture, build, all 226 unit/component tests, all 310
+  integration tests and 44 acceptance scenarios/243 steps passed. Built CLI had
+  33 passing tests and five timeouts in `tests/e2e/cli.test.ts`: the manual/dependency
+  journey exceeded 15,000 ms; initial waiting-state creation, Action round trip,
+  Action listing and combined Action edits exceeded 5,000 ms. Browser was not
+  reached by either full run.
+- A focused diagnostic selection reproduced all five CLI timeouts with unchanged
+  thresholds. A second diagnostic using Node's built-in `NODE_COMPILE_CACHE` in
+  ignored `.test-artifacts/0038-node-compile-cache` also failed all five. The cache
+  was command-local and was not adopted into package configuration or later checks.
+  Backend source, this CLI test file and dependencies match the approved branch
+  revision `365e2fa`. No timeout, test or gate was relaxed. These observations do
+  not establish a passing full gate or a definitive cause of the timing failures.
+
+`npm run test:browser` then passed the complete Chromium suite separately:
+**35/35 journeys**, 4.0 minutes, exit 0, on the same runtime revision without
+compile-cache environment overrides. This includes header View selection,
+editor guards, pending writes, focus restoration and board moves. It does not
+turn either failed full-gate run into a pass.
+
+Visually inspected local PNGs under `test-results/inbox-*/`: Default Kanban and
+View expanded/collapsed layouts, enabled/hover/focus buttons, disabled uncertain-write
+capture, desktop/narrow recovery and validation, narrow stacked layout, short
+844×390 and 390×400 layouts, and the long-text Inbox editor with primary/destructive
+actions. The header precedes Inbox, the field and controls remain compact, and
+messages reserve their own space without covering the board. Screenshots are
+ignored test artifacts, supplemented by geometry and real interaction assertions.
+
+Build initially hit sandbox `spawn EPERM`; build and browser/full-gate commands
+ran outside the sandbox. Git writes also required execution outside the sandbox.
+A separate interactive trial was attempted with a disposable Workspace, but
+Computer Use stopped before app interaction because it could not determine the
+Windows browser's current URL with enough confidence to enforce policy. That trial
+is **not** recorded as passed. Automated Chromium journeys cover the trial's
+toggle, keyboard, multiline capture, resize, reload, scrolling, editor navigation
+and move steps. No physical-device, non-Chromium or non-Windows check is claimed.
 
 ### Review handoff
 
-Independent review has not run and no completion or merge is requested.
+The implementer inspected the diff against AC1–AC6 and has no known functional
+implementation finding. **Unresolved verification blocker:** the full gate has
+not passed because of the CLI timeouts above. This must be resolved before the
+increment can be completed; focused/browser passes do not replace the full gate.
+Independent review has not run. The PR records these limitations for review,
+and the increment/index remain `in_progress`. No completion, merge or release is
+requested.
 To try the change, serve a disposable Workspace with Actions, Inbox Items and a
 View. In either board mode, hide Inbox, tab from Display into Inbox, enter a
 multiline thought, toggle and resize before submitting once. Show Inbox and compare
 its action buttons with board Refresh. Try narrow portrait and short landscape,
-including nonblank validation, recovery, editor navigation and a board move.
+including blank-input validation, recovery, editor navigation and a board move.
