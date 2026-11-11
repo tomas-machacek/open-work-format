@@ -1,6 +1,6 @@
 # 0038 — Compact Inbox capture and shared button styling
 
-> Status: in_progress
+> Status: completed
 > Description: Unify Inbox button styling with existing controls and place compact hidden-list capture below the Workspace header.
 > Depends on: [0037 — Inbox layout and reclaimed board space](0037-inbox-layout.md).
 
@@ -158,7 +158,9 @@ solution and acceptance criteria for implementation on 2026-11-11.
 
 Implemented on 2026-11-11 for
 [PR #45](https://github.com/tomas-machacek/open-work-format/pull/45).
-The increment and index remain `in_progress`; independent review is pending.
+At the original implementation handoff, the increment and index remained
+`in_progress` pending independent review; subsequent review and completion are
+recorded below.
 
 - `Buttons.module.css` supplies the ordinary action base for both board Refresh
   controls and Inbox capture, visibility, refresh, editor and recovery actions.
@@ -321,4 +323,19 @@ Node.js `24.21.0`, npm `11.4.1`, Playwright `1.63.0` Chromium.
   physical-device, non-Chromium or non-Windows execution is claimed.
 
 The reported P2 reproduction is resolved and its new regression journey passes.
-The increment and index remain `in_progress`; no merge or release is authorized.
+At repair handoff, the increment and index remained `in_progress` pending the
+user's final acceptance.
+
+### Completion — 2026-11-11
+
+The user accepted the completed work after review and explicitly authorized merge
+into main on 2026-11-11. Increment 0038 and its index row are `completed`.
+The reported P2 issue is repaired; the review identified no other functional or
+separate visual defects. No unresolved finding is recorded.
+
+Before completion, branch head `6510583` was checked against the final full-gate
+record: Inbox CSS and browser-test blobs match the recorded identities, and the
+CLI test blob matches the reviewed 0039 identity. The passing Windows verification
+is reused. Completion changes only this document and its index row; no new
+runtime run or additional independent re-review is claimed. PR #45 also includes
+completed increment 0039. This merge does not create a release.
