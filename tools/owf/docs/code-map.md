@@ -32,6 +32,8 @@ deferred. See [deferred decisions](architecture.md#open-details-and-next-gate).
   use cases → the same application/domain/adapters as CLI.
 - Browser: `main.tsx` → `Workspace.tsx` → `Inbox.tsx`, `Board.tsx` or `ViewBoard.tsx` and shared
   forms → `client.ts` / `inboxClient.ts` → HTTP. Contracts validate transport shapes at the boundary.
+  `WorkspaceHeader.tsx` portals the active board's guarded navigation before Inbox;
+  `Buttons.module.css` shares Inbox/board Refresh action styling.
 
 ## Choose a task route
 

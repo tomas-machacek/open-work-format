@@ -51,7 +51,10 @@ test('Inbox reclaims board width in both modes and retains drafts through respon
     const capture = page.getByLabel('Capture a thought');
     const submit = inbox.getByRole('button', { name: 'Add to Inbox' });
     const surface = page.locator('[class*="surface"]');
-    const workspace = page.locator('[class*="workspace"]');
+    const workspace = page
+      .locator('[class*="workspace"]')
+      .filter({ has: inbox })
+      .first();
     const selector = page.getByRole('combobox', { name: 'Display' });
     await expect(
       inbox.getByRole('button', { name: 'Hide Inbox (12)' }),
@@ -76,6 +79,16 @@ test('Inbox reclaims board width in both modes and retains drafts through respon
         { exact: true },
       );
       await expect(board.getByRole('article')).toHaveCount(12);
+      const header = page.getByRole('banner');
+      expect(
+        (await box(header)).y + (await box(header)).height,
+      ).toBeLessThanOrEqual((await box(inbox)).y);
+      // Native tab order reaches Inbox only after the header's Display selector.
+      await selector.focus();
+      await page.keyboard.press('Tab');
+      await expect(
+        inbox.getByRole('button', { name: /Hide Inbox/ }),
+      ).toBeFocused();
       const reads = boardRequests.length;
       const expanded = await box(surface);
       const left = await box(inbox);
@@ -91,6 +104,81 @@ test('Inbox reclaims board width in both modes and retains drafts through respon
       expect(full.width).toBe(available.width);
       expect(full.width - expanded.width).toBe(left.width);
       expect((await box(inbox)).y + (await box(inbox)).height).toBe(full.y);
+      const refresh = page
+        .getByRole('main')
+        .getByRole('button', { name: 'Refresh', exact: true });
+      const appearance = (button: Locator) =>
+        button.evaluate(
+          (element: {
+            ownerDocument: {
+              defaultView: {
+                getComputedStyle: (node: unknown) => {
+                  fontFamily: string;
+                  fontSize: string;
+                  fontWeight: string;
+                  lineHeight: string;
+                  padding: string;
+                  border: string;
+                  borderRadius: string;
+                  color: string;
+                  backgroundColor: string;
+                };
+              } | null;
+            };
+          }) => {
+            const css =
+              element.ownerDocument.defaultView!.getComputedStyle(element);
+            return [
+              css.fontFamily,
+              css.fontSize,
+              css.fontWeight,
+              css.lineHeight,
+              css.padding,
+              css.border,
+              css.borderRadius,
+              css.color,
+              css.backgroundColor,
+            ];
+          },
+        );
+      await page.mouse.move(0, 0);
+      for (const button of [
+        submit,
+        inbox.getByRole('button', { name: /Show Inbox/ }),
+        inbox.getByRole('button', { name: 'Refresh Inbox', exact: true }),
+      ])
+        expect(await appearance(button)).toEqual(await appearance(refresh));
+      for (const width of [1440, 1920]) {
+        await page.setViewportSize({ width, height: 1000 });
+        const field = await box(capture);
+        expect(field.width).toBe(560);
+        const contentLeft = (
+          await box(page.getByRole('main').locator('section').first())
+        ).x;
+        expect(field.x).toBe(contentLeft);
+        expect(
+          (await box(header)).y + (await box(header)).height,
+        ).toBeLessThanOrEqual((await box(inbox)).y);
+        expect((await box(surface)).width).toBe(width);
+        const add = await box(submit);
+        const toggle = await box(
+          inbox.getByRole('button', { name: /Show Inbox/ }),
+        );
+        const reload = await box(
+          inbox.getByRole('button', { name: 'Refresh Inbox', exact: true }),
+        );
+        expect(add.x - (field.x + field.width)).toBeLessThanOrEqual(12);
+        expect(toggle.x - (add.x + add.width)).toBeLessThanOrEqual(24);
+        expect(reload.x - (toggle.x + toggle.width)).toBeLessThanOrEqual(24);
+      }
+      await page.setViewportSize(wide);
+      await submit.hover();
+      await expect(submit).toHaveCSS('background-color', 'rgb(234, 240, 233)');
+      await page.screenshot({ path: testInfo.outputPath(`${mode}-hover.png`) });
+      await page.mouse.move(0, 0);
+      await submit.focus();
+      await expect(submit).toHaveCSS('outline-style', 'solid');
+      await page.screenshot({ path: testInfo.outputPath(`${mode}-focus.png`) });
       await surface.evaluate((element: { scrollTop: number }) => {
         element.scrollTop = 500;
       });
@@ -169,7 +257,9 @@ test('Inbox reclaims board width in both modes and retains drafts through respon
       'Enter nonblank Inbox text.',
     );
     await expect(inbox.getByRole('alert')).toBeInViewport({ ratio: 1 });
-    expect((await box(inbox)).height).toBe((await box(surface)).y);
+    expect((await box(inbox)).y + (await box(inbox)).height).toBe(
+      (await box(surface)).y,
+    );
     await page.screenshot({
       path: testInfo.outputPath('collapsed-validation.png'),
     });
@@ -484,6 +574,9 @@ for (const viewport of [
         expect(recoveryBox.y + recoveryBox.height).toBeLessThanOrEqual(
           visibleSurface.y,
         );
+      await expect(
+        inbox.getByRole('button', { name: 'Add to Inbox' }),
+      ).toHaveCSS('opacity', '0.55');
       await page.screenshot({
         path: testInfo.outputPath('inbox-uncertain-layout.png'),
         fullPage: true,
@@ -609,7 +702,9 @@ test('low-height Inbox keeps capture and touchable rows above an independently s
       const collapsed = await box(surface);
       expect(collapsed.height - work.height).toBeGreaterThanOrEqual(96);
       expect(collapsed.width).toBe(viewport.width);
-      expect(collapsed.y).toBe((await box(inbox)).height);
+      expect(collapsed.y).toBe(
+        (await box(inbox)).y + (await box(inbox)).height,
+      );
       await expect(capture).toHaveValue('Keep this draft');
       await expect(
         inbox.getByRole('button', { name: 'Add to Inbox' }),
@@ -618,7 +713,9 @@ test('low-height Inbox keeps capture and touchable rows above an independently s
       await capture.fill('');
       await inbox.getByRole('button', { name: 'Add to Inbox' }).tap();
       await expect(inbox.getByRole('alert')).toBeInViewport({ ratio: 1 });
-      expect((await box(inbox)).height).toBe((await box(surface)).y);
+      expect((await box(inbox)).y + (await box(inbox)).height).toBe(
+        (await box(surface)).y,
+      );
       await page.screenshot({
         path: testInfo.outputPath(
           `collapsed-validation-${viewport.width}x${viewport.height}.png`,

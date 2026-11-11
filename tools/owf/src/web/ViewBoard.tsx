@@ -17,15 +17,19 @@ import { ActionForm } from './ActionForm.js';
 import { useView } from './useView.js';
 import type { BoardNavigation } from './ViewSelector.js';
 import styles from './Board.module.css';
+import buttons from './Buttons.module.css';
+import { WorkspaceHeader } from './WorkspaceHeader.js';
 
 function ViewBoardContent({
   selected,
   navigation,
   onRefresh,
+  headerTarget,
 }: {
   selected: StoredView;
   navigation: BoardNavigation;
   onRefresh: (automatic?: boolean) => void;
+  headerTarget?: HTMLElement | null;
 }) {
   const feedback = useFeedback();
   const frozen = useRef(false);
@@ -156,12 +160,9 @@ function ViewBoardContent({
   }, [data]);
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <span className={styles.brand}>
-          owf <span>/ workspace</span>
-        </span>
+      <WorkspaceHeader target={headerTarget}>
         {navigation(editorNavigation, busy || !!creating)}
-      </header>
+      </WorkspaceHeader>
       <section
         className={`${styles.intro} ${styles.viewIntro}`}
         aria-labelledby="view-title"
@@ -174,6 +175,7 @@ function ViewBoardContent({
           </p>
         </div>
         <button
+          className={buttons.action}
           disabled={busy || !!creating}
           ref={refreshButton}
           onClick={() => {

@@ -69,9 +69,12 @@ and board drafts. The preference is browser-local, scoped to the canonical Works
 root within the server origin, and defaults to shown. Disabled browser storage
 does not prevent capture or toggling.
 
+The Workspace header and **Display** selector come first in both board modes.
 The separate left panel scrolls independently on wide screens. Hiding the list
-moves capture into a compact strip above the full-width board; showing it restores
-the left panel. Narrow screens keep Inbox above the board, and hiding the list
+moves capture below the header and above the full-width board. The left-aligned
+textarea is at most 560 px wide, with Add, Show and Refresh controls grouped nearby;
+showing the list restores the left panel. Inbox actions share board button styling.
+Narrow screens keep Inbox above the board, and hiding the list
 releases its height. Capture and visibility controls stay reachable while the
 board scrolls. Items are oldest first, with ID
 breaking capture-time ties. Open a preview to inspect/edit full literal text.

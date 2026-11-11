@@ -1,7 +1,7 @@
 # OWF Tool Architecture
 
 > Status: Agreed implementation baseline, established 2026-09-15.
-> Current-state documentation includes CLI and browser Inbox support through increment 0037.
+> Current-state documentation includes CLI and browser Inbox support through increment 0038.
 > Historical delivery decisions and deferred capabilities are separated below.
 
 ## Purpose and authority
@@ -189,8 +189,16 @@ Its permanent capture/toggle and independently scrolling list occupy a left pane
 on wide screens and a bounded region above the board on narrow screens. Hiding
 the list changes the Workspace grid to a compact capture strip above a full-width
 work surface, releasing list height on narrow screens. CSS rearranges the retained
-components without remounting capture or boards or initiating board reads. The board scrolls
-inside its own work surface; its header and horizontal columns retain their behavior.
+components without remounting capture or boards or initiating board reads.
+`WorkspaceHeader` renders the active board's header through a React portal into
+a Workspace slot before Inbox, preserving DOM/tab order and keeping navigation
+guards and busy state in the board. Standalone boards retain an inline header;
+editor dialog navigation retains its existing placement and guards. Hidden-list
+capture aligns with the board's left content gutter, with a 560 px textarea maximum
+and nearby controls. `Buttons.module.css` supplies explicit ordinary action styles
+and primary/destructive variants to Inbox and board Refresh controls; item rows,
+inline links and specialized controls retain their roles. The board scrolls
+inside its own work surface and its columns retain horizontal scrolling.
 Inbox visibility is an optional localStorage preference keyed by canonical Workspace
 root within the browser origin, never store data. A lightweight Workspace identity
 endpoint supplies the server-bound root independently of Inbox/board reads; Inbox
@@ -210,7 +218,8 @@ list independently of the capture area's intrinsic height; low-height board head
 keep navigation compact so cards remain reachable below it. Inbox HTTP callbacks use shared
 application Inbox operations and Workspace validation without Action/View evaluation.
 See [0036](increments/0036-web-inbox.md) for Inbox behavior and
-[0037](increments/0037-inbox-layout.md) for the revised layout and verification.
+[0037](increments/0037-inbox-layout.md) for space recovery and
+[0038](increments/0038-inbox-capture-polish.md) for header/capture composition and styling.
 
 ## Application technologies
 

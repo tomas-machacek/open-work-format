@@ -131,12 +131,24 @@ test('default filters are restored, never passed to View evaluation; duplicate i
   );
   const capture =
     screen.getByLabelText<HTMLTextAreaElement>('Capture a thought');
+  const headerBeforeCapture = () => {
+    const header = screen.getByRole('banner');
+    expect(
+      header.contains(screen.getByRole('combobox', { name: 'Display' })),
+    ).toBe(true);
+    expect(
+      header.compareDocumentPosition(capture) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  };
+  headerBeforeCapture();
   fireEvent.change(capture, { target: { value: 'Retained\nthought' } });
   const boardReads = vi.mocked(fetchBoard).mock.calls.length;
   fireEvent.click(screen.getByRole('button', { name: /Hide Inbox/ }));
   expect(fetchBoard).toHaveBeenCalledTimes(boardReads);
   expect(screen.getByLabelText('Capture a thought')).toBe(capture);
   select('b');
+  headerBeforeCapture();
   await screen.findByText('State · waiting');
   expect(fetchView).toHaveBeenLastCalledWith('b');
   const viewReads = vi.mocked(fetchView).mock.calls.length;
@@ -176,6 +188,7 @@ test('default filters are restored, never passed to View evaluation; duplicate i
   ).toBe('Full description');
   fireEvent.click(within(detail).getByRole('button', { name: 'Cancel' }));
   select('');
+  headerBeforeCapture();
   expect(
     screen.getByLabelText<HTMLInputElement>('Search title or description')
       .value,

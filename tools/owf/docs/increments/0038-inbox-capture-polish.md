@@ -1,6 +1,6 @@
 # 0038 — Compact Inbox capture and shared button styling
 
-> Status: reviewed
+> Status: in_progress
 > Description: Unify Inbox button styling with existing controls and place compact hidden-list capture below the Workspace header.
 > Depends on: [0037 — Inbox layout and reclaimed board space](0037-inbox-layout.md).
 
@@ -155,4 +155,36 @@ layout choices within the constraints above.
 
 Draft prepared on 2026-11-10. The user reviewed and approved the scope,
 solution and acceptance criteria for implementation on 2026-11-11.
-Implementation, verification and independent code review are pending.
+
+Implemented on 2026-11-11 for
+[PR #45](https://github.com/tomas-machacek/open-work-format/pull/45).
+The increment and index remain `in_progress`; independent review is pending.
+
+- `Buttons.module.css` supplies the ordinary action base for both board Refresh
+  controls and Inbox capture, visibility, refresh, editor and recovery actions.
+  Explicit primary/destructive modifiers retain clear editor actions. Preview
+  rows and specialized board controls keep their existing roles.
+- The active board renders `WorkspaceHeader` into a Workspace slot before Inbox.
+  Navigation guards, disabled state and dialog navigation remain board-owned.
+  Workspace retains one Inbox and the existing board lifecycles and preferences.
+- Hidden-list capture aligns with the board content gutter, has a 560 px textarea
+  maximum and nearby controls. Expanded desktop keeps the left panel; narrow
+  layouts retain independent list/board scrolling and release list height when hidden.
+- Extended existing Workspace and browser journeys for DOM/tab order, two wide
+  viewport widths, actual shared button appearance, hover/focus/disabled states
+  and geometry. Retained draft, filter, preference, recovery and View move checks
+  exercise the changed composition. README, architecture and code map are current.
+
+### Verification and visual inspection
+
+Focused checks and screenshot inspection have run; full-gate results and exact
+runtime revision will be recorded after the prepared implementation is committed.
+
+### Review handoff
+
+Independent review has not run and no completion or merge is requested.
+To try the change, serve a disposable Workspace with Actions, Inbox Items and a
+View. In either board mode, hide Inbox, tab from Display into Inbox, enter a
+multiline thought, toggle and resize before submitting once. Show Inbox and compare
+its action buttons with board Refresh. Try narrow portrait and short landscape,
+including nonblank validation, recovery, editor navigation and a board move.
