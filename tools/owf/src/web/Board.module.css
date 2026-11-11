@@ -160,24 +160,13 @@
 }
 .intro button {
   flex-shrink: 0;
-  border: 1px solid #cad5cd;
-  border-radius: 8px;
-  padding: 10px 16px;
-  background: #fff;
-  color: #304c3e;
-  cursor: pointer;
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
 }
 .intro button span {
   margin-left: 12px;
   font-size: 18px;
-}
-.intro button:hover {
-  background: #eaf0e9;
-}
-.intro button:focus-visible {
-  outline: 3px solid #50785e;
-  outline-offset: 3px;
+  line-height: 1;
 }
 .context {
   display: flex;

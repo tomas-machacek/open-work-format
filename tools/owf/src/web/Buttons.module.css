@@ -1,0 +1,41 @@
+.action {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+  min-height: 40px;
+  padding: 10px 16px;
+  border: 1px solid #cad5cd;
+  border-radius: 8px;
+  color: #304c3e;
+  background: #fff;
+  cursor: pointer;
+}
+.action:enabled:hover {
+  background: #eaf0e9;
+}
+.action:focus-visible {
+  outline: 3px solid #50785e;
+  outline-offset: 3px;
+}
+.action:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.primary {
+  composes: action;
+  color: #fff;
+  background: #3e624d;
+  border-color: #3e624d;
+}
+.primary:enabled:hover {
+  background: #304c3e;
+}
+.destructive {
+  composes: action;
+  color: #922e34;
+  border-color: #d6acaf;
+}
+.destructive:enabled:hover {
+  background: #fff0f0;
+}

@@ -37,6 +37,8 @@ import { useBoard } from './useBoard.js';
 import { BoardColumn } from './BoardColumn.js';
 import { MovableCard } from './MovableCard.js';
 import styles from './Board.module.css';
+import buttons from './Buttons.module.css';
+import { WorkspaceHeader } from './WorkspaceHeader.js';
 
 const columns: [BoardAction['state'], string][] = [
   ['open', 'Open'],
@@ -91,6 +93,7 @@ function BoardContent({
   active = true,
   navigation,
   onRefresh,
+  headerTarget,
 }: {
   load?: (query: BoardQuery) => Promise<BoardResponse>;
   save?: (input: CreateActionRequest) => Promise<BoardAction>;
@@ -99,6 +102,7 @@ function BoardContent({
   active?: boolean;
   navigation?: BoardNavigation;
   onRefresh?: (automatic?: boolean) => void;
+  headerTarget?: HTMLElement | null;
 }) {
   const feedback = useFeedback();
   const {
@@ -294,16 +298,15 @@ function BoardContent({
   }
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <span className={styles.brand}>
-          owf <span>/ workspace</span>
-        </span>
-        {navigation ? (
-          navigation(editorNavigation, navigationDisabled)
-        ) : (
-          <span className={styles.readOnly}>Local board</span>
-        )}
-      </header>
+      {active && (
+        <WorkspaceHeader target={headerTarget}>
+          {navigation ? (
+            navigation(editorNavigation, navigationDisabled)
+          ) : (
+            <span className={styles.readOnly}>Local board</span>
+          )}
+        </WorkspaceHeader>
+      )}
       <section className={styles.intro} aria-labelledby="title">
         <div>
           <p className={styles.eyebrow}>Workspace overview</p>
@@ -311,6 +314,7 @@ function BoardContent({
           <p className={styles.subtitle}>Actions, organized by state.</p>
         </div>
         <button
+          className={buttons.action}
           onClick={() => {
             void refresh().then((current) => {
               if (current) setUncertainMove(false);

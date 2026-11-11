@@ -15,6 +15,7 @@ function WorkspaceContent() {
   const feedback = useFeedback();
   const [views, setViews] = useState<StoredView[]>([]);
   const [selected, setSelected] = useState<StoredView>();
+  const [headerTarget, setHeaderTarget] = useState<HTMLDivElement | null>(null);
   const [error, setError] = useState<string>();
   const lastFailure = useRef<string | undefined>(undefined);
   const generation = useRef(0);
@@ -99,10 +100,12 @@ function WorkspaceContent() {
     <div
       className={`${inboxStyles.workspace} ${inbox.shown ? '' : inboxStyles.collapsed}`}
     >
+      <div className={inboxStyles.workspaceHeader} ref={setHeaderTarget} />
       <Inbox inbox={inbox} />
       <div className={inboxStyles.surface}>
         <div hidden={selected !== undefined}>
           <Board
+            headerTarget={headerTarget}
             active={!selected}
             navigation={navigation}
             onRefresh={refreshInventory}
@@ -110,6 +113,7 @@ function WorkspaceContent() {
         </div>
         {selected && (
           <ViewBoard
+            headerTarget={headerTarget}
             key={selected.id}
             selected={selected}
             navigation={navigation}

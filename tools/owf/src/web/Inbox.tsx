@@ -3,6 +3,7 @@ import type { InboxItem } from '../contracts/index.js';
 import { NotificationSurface } from './Notifications.js';
 import type { useInbox } from './useInbox.js';
 import styles from './Inbox.module.css';
+import buttons from './Buttons.module.css';
 
 type InboxState = ReturnType<typeof useInbox>;
 
@@ -27,6 +28,7 @@ export function Inbox({ inbox }: { inbox: InboxState }) {
         <div className={styles.heading}>
           <h2 id="inbox-heading">Inbox</h2>
           <button
+            className={buttons.action}
             type="button"
             aria-expanded={inbox.shown}
             aria-controls="inbox-list"
@@ -71,7 +73,11 @@ export function Inbox({ inbox }: { inbox: InboxState }) {
               Enter nonblank Inbox text.
             </p>
           )}
-          <button type="submit" disabled={inbox.pending || inbox.uncertain}>
+          <button
+            className={buttons.action}
+            type="submit"
+            disabled={inbox.pending || inbox.uncertain}
+          >
             Add to Inbox
           </button>
         </form>
@@ -82,6 +88,7 @@ export function Inbox({ inbox }: { inbox: InboxState }) {
             </span>
           )}
           <button
+            className={buttons.action}
             type="button"
             disabled={inbox.pending || inbox.loading}
             onClick={() => {
@@ -105,6 +112,7 @@ export function Inbox({ inbox }: { inbox: InboxState }) {
         {inbox.uncertain && (
           <div className={styles.uncertain}>
             <button
+              className={buttons.action}
               type="button"
               disabled={
                 !inbox.shown || !inbox.inspected || inbox.stale || inbox.loading
@@ -295,6 +303,7 @@ function InboxEditor({
               <pre className={styles.current}>{current.text}</pre>
               <div className={styles.buttons}>
                 <button
+                  className={buttons.action}
                   type="button"
                   disabled={inbox.pending || inbox.loading || inbox.stale}
                   onClick={() => {
@@ -307,6 +316,7 @@ function InboxEditor({
                   Replace draft with current text
                 </button>
                 <button
+                  className={buttons.action}
                   type="button"
                   disabled={inbox.pending || inbox.loading || inbox.stale}
                   onClick={() => {
@@ -324,6 +334,7 @@ function InboxEditor({
               Write outcome unknown. Refresh and inspect current Inbox text
               before allowing writes.
               <button
+                className={buttons.action}
                 type="button"
                 disabled={inbox.pending || inbox.loading}
                 onClick={() => {
@@ -338,6 +349,7 @@ function InboxEditor({
                     {current?.text ?? 'Item no longer exists.'}
                   </pre>
                   <button
+                    className={buttons.action}
                     type="button"
                     onClick={() => {
                       inbox.acknowledge();
@@ -365,6 +377,7 @@ function InboxEditor({
                   : 'Discard unsaved Inbox changes?'}
               </p>
               <button
+                className={buttons.action}
                 ref={continueButton}
                 type="button"
                 disabled={inbox.pending}
@@ -374,7 +387,7 @@ function InboxEditor({
               </button>
               <button
                 type="button"
-                className={styles.destructive}
+                className={buttons.destructive}
                 disabled={
                   inbox.pending || (confirmation === 'discard' && blocked)
                 }
@@ -396,13 +409,23 @@ function InboxEditor({
                 {dirty ? ' Save changes before resolving.' : ''}
               </p>
               <div className={styles.buttons}>
-                <button type="submit" disabled={blocked}>
+                <button
+                  className={buttons.primary}
+                  type="submit"
+                  disabled={blocked}
+                >
                   Save changes
                 </button>
-                <button type="button" disabled={inbox.pending} onClick={close}>
+                <button
+                  className={buttons.action}
+                  type="button"
+                  disabled={inbox.pending}
+                  onClick={close}
+                >
                   Cancel
                 </button>
                 <button
+                  className={buttons.action}
                   type="button"
                   disabled={blocked || dirty}
                   onClick={() => {
@@ -413,7 +436,7 @@ function InboxEditor({
                 </button>
                 <button
                   type="button"
-                  className={styles.destructive}
+                  className={buttons.destructive}
                   disabled={blocked}
                   onClick={() => setConfirmation('discard')}
                 >
@@ -422,6 +445,7 @@ function InboxEditor({
               </div>
               {!inbox.uncertain && (
                 <button
+                  className={buttons.action}
                   type="button"
                   disabled={inbox.pending || inbox.loading}
                   onClick={() => {
