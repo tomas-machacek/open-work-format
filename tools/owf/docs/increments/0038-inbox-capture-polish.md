@@ -274,3 +274,51 @@ This result supersedes the earlier failed full-gate results for current handoff;
 their historical results remain above. The 0039 repair received separate review
 with all findings resolved. Independent review of the 0038 UI changes is still
 pending, so 0038 and its index row remain `in_progress`.
+
+### Independent UI review and recovery layout repair — 2026-11-11
+
+Independent review of `c698b3e59c7b22125bdecdaa0ee865b6c8835499` against
+current main `07cbd50987f0ebf76d158e74a7f4170025f9f1c5` found one P2 issue:
+with Inbox shown, an uncertain capture and failed refresh could consume the
+entire short viewport. The board measured 0 px high at 640×360, 24.8 px at
+844×390 and 10.8 px at 390×400 in both board modes, after notification dismissal.
+The review found no additional functional or separate visual defects. It
+inspected the complete diff, reused matching full-gate evidence and visually
+checked desktop, narrow and short layouts and shared button states.
+
+The user authorized the repair, commit and push. Short stacked layouts with
+uncertain-write recovery now reserve at least 120 px for the work surface.
+Inbox scrolls within its remaining region, keeping all messages and recovery
+controls reachable independently of board scrolling. Scroll padding protects
+controls at the region edges. Ordinary layouts, drafts, write restrictions and
+navigation lifecycles are unchanged; README and architecture describe the fallback.
+
+A new built-browser journey covers both modes at all three reproduction sizes.
+It opens an actual Action by touch, reaches recovery messages and controls,
+retains a multiline draft and board scroll position, rejects page overflow and
+checks explicit recovery acknowledgement and focus restoration. Before the CSS
+repair it failed with Action viewport ratio 0. An intermediate run exposed less
+than one pixel of capture clipping during automatic scrolling; scroll padding
+corrected that issue. All five Inbox journeys then passed in 31.9 seconds.
+
+Runtime verification identifies base `c698b3e` plus CSS blob
+`47df5ddcb69435bf9b8f6a8543ff79f54b8375a8` and browser test blob
+`e73994f70b9e48515782602151e0ef237ff0ab1b`. Platform remains Windows x64,
+Node.js `24.21.0`, npm `11.4.1`, Playwright `1.63.0` Chromium.
+
+- Prepared typecheck, lint and formatting passed. Build, relative document links
+  and `git diff --check` passed. Browser/process checks ran outside the sandbox
+  because the sandbox blocks required child processes.
+- Full `npm run verify` **passed in 432.560 seconds, exit 0** on its first repair
+  run: types, lint, formatting, code-map, architecture, build, **226 unit/component
+  tests**, **310 integration tests**, **44 acceptance scenarios / 243 steps**,
+  **94 CLI tests** and **36 Chromium journeys**. Runtime inputs did not change
+  after this run; the final verification record is a prose-only follow-up.
+- Visually inspected repair screenshots for Default Kanban and View recovery at
+  640×360, 844×390 and 390×400. A complete ordinary Action remains usable below
+  Inbox; all recovery messages and controls are reachable through Inbox scrolling.
+  Tests also confirm unchanged ordinary Inbox layout and state behavior. No
+  physical-device, non-Chromium or non-Windows execution is claimed.
+
+The reported P2 reproduction is resolved and its new regression journey passes.
+The increment and index remain `in_progress`; no merge or release is authorized.

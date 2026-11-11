@@ -332,6 +332,16 @@
   }
 }
 @media (max-width: 1100px) and (max-height: 500px) {
+  /* Recovery can outgrow the stacked region. Keep room for a complete card
+     and let Inbox scroll independently to reach its text and recovery actions. */
+  .workspace:has(.capture > .uncertain) {
+    grid-template-rows: auto minmax(0, auto) minmax(120px, 1fr);
+  }
+  .inbox:has(.capture > .uncertain) {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: 8px;
+  }
   .capture,
   .collapsed .capture {
     padding-block: 8px;

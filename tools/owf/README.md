@@ -76,7 +76,9 @@ textarea is at most 560 px wide, with Add, Show and Refresh controls grouped nea
 showing the list restores the left panel. Inbox actions share board button styling.
 Narrow screens keep Inbox above the board, and hiding the list
 releases its height. Capture and visibility controls stay reachable while the
-board scrolls. Items are oldest first, with ID
+board scrolls. On short screens, an Inbox with uncertain-write recovery can scroll
+within its own region so its messages and recovery controls do not displace the board.
+Items are oldest first, with ID
 breaking capture-time ties. Open a preview to inspect/edit full literal text.
 **Save changes** replaces text without changing identity, time or position.
 **Cancel** and Escape ask before losing unsaved changes; native dialogs contain

@@ -199,6 +199,9 @@ and nearby controls. `Buttons.module.css` supplies explicit ordinary action styl
 and primary/destructive variants to Inbox and board Refresh controls; item rows,
 inline links and specialized controls retain their roles. The board scrolls
 inside its own work surface and its columns retain horizontal scrolling.
+On short stacked layouts, uncertain-write recovery reserves at least 120 px for
+the board and bounds the Inbox region to the remaining space. Inbox can then
+scroll independently to expose all recovery text and controls without page scrolling.
 Inbox visibility is an optional localStorage preference keyed by canonical Workspace
 root within the browser origin, never store data. A lightweight Workspace identity
 endpoint supplies the server-bound root independently of Inbox/board reads; Inbox

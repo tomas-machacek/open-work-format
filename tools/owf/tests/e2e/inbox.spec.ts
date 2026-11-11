@@ -605,6 +605,151 @@ for (const viewport of [
   });
 }
 
+test('short recovery layouts retain usable boards and reachable Inbox controls in both modes', async ({
+  browser,
+}, testInfo) => {
+  const root = temporaryDirectory();
+  initialize(root, 'Short recovery');
+  mkdirSync(join(root, '_views'));
+  copyFileSync(
+    new URL('../../docs/examples/work-board.md', import.meta.url),
+    join(root, '_views', 'board.md'),
+  );
+  const view = createView(root, {
+    title: 'Recovery View',
+    definition: '/_views/board.md',
+  }).result.view;
+  for (let i = 0; i < 12; i++) {
+    captureInbox(root, `Thought ${i}\nText for inspection.`);
+    createAction(root, { title: `Action ${i}` });
+  }
+  const server = await serve(root, 0);
+  try {
+    const address = server.server.address();
+    if (!address || typeof address === 'string')
+      throw new Error('Missing port');
+    for (const mode of ['default', 'view']) {
+      const context = await browser.newContext({
+        hasTouch: true,
+        viewport: { width: 640, height: 360 },
+      });
+      try {
+        const page = await context.newPage();
+        await page.goto(`http://127.0.0.1:${address.port}`);
+        const inbox = page.getByRole('complementary', { name: 'Inbox' });
+        const capture = page.getByLabel('Capture a thought');
+        const surface = page.locator('[class*="surface"]');
+        await expect(
+          inbox.getByRole('button', { name: 'Hide Inbox (12)' }),
+        ).toBeVisible();
+        await page
+          .getByRole('combobox', { name: 'Display' })
+          .selectOption(mode === 'view' ? view.id : '');
+        await expect(page.getByRole('article')).toHaveCount(12);
+        await page.route('**/api/inbox', (route) => route.abort('failed'));
+        const draft = 'Retained recovery\nwith a second line';
+        await capture.fill(draft);
+        await inbox.getByRole('button', { name: 'Add to Inbox' }).tap();
+        await expect(inbox.getByText(/Write outcome unknown/)).toBeVisible();
+        const refresh = inbox.getByRole('button', {
+          name: 'Refresh Inbox',
+          exact: true,
+        });
+        await refresh.tap();
+        await expect(refresh).toBeEnabled();
+        await expect(
+          inbox.getByText('Inbox not current. Confirmed writes are retained.'),
+        ).toBeVisible();
+        await page
+          .getByRole('button', { name: 'Dismiss notification' })
+          .click();
+        for (const viewport of [
+          { width: 640, height: 360 },
+          { width: 844, height: 390 },
+          { width: 390, height: 400 },
+        ]) {
+          await page.setViewportSize(viewport);
+          const card = page.getByRole('article').last();
+          await card.evaluate(
+            (element: {
+              scrollIntoView: (options: { block: 'end' }) => void;
+            }) => element.scrollIntoView({ block: 'end' }),
+          );
+          await expect(card).toBeInViewport({ ratio: 0.99 });
+          await card.tap();
+          const editor = page.getByRole('dialog', { name: 'Edit Action' });
+          await expect(editor).toBeVisible();
+          await editor
+            .getByRole('button', { name: 'Cancel', exact: true })
+            .click();
+          await expect(editor).toBeHidden();
+          const boardScroll = await surface.evaluate(
+            (element: { scrollTop: number }) => element.scrollTop,
+          );
+          for (const message of [
+            inbox.getByText(/Write outcome unknown/),
+            inbox.getByText(
+              'Inbox not current. Confirmed writes are retained.',
+            ),
+          ]) {
+            await message.scrollIntoViewIfNeeded();
+            await expect(message).toBeInViewport({ ratio: 1 });
+          }
+          const allow = inbox.getByRole('button', {
+            name: 'I inspected Inbox; allow writes',
+          });
+          await allow.scrollIntoViewIfNeeded();
+          await expect(allow).toBeInViewport({ ratio: 1 });
+          await expect(allow).toBeDisabled();
+          await capture.scrollIntoViewIfNeeded();
+          await expect(capture).toBeInViewport({ ratio: 1 });
+          await expect(capture).toHaveValue(draft);
+          await expect(
+            inbox.getByRole('button', { name: 'Add to Inbox' }),
+          ).toBeDisabled();
+          await refresh.scrollIntoViewIfNeeded();
+          await expect(refresh).toBeInViewport({ ratio: 1 });
+          await expect(
+            inbox.getByRole('button', { name: /Hide Inbox/ }),
+          ).toBeInViewport({ ratio: 1 });
+          expect(
+            await surface.evaluate(
+              (element: { scrollTop: number }) => element.scrollTop,
+            ),
+          ).toBe(boardScroll);
+          expect(
+            await page.evaluate(
+              'document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight',
+            ),
+          ).toBe(true);
+          await page.screenshot({
+            path: testInfo.outputPath(
+              `${mode}-recovery-${viewport.width}x${viewport.height}.png`,
+            ),
+          });
+        }
+        await page.unroute('**/api/inbox');
+        await refresh.click();
+        const allow = inbox.getByRole('button', {
+          name: 'I inspected Inbox; allow writes',
+        });
+        await expect(allow).toBeEnabled();
+        await allow.tap();
+        await expect(capture).toBeFocused();
+        await expect(capture).toHaveValue(draft);
+        await expect(
+          inbox.getByRole('button', { name: 'Add to Inbox' }),
+        ).toBeEnabled();
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await server.close();
+    cleanup(root);
+  }
+});
+
 test('low-height Inbox keeps capture and touchable rows above an independently scrolling board', async ({
   browser,
 }, testInfo) => {
