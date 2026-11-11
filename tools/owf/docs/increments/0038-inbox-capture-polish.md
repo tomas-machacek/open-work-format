@@ -1,6 +1,6 @@
 # 0038 — Compact Inbox capture and shared button styling
 
-> Status: draft
+> Status: reviewed
 > Description: Unify Inbox button styling with existing controls and place compact hidden-list capture below the Workspace header.
 > Depends on: [0037 — Inbox layout and reclaimed board space](0037-inbox-layout.md).
 
@@ -153,5 +153,6 @@ layout choices within the constraints above.
 
 ## Implementation and review outcome
 
-Draft prepared on 2026-11-10. Implementation, verification and independent code
-review are pending.
+Draft prepared on 2026-11-10. The user reviewed and approved the scope,
+solution and acceptance criteria for implementation on 2026-11-11.
+Implementation, verification and independent code review are pending.
