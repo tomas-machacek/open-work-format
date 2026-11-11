@@ -58,6 +58,7 @@ link and a one-line description; keep its status in sync.
 | [0036 — Inbox in the web interface](0036-web-inbox.md)                                   | Capture and process Inbox Items in a separate optional panel with oldest items first and permanent capture.        | completed   |
 | [0037 — Inbox layout and reclaimed board space](0037-inbox-layout.md)                    | Put Inbox on the left and reclaim board space when its list is hidden while retaining capture.                     | completed   |
 | [0038 — Compact Inbox capture and shared button styling](0038-inbox-capture-polish.md)   | Unify button styling and place compact Inbox capture below the Workspace header.                                   | in_progress |
+| [0039 — Bound CLI test journeys](0039-cli-timeout-repair.md)                             | Separate independent CLI cases and bound child execution while preserving process coverage.                        | completed   |
 
 0022 depends on completed [0021](0021-view-evaluation-cli.md), merged through [PR #27](https://github.com/tomas-machacek/open-work-format/pull/27).
 

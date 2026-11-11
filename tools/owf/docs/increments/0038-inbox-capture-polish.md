@@ -244,11 +244,11 @@ and move steps. No physical-device, non-Chromium or non-Windows check is claimed
 
 ### Review handoff
 
-The implementer inspected the diff against AC1–AC6 and has no known functional
-implementation finding. **Unresolved verification blocker:** the full gate has
-not passed because of the CLI timeouts above. This must be resolved before the
-increment can be completed; focused/browser passes do not replace the full gate.
-Independent review has not run. The PR records these limitations for review,
+At the original implementation handoff, the implementer inspected the diff
+against AC1–AC6 and had no known functional implementation finding. The full gate
+had not passed because of the CLI timeouts above; the dated follow-up below
+records their subsequent repair and full verification. Independent UI review
+has not run. The PR records these limitations for review,
 and the increment/index remain `in_progress`. No completion, merge or release is
 requested.
 To try the change, serve a disposable Workspace with Actions, Inbox Items and a
@@ -256,3 +256,21 @@ View. In either board mode, hide Inbox, tab from Display into Inbox, enter a
 multiline thought, toggle and resize before submitting once. Show Inbox and compare
 its action buttons with board Refresh. Try narrow portrait and short landscape,
 including blank-input validation, recovery, editor navigation and a board move.
+
+### CLI timeout repair follow-up — 2026-11-11
+
+The user approved [0039 — Bound CLI test journeys](0039-cli-timeout-repair.md),
+implemented on this branch with no production code or dependency changes.
+Independent argument cases and supporting application fixtures reduce accumulated
+CLI startup time; the create/get process round trip and all substantive checks
+remain. Child processes now have an explicit hard timeout. The 0039 outcome records
+the reviewed test blob and diagnostic evidence.
+
+Full `npm run verify` subsequently **passed in 423.845 seconds, exit 0** on Windows
+x64 / Node `24.21.0`: types, lint, formatting, code-map, architecture, build,
+226 unit/component tests, 310 integration tests, 44 acceptance scenarios/243 steps,
+94 CLI tests and 35 Chromium journeys. The CLI verification blocker is resolved.
+This result supersedes the earlier failed full-gate results for current handoff;
+their historical results remain above. The 0039 repair received separate review
+with all findings resolved. Independent review of the 0038 UI changes is still
+pending, so 0038 and its index row remain `in_progress`.

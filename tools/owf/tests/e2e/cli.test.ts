@@ -5,6 +5,12 @@ import { join, resolve } from 'node:path';
 import { z } from 'zod';
 import { afterEach, expect, test } from 'vitest';
 import { boardAction } from '../../src/contracts/index.js';
+import {
+  initialize,
+  create,
+  createAction,
+  setAction,
+} from '../../src/bootstrap/workspaces.js';
 import { cleanup, snapshot, temporaryDirectory } from '../support/workspace.js';
 
 const metadata = z
@@ -17,46 +23,56 @@ const metadata = z
 const cli = resolve('dist/bootstrap/cli.js');
 const roots: string[] = [];
 function run(root: string, args: string[]) {
-  return spawnSync(process.execPath, [cli, ...args], {
+  const result = spawnSync(process.execPath, [cli, ...args], {
     cwd: root,
     encoding: 'utf8',
+    timeout: 5_000,
+    killSignal: 'SIGKILL',
   });
+  if (result.error || result.signal)
+    throw new Error(
+      `CLI ${JSON.stringify(args)} failed: ${String(result.error)}; signal=${result.signal}; stderr=${result.stderr}`,
+      { cause: result.error },
+    );
+  return result;
 }
 afterEach(() => {
   roots.splice(0).forEach(cleanup);
 });
 
-test('CLI manual/dependency journey exposes complete JSON and concise text while rejecting invalid atomic edits', () => {
+// Supporting data uses the real application/store; each tested command still
+// runs the built CLI. Keep the create/get journey below entirely across processes.
+function workspaceFixture() {
   const root = temporaryDirectory();
   roots.push(root);
-  expect(run(root, ['init']).status).toBe(0);
-  expect(
-    run(root, ['create', 'project', '--title', 'Other', '--slug', 'other'])
-      .status,
-  ).toBe(0);
+  initialize(root);
+  return root;
+}
+
+function blockingFixture(sourceState: 'open' | 'completed' = 'open') {
+  const root = workspaceFixture();
+  create(root, { type: 'project', title: 'Other', slug: 'other' });
+  const target = createAction(root, {
+    title: 'Approve',
+    owner: '/_projects/other/',
+  }).result.action;
+  const satisfied = createAction(root, {
+    title: 'Tests',
+    state: 'completed',
+  }).result.action;
+  const source = createAction(root, { title: 'Deploy', state: sourceState })
+    .result.action;
+  return { root, target, satisfied, source };
+}
+
+test('CLI manual/dependency edits expose complete JSON and detailed human fields', () => {
+  const { root, target, satisfied, source } = blockingFixture();
   const record = z.object({ result: z.object({ action: boardAction }) });
   const action = (args: string[]) => {
     const result = run(root, [...args, '--json']);
     expect(result.status, result.stdout + result.stderr).toBe(0);
     return record.parse(JSON.parse(result.stdout)).result.action;
   };
-  const target = action([
-    'create',
-    'action',
-    '--title',
-    'Approve',
-    '--owner',
-    '/_projects/other/',
-  ]);
-  const satisfied = action([
-    'create',
-    'action',
-    '--title',
-    'Tests',
-    '--state',
-    'completed',
-  ]);
-  const source = action(['create', 'action', '--title', 'Deploy']);
   const edit = ['set', 'action', source.id];
   const read = ['get', 'action', source.id];
   const manualExample = readFileSync(
@@ -99,6 +115,15 @@ test('CLI manual/dependency journey exposes complete JSON and concise text while
     `owf:action:${satisfied.id} | Tests | completed | satisfied`,
   );
   expect(human.indexOf(refs[0]!)).toBeLessThan(human.indexOf(refs[1]!));
+});
+
+test('CLI listing exposes manual blocking in concise text and complete JSON', () => {
+  const { root, target, satisfied, source } = blockingFixture();
+  const manualText = 'Existing block';
+  const blocked = setAction(root, source.id, {
+    manualBlock: manualText,
+    addDependency: [target.id, satisfied.id],
+  }).result.action;
   const listArgs = [
     'list',
     'actions',
@@ -109,34 +134,22 @@ test('CLI manual/dependency journey exposes complete JSON and concise text while
     '--search',
     'Deploy',
   ];
-  expect(run(root, listArgs).stdout).toContain(`Manual block: ${manualText}`);
-  expect(run(root, listArgs).stdout).not.toContain('Dependencies:');
+  const listed = run(root, listArgs);
+  expect(listed.stdout).toContain(`Manual block: ${manualText}`);
+  expect(listed.stdout).not.toContain('Dependencies:');
   expect(JSON.parse(run(root, [...listArgs, '--json']).stdout)).toMatchObject({
     result: { actions: [blocked] },
   });
+});
+
+test('CLI rejects blocked completion atomically and clears the manual block independently', () => {
+  const { root, target, satisfied, source } = blockingFixture();
+  setAction(root, source.id, {
+    manualBlock: 'Existing block',
+    addDependency: [target.id, satisfied.id],
+  });
+  const edit = ['set', 'action', source.id];
   const before = snapshot(root);
-  for (const flags of [
-    ['--manual-block', ' '],
-    ['--manual-block', 'One', '--manual-block', 'Two'],
-    ['--clear-manual-block', '--clear-manual-block'],
-    ['--manual-block', 'One', '--clear-manual-block'],
-    [
-      '--add-dependency',
-      target.id,
-      '--remove-dependency',
-      `owf:action:${target.id}`,
-    ],
-    ['--add-dependency', '/project/'],
-    ['--add-dependency'],
-  ]) {
-    const invalid = run(root, [...edit, '--json', ...flags]);
-    expect(invalid.status).toBe(2);
-    expect(JSON.parse(invalid.stdout)).toMatchObject({
-      ok: false,
-      error: { code: 'INVALID_ARGUMENT' },
-    });
-    expect(snapshot(root)).toEqual(before);
-  }
   const forbidden = run(root, [
     ...edit,
     '--state',
@@ -154,6 +167,56 @@ test('CLI manual/dependency journey exposes complete JSON and concise text while
   expect(run(root, [...edit, '--clear-manual-block']).stdout).toContain(
     'Blocked: yes (dependencies: 1 unresolved of 2)',
   );
+});
+
+test.each([
+  ['blank manual block', ['--manual-block', ' ']],
+  [
+    'duplicate manual block',
+    ['--manual-block', 'One', '--manual-block', 'Two'],
+  ],
+  ['duplicate clear', ['--clear-manual-block', '--clear-manual-block']],
+  ['set and clear', ['--manual-block', 'One', '--clear-manual-block']],
+  [
+    'add and remove',
+    ['--add-dependency', '{id}', '--remove-dependency', 'owf:action:{id}'],
+  ],
+  ['invalid dependency', ['--add-dependency', '/project/']],
+  ['missing dependency', ['--add-dependency']],
+] as const)('blocking CLI rejects %s without writes', (_name, flags) => {
+  const { root, source, target, satisfied } = blockingFixture();
+  setAction(root, source.id, {
+    manualBlock: 'Existing block',
+    addDependency: [target.id, satisfied.id],
+  });
+  const before = snapshot(root);
+  const invalid = run(root, [
+    'set',
+    'action',
+    source.id,
+    '--json',
+    ...flags.map((flag) => flag.replace('{id}', target.id)),
+  ]);
+  expect(invalid.status).toBe(2);
+  expect(JSON.parse(invalid.stdout)).toMatchObject({
+    ok: false,
+    error: { code: 'INVALID_ARGUMENT' },
+  });
+  expect(snapshot(root)).toEqual(before);
+});
+
+test('CLI prerequisite completion and reopening update derived blocking without rewriting the dependent Action', () => {
+  const { root, target, satisfied, source } = blockingFixture();
+  setAction(root, source.id, { addDependency: [target.id, satisfied.id] });
+  const action = (args: string[]) => {
+    const result = run(root, [...args, '--json']);
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    return z
+      .object({ result: z.object({ action: boardAction }) })
+      .parse(JSON.parse(result.stdout)).result.action;
+  };
+  const edit = ['set', 'action', source.id];
+  const read = ['get', 'action', source.id];
   action(['set', 'action', target.id, '--state', 'completed']);
   const complete = action([...edit, '--state', 'completed']);
   expect(complete.blocking?.blocked).toBe(false);
@@ -162,6 +225,20 @@ test('CLI manual/dependency journey exposes complete JSON and concise text while
   expect(corrected.state).toBe('completed');
   expect(corrected.updated_at).toBe(complete.updated_at);
   expect(corrected.blocking?.blocked).toBe(true);
+});
+
+test('CLI dependency edits allow self and mutual references', () => {
+  const { root, target, satisfied, source } = blockingFixture('completed');
+  setAction(root, source.id, { addDependency: [target.id, satisfied.id] });
+  const action = (args: string[]) => {
+    const result = run(root, [...args, '--json']);
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    return z
+      .object({ result: z.object({ action: boardAction }) })
+      .parse(JSON.parse(result.stdout)).result.action;
+  };
+  const edit = ['set', 'action', source.id];
+  const read = ['get', 'action', source.id];
   action([
     ...edit,
     '--remove-dependency',
@@ -172,16 +249,10 @@ test('CLI manual/dependency journey exposes complete JSON and concise text while
   action(['set', 'action', satisfied.id, '--add-dependency', source.id]);
   expect(action(read).depends_on).toContain(`owf:action:${source.id}`);
   expect(run(root, [...read]).status).toBe(0);
-  expect(run(root, ['set', 'action', '--help']).stdout).toContain(
-    '--remove-dependency',
-  );
-  // This journey exercises many independent CLI processes on Windows.
-}, 15_000);
+});
 
-test('create CLI accepts initial waiting state, renders it and rejects malformed options without writes', () => {
-  const root = temporaryDirectory();
-  roots.push(root);
-  expect(run(root, ['init']).status).toBe(0);
+test('create CLI accepts initial waiting state and renders JSON and human fields', () => {
+  const root = workspaceFixture();
   const args = [
     'create',
     'action',
@@ -219,8 +290,10 @@ test('create CLI accepts initial waiting state, renders it and rejects malformed
   expect(human.stdout).toContain('created action');
   expect(human.stdout).toContain('State: waiting');
   expect(human.stdout).toContain('Waiting for:   Supplier reply  ');
-  const before = snapshot(root);
-  for (const options of [
+});
+
+test.each(
+  [
     ['--state', 'open', '--state', 'waiting'],
     ['--state=open', '--state=open'],
     ['--state', 'waiting', '--waiting-for', 'First', '--waiting-for', 'Second'],
@@ -228,7 +301,24 @@ test('create CLI accepts initial waiting state, renders it and rejects malformed
     ['--state', 'open,waiting'],
     ['--state', 'waiting', '--waiting-for', '  '],
     ['--waiting-for', 'Reply'],
-  ]) {
+  ].map((options) => ({ options })),
+)(
+  'create CLI rejects malformed waiting options $options without writes',
+  ({ options }) => {
+    const root = workspaceFixture();
+    createAction(root, {
+      title: 'Wait',
+      state: 'waiting',
+      waitingFor: '  Supplier reply  ',
+      owner: '/',
+      description: 'Details',
+    });
+    createAction(root, {
+      title: 'Wait',
+      state: 'waiting',
+      waitingFor: '  Supplier reply  ',
+    });
+    const before = snapshot(root);
     const failed = run(root, [
       'create',
       'action',
@@ -243,32 +333,27 @@ test('create CLI accepts initial waiting state, renders it and rejects malformed
       error: { code: 'INVALID_ARGUMENT' },
     });
     expect(snapshot(root)).toEqual(before);
-  }
+  },
+);
+
+test('create Action help documents waiting state and owner selection', () => {
+  const root = workspaceFixture();
+  createAction(root, { title: 'Call supplier', description: '' });
+  const before = snapshot(root);
   const help = run(root, ['create', 'action', '--help']).stdout;
   expect(help).toContain('--state');
   expect(help).toContain('--waiting-for');
   expect(help).toContain('open (default)');
+  expect(help).toContain('/ selects');
+  expect(snapshot(root)).toEqual(before);
 });
 
-test('set CLI renders changed and unchanged Actions, validates arguments and forwards combined filters', () => {
-  const root = temporaryDirectory();
-  roots.push(root);
-  expect(run(root, ['init']).status).toBe(0);
-  expect(run(root, ['create', 'project', '--title', 'Kitchen']).status).toBe(0);
-  const created = run(join(root, '_projects/kitchen'), [
-    'create',
-    'action',
-    '--title',
-    'Wait',
-    '--json',
-  ]);
-  const {
-    result: {
-      action: { id },
-    },
-  } = z
-    .object({ result: z.object({ action: z.object({ id: z.uuidv4() }) }) })
-    .parse(JSON.parse(created.stdout));
+test('set CLI renders changed and unchanged Actions and forwards combined filters', () => {
+  const root = workspaceFixture();
+  create(root, { type: 'project', title: 'Kitchen' });
+  const { id } = createAction(join(root, '_projects/kitchen'), {
+    title: 'Wait',
+  }).result.action;
   const command = [
     'set',
     'action',
@@ -321,21 +406,43 @@ test('set CLI renders changed and unchanged Actions, validates arguments and for
       actions: [{ id, state: 'waiting', waiting_for: '  Supplier reply  ' }],
     },
   });
-  const before = snapshot(root);
-  for (const args of [
+});
+
+test.each(
+  [
     [],
     ['--state', 'archived'],
     ['--state', 'waiting', '--waiting-for', ' '],
     ['--state', 'completed', '--waiting-for', 'Reply'],
     ['--state', 'open,waiting'],
-  ]) {
-    const failed = run(root, ['set', 'action', id, '--json', ...args]);
-    expect(failed.status).toBe(2);
-    expect(JSON.parse(failed.stdout)).toMatchObject({
-      ok: false,
-      error: { code: 'INVALID_ARGUMENT' },
-    });
-  }
+  ].map((args) => ({ args })),
+)('set CLI rejects invalid state options $args without writes', ({ args }) => {
+  const root = workspaceFixture();
+  create(root, { type: 'project', title: 'Kitchen' });
+  const { id } = createAction(join(root, '_projects/kitchen'), {
+    title: 'Wait',
+    state: 'waiting',
+    waitingFor: '  Supplier reply  ',
+  }).result.action;
+  const before = snapshot(root);
+  const failed = run(root, ['set', 'action', id, '--json', ...args]);
+  expect(failed.status).toBe(2);
+  expect(JSON.parse(failed.stdout)).toMatchObject({
+    ok: false,
+    error: { code: 'INVALID_ARGUMENT' },
+  });
+  expect(snapshot(root)).toEqual(before);
+});
+
+test('set CLI reports an unknown Action without writes', () => {
+  const root = workspaceFixture();
+  create(root, { type: 'project', title: 'Kitchen' });
+  createAction(join(root, '_projects/kitchen'), {
+    title: 'Wait',
+    state: 'waiting',
+    waitingFor: '  Supplier reply  ',
+  });
+  const before = snapshot(root);
   const missing = run(root, [
     'set',
     'action',
@@ -349,11 +456,15 @@ test('set CLI renders changed and unchanged Actions, validates arguments and for
     error: { code: 'ACTION_NOT_FOUND' },
   });
   expect(snapshot(root)).toEqual(before);
+});
+
+test('set Action help documents waiting, unchanged results and dependency removal', () => {
+  const root = workspaceFixture();
   const help = run(root, ['set', 'action', '--help']).stdout;
   expect(help).toContain('--waiting-for');
   expect(help).toContain('unchanged');
-  // Fourteen real Node processes can exceed the default 5 seconds on Windows.
-}, 15_000);
+  expect(help).toContain('--remove-dependency');
+});
 test('real processes initialize and rediscover immutable workspace in spaces/Unicode path', () => {
   const root = temporaryDirectory();
   roots.push(root);
@@ -431,19 +542,10 @@ test('generated guide examples execute through the built CLI outside checkout', 
     '# Index\n\n- [Work board](work-board.md)\n',
   );
   const prerequisiteIds = Array.from({ length: 3 }, (_, index) => {
-    const created = run(root, [
-      'create',
-      'action',
-      '--title',
-      `Guide prerequisite ${index}`,
-      '--state',
-      'completed',
-      '--json',
-    ]);
-    expect(created.status).toBe(0);
-    return z
-      .object({ result: z.object({ action: z.object({ id: z.string() }) }) })
-      .parse(JSON.parse(created.stdout)).result.action.id;
+    return createAction(root, {
+      title: `Guide prerequisite ${index}`,
+      state: 'completed',
+    }).result.action.id;
   });
   const placeholders: Record<string, string> = {
     '{prerequisite-id}': prerequisiteIds[0]!,
@@ -484,13 +586,18 @@ test('generated guide examples execute through the built CLI outside checkout', 
       'utf8',
     ),
   ).toContain('## Expected Result\n\nMaterials selected');
-  for (const type of ['project', 'outcome'])
-    expect(run(root, ['create', type, '--help']).stdout).toContain('--slug');
-  expect(run(root, ['create', 'outcome', '--help']).stdout).toContain(
-    '--expected-result',
-  );
   // Allow process startup under concurrent suite load on Windows; this is not a performance assertion.
 }, 30_000);
+
+test.each(['project', 'outcome'])(
+  'create %s help documents context flags',
+  (type) => {
+    const root = workspaceFixture();
+    const help = run(root, ['create', type, '--help']).stdout;
+    expect(help).toContain('--slug');
+    if (type === 'outcome') expect(help).toContain('--expected-result');
+  },
+);
 
 test.each([
   [['project', '--json'], 'INVALID_ARGUMENT', 2],
@@ -547,12 +654,10 @@ test('flag-looking values do not activate JSON; explicit JSON still reports fail
   });
 });
 
-test('explicit owner overrides cwd, conflicts exit 1, log warning succeeds in both output modes', () => {
-  const root = temporaryDirectory();
-  roots.push(root);
-  run(root, ['init']);
-  run(root, ['create', 'project', '--title', 'Kitchen']);
-  run(root, ['create', 'project', '--title', 'Garden']);
+test('explicit owner overrides cwd and path conflicts exit 1', () => {
+  const root = workspaceFixture();
+  create(root, { type: 'project', title: 'Kitchen' });
+  create(root, { type: 'project', title: 'Garden' });
   const args = [
     'create',
     'outcome',
@@ -574,8 +679,13 @@ test('explicit owner overrides cwd, conflicts exit 1, log warning succeeds in bo
   expect(JSON.parse(duplicate.stdout)).toMatchObject({
     error: { code: 'PATH_CONFLICT' },
   });
-  writeFileSync(join(root, 'log.md'), 'Do not overwrite');
-  for (const json of [true, false]) {
+});
+
+test.each([true, false])(
+  'log warning succeeds with json=%s and preserves the existing file',
+  (json) => {
+    const root = workspaceFixture();
+    writeFileSync(join(root, 'log.md'), 'Do not overwrite');
     const warning = run(root, [
       'create',
       'project',
@@ -590,11 +700,11 @@ test('explicit owner overrides cwd, conflicts exit 1, log warning succeeds in bo
         warnings: [{ code: 'LOG_WRITE_FAILED' }],
       });
     else expect(warning.stderr).toContain('LOG_WRITE_FAILED');
-  }
-  expect(readFileSync(join(root, 'log.md'), 'utf8')).toBe('Do not overwrite');
-});
+    expect(readFileSync(join(root, 'log.md'), 'utf8')).toBe('Do not overwrite');
+  },
+);
 
-test('Action commands round trip across processes with complete envelopes, human fields and precise errors', () => {
+test('Action commands round trip across processes with complete envelopes and human fields', () => {
   const root = temporaryDirectory();
   roots.push(root);
   expect(run(root, ['init']).status).toBe(0);
@@ -662,64 +772,66 @@ test('Action commands round trip across processes with complete envelopes, human
     `Root: ${root}`,
   ])
     expect(human.stdout.split(/\r?\n/u)).toContain(field);
-  for (const [args, code, status] of [
-    [
-      ['create', 'action', '--title', 'X', '--state', 'archived', '--json'],
-      'INVALID_ARGUMENT',
-      2,
-    ],
-    [
-      ['create', 'action', '--title', 'X', '--slug', 'x', '--json'],
-      'INVALID_ARGUMENT',
-      2,
-    ],
-    [['create', 'action', '--title', ' ', '--json'], 'INVALID_TITLE', 2],
-    [
-      ['get', 'action', saved.result.uri, 'extra', '--json'],
-      'INVALID_ARGUMENT',
-      2,
-    ],
-    [['get', 'action', '--json'], 'INVALID_ARGUMENT', 2],
-    [['get', 'action', 'invalid', '--json'], 'INVALID_ARGUMENT', 2],
-    [
-      ['get', 'action', '00000000-0000-4000-8000-000000000000', '--json'],
-      'ACTION_NOT_FOUND',
-      1,
-    ],
-  ] as const) {
-    const result = run(root, [...args]);
+  expect(snapshot(root)).toEqual(before);
+});
+
+test.each([
+  [
+    ['create', 'action', '--title', 'X', '--state', 'archived', '--json'],
+    'INVALID_ARGUMENT',
+    2,
+  ],
+  [
+    ['create', 'action', '--title', 'X', '--slug', 'x', '--json'],
+    'INVALID_ARGUMENT',
+    2,
+  ],
+  [['create', 'action', '--title', ' ', '--json'], 'INVALID_TITLE', 2],
+  [
+    ['get', 'action', 'owf:action:{id}', 'extra', '--json'],
+    'INVALID_ARGUMENT',
+    2,
+  ],
+  [['get', 'action', '--json'], 'INVALID_ARGUMENT', 2],
+  [['get', 'action', 'invalid', '--json'], 'INVALID_ARGUMENT', 2],
+  [
+    ['get', 'action', '00000000-0000-4000-8000-000000000000', '--json'],
+    'ACTION_NOT_FOUND',
+    1,
+  ],
+] as const)(
+  'Action CLI rejects %j with %s and exit %i without writes',
+  (args, code, status) => {
+    const root = workspaceFixture();
+    const { id } = createAction(root, {
+      title: 'Call supplier',
+      description: '',
+    }).result.action;
+    const before = snapshot(root);
+    const result = run(
+      root,
+      args.map((arg) => arg.replace('{id}', id)),
+    );
     expect(result.status).toBe(status);
     expect(JSON.parse(result.stdout)).toMatchObject({
       ok: false,
       error: { code },
     });
-  }
-  expect(run(root, ['create', 'action', '--help']).stdout).toContain(
-    '/ selects',
-  );
+    expect(snapshot(root)).toEqual(before);
+  },
+);
+
+test('get Action help documents URI selectors', () => {
+  const root = workspaceFixture();
+  createAction(root, { title: 'Call supplier', description: '' });
+  const before = snapshot(root);
   expect(run(root, ['get', 'action', '--help']).stdout).toContain('owf:action');
   expect(snapshot(root)).toEqual(before);
 });
 
-test('Action listing renders complete JSON, compact human output and argument errors', () => {
-  const root = temporaryDirectory();
-  roots.push(root);
-  expect(run(root, ['init']).status).toBe(0);
-  const created = run(root, [
-    'create',
-    'action',
-    '--title',
-    'Call supplier',
-    '--description',
-    '',
-    '--json',
-  ]);
-  expect(created.status).toBe(0);
-  const saved = z
-    .object({
-      result: z.object({ action: z.object({ id: z.string() }).passthrough() }),
-    })
-    .parse(JSON.parse(created.stdout));
+test('Action listing renders complete JSON and compact human output', () => {
+  const root = workspaceFixture();
+  const saved = createAction(root, { title: 'Call supplier', description: '' });
   const before = snapshot(root);
   const listed = run(root, [
     'list',
@@ -749,7 +861,15 @@ test('Action listing renders complete JSON, compact human output and argument er
     'Owner: /',
   ])
     expect(listHuman.stdout.split(/\r?\n/u)).toContain(field);
-  for (const json of [false, true]) {
+  expect(snapshot(root)).toEqual(before);
+});
+
+test.each([false, true])(
+  'Action listing renders an empty result with json=%s without writes',
+  (json) => {
+    const root = workspaceFixture();
+    createAction(root, { title: 'Call supplier', description: '' });
+    const before = snapshot(root);
     const empty = run(root, [
       'list',
       'actions',
@@ -765,22 +885,36 @@ test('Action listing renders complete JSON, compact human output and argument er
         warnings: [],
       });
     else expect(empty.stdout.trim()).toBe('No Actions found.');
-  }
-  for (const args of [
+    expect(snapshot(root)).toEqual(before);
+  },
+);
+
+test.each(
+  [
     ['--recursive'],
     ['--owner', '/../'],
     ['--json', '--owner'],
     ['--state', 'archived'],
     ['--state', 'open,waiting'],
     ['extra'],
-  ]) {
-    const failed = run(root, ['list', 'actions', '--json', ...args]);
-    expect(failed.status).toBe(2);
-    expect(JSON.parse(failed.stdout)).toMatchObject({
-      ok: false,
-      error: { code: 'INVALID_ARGUMENT' },
-    });
-  }
+  ].map((args) => ({ args })),
+)('Action listing rejects $args without writes', ({ args }) => {
+  const root = workspaceFixture();
+  createAction(root, { title: 'Call supplier', description: '' });
+  const before = snapshot(root);
+  const failed = run(root, ['list', 'actions', '--json', ...args]);
+  expect(failed.status).toBe(2);
+  expect(JSON.parse(failed.stdout)).toMatchObject({
+    ok: false,
+    error: { code: 'INVALID_ARGUMENT' },
+  });
+  expect(snapshot(root)).toEqual(before);
+});
+
+test('Action listing help documents scope and output flags', () => {
+  const root = workspaceFixture();
+  createAction(root, { title: 'Call supplier', description: '' });
+  const before = snapshot(root);
   const help = run(root, ['list', 'actions', '--help']).stdout;
   for (const text of [
     'regardless of working directory',
@@ -793,18 +927,9 @@ test('Action listing renders complete JSON, compact human output and argument er
 });
 
 test('listing CLI forwards recursive ownership and reports read/store failures with exit 1', () => {
-  const root = temporaryDirectory();
-  roots.push(root);
-  expect(run(root, ['init']).status).toBe(0);
-  expect(run(root, ['create', 'project', '--title', 'Kitchen']).status).toBe(0);
-  expect(
-    run(join(root, '_projects/kitchen'), [
-      'create',
-      'action',
-      '--title',
-      'Nested',
-    ]).status,
-  ).toBe(0);
+  const root = workspaceFixture();
+  create(root, { type: 'project', title: 'Kitchen' });
+  createAction(join(root, '_projects/kitchen'), { title: 'Nested' });
   const before = snapshot(root);
   for (const recursive of [false, true]) {
     const result = run(root, [
@@ -854,17 +979,9 @@ test('listing CLI forwards recursive ownership and reports read/store failures w
   }
 });
 
-test('set action CLI supports combined edits and rejects duplicate or contradictory flags', () => {
-  const root = temporaryDirectory();
-  roots.push(root);
-  expect(run(root, ['init']).status).toBe(0);
-  const created = z
-    .object({ result: z.object({ action: z.object({ id: z.string() }) }) })
-    .parse(
-      JSON.parse(
-        run(root, ['create', 'action', '--title', 'Original', '--json']).stdout,
-      ),
-    );
+test('set action CLI supports combined edits and clears optional fields', () => {
+  const root = workspaceFixture();
+  const created = createAction(root, { title: 'Original' });
   const id = created.result.action.id;
   const changed = run(root, [
     'set',
@@ -912,8 +1029,10 @@ test('set action CLI supports combined edits and rejects duplicate or contradict
     .parse(JSON.parse(cleared.stdout)).result.action;
   expect(clearedAction).not.toHaveProperty('description');
   expect(clearedAction).not.toHaveProperty('waiting_for');
-  const before = snapshot(root);
-  for (const options of [
+});
+
+test.each(
+  [
     [],
     ['--title', 'A', '--title', 'B'],
     ['--description=', '--description', 'A'],
@@ -923,7 +1042,17 @@ test('set action CLI supports combined edits and rejects duplicate or contradict
     ['--clear-waiting-for', '--clear-waiting-for'],
     ['--description', 'A', '--clear-description'],
     ['--state', 'completed', '--clear-waiting-for'],
-  ]) {
+  ].map((options) => ({ options })),
+)(
+  'set action CLI rejects duplicate or contradictory flags $options without writes',
+  ({ options }) => {
+    const root = workspaceFixture();
+    const { id } = createAction(root, {
+      title: 'Revised',
+      state: 'waiting',
+      owner: '/',
+    }).result.action;
+    const before = snapshot(root);
     const result = run(root, ['set', 'action', id, '--json', ...options]);
     expect(result.status).toBe(2);
     expect(
@@ -932,8 +1061,8 @@ test('set action CLI supports combined edits and rejects duplicate or contradict
         .parse(JSON.parse(result.stdout)).error.code,
     ).toBe('INVALID_ARGUMENT');
     expect(snapshot(root)).toEqual(before);
-  }
-});
+  },
+);
 
 test('built search CLI validates arguments, combines filters and runs the documented guide example', () => {
   const root = temporaryDirectory();
